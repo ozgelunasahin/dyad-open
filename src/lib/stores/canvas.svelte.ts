@@ -1,6 +1,7 @@
-import type { Card, Connection, Camera, Note, Point, Vault } from '$lib/types';
-import { MAX_CARDS } from '$lib/types';
+import type { Card, Connection, Camera, Point, Vault, Dimensions } from '$lib/types';
+import { MAX_CARDS, DEFAULT_CARD_WIDTH, MIN_CARD_WIDTH, MAX_CARD_WIDTH } from '$lib/types';
 import { calculateNewCardPosition } from '$lib/utils/layout';
+import { measureMarkdownContent, calculateOptimalWidth } from '$lib/utils/measure';
 
 const STORAGE_KEY = 'spatial-reader-state';
 
@@ -36,6 +37,10 @@ class CanvasStore {
 	connections = $state<Connection[]>([]);
 	activeChain = $state<string[]>([]);
 	camera = $state<Camera>({ x: 0, y: 0, zoom: 1 });
+
+	// Focus state for smooth centering
+	focusedCardId = $state<string | null>(null);
+	isAnimating = $state<boolean>(false);
 
 	private history = $state<{ back: string[][]; forward: string[][] }>({
 		back: [],
@@ -85,6 +90,22 @@ class CanvasStore {
 		return this.brokenLinks.has(target);
 	}
 
+	/**
+	 * Calculate dimensions for a note's content.
+	 */
+	private calculateCardDimensions(content: string): Dimensions {
+		// Calculate optimal width based on content
+		const optimalWidth = calculateOptimalWidth(content, 1000, MIN_CARD_WIDTH, MAX_CARD_WIDTH);
+
+		// Measure actual height at this width
+		const measured = measureMarkdownContent(content, optimalWidth);
+
+		return {
+			width: optimalWidth,
+			height: Math.max(100, measured.height) // Minimum height
+		};
+	}
+
 	openNote(noteId: string, fromCardId: string | null, linkPosition: Point | null): boolean {
 		if (!this.vault) return false;
 
@@ -93,10 +114,11 @@ class CanvasStore {
 
 		// Check if note is already open
 		if (this.cards.has(noteId)) {
-			// Just update active chain
+			// Update active chain and focus
 			this.history.back.push([...this.activeChain]);
 			this.history.forward = [];
 			this.activeChain = [...this.activeChain, noteId];
+			this.focusCard(noteId);
 			this.persistState();
 			return true;
 		}
@@ -106,18 +128,27 @@ class CanvasStore {
 			return false;
 		}
 
+		// Calculate dimensions for new card
+		const dimensions = this.calculateCardDimensions(note.content);
+
 		// Get parent card if exists
 		const parentCard = fromCardId ? this.cards.get(fromCardId) ?? null : null;
 		const existingCards = Array.from(this.cards.values());
 
-		// Calculate position
-		const position = calculateNewCardPosition(parentCard, existingCards, linkPosition);
+		// Calculate position using priority-based algorithm
+		const { position } = calculateNewCardPosition(
+			parentCard,
+			existingCards,
+			linkPosition,
+			dimensions
+		);
 
 		// Create new card
 		const newCard: Card = {
 			id: noteId,
 			note,
 			position,
+			dimensions,
 			parentId: fromCardId,
 			sourceLink: linkPosition
 		};
@@ -144,8 +175,35 @@ class CanvasStore {
 		this.history.forward = [];
 		this.activeChain = [...this.activeChain, noteId];
 
+		// Focus on new card
+		this.focusCard(noteId);
+
 		this.persistState();
 		return true;
+	}
+
+	/**
+	 * Focus on a card and smoothly center the view.
+	 */
+	focusCard(cardId: string): void {
+		const card = this.cards.get(cardId);
+		if (!card) return;
+
+		this.focusedCardId = cardId;
+
+		// Dispatch event for Canvas to animate
+		if (typeof window !== 'undefined') {
+			this.isAnimating = true;
+			window.dispatchEvent(
+				new CustomEvent('canvas-focus', {
+					detail: {
+						x: card.position.x + card.dimensions.width / 2,
+						y: card.position.y + card.dimensions.height / 2,
+						cardId: card.id
+					}
+				})
+			);
+		}
 	}
 
 	goBack(): void {
@@ -159,6 +217,13 @@ class CanvasStore {
 			forward: newForward
 		};
 		this.activeChain = previousChain;
+
+		// Focus on last card in chain
+		const lastCard = previousChain[previousChain.length - 1];
+		if (lastCard) {
+			this.focusCard(lastCard);
+		}
+
 		this.persistState();
 	}
 
@@ -173,12 +238,23 @@ class CanvasStore {
 			forward: [...this.history.forward]
 		};
 		this.activeChain = nextChain;
+
+		// Focus on last card in chain
+		const lastCard = nextChain[nextChain.length - 1];
+		if (lastCard) {
+			this.focusCard(lastCard);
+		}
+
 		this.persistState();
 	}
 
 	updateCamera(camera: Camera): void {
 		this.camera = camera;
 		this.persistState();
+	}
+
+	setAnimating(animating: boolean): void {
+		this.isAnimating = animating;
 	}
 
 	isInActiveChain(cardId: string): boolean {
@@ -204,6 +280,7 @@ class CanvasStore {
 		this.connections = [];
 		this.activeChain = [];
 		this.history = { back: [], forward: [] };
+		this.focusedCardId = null;
 
 		if (this.vault) {
 			const entry = this.vault.notes[this.vault.entryPoint];

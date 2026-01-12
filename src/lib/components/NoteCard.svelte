@@ -1,6 +1,5 @@
 <script lang="ts">
 	import type { Card, Point } from '$lib/types';
-	import { CARD_WIDTH, CARD_HEIGHT } from '$lib/types';
 	import { parseMarkdown } from '$lib/utils/markdown';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 
@@ -14,27 +13,39 @@
 
 	let html = $derived(parseMarkdown(card.note.content));
 
+	function handleInteraction(target: HTMLElement) {
+		if (!target.classList.contains('wikilink')) return;
+
+		const noteId = target.dataset.target;
+		if (!noteId) return;
+
+		if (canvasStore.isLinkBroken(noteId)) return;
+
+		const rect = target.getBoundingClientRect();
+		const linkPosition: Point = {
+			x: rect.left + rect.width / 2,
+			y: rect.bottom + 2 // Bottom of link (underline position) + small offset
+		};
+
+		onLinkClick(noteId, card.id, linkPosition);
+	}
+
 	function handleClick(event: MouseEvent) {
 		const target = event.target as HTMLElement;
-
 		if (target.classList.contains('wikilink')) {
 			event.preventDefault();
 			event.stopPropagation();
+			handleInteraction(target);
+		}
+	}
 
-			const noteId = target.dataset.target;
-			if (!noteId) return;
-
-			if (canvasStore.isLinkBroken(noteId)) {
-				return;
+	function handleKeyDown(event: KeyboardEvent) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			const target = event.target as HTMLElement;
+			if (target.classList.contains('wikilink')) {
+				event.preventDefault();
+				handleInteraction(target);
 			}
-
-			const rect = target.getBoundingClientRect();
-			const linkPosition: Point = {
-				x: rect.left + rect.width / 2,
-				y: rect.top + rect.height / 2
-			};
-
-			onLinkClick(noteId, card.id, linkPosition);
 		}
 	}
 
@@ -60,16 +71,17 @@
 <foreignObject
 	x={card.position.x}
 	y={card.position.y}
-	width={CARD_WIDTH}
-	height={CARD_HEIGHT}
+	width={card.dimensions.width}
+	height={card.dimensions.height}
 	class="text-block-container"
 >
-	<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		xmlns="http://www.w3.org/1999/xhtml"
 		class="text-block"
 		class:dimmed={!isActive}
 		onclick={handleClick}
+		onkeydown={handleKeyDown}
 		bind:this={contentEl}
 	>
 		{@html html}
@@ -83,7 +95,7 @@
 
 	.text-block {
 		height: 100%;
-		overflow-y: auto;
+		overflow: hidden;
 		font-family: 'Georgia', 'Times New Roman', 'Noto Serif', serif;
 		font-size: 14px;
 		line-height: 1.7;
@@ -195,21 +207,9 @@
 		border-bottom-color: var(--border-code);
 	}
 
-	/* Scrollbar styling */
+	/* Scrollbar styling - hidden since we use full height */
 	.text-block::-webkit-scrollbar {
-		width: 4px;
-	}
-
-	.text-block::-webkit-scrollbar-track {
-		background: transparent;
-	}
-
-	.text-block::-webkit-scrollbar-thumb {
-		background: var(--scrollbar-thumb);
-		border-radius: 2px;
-	}
-
-	.text-block::-webkit-scrollbar-thumb:hover {
-		background: var(--scrollbar-thumb-hover);
+		width: 0;
+		display: none;
 	}
 </style>

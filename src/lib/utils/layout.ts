@@ -1,93 +1,186 @@
-import type { Card, Point } from '$lib/types';
-import { CARD_WIDTH, CARD_HEIGHT, CARD_SPACING } from '$lib/types';
+import type { Card, Point, Dimensions } from '$lib/types';
+import { CARD_SPACING } from '$lib/types';
 
-function normalizeVector(v: Point): Point {
-	const mag = Math.sqrt(v.x * v.x + v.y * v.y);
-	if (mag === 0) return { x: 1, y: 0 };
-	return { x: v.x / mag, y: v.y / mag };
+export type PlacementDirection = 'right' | 'below' | 'left';
+
+interface PlacementResult {
+	position: Point;
+	direction: PlacementDirection;
 }
 
-function hasOverlap(candidate: Point, cards: Card[]): boolean {
-	const padding = CARD_SPACING / 2;
-	return cards.some((card) => {
-		const dx = Math.abs(candidate.x - card.position.x);
-		const dy = Math.abs(candidate.y - card.position.y);
-		return dx < CARD_WIDTH + padding && dy < CARD_HEIGHT + padding;
-	});
-}
-
+/**
+ * Calculate new card position with left-to-right flow.
+ * Uses linkPosition to align cards vertically near the originating link.
+ */
 export function calculateNewCardPosition(
 	parentCard: Card | null,
 	existingCards: Card[],
-	linkPosition: Point | null
-): Point {
+	linkPosition: Point | null,
+	newCardDimensions: Dimensions
+): PlacementResult {
 	if (!parentCard) {
-		return { x: 0, y: 0 };
+		return { position: { x: 0, y: 0 }, direction: 'right' };
 	}
 
-	const parentCenter = {
-		x: parentCard.position.x + CARD_WIDTH / 2,
-		y: parentCard.position.y + CARD_HEIGHT / 2
+	// Primary: Place to the right, vertically aligned near the link
+	const rightPosition = {
+		x: parentCard.position.x + parentCard.dimensions.width + CARD_SPACING,
+		y: linkPosition
+			? Math.max(0, linkPosition.y - 30) // Align card top near link position
+			: parentCard.position.y
 	};
 
-	const direction = linkPosition
-		? normalizeVector({
-				x: linkPosition.x - parentCenter.x,
-				y: linkPosition.y - parentCenter.y
-			})
-		: { x: 1, y: 0 };
+	if (!hasOverlap(rightPosition, newCardDimensions, existingCards)) {
+		return { position: rightPosition, direction: 'right' };
+	}
 
-	const baseDistance = CARD_WIDTH + CARD_SPACING;
-	let distance = baseDistance;
-	let angle = Math.atan2(direction.y, direction.x);
-	let attempts = 0;
+	// Try right with vertical offset variations
+	const rightAlternatives = tryRightAlternatives(
+		parentCard,
+		linkPosition,
+		newCardDimensions,
+		existingCards
+	);
+	if (rightAlternatives) {
+		return { position: rightAlternatives, direction: 'right' };
+	}
 
-	while (attempts < 32) {
+	// Secondary: Below the lowest existing card (footnote style)
+	const lowestPoint = findLowestPoint(existingCards);
+	const belowPosition = {
+		x: linkPosition ? linkPosition.x - newCardDimensions.width / 2 : parentCard.position.x,
+		y: lowestPoint + CARD_SPACING
+	};
+
+	// Clamp x to prevent going off-screen left
+	belowPosition.x = Math.max(0, belowPosition.x);
+
+	if (!hasOverlap(belowPosition, newCardDimensions, existingCards)) {
+		return { position: belowPosition, direction: 'below' };
+	}
+
+	// Fallback: Find any available space scanning rightward
+	return {
+		position: findAvailableSpaceToRight(parentCard, existingCards, newCardDimensions),
+		direction: 'right'
+	};
+}
+
+/**
+ * Try alternative positions to the right with vertical offsets.
+ */
+function tryRightAlternatives(
+	parent: Card,
+	linkPosition: Point | null,
+	dimensions: Dimensions,
+	existingCards: Card[]
+): Point | null {
+	const baseX = parent.position.x + parent.dimensions.width + CARD_SPACING;
+	const baseY = linkPosition ? linkPosition.y - 30 : parent.position.y;
+
+	// Try different vertical offsets
+	const verticalOffsets = [0, 50, 100, -50, 150, -100, 200];
+
+	for (const offset of verticalOffsets) {
 		const candidate = {
-			x: parentCenter.x + Math.cos(angle) * distance - CARD_WIDTH / 2,
-			y: parentCenter.y + Math.sin(angle) * distance - CARD_HEIGHT / 2
+			x: baseX,
+			y: Math.max(0, baseY + offset)
 		};
 
-		if (!hasOverlap(candidate, existingCards)) {
+		if (!hasOverlap(candidate, dimensions, existingCards)) {
 			return candidate;
 		}
-
-		angle += Math.PI / 8;
-		if (attempts % 16 === 15) {
-			distance += CARD_SPACING;
-		}
-		attempts++;
 	}
 
+	// Try further right if blocked
+	const farRightX = findRightmostEdge(existingCards) + CARD_SPACING;
+	const farRightPos = {
+		x: farRightX,
+		y: baseY
+	};
+
+	if (!hasOverlap(farRightPos, dimensions, existingCards)) {
+		return farRightPos;
+	}
+
+	return null;
+}
+
+/**
+ * Find the lowest point (bottom edge) of all existing cards.
+ */
+function findLowestPoint(cards: Card[]): number {
+	if (cards.length === 0) return 0;
+
+	return Math.max(...cards.map((card) => card.position.y + card.dimensions.height));
+}
+
+/**
+ * Find the rightmost edge of all existing cards.
+ */
+function findRightmostEdge(cards: Card[]): number {
+	if (cards.length === 0) return 0;
+
+	return Math.max(...cards.map((card) => card.position.x + card.dimensions.width));
+}
+
+/**
+ * Find available space by scanning rightward and downward.
+ */
+function findAvailableSpaceToRight(
+	parent: Card,
+	existingCards: Card[],
+	dimensions: Dimensions
+): Point {
+	const rightEdge = findRightmostEdge(existingCards);
+	const startX = rightEdge + CARD_SPACING;
+
+	// Try positions in a grid pattern to the right
+	for (let xOffset = 0; xOffset < 3; xOffset++) {
+		for (let yOffset = 0; yOffset < 5; yOffset++) {
+			const candidate = {
+				x: startX + xOffset * (dimensions.width + CARD_SPACING),
+				y: parent.position.y + yOffset * (100 + CARD_SPACING)
+			};
+
+			if (!hasOverlap(candidate, dimensions, existingCards)) {
+				return candidate;
+			}
+		}
+	}
+
+	// Ultimate fallback: far to the right
 	return {
-		x: parentCard.position.x,
-		y: parentCard.position.y + CARD_HEIGHT + CARD_SPACING
+		x: rightEdge + CARD_SPACING * 2,
+		y: parent.position.y
 	};
 }
 
+/**
+ * Check if a position overlaps with any existing cards.
+ */
+function hasOverlap(candidate: Point, dimensions: Dimensions, cards: Card[]): boolean {
+	const padding = CARD_SPACING / 2;
+
+	return cards.some((card) => {
+		const dx = Math.abs(
+			candidate.x + dimensions.width / 2 - (card.position.x + card.dimensions.width / 2)
+		);
+		const dy = Math.abs(
+			candidate.y + dimensions.height / 2 - (card.position.y + card.dimensions.height / 2)
+		);
+		const overlapX = (dimensions.width + card.dimensions.width) / 2 + padding;
+		const overlapY = (dimensions.height + card.dimensions.height) / 2 + padding;
+		return dx < overlapX && dy < overlapY;
+	});
+}
+
+/**
+ * Get the center point of a card.
+ */
 export function getCardCenter(card: Card): Point {
 	return {
-		x: card.position.x + CARD_WIDTH / 2,
-		y: card.position.y + CARD_HEIGHT / 2
+		x: card.position.x + card.dimensions.width / 2,
+		y: card.position.y + card.dimensions.height / 2
 	};
-}
-
-export function getConnectionPoints(
-	fromCard: Card,
-	toCard: Card,
-	sourcePoint: Point | null
-): { from: Point; to: Point } {
-	const fromCenter = getCardCenter(fromCard);
-	const toCenter = getCardCenter(toCard);
-
-	const from = sourcePoint || fromCenter;
-
-	const angle = Math.atan2(toCenter.y - from.y, toCenter.x - from.x);
-
-	const to = {
-		x: toCenter.x - Math.cos(angle) * (CARD_WIDTH / 2 + 10),
-		y: toCenter.y - Math.sin(angle) * (CARD_HEIGHT / 2 + 10)
-	};
-
-	return { from, to };
 }
