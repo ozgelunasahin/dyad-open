@@ -50,9 +50,10 @@ export interface Vault {
 export const MIN_CARD_WIDTH = 220;
 export const MAX_CARD_WIDTH = 440;
 export const DEFAULT_CARD_WIDTH = 320;
-export const CARD_SPACING = 40;
+export const CARD_SPACING = 50;
+export const CARD_SPACING_VERTICAL = 40;
 export const MAX_CARDS = 50;
 
 // Pathfinding grid
 export const GRID_CELL_SIZE = 10;
-export const OBSTACLE_PADDING = 15;
+export const OBSTACLE_PADDING = 20;

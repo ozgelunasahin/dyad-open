@@ -1,16 +1,32 @@
 import type { Card, Point, Dimensions } from '$lib/types';
 import { CARD_SPACING } from '$lib/types';
 
-export type PlacementDirection = 'right' | 'below' | 'left';
+export type PlacementDirection = 'right' | 'below' | 'left' | 'above';
 
 interface PlacementResult {
 	position: Point;
 	direction: PlacementDirection;
 }
 
+interface BoundingBox {
+	minX: number;
+	maxX: number;
+	minY: number;
+	maxY: number;
+	width: number;
+	height: number;
+	area: number;
+}
+
+interface ScoredCandidate {
+	position: Point;
+	direction: PlacementDirection;
+	score: number;
+}
+
 /**
- * Calculate new card position with left-to-right flow.
- * Uses linkPosition to align cards vertically near the originating link.
+ * Calculate new card position optimizing for compact rectangular layout.
+ * Considers positions in all directions and picks the one that minimizes bounding box expansion.
  */
 export function calculateNewCardPosition(
 	parentCard: Card | null,
@@ -22,137 +38,277 @@ export function calculateNewCardPosition(
 		return { position: { x: 0, y: 0 }, direction: 'right' };
 	}
 
-	// Primary: Place to the right, vertically aligned near the link
-	const rightPosition = {
-		x: parentCard.position.x + parentCard.dimensions.width + CARD_SPACING,
-		y: linkPosition
-			? Math.max(0, linkPosition.y - 30) // Align card top near link position
-			: parentCard.position.y
-	};
+	// Get current bounding box
+	const currentBounds = calculateBoundingBox(existingCards);
 
-	if (!hasOverlap(rightPosition, newCardDimensions, existingCards)) {
-		return { position: rightPosition, direction: 'right' };
-	}
-
-	// Try right with vertical offset variations
-	const rightAlternatives = tryRightAlternatives(
+	// Generate all candidate positions
+	const candidates = generateCandidates(
 		parentCard,
+		existingCards,
 		linkPosition,
 		newCardDimensions,
-		existingCards
+		currentBounds
 	);
-	if (rightAlternatives) {
-		return { position: rightAlternatives, direction: 'right' };
+
+	// Filter out overlapping positions and score remaining ones
+	const validCandidates: ScoredCandidate[] = [];
+
+	for (const candidate of candidates) {
+		if (!hasOverlap(candidate.position, newCardDimensions, existingCards)) {
+			const score = scoreCandidate(
+				candidate.position,
+				newCardDimensions,
+				existingCards,
+				parentCard,
+				currentBounds
+			);
+			validCandidates.push({ ...candidate, score });
+		}
 	}
 
-	// Secondary: Below the lowest existing card (footnote style)
-	const lowestPoint = findLowestPoint(existingCards);
-	const belowPosition = {
-		x: linkPosition ? linkPosition.x - newCardDimensions.width / 2 : parentCard.position.x,
-		y: lowestPoint + CARD_SPACING
-	};
-
-	// Clamp x to prevent going off-screen left
-	belowPosition.x = Math.max(0, belowPosition.x);
-
-	if (!hasOverlap(belowPosition, newCardDimensions, existingCards)) {
-		return { position: belowPosition, direction: 'below' };
+	// Sort by score (lower is better) and return best
+	if (validCandidates.length > 0) {
+		validCandidates.sort((a, b) => a.score - b.score);
+		return { position: validCandidates[0].position, direction: validCandidates[0].direction };
 	}
 
-	// Fallback: Find any available space scanning rightward
+	// Fallback: scan for any available space
 	return {
-		position: findAvailableSpaceToRight(parentCard, existingCards, newCardDimensions),
+		position: findAnyAvailableSpace(existingCards, newCardDimensions, currentBounds),
 		direction: 'right'
 	};
 }
 
 /**
- * Try alternative positions to the right with vertical offsets.
+ * Calculate bounding box of all cards.
  */
-function tryRightAlternatives(
-	parent: Card,
+function calculateBoundingBox(cards: Card[]): BoundingBox {
+	if (cards.length === 0) {
+		return { minX: 0, maxX: 0, minY: 0, maxY: 0, width: 0, height: 0, area: 0 };
+	}
+
+	let minX = Infinity;
+	let maxX = -Infinity;
+	let minY = Infinity;
+	let maxY = -Infinity;
+
+	for (const card of cards) {
+		minX = Math.min(minX, card.position.x);
+		maxX = Math.max(maxX, card.position.x + card.dimensions.width);
+		minY = Math.min(minY, card.position.y);
+		maxY = Math.max(maxY, card.position.y + card.dimensions.height);
+	}
+
+	const width = maxX - minX;
+	const height = maxY - minY;
+
+	return { minX, maxX, minY, maxY, width, height, area: width * height };
+}
+
+/**
+ * Generate candidate positions in all directions.
+ */
+function generateCandidates(
+	parentCard: Card,
+	existingCards: Card[],
 	linkPosition: Point | null,
-	dimensions: Dimensions,
-	existingCards: Card[]
-): Point | null {
-	const baseX = parent.position.x + parent.dimensions.width + CARD_SPACING;
-	const baseY = linkPosition ? linkPosition.y - 30 : parent.position.y;
+	newCardDimensions: Dimensions,
+	bounds: BoundingBox
+): Array<{ position: Point; direction: PlacementDirection }> {
+	const candidates: Array<{ position: Point; direction: PlacementDirection }> = [];
+	const baseY = linkPosition ? linkPosition.y - 30 : parentCard.position.y;
 
-	// Try different vertical offsets
-	const verticalOffsets = [0, 50, 100, -50, 150, -100, 200];
+	// RIGHT of parent (primary direction)
+	const rightX = parentCard.position.x + parentCard.dimensions.width + CARD_SPACING;
+	for (const yOffset of [0, -30, 30, -60, 60, -90, 90]) {
+		candidates.push({
+			position: { x: rightX, y: Math.max(0, baseY + yOffset) },
+			direction: 'right'
+		});
+	}
 
-	for (const offset of verticalOffsets) {
-		const candidate = {
-			x: baseX,
-			y: Math.max(0, baseY + offset)
-		};
-
-		if (!hasOverlap(candidate, dimensions, existingCards)) {
-			return candidate;
+	// LEFT of parent
+	const leftX = parentCard.position.x - newCardDimensions.width - CARD_SPACING;
+	if (leftX >= 0) {
+		for (const yOffset of [0, -30, 30, -60, 60]) {
+			candidates.push({
+				position: { x: leftX, y: Math.max(0, baseY + yOffset) },
+				direction: 'left'
+			});
 		}
 	}
 
-	// Try further right if blocked
-	const farRightX = findRightmostEdge(existingCards) + CARD_SPACING;
-	const farRightPos = {
-		x: farRightX,
-		y: baseY
-	};
-
-	if (!hasOverlap(farRightPos, dimensions, existingCards)) {
-		return farRightPos;
+	// BELOW parent
+	const belowY = parentCard.position.y + parentCard.dimensions.height + CARD_SPACING;
+	for (const xOffset of [0, -50, 50, -100, 100]) {
+		candidates.push({
+			position: { x: Math.max(0, parentCard.position.x + xOffset), y: belowY },
+			direction: 'below'
+		});
 	}
 
-	return null;
+	// ABOVE parent
+	const aboveY = parentCard.position.y - newCardDimensions.height - CARD_SPACING;
+	if (aboveY >= 0) {
+		for (const xOffset of [0, -50, 50]) {
+			candidates.push({
+				position: { x: Math.max(0, parentCard.position.x + xOffset), y: aboveY },
+				direction: 'above'
+			});
+		}
+	}
+
+	// Along bounding box edges (for dense packing)
+	if (existingCards.length > 1) {
+		// Right edge of bounds
+		candidates.push({
+			position: { x: bounds.maxX + CARD_SPACING, y: bounds.minY },
+			direction: 'right'
+		});
+		candidates.push({
+			position: { x: bounds.maxX + CARD_SPACING, y: (bounds.minY + bounds.maxY) / 2 - newCardDimensions.height / 2 },
+			direction: 'right'
+		});
+
+		// Left edge of bounds
+		if (bounds.minX - newCardDimensions.width - CARD_SPACING >= 0) {
+			candidates.push({
+				position: { x: bounds.minX - newCardDimensions.width - CARD_SPACING, y: bounds.minY },
+				direction: 'left'
+			});
+		}
+
+		// Bottom edge of bounds
+		candidates.push({
+			position: { x: bounds.minX, y: bounds.maxY + CARD_SPACING },
+			direction: 'below'
+		});
+		candidates.push({
+			position: { x: (bounds.minX + bounds.maxX) / 2 - newCardDimensions.width / 2, y: bounds.maxY + CARD_SPACING },
+			direction: 'below'
+		});
+
+		// Top edge of bounds
+		if (bounds.minY - newCardDimensions.height - CARD_SPACING >= 0) {
+			candidates.push({
+				position: { x: bounds.minX, y: bounds.minY - newCardDimensions.height - CARD_SPACING },
+				direction: 'above'
+			});
+		}
+	}
+
+	// Interior gap positions (scan for gaps between cards)
+	const gapPositions = findInteriorGaps(existingCards, newCardDimensions, bounds);
+	for (const gap of gapPositions) {
+		candidates.push({ position: gap, direction: 'right' });
+	}
+
+	return candidates;
 }
 
 /**
- * Find the lowest point (bottom edge) of all existing cards.
+ * Find gaps in the interior of the bounding box large enough for a new card.
  */
-function findLowestPoint(cards: Card[]): number {
-	if (cards.length === 0) return 0;
-
-	return Math.max(...cards.map((card) => card.position.y + card.dimensions.height));
-}
-
-/**
- * Find the rightmost edge of all existing cards.
- */
-function findRightmostEdge(cards: Card[]): number {
-	if (cards.length === 0) return 0;
-
-	return Math.max(...cards.map((card) => card.position.x + card.dimensions.width));
-}
-
-/**
- * Find available space by scanning rightward and downward.
- */
-function findAvailableSpaceToRight(
-	parent: Card,
+function findInteriorGaps(
 	existingCards: Card[],
-	dimensions: Dimensions
-): Point {
-	const rightEdge = findRightmostEdge(existingCards);
-	const startX = rightEdge + CARD_SPACING;
+	newCardDimensions: Dimensions,
+	bounds: BoundingBox
+): Point[] {
+	const gaps: Point[] = [];
+	const step = 50; // Scan resolution
 
-	// Try positions in a grid pattern to the right
-	for (let xOffset = 0; xOffset < 3; xOffset++) {
-		for (let yOffset = 0; yOffset < 5; yOffset++) {
-			const candidate = {
-				x: startX + xOffset * (dimensions.width + CARD_SPACING),
-				y: parent.position.y + yOffset * (100 + CARD_SPACING)
-			};
-
-			if (!hasOverlap(candidate, dimensions, existingCards)) {
-				return candidate;
+	for (let x = bounds.minX; x <= bounds.maxX - newCardDimensions.width; x += step) {
+		for (let y = bounds.minY; y <= bounds.maxY - newCardDimensions.height; y += step) {
+			const candidate = { x, y };
+			if (!hasOverlap(candidate, newCardDimensions, existingCards)) {
+				gaps.push(candidate);
 			}
 		}
 	}
 
-	// Ultimate fallback: far to the right
+	return gaps;
+}
+
+/**
+ * Score a candidate position. Lower score = better.
+ * Strongly prefers horizontal (right) placement, then nearby positions.
+ */
+function scoreCandidate(
+	position: Point,
+	dimensions: Dimensions,
+	existingCards: Card[],
+	parentCard: Card,
+	currentBounds: BoundingBox
+): number {
+	const parentRight = parentCard.position.x + parentCard.dimensions.width;
+	const parentBottom = parentCard.position.y + parentCard.dimensions.height;
+
+	// Direction-based scoring (primary factor)
+	let directionScore = 0;
+
+	if (position.x >= parentRight) {
+		// RIGHT of parent - best! Score based on how aligned vertically
+		const verticalOverlap = Math.min(
+			position.y + dimensions.height,
+			parentBottom
+		) - Math.max(position.y, parentCard.position.y);
+		directionScore = verticalOverlap > 0 ? 0 : 100; // Prefer overlapping rows
+	} else if (position.y >= parentBottom) {
+		// BELOW parent - okay, but penalize
+		directionScore = 300;
+	} else if (position.x + dimensions.width <= parentCard.position.x) {
+		// LEFT of parent - acceptable
+		directionScore = 200;
+	} else {
+		// ABOVE or overlapping - worst
+		directionScore = 500;
+	}
+
+	// Distance from parent's right edge (for right placements) or bottom edge (for below)
+	let proximityScore = 0;
+	if (position.x >= parentRight) {
+		// Horizontal distance from parent's right edge
+		proximityScore = (position.x - parentRight) * 0.5;
+		// Vertical alignment bonus - prefer same row
+		const verticalDiff = Math.abs(position.y - parentCard.position.y);
+		proximityScore += verticalDiff * 0.3;
+	} else {
+		// General distance for non-right placements
+		const dx = position.x - parentCard.position.x;
+		const dy = position.y - parentCard.position.y;
+		proximityScore = Math.sqrt(dx * dx + dy * dy) * 0.5;
+	}
+
+	// Combine scores
+	return directionScore + proximityScore;
+}
+
+/**
+ * Find any available space when all candidates fail.
+ */
+function findAnyAvailableSpace(
+	existingCards: Card[],
+	dimensions: Dimensions,
+	bounds: BoundingBox
+): Point {
+	// Scan around the perimeter of the bounding box
+	const positions = [
+		{ x: bounds.maxX + CARD_SPACING, y: bounds.minY },
+		{ x: bounds.maxX + CARD_SPACING, y: bounds.maxY - dimensions.height },
+		{ x: bounds.minX, y: bounds.maxY + CARD_SPACING },
+		{ x: bounds.maxX - dimensions.width, y: bounds.maxY + CARD_SPACING },
+	];
+
+	for (const pos of positions) {
+		if (!hasOverlap(pos, dimensions, existingCards)) {
+			return pos;
+		}
+	}
+
+	// Last resort: extend right
 	return {
-		x: rightEdge + CARD_SPACING * 2,
-		y: parent.position.y
+		x: bounds.maxX + CARD_SPACING * 2,
+		y: bounds.minY
 	};
 }
 

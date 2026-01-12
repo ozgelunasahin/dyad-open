@@ -7,8 +7,9 @@
 	import {
 		PathfindingGrid,
 		findPathWithHorizontalExit,
-		pathToSvgWithRoundedCorners,
-		getCardEntryPoint
+		pathToOrganicSvg,
+		getCardEntryPoint,
+		getCardApproachPoint
 	} from '$lib/utils/pathfinding';
 	import NoteCard from './NoteCard.svelte';
 	import ConnectionLine from './ConnectionLine.svelte';
@@ -141,15 +142,22 @@
 
 			// Get start and end points
 			const startPoint = conn.sourcePoint;
+			const approachPoint = getCardApproachPoint(toCard, startPoint);
 			const endPoint = getCardEntryPoint(toCard, startPoint);
 
-			// Find path with horizontal exit (line extends from underline)
-			const pathPoints = findPathWithHorizontalExit(grid, startPoint, endPoint);
+			// Find path with horizontal exit to the approach point
+			const pathPoints = findPathWithHorizontalExit(grid, startPoint, approachPoint);
 
-			// Generate SVG path
+			// Add the final horizontal segment to the entry point
+			if (pathPoints.length > 0) {
+				pathPoints.push(endPoint);
+			}
+
+			// Generate organic SVG path with hand-drawn feel
+			const connectionId = `${conn.fromCardId}-${conn.toCardId}`;
 			const path =
 				pathPoints.length >= 2
-					? pathToSvgWithRoundedCorners(pathPoints, 8)
+					? pathToOrganicSvg(pathPoints, connectionId)
 					: `M ${startPoint.x} ${startPoint.y} L ${endPoint.x} ${endPoint.y}`;
 
 			const isActive = canvasStore.isConnectionActive(conn);

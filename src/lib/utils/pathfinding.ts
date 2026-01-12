@@ -215,15 +215,16 @@ export class PathfindingGrid {
 
 	/**
 	 * Temporarily mark a region as walkable (for source/target cards).
+	 * Uses same padding as buildGrid() to ensure complete clearing.
 	 */
 	clearRegion(card: Card): void {
-		const left = Math.floor((card.position.x - this.offsetX) / GRID_CELL_SIZE);
+		const left = Math.floor((card.position.x - OBSTACLE_PADDING - this.offsetX) / GRID_CELL_SIZE);
 		const right = Math.ceil(
-			(card.position.x + card.dimensions.width - this.offsetX) / GRID_CELL_SIZE
+			(card.position.x + card.dimensions.width + OBSTACLE_PADDING - this.offsetX) / GRID_CELL_SIZE
 		);
-		const top = Math.floor((card.position.y - this.offsetY) / GRID_CELL_SIZE);
+		const top = Math.floor((card.position.y - OBSTACLE_PADDING - this.offsetY) / GRID_CELL_SIZE);
 		const bottom = Math.ceil(
-			(card.position.y + card.dimensions.height - this.offsetY) / GRID_CELL_SIZE
+			(card.position.y + card.dimensions.height + OBSTACLE_PADDING - this.offsetY) / GRID_CELL_SIZE
 		);
 
 		for (let row = top; row <= bottom; row++) {
@@ -329,67 +330,105 @@ export function findOrthogonalPath(
 
 /**
  * Create fallback paths when A* fails.
- * Lines start horizontally (as underline extension) then route to target.
+ * Tries multiple routing strategies to avoid obstacles.
  */
-function createFallbackPath(start: Point, end: Point): Point[] {
-	const exitDistance = 40; // Horizontal distance to extend as underline
+function createFallbackPath(start: Point, end: Point, grid?: PathfindingGrid): Point[] {
 	const goingRight = end.x > start.x;
+	const goingDown = end.y > start.y;
 
-	// Exit horizontally in the direction of the target (extending the underline)
-	const exitX = goingRight ? start.x + exitDistance : start.x - exitDistance;
+	// Strategy 1: Try going around via different waypoints
+	const waypoints = [
+		// Go horizontal first, then vertical
+		{ x: end.x, y: start.y },
+		// Go vertical first, then horizontal
+		{ x: start.x, y: end.y },
+		// Go around with offset
+		{ x: goingRight ? end.x + 50 : end.x - 50, y: (start.y + end.y) / 2 },
+		{ x: (start.x + end.x) / 2, y: goingDown ? end.y + 50 : end.y - 50 }
+	];
 
-	// Simple L-route: horizontal first, then vertical
+	// If we have a grid, try to find a waypoint that's walkable
+	if (grid) {
+		for (const waypoint of waypoints) {
+			const wpGrid = grid.toGridCoords(waypoint);
+			if (grid.isWalkable(wpGrid.x, wpGrid.y)) {
+				return compressPath([start, waypoint, end]);
+			}
+		}
+	}
+
+	// Last resort: simple L-route
+	const midY = (start.y + end.y) / 2;
 	if (goingRight) {
-		// Target is to the right: extend underline right, then go to target
 		return compressPath([
 			start,
-			{ x: exitX, y: start.y }, // Extend underline horizontally
-			{ x: end.x, y: start.y }, // Continue horizontal to target x
+			{ x: end.x, y: start.y },
 			end
 		]);
 	} else {
-		// Target is to the left: extend underline left, then route
-		const midY = (start.y + end.y) / 2;
 		return compressPath([
 			start,
-			{ x: exitX, y: start.y }, // Extend underline horizontally left
-			{ x: exitX, y: midY }, // Go down/up
-			{ x: end.x, y: midY }, // Horizontal to target x
+			{ x: start.x, y: midY },
+			{ x: end.x, y: midY },
 			end
 		]);
 	}
 }
 
 /**
- * Find path with horizontal exit (line starts as underline extension).
- * Exits right if target is to the right, left if target is to the left.
+ * Find path with initial horizontal segment (underline extension style).
+ * Tries to route around obstacles, with flexible exit direction.
  */
 export function findPathWithHorizontalExit(
 	grid: PathfindingGrid,
 	start: Point,
 	end: Point
 ): Point[] {
-	const exitDistance = 30; // Horizontal distance to extend as underline
+	const exitDistance = 30;
 	const goingRight = end.x > start.x;
 
-	// Exit horizontally in the direction of the target
-	const exitX = goingRight ? start.x + exitDistance : start.x - exitDistance;
-	const exitPoint = { x: exitX, y: start.y };
-	const initialDir: Direction = goingRight ? 'right' : 'left';
+	// Primary: Exit horizontally in direction of target
+	const primaryExitX = goingRight ? start.x + exitDistance : start.x - exitDistance;
+	const primaryExit = { x: primaryExitX, y: start.y };
+	const primaryDir: Direction = goingRight ? 'right' : 'left';
 
-	// Find path from exit point to end
-	const mainPath = findOrthogonalPath(grid, exitPoint, end, initialDir);
-
-	// Prepend the start->exit segment (the underline extension)
-	if (mainPath.length > 0) {
-		// Check if first point of mainPath is close to exitPoint
-		const firstPoint = mainPath[0];
-		if (Math.abs(firstPoint.x - exitPoint.x) < 5 && Math.abs(firstPoint.y - exitPoint.y) < 5) {
+	// Check if primary exit point is walkable
+	const primaryGrid = grid.toGridCoords(primaryExit);
+	if (grid.isWalkable(primaryGrid.x, primaryGrid.y)) {
+		const mainPath = findOrthogonalPath(grid, primaryExit, end, primaryDir);
+		if (mainPath.length > 0) {
 			return [start, ...mainPath];
 		}
 	}
 
-	return [start, exitPoint, ...mainPath];
+	// Fallback: Try exiting downward first
+	const downExit = { x: start.x, y: start.y + exitDistance };
+	const downGrid = grid.toGridCoords(downExit);
+	if (grid.isWalkable(downGrid.x, downGrid.y)) {
+		const mainPath = findOrthogonalPath(grid, downExit, end, 'down');
+		if (mainPath.length > 0) {
+			return [start, ...mainPath];
+		}
+	}
+
+	// Fallback: Try exiting upward
+	const upExit = { x: start.x, y: start.y - exitDistance };
+	const upGrid = grid.toGridCoords(upExit);
+	if (grid.isWalkable(upGrid.x, upGrid.y)) {
+		const mainPath = findOrthogonalPath(grid, upExit, end, 'up');
+		if (mainPath.length > 0) {
+			return [start, ...mainPath];
+		}
+	}
+
+	// Last resort: Direct A* from start to end
+	const directPath = findOrthogonalPath(grid, start, end);
+	if (directPath.length > 0) {
+		return directPath;
+	}
+
+	// Ultimate fallback: Simple path ignoring obstacles
+	return createFallbackPath(start, end, grid);
 }
 
 function manhattanDistance(a: Point, b: Point): number {
@@ -511,6 +550,138 @@ export function pathToSvgWithRoundedCorners(points: Point[], cornerRadius: numbe
 }
 
 /**
+ * Seeded random number generator for deterministic organic variation.
+ * Uses a simple LCG algorithm.
+ */
+function seededRandom(seed: number): () => number {
+	let state = seed;
+	return () => {
+		state = (state * 1664525 + 1013904223) >>> 0;
+		return (state / 0xffffffff) * 2 - 1; // Returns -1 to 1
+	};
+}
+
+/**
+ * Generate a simple numeric hash from a string (for connection IDs).
+ */
+function stringToSeed(str: string): number {
+	let hash = 0;
+	for (let i = 0; i < str.length; i++) {
+		hash = (hash << 5) - hash + str.charCodeAt(i);
+		hash |= 0;
+	}
+	return Math.abs(hash);
+}
+
+/**
+ * Catmull-Rom spline interpolation for smooth curves through control points.
+ * Creates natural-looking curves that pass through all given points.
+ */
+function catmullRomSpline(points: Point[], tension: number = 0.5, segments: number = 8): Point[] {
+	if (points.length < 2) return points;
+	if (points.length === 2) return points;
+
+	const result: Point[] = [];
+
+	// Add phantom points at start and end for smooth endpoints
+	const extended = [
+		{ x: points[0].x * 2 - points[1].x, y: points[0].y * 2 - points[1].y },
+		...points,
+		{
+			x: points[points.length - 1].x * 2 - points[points.length - 2].x,
+			y: points[points.length - 1].y * 2 - points[points.length - 2].y
+		}
+	];
+
+	// Interpolate between each pair of points
+	for (let i = 1; i < extended.length - 2; i++) {
+		const p0 = extended[i - 1];
+		const p1 = extended[i];
+		const p2 = extended[i + 1];
+		const p3 = extended[i + 2];
+
+		for (let t = 0; t < segments; t++) {
+			const s = t / segments;
+			const s2 = s * s;
+			const s3 = s2 * s;
+
+			// Catmull-Rom basis functions
+			const h1 = -tension * s3 + 2 * tension * s2 - tension * s;
+			const h2 = (2 - tension) * s3 + (tension - 3) * s2 + 1;
+			const h3 = (tension - 2) * s3 + (3 - 2 * tension) * s2 + tension * s;
+			const h4 = tension * s3 - tension * s2;
+
+			result.push({
+				x: h1 * p0.x + h2 * p1.x + h3 * p2.x + h4 * p3.x,
+				y: h1 * p0.y + h2 * p1.y + h3 * p2.y + h4 * p3.y
+			});
+		}
+	}
+
+	// Add the final point
+	result.push(points[points.length - 1]);
+
+	return result;
+}
+
+/**
+ * Add organic displacement to path points for hand-drawn feel.
+ * Preserves start and end points exactly.
+ */
+function organicifyPath(points: Point[], seed: number, amplitude: number = 2): Point[] {
+	if (points.length < 3) return points;
+
+	const random = seededRandom(seed);
+	const result: Point[] = [points[0]]; // Keep start point exact
+
+	for (let i = 1; i < points.length - 1; i++) {
+		const prev = points[i - 1];
+		const curr = points[i];
+		const next = points[i + 1];
+
+		// Calculate perpendicular direction
+		const dx = next.x - prev.x;
+		const dy = next.y - prev.y;
+		const len = Math.sqrt(dx * dx + dy * dy);
+
+		if (len > 0) {
+			// Perpendicular unit vector
+			const perpX = -dy / len;
+			const perpY = dx / len;
+
+			// Random displacement perpendicular to path direction
+			const displacement = random() * amplitude;
+
+			result.push({
+				x: curr.x + perpX * displacement,
+				y: curr.y + perpY * displacement
+			});
+		} else {
+			result.push(curr);
+		}
+	}
+
+	result.push(points[points.length - 1]); // Keep end point exact
+	return result;
+}
+
+/**
+ * Generate SVG path with rounded corners at turns.
+ * Uses simple rounded corners instead of splines to prevent overshooting.
+ */
+export function pathToOrganicSvg(points: Point[], connectionId: string): string {
+	if (points.length < 2) return '';
+
+	if (points.length === 2) {
+		// For simple two-point paths, just draw a straight line
+		return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
+	}
+
+	// Use rounded corners approach - much more predictable than splines
+	return pathToSvgWithRoundedCorners(points, 12);
+}
+
+/**
  * Determine initial direction from a card edge based on link position.
  */
 export function getInitialDirection(card: Card, linkPoint: Point): Direction {
@@ -529,34 +700,63 @@ export function getInitialDirection(card: Card, linkPoint: Point): Direction {
 }
 
 /**
- * Calculate entry point on a card edge closest to the source.
+ * Calculate entry point on a card - targets the heading area (top of card).
+ * The heading is approximately 20px from the top of the card.
+ * Returns both the entry point and an approach point for horizontal entry.
  */
 export function getCardEntryPoint(card: Card, fromPoint: Point): Point {
+	// Heading Y position: card top + padding (8px) + half of h1 line-height (~12px)
+	const headingY = card.position.y + 20;
+
 	const cardCenter = {
 		x: card.position.x + card.dimensions.width / 2,
 		y: card.position.y + card.dimensions.height / 2
 	};
 
 	const dx = cardCenter.x - fromPoint.x;
-	const dy = cardCenter.y - fromPoint.y;
 
-	if (Math.abs(dx) > Math.abs(dy)) {
-		// Enter from left or right
+	// Determine entry edge based on horizontal position
+	if (dx > 0) {
+		// Card is to the right - enter from left edge at heading height
 		return {
-			x: dx > 0 ? card.position.x : card.position.x + card.dimensions.width,
-			y: Math.max(
-				card.position.y + 10,
-				Math.min(card.position.y + card.dimensions.height - 10, fromPoint.y)
-			)
+			x: card.position.x,
+			y: headingY
 		};
 	} else {
-		// Enter from top or bottom
+		// Card is to the left - enter from right edge at heading height
 		return {
-			x: Math.max(
-				card.position.x + 10,
-				Math.min(card.position.x + card.dimensions.width - 10, fromPoint.x)
-			),
-			y: dy > 0 ? card.position.y : card.position.y + card.dimensions.height
+			x: card.position.x + card.dimensions.width,
+			y: headingY
+		};
+	}
+}
+
+/**
+ * Get approach point for horizontal entry - a point offset from entry to ensure horizontal final segment.
+ */
+export function getCardApproachPoint(card: Card, fromPoint: Point): Point {
+	const entry = getCardEntryPoint(card, fromPoint);
+	const approachDistance = 30;
+
+	const cardCenter = {
+		x: card.position.x + card.dimensions.width / 2,
+		y: card.position.y + card.dimensions.height / 2
+	};
+
+	const dx = cardCenter.x - fromPoint.x;
+
+	// Approach from the side horizontally
+	if (dx > 0) {
+		// Approaching from left
+		return {
+			x: entry.x - approachDistance,
+			y: entry.y
+		};
+	} else {
+		// Approaching from right
+		return {
+			x: entry.x + approachDistance,
+			y: entry.y
 		};
 	}
 }
