@@ -127,6 +127,29 @@
 
 	// Compute connection paths with A* pathfinding (using cached grid)
 	let connectionPaths = $derived.by(() => {
+		// Group connections by target card to stagger entry points
+		const connectionsByTarget = new Map<string, typeof canvasStore.connections>();
+		for (const conn of canvasStore.connections) {
+			const existing = connectionsByTarget.get(conn.toCardId) || [];
+			existing.push(conn);
+			connectionsByTarget.set(conn.toCardId, existing);
+		}
+
+		// Calculate entry offset for each connection (stagger multiple entries)
+		const entryOffsets = new Map<string, number>();
+		for (const [targetId, conns] of connectionsByTarget) {
+			// Sort by source Y position so lines don't cross
+			const sorted = [...conns].sort((a, b) => a.sourcePoint.y - b.sourcePoint.y);
+			const spacing = 15; // Vertical spacing between entry points
+			const totalHeight = (sorted.length - 1) * spacing;
+			const startOffset = -totalHeight / 2;
+
+			sorted.forEach((conn, index) => {
+				const key = `${conn.fromCardId}-${conn.toCardId}`;
+				entryOffsets.set(key, startOffset + index * spacing);
+			});
+		}
+
 		return canvasStore.connections.map((conn) => {
 			const fromCard = canvasStore.cards.get(conn.fromCardId);
 			const toCard = canvasStore.cards.get(conn.toCardId);
@@ -140,10 +163,18 @@
 			grid.clearRegion(fromCard);
 			grid.clearRegion(toCard);
 
-			// Get start and end points
+			// Get entry offset for this connection
+			const connectionKey = `${conn.fromCardId}-${conn.toCardId}`;
+			const entryOffset = entryOffsets.get(connectionKey) || 0;
+
+			// Get start and end points with staggered entry
 			const startPoint = conn.sourcePoint;
-			const approachPoint = getCardApproachPoint(toCard, startPoint);
-			const endPoint = getCardEntryPoint(toCard, startPoint);
+			const baseApproachPoint = getCardApproachPoint(toCard, startPoint);
+			const baseEndPoint = getCardEntryPoint(toCard, startPoint);
+
+			// Apply offset to entry points
+			const approachPoint = { x: baseApproachPoint.x, y: baseApproachPoint.y + entryOffset };
+			const endPoint = { x: baseEndPoint.x, y: baseEndPoint.y + entryOffset };
 
 			// Find path with horizontal exit to the approach point
 			const pathPoints = findPathWithHorizontalExit(grid, startPoint, approachPoint);
@@ -153,7 +184,7 @@
 				pathPoints.push(endPoint);
 			}
 
-			// Generate organic SVG path with hand-drawn feel
+			// Generate SVG path
 			const connectionId = `${conn.fromCardId}-${conn.toCardId}`;
 			const path =
 				pathPoints.length >= 2

@@ -677,8 +677,8 @@ export function pathToOrganicSvg(points: Point[], connectionId: string): string 
 		return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
 	}
 
-	// Use rounded corners approach - much more predictable than splines
-	return pathToSvgWithRoundedCorners(points, 12);
+	// Use rounded corners approach - larger radius for smoother curves
+	return pathToSvgWithRoundedCorners(points, 20);
 }
 
 /**
