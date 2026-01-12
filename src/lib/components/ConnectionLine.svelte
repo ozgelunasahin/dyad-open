@@ -36,14 +36,14 @@
 
 <style>
 	.connection {
-		stroke: rgba(255, 255, 255, 0.12);
+		stroke: var(--line-color);
 		stroke-width: 1;
 		transition: stroke 0.3s ease;
 		pointer-events: none;
 	}
 
 	.connection.active {
-		stroke: rgba(255, 255, 255, 0.25);
+		stroke: var(--line-color-active);
 		stroke-width: 1;
 	}
 </style>
