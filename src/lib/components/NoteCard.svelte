@@ -23,8 +23,8 @@
 
 		const rect = target.getBoundingClientRect();
 		const linkPosition: Point = {
-			x: rect.left + rect.width / 2,
-			y: rect.bottom + 2 // Bottom of link (underline position) + small offset
+			x: rect.right, // End of link text (right edge)
+			y: rect.bottom // Bottom of link (underline level)
 		};
 
 		onLinkClick(noteId, card.id, linkPosition);
