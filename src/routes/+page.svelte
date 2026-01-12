@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { Vault } from '$lib/types';
-	import { MAX_CARDS } from '$lib/types';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import Canvas from '$lib/components/Canvas.svelte';
 
@@ -24,17 +23,14 @@
 	});
 
 	function handleKeydown(event: KeyboardEvent) {
-		// Alt + Left Arrow = Go Back
 		if (event.altKey && event.key === 'ArrowLeft') {
 			event.preventDefault();
 			canvasStore.goBack();
 		}
-		// Alt + Right Arrow = Go Forward
 		if (event.altKey && event.key === 'ArrowRight') {
 			event.preventDefault();
 			canvasStore.goForward();
 		}
-		// Escape = Reset view
 		if (event.key === 'Escape') {
 			canvasStore.reset();
 		}
@@ -51,49 +47,39 @@
 <main class="app">
 	{#if loading}
 		<div class="loading">
-			<div class="spinner"></div>
-			<p>Loading vault...</p>
+			<p>Loading...</p>
 		</div>
 	{:else if error}
 		<div class="error">
-			<h1>Error</h1>
 			<p>{error}</p>
 			<button onclick={() => window.location.reload()}>Retry</button>
 		</div>
 	{:else}
 		<Canvas />
 
-		<!-- Navigation controls -->
-		<nav class="controls">
+		<!-- Minimal navigation (hidden by default, shows on hover) -->
+		<nav class="controls" class:can-navigate={canvasStore.canGoBack || canvasStore.canGoForward}>
 			<button
 				class="nav-btn"
 				onclick={() => canvasStore.goBack()}
 				disabled={!canvasStore.canGoBack}
-				title="Go back (Alt+←)"
 				aria-label="Go back"
 			>
-				←
+				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+					<path d="M10 12L6 8L10 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+				</svg>
 			</button>
 			<button
 				class="nav-btn"
 				onclick={() => canvasStore.goForward()}
 				disabled={!canvasStore.canGoForward}
-				title="Go forward (Alt+→)"
 				aria-label="Go forward"
 			>
-				→
+				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+					<path d="M6 4L10 8L6 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+				</svg>
 			</button>
 		</nav>
-
-		<!-- Status bar -->
-		<footer class="status">
-			<span class="card-count" class:warning={canvasStore.isAtLimit}>
-				{canvasStore.cardCount} / {MAX_CARDS} cards
-			</span>
-			<span class="help">
-				Drag to pan • Scroll to zoom • Alt+← / → to navigate
-			</span>
-		</footer>
 	{/if}
 </main>
 
@@ -105,16 +91,9 @@
 	:global(body) {
 		margin: 0;
 		padding: 0;
-		font-family:
-			-apple-system,
-			BlinkMacSystemFont,
-			'Segoe UI',
-			Roboto,
-			Oxygen,
-			Ubuntu,
-			Cantarell,
-			sans-serif;
+		font-family: 'Georgia', 'Times New Roman', serif;
 		overflow: hidden;
+		background: #1a1a1a;
 	}
 
 	.app {
@@ -132,106 +111,71 @@
 		justify-content: center;
 		height: 100%;
 		gap: 16px;
-		color: #64748b;
-	}
-
-	.spinner {
-		width: 32px;
-		height: 32px;
-		border: 3px solid #e2e8f0;
-		border-top-color: #3b82f6;
-		border-radius: 50%;
-		animation: spin 1s linear infinite;
-	}
-
-	@keyframes spin {
-		to {
-			transform: rotate(360deg);
-		}
-	}
-
-	.error h1 {
-		color: #ef4444;
-		margin: 0;
+		color: #666;
+		font-family: 'Georgia', serif;
 	}
 
 	.error button {
 		padding: 8px 16px;
-		background: #3b82f6;
-		color: white;
-		border: none;
-		border-radius: 6px;
+		background: transparent;
+		color: #888;
+		border: 1px solid #444;
+		border-radius: 4px;
 		cursor: pointer;
-		font-size: 14px;
+		font-family: inherit;
+		font-size: 13px;
 	}
 
 	.error button:hover {
-		background: #2563eb;
+		border-color: #666;
+		color: #aaa;
 	}
 
 	.controls {
 		position: fixed;
-		top: 16px;
-		left: 16px;
+		bottom: 24px;
+		left: 24px;
 		display: flex;
-		gap: 8px;
+		gap: 4px;
+		opacity: 0;
+		transition: opacity 0.3s ease;
 		z-index: 100;
+	}
+
+	.controls:hover,
+	.controls.can-navigate {
+		opacity: 1;
+	}
+
+	.app:hover .controls.can-navigate {
+		opacity: 0.6;
+	}
+
+	.app:hover .controls.can-navigate:hover {
+		opacity: 1;
 	}
 
 	.nav-btn {
-		width: 40px;
-		height: 40px;
+		width: 32px;
+		height: 32px;
 		border: none;
-		border-radius: 8px;
-		background: white;
-		box-shadow:
-			0 1px 3px 0 rgb(0 0 0 / 0.1),
-			0 1px 2px -1px rgb(0 0 0 / 0.1);
+		border-radius: 4px;
+		background: rgba(255, 255, 255, 0.05);
 		cursor: pointer;
-		font-size: 18px;
-		color: #334155;
+		color: rgba(255, 255, 255, 0.5);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		transition: all 0.15s ease;
+		transition: all 0.2s ease;
 	}
 
 	.nav-btn:hover:not(:disabled) {
-		background: #f1f5f9;
+		background: rgba(255, 255, 255, 0.1);
+		color: rgba(255, 255, 255, 0.8);
 	}
 
 	.nav-btn:disabled {
-		opacity: 0.4;
+		opacity: 0.3;
 		cursor: not-allowed;
-	}
-
-	.status {
-		position: fixed;
-		bottom: 16px;
-		left: 50%;
-		transform: translateX(-50%);
-		display: flex;
-		gap: 24px;
-		padding: 8px 16px;
-		background: white;
-		border-radius: 8px;
-		box-shadow:
-			0 1px 3px 0 rgb(0 0 0 / 0.1),
-			0 1px 2px -1px rgb(0 0 0 / 0.1);
-		font-size: 12px;
-		color: #64748b;
-		z-index: 100;
-	}
-
-	.card-count {
-		font-weight: 500;
-	}
-
-	.card-count.warning {
-		color: #f59e0b;
-	}
-
-	.help {
-		opacity: 0.7;
 	}
 </style>
