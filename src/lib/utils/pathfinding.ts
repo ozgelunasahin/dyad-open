@@ -329,62 +329,64 @@ export function findOrthogonalPath(
 
 /**
  * Create fallback paths when A* fails.
- * Tries L-route and Z-route before falling back to direct line.
+ * Lines start horizontally (as underline extension) then route to target.
  */
 function createFallbackPath(start: Point, end: Point): Point[] {
-	const exitDistance = 25; // Distance to exit downward from underline
+	const exitDistance = 40; // Horizontal distance to extend as underline
+	const goingRight = end.x > start.x;
 
-	// Strategy 1: L-route going down first then horizontal
-	const lPath: Point[] = [
-		start,
-		{ x: start.x, y: start.y + exitDistance }, // Exit down
-		{ x: end.x, y: start.y + exitDistance }, // Move horizontal
-		end
-	];
+	// Exit horizontally in the direction of the target (extending the underline)
+	const exitX = goingRight ? start.x + exitDistance : start.x - exitDistance;
 
-	// Strategy 2: Z-route with midpoint
-	const midY = (start.y + exitDistance + end.y) / 2;
-	const zPath: Point[] = [
-		start,
-		{ x: start.x, y: start.y + exitDistance }, // Exit down
-		{ x: start.x, y: midY }, // Go partway down
-		{ x: end.x, y: midY }, // Move horizontal
-		{ x: end.x, y: end.y }, // Go to target
-		end
-	];
-
-	// For simple cases (target is to the right and below), use L-route
-	if (end.x > start.x && end.y > start.y + exitDistance) {
-		return compressPath(lPath);
+	// Simple L-route: horizontal first, then vertical
+	if (goingRight) {
+		// Target is to the right: extend underline right, then go to target
+		return compressPath([
+			start,
+			{ x: exitX, y: start.y }, // Extend underline horizontally
+			{ x: end.x, y: start.y }, // Continue horizontal to target x
+			end
+		]);
+	} else {
+		// Target is to the left: extend underline left, then route
+		const midY = (start.y + end.y) / 2;
+		return compressPath([
+			start,
+			{ x: exitX, y: start.y }, // Extend underline horizontally left
+			{ x: exitX, y: midY }, // Go down/up
+			{ x: end.x, y: midY }, // Horizontal to target x
+			end
+		]);
 	}
-
-	// For target to the left or above, use Z-route
-	return compressPath(zPath);
 }
 
 /**
- * Find path with forced initial direction (for exiting from link underlines).
+ * Find path with horizontal exit (line starts as underline extension).
+ * Exits right if target is to the right, left if target is to the left.
  */
-export function findPathWithInitialDirection(
+export function findPathWithHorizontalExit(
 	grid: PathfindingGrid,
 	start: Point,
-	end: Point,
-	forceDownward: boolean = true
+	end: Point
 ): Point[] {
-	if (!forceDownward) {
-		return findOrthogonalPath(grid, start, end);
-	}
+	const exitDistance = 30; // Horizontal distance to extend as underline
+	const goingRight = end.x > start.x;
 
-	// Add an intermediate point below the start to force downward exit
-	const exitDistance = 25;
-	const exitPoint = { x: start.x, y: start.y + exitDistance };
+	// Exit horizontally in the direction of the target
+	const exitX = goingRight ? start.x + exitDistance : start.x - exitDistance;
+	const exitPoint = { x: exitX, y: start.y };
+	const initialDir: Direction = goingRight ? 'right' : 'left';
 
 	// Find path from exit point to end
-	const mainPath = findOrthogonalPath(grid, exitPoint, end, 'down');
+	const mainPath = findOrthogonalPath(grid, exitPoint, end, initialDir);
 
-	// Prepend the start->exit segment
-	if (mainPath.length > 0 && mainPath[0].x === exitPoint.x && mainPath[0].y === exitPoint.y) {
-		return [start, ...mainPath];
+	// Prepend the start->exit segment (the underline extension)
+	if (mainPath.length > 0) {
+		// Check if first point of mainPath is close to exitPoint
+		const firstPoint = mainPath[0];
+		if (Math.abs(firstPoint.x - exitPoint.x) < 5 && Math.abs(firstPoint.y - exitPoint.y) < 5) {
+			return [start, ...mainPath];
+		}
 	}
 
 	return [start, exitPoint, ...mainPath];

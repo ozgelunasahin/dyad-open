@@ -6,7 +6,7 @@
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import {
 		PathfindingGrid,
-		findPathWithInitialDirection,
+		findPathWithHorizontalExit,
 		pathToSvgWithRoundedCorners,
 		getCardEntryPoint
 	} from '$lib/utils/pathfinding';
@@ -143,8 +143,8 @@
 			const startPoint = conn.sourcePoint;
 			const endPoint = getCardEntryPoint(toCard, startPoint);
 
-			// Find path with forced downward exit from link underline
-			const pathPoints = findPathWithInitialDirection(grid, startPoint, endPoint, true);
+			// Find path with horizontal exit (line extends from underline)
+			const pathPoints = findPathWithHorizontalExit(grid, startPoint, endPoint);
 
 			// Generate SVG path
 			const path =
