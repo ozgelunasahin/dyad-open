@@ -1,4 +1,4 @@
-import type { Card, Point, Dimensions } from '$lib/types';
+import type { Card, Point, Dimensions, Connection } from '$lib/types';
 import { CARD_SPACING } from '$lib/types';
 
 export type PlacementDirection = 'right' | 'below' | 'left' | 'above';
@@ -6,6 +6,14 @@ export type PlacementDirection = 'right' | 'below' | 'left' | 'above';
 interface PlacementResult {
 	position: Point;
 	direction: PlacementDirection;
+}
+
+/**
+ * Line segment for crossing detection.
+ */
+interface LineSegment {
+	start: Point;
+	end: Point;
 }
 
 interface BoundingBox {
@@ -27,12 +35,14 @@ interface ScoredCandidate {
 /**
  * Calculate new card position optimizing for compact rectangular layout.
  * Considers positions in all directions and picks the one that minimizes bounding box expansion.
+ * Also avoids positions that would cause connection line crossings.
  */
 export function calculateNewCardPosition(
 	parentCard: Card | null,
 	existingCards: Card[],
 	linkPosition: Point | null,
-	newCardDimensions: Dimensions
+	newCardDimensions: Dimensions,
+	existingConnections: Connection[] = []
 ): PlacementResult {
 	if (!parentCard) {
 		return { position: { x: 0, y: 0 }, direction: 'right' };
@@ -50,6 +60,9 @@ export function calculateNewCardPosition(
 		currentBounds
 	);
 
+	// Build existing line segments from connections
+	const existingLines = buildExistingLineSegments(existingConnections, existingCards);
+
 	// Filter out overlapping positions and score remaining ones
 	const validCandidates: ScoredCandidate[] = [];
 
@@ -60,7 +73,9 @@ export function calculateNewCardPosition(
 				newCardDimensions,
 				existingCards,
 				parentCard,
-				currentBounds
+				currentBounds,
+				linkPosition,
+				existingLines
 			);
 			validCandidates.push({ ...candidate, score });
 		}
@@ -230,15 +245,138 @@ function findInteriorGaps(
 }
 
 /**
+ * Build line segments representing existing connections.
+ * Uses simplified straight-line approximation for crossing detection.
+ */
+function buildExistingLineSegments(connections: Connection[], cards: Card[]): LineSegment[] {
+	const segments: LineSegment[] = [];
+	const cardMap = new Map(cards.map(c => [c.id, c]));
+
+	for (const conn of connections) {
+		const toCard = cardMap.get(conn.toCardId);
+		if (!toCard) continue;
+
+		// Approximate the connection as a line from source point to card entry
+		const entryPoint = getSimplifiedEntryPoint(toCard, conn.sourcePoint);
+		segments.push({
+			start: conn.sourcePoint,
+			end: entryPoint
+		});
+	}
+
+	return segments;
+}
+
+/**
+ * Get simplified entry point for crossing detection.
+ */
+function getSimplifiedEntryPoint(card: Card, fromPoint: Point): Point {
+	const cardCenterX = card.position.x + card.dimensions.width / 2;
+	const headingY = card.position.y + 20; // Same as pathfinding entry point
+
+	// Enter from left or right depending on position
+	if (fromPoint.x < cardCenterX) {
+		return { x: card.position.x, y: headingY };
+	} else {
+		return { x: card.position.x + card.dimensions.width, y: headingY };
+	}
+}
+
+/**
+ * Check if two line segments intersect.
+ * Uses cross product method for robust intersection detection.
+ */
+function segmentsIntersect(seg1: LineSegment, seg2: LineSegment): boolean {
+	const { start: p1, end: p2 } = seg1;
+	const { start: p3, end: p4 } = seg2;
+
+	// Calculate cross products
+	const d1 = direction(p3, p4, p1);
+	const d2 = direction(p3, p4, p2);
+	const d3 = direction(p1, p2, p3);
+	const d4 = direction(p1, p2, p4);
+
+	// Standard intersection check
+	if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+		((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+		return true;
+	}
+
+	// Check collinear cases
+	if (d1 === 0 && onSegment(p3, p4, p1)) return true;
+	if (d2 === 0 && onSegment(p3, p4, p2)) return true;
+	if (d3 === 0 && onSegment(p1, p2, p3)) return true;
+	if (d4 === 0 && onSegment(p1, p2, p4)) return true;
+
+	return false;
+}
+
+/**
+ * Calculate cross product direction.
+ */
+function direction(p1: Point, p2: Point, p3: Point): number {
+	return (p3.x - p1.x) * (p2.y - p1.y) - (p2.x - p1.x) * (p3.y - p1.y);
+}
+
+/**
+ * Check if point is on segment (for collinear cases).
+ */
+function onSegment(p1: Point, p2: Point, p: Point): boolean {
+	return (
+		Math.min(p1.x, p2.x) <= p.x && p.x <= Math.max(p1.x, p2.x) &&
+		Math.min(p1.y, p2.y) <= p.y && p.y <= Math.max(p1.y, p2.y)
+	);
+}
+
+/**
+ * Count how many existing lines a new connection would cross.
+ */
+function countLineCrossings(
+	linkPosition: Point | null,
+	candidatePosition: Point,
+	candidateDimensions: Dimensions,
+	existingLines: LineSegment[]
+): number {
+	if (!linkPosition || existingLines.length === 0) return 0;
+
+	// Create the new connection line segment
+	const newEntry = getSimplifiedEntryPoint(
+		{
+			position: candidatePosition,
+			dimensions: candidateDimensions
+		} as Card,
+		linkPosition
+	);
+
+	const newLine: LineSegment = {
+		start: linkPosition,
+		end: newEntry
+	};
+
+	// Count intersections
+	let crossings = 0;
+	for (const existing of existingLines) {
+		if (segmentsIntersect(newLine, existing)) {
+			crossings++;
+		}
+	}
+
+	return crossings;
+}
+
+/**
  * Score a candidate position. Lower score = better.
  * Strongly prefers horizontal (right) placement, then nearby positions.
+ * Penalizes positions that would cause line crossings.
  */
 function scoreCandidate(
 	position: Point,
 	dimensions: Dimensions,
 	existingCards: Card[],
 	parentCard: Card,
-	currentBounds: BoundingBox
+	currentBounds: BoundingBox,
+	linkPosition: Point | null,
+	existingLines: LineSegment[]
 ): number {
 	const parentRight = parentCard.position.x + parentCard.dimensions.width;
 	const parentBottom = parentCard.position.y + parentCard.dimensions.height;
@@ -279,8 +417,12 @@ function scoreCandidate(
 		proximityScore = Math.sqrt(dx * dx + dy * dy) * 0.5;
 	}
 
+	// Line crossing penalty (high priority)
+	const crossings = countLineCrossings(linkPosition, position, dimensions, existingLines);
+	const crossingPenalty = crossings * 1000; // Heavy penalty for each crossing
+
 	// Combine scores
-	return directionScore + proximityScore;
+	return directionScore + proximityScore + crossingPenalty;
 }
 
 /**

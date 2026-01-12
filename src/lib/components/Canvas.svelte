@@ -207,7 +207,7 @@
 
 		<!-- Note cards -->
 		{#each canvasStore.cardList as card (card.id)}
-			<NoteCard {card} isActive={canvasStore.isInActiveChain(card.id)} onLinkClick={handleLinkClick} />
+			<NoteCard {card} isActive={canvasStore.isCurrentCard(card.id)} onLinkClick={handleLinkClick} />
 		{/each}
 	</g>
 </svg>

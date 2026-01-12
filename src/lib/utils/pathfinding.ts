@@ -490,7 +490,61 @@ function compressPath(path: Point[]): Point[] {
 }
 
 /**
+ * Determine if a segment is more vertical or horizontal.
+ * Uses the actual delta to handle nearly-aligned points.
+ */
+function isVerticalSegment(from: Point, to: Point): boolean {
+	const dx = Math.abs(to.x - from.x);
+	const dy = Math.abs(to.y - from.y);
+	return dy > dx;
+}
+
+/**
+ * Align path points to make segments strictly orthogonal.
+ * This prevents jagged corners from floating-point coordinate misalignment.
+ */
+function alignPathPoints(points: Point[]): Point[] {
+	if (points.length < 2) return points;
+
+	const aligned = [{ ...points[0] }];
+
+	for (let i = 1; i < points.length; i++) {
+		const prev = aligned[i - 1];
+		const curr = { ...points[i] };
+
+		// Determine if this segment should be vertical or horizontal
+		if (isVerticalSegment(prev, curr)) {
+			// Vertical segment - align X coordinates
+			curr.x = prev.x;
+		} else {
+			// Horizontal segment - align Y coordinates
+			curr.y = prev.y;
+		}
+
+		aligned.push(curr);
+	}
+
+	// Ensure the last point stays at its original position
+	// and work backwards to fix alignment if needed
+	const last = points[points.length - 1];
+	aligned[aligned.length - 1] = { ...last };
+
+	// Fix the second-to-last point to properly connect to the last point
+	if (aligned.length >= 2) {
+		const secondLast = aligned[aligned.length - 2];
+		if (isVerticalSegment(secondLast, last)) {
+			secondLast.x = last.x;
+		} else {
+			secondLast.y = last.y;
+		}
+	}
+
+	return aligned;
+}
+
+/**
  * Generate SVG path string with rounded corners.
+ * Aligns points to ensure clean orthogonal segments before rendering.
  */
 export function pathToSvgWithRoundedCorners(points: Point[], cornerRadius: number = 8): string {
 	if (points.length < 2) return '';
@@ -499,12 +553,15 @@ export function pathToSvgWithRoundedCorners(points: Point[], cornerRadius: numbe
 		return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
 	}
 
-	let d = `M ${points[0].x} ${points[0].y}`;
+	// Align points to make segments strictly orthogonal
+	const aligned = alignPathPoints(points);
 
-	for (let i = 1; i < points.length - 1; i++) {
-		const prev = points[i - 1];
-		const curr = points[i];
-		const next = points[i + 1];
+	let d = `M ${aligned[0].x} ${aligned[0].y}`;
+
+	for (let i = 1; i < aligned.length - 1; i++) {
+		const prev = aligned[i - 1];
+		const curr = aligned[i];
+		const next = aligned[i + 1];
 
 		// Calculate distances to adjacent points
 		const distPrev = Math.abs(prev.x - curr.x) + Math.abs(prev.y - curr.y);
@@ -519,21 +576,26 @@ export function pathToSvgWithRoundedCorners(points: Point[], cornerRadius: numbe
 		}
 
 		// Calculate approach point (before corner)
+		// Use aligned coordinates so equality checks work correctly
 		let approachX: number, approachY: number;
-		if (curr.x === prev.x) {
+		if (Math.abs(curr.x - prev.x) < 1) {
+			// Vertical segment incoming
 			approachX = curr.x;
 			approachY = curr.y - Math.sign(curr.y - prev.y) * radius;
 		} else {
+			// Horizontal segment incoming
 			approachX = curr.x - Math.sign(curr.x - prev.x) * radius;
 			approachY = curr.y;
 		}
 
 		// Calculate departure point (after corner)
 		let departX: number, departY: number;
-		if (curr.x === next.x) {
+		if (Math.abs(curr.x - next.x) < 1) {
+			// Vertical segment outgoing
 			departX = curr.x;
 			departY = curr.y + Math.sign(next.y - curr.y) * radius;
 		} else {
+			// Horizontal segment outgoing
 			departX = curr.x + Math.sign(next.x - curr.x) * radius;
 			departY = curr.y;
 		}
@@ -544,7 +606,7 @@ export function pathToSvgWithRoundedCorners(points: Point[], cornerRadius: numbe
 	}
 
 	// Line to final point
-	d += ` L ${points[points.length - 1].x} ${points[points.length - 1].y}`;
+	d += ` L ${aligned[aligned.length - 1].x} ${aligned[aligned.length - 1].y}`;
 
 	return d;
 }

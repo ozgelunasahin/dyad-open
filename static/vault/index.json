@@ -1,71 +1,107 @@
 {
-  "entryPoint": "home",
+  "entryPoint": "slow-reading",
   "notes": {
-    "home": {
-      "id": "home",
-      "title": "Welcome to Spatial Reader",
-      "content": "# Welcome to Spatial Reader\n\nThis is a **spatial reading environment** where ideas unfold into space.\n\n## Getting Started\n\nClick on any [[wikilink]] to expand that note onto the canvas. Try these:\n\n- [[concepts]] - Core ideas behind spatial reading\n- [[how-to-navigate]] - Learn the controls\n- [[example-network]] - See a connected knowledge network\n\n## Why Spatial?\n\nTraditional reading is linear. Click a link, lose your place. But knowledge isn't linear—it's a **web of connections**.\n\nHere, opening a link doesn't take you away. It brings the new content *to you*, while keeping everything visible.",
-      "wikilinks": ["concepts", "how-to-navigate", "example-network"]
+    "slow-reading": {
+      "id": "slow-reading",
+      "title": "Slow Reading",
+      "content": "# Slow Reading\n\nWhether enacted collectively or alone, silently or aloud, slow reading allows time to pause, rewind, doubt and pursue what at first sight may be tangents. Analogous to gardening, it is a means of tending to and *being in attendance* with what is read. As the Belgian philosopher [[isabelle-stengers]] points out: \"speed demands and creates an insensitivity to everything that might slow things down: the frictions, the rubbing, the hesitations that make us feel we are not alone in the world.\" Urgency abounds, but we must not become desensitized under the pressure of its pace. [[stengers-deceleration|Stengers argues for deceleration]], noting: \"Slowing down means becoming capable of learning again, becoming acquainted with things again, reweaving the bounds of interdependency.\" Although counter-intuitive amid multiple crises, slow reading hits the pause button and summons, as if by séance, an incongruous temporality.\n\nWithin that parallel time zone, slow reading acclimates itself to subtle movements and listens closely to declarations of doubt. *Wait, I'm confused. There's just something I'm not getting.* Without hesitation, we recalibrate, adjusting to linger with the lost or even admit that we ourselves are lost too. There is solidarity as we have all been there. R-E-A-D-I-N-G, in this way, is a practice that consciously aligns itself with the seemingly negative associations of slowness—of not being clever, lacking efficiency, not getting things done and simply not knowing. Rather than a hindrance, these qualities are generative. They create an opening for exploring questions, giving attention to shimmering lights in the margins and accounting for things escaping words altogether. As the British nature writer [[robert-macfarlane]] observes:\n\n> There are experiences of landscape that will always resist articulation, and of which words offer only a remote echo—or to which silence is by far the best response. Nature does not name itself. Granite does not self-identify as igneous. Light has no grammar. Language is always late for its subject.\n\nIn reading, ever so slowly at a snail's pace, we listen to distant echoes. Continuously thumbing through pages and fumbling for words, we preserve placeholders for the unsaid and [[silence|silences]]. We nurture places for *what may have been* and the *yet-to-be*. Rather than championing the avant-garde, slow reading fosters falling behind, failing to comprehend, stopping and taking time to follow up. *Sorry to interrupt you, but can we go back and read that last part of the sentence again?* Yes, slow reading allows space for falling behind, failing to comprehend, stopping and taking time to follow up. Slow reading rejects hierarchy, cold, critical analysis, disavows any illusions of mastery and does not surrender to the linear. Without seeking definitive interpretations, it relishes in the [[slow-readers-methodology|methodology developed by the Slow Readers]].",
+      "wikilinks": ["isabelle-stengers", "stengers-deceleration", "robert-macfarlane", "silence", "slow-readers-methodology"]
     },
-    "concepts": {
-      "id": "concepts",
-      "title": "Core Concepts",
-      "content": "# Core Concepts\n\nSpatial reading is built on a few key ideas:\n\n## Non-Linear Exploration\n\nInstead of navigating *away* from content, you expand *into* it. Each [[wikilink]] you click adds to the canvas rather than replacing what's there.\n\n## Visual Connections\n\nLines connect related notes, showing you how ideas link together. This creates a visual map of your exploration path.\n\n## Context Preservation\n\nYour reading context stays visible. You can always see where you came from and how you got here.\n\n## Related\n\n- [[active-chain]] - How focus tracking works\n- [[card-positioning]] - How notes arrange themselves\n- [[home|Back to Welcome]]",
-      "wikilinks": ["wikilink", "active-chain", "card-positioning", "home"]
+    "isabelle-stengers": {
+      "id": "isabelle-stengers",
+      "title": "Isabelle Stengers",
+      "content": "# Isabelle Stengers\n\nIsabelle Stengers is a Belgian philosopher known for her work on the philosophy of science.\n\n[[stengers-another-science|*Another Science Is Possible: A Manifesto for Slow Science*]] (Cambridge: Polity, 2018), 70.\n\nSee also: [[stengers-deceleration]]",
+      "wikilinks": ["stengers-another-science", "stengers-deceleration"]
     },
-    "how-to-navigate": {
-      "id": "how-to-navigate",
-      "title": "How to Navigate",
-      "content": "# How to Navigate\n\n## Mouse Controls\n\n- **Click** a [[wikilink]] to open that note\n- **Drag** anywhere to pan the canvas\n- **Scroll** to zoom in and out\n\n## Keyboard Shortcuts\n\n- `Alt + Left Arrow` — Go back in history\n- `Alt + Right Arrow` — Go forward\n\n## Understanding the View\n\n- **Bright cards** are in your current [[active-chain]]\n- **Dimmed cards** were opened earlier but aren't in focus\n- **Lines** show how notes connect to each other\n\n## Tips\n\n- Zoom out to see the big picture\n- Zoom in to focus on reading\n- The canvas is infinite—explore freely!",
-      "wikilinks": ["wikilink", "active-chain"]
+    "stengers-deceleration": {
+      "id": "stengers-deceleration",
+      "title": "On Deceleration",
+      "content": "# On Deceleration\n\n\"Slowing down means becoming capable of learning again, becoming acquainted with things again, reweaving the bounds of interdependency.\"\n\n— [[isabelle-stengers]], *Another Science Is Possible*\n\n[[stengers-ibid|Ibid.]]",
+      "wikilinks": ["isabelle-stengers", "stengers-ibid"]
     },
-    "example-network": {
-      "id": "example-network",
-      "title": "Example Network",
-      "content": "# Example: A Knowledge Network\n\nLet's explore how ideas connect. This note links to several topics that themselves link to each other:\n\n## Philosophy\n\n- [[epistemology]] - How we know things\n- [[metaphysics]] - The nature of reality\n\n## Science\n\n- [[scientific-method]] - How we discover truth\n- [[paradigm-shifts]] - How science changes\n\nNotice how these topics interconnect. [[epistemology]] relates to [[scientific-method]], and [[paradigm-shifts]] connects to [[metaphysics]].\n\nTry clicking through and watch the web of knowledge unfold!",
-      "wikilinks": ["epistemology", "metaphysics", "scientific-method", "paradigm-shifts"]
+    "stengers-another-science": {
+      "id": "stengers-another-science",
+      "title": "Another Science Is Possible",
+      "content": "# Another Science Is Possible\n\nIsabelle Stengers, *Another Science Is Possible: A Manifesto for Slow Science* (Cambridge: Polity, 2018), 70.\n\nA manifesto arguing for a slower, more careful approach to scientific practice that allows for genuine engagement with complexity.",
+      "wikilinks": []
     },
-    "wikilink": {
-      "id": "wikilink",
-      "title": "Wikilinks",
-      "content": "# Wikilinks\n\nA **wikilink** is text wrapped in double brackets: `[[like this]]`.\n\n## Syntax\n\n```\n[[note-name]]           → Links to note-name\n[[note-name|Display]]   → Shows \"Display\" but links to note-name\n```\n\n## How They Work Here\n\nWhen you click a wikilink:\n\n1. The linked note appears on the canvas\n2. A line connects the link to the new note\n3. The new note becomes part of your [[active-chain]]\n\n## Origins\n\nWikilinks originated in wiki software and have become popular in tools like Obsidian, Roam, and Logseq.\n\nSee also: [[concepts]]",
-      "wikilinks": ["active-chain", "concepts"]
+    "stengers-ibid": {
+      "id": "stengers-ibid",
+      "title": "Ibid.",
+      "content": "# Ibid.\n\nReference to the same source: [[stengers-another-science]]",
+      "wikilinks": ["stengers-another-science"]
     },
-    "active-chain": {
-      "id": "active-chain",
-      "title": "Active Chain",
-      "content": "# Active Chain\n\nThe **active chain** is your current navigation path through the notes.\n\n## How It Works\n\nWhen you click through notes in sequence:\n\n```\nHome → Concepts → Active Chain\n```\n\nAll three notes are in your active chain and appear **highlighted**.\n\n## Branching\n\nIf you go back to \"Home\" and click a different link, you start a new branch. The previous path dims but stays visible.\n\n## Visual Indicators\n\n- **Bright cards** = In current chain\n- **Dimmed cards** = Visited but not in current path\n- **Active lines** = Connections in current chain\n\nThis helps you always know *where you are* and *how you got there*.\n\nRelated: [[how-to-navigate]]",
-      "wikilinks": ["how-to-navigate"]
+    "robert-macfarlane": {
+      "id": "robert-macfarlane",
+      "title": "Robert Macfarlane",
+      "content": "# Robert Macfarlane\n\nRobert Macfarlane is a British nature writer known for his explorations of landscape and language.\n\n[[macfarlane-landmarks|*Landmarks*]] (London: Penguin Books, 2016), 10.",
+      "wikilinks": ["macfarlane-landmarks"]
     },
-    "card-positioning": {
-      "id": "card-positioning",
-      "title": "Card Positioning",
-      "content": "# Card Positioning\n\nNotes on the canvas are positioned **algorithmically** to avoid overlap and create readable layouts.\n\n## The Algorithm\n\n1. When you click a link, the system calculates where the new card should go\n2. It starts by placing the card in the direction of the link\n3. If that spot overlaps existing cards, it spirals outward\n4. Cards expand away from their parent note\n\n## Design Goals\n\n- **Avoid overlap** - Cards should never cover each other\n- **Show relationships** - Child notes appear near their parents\n- **Expand naturally** - The canvas grows organically as you explore\n\n## Limits\n\nTo ensure good performance, there's a maximum of 50 cards on the canvas at once.\n\nSee: [[concepts]]",
-      "wikilinks": ["concepts"]
+    "macfarlane-landmarks": {
+      "id": "macfarlane-landmarks",
+      "title": "Landmarks",
+      "content": "# Landmarks\n\nRobert Macfarlane, *Landmarks* (London: Penguin Books, 2016), 10.\n\nA meditation on the language of landscape and the ways words shape our perception of the natural world.",
+      "wikilinks": []
     },
-    "epistemology": {
-      "id": "epistemology",
-      "title": "Epistemology",
-      "content": "# Epistemology\n\n**Epistemology** is the branch of philosophy concerned with knowledge—what it is, how we acquire it, and what we can know.\n\n## Key Questions\n\n- What is knowledge?\n- How do we know what we know?\n- What are the limits of knowledge?\n\n## Connection to Science\n\nEpistemology deeply influences the [[scientific-method]]. Our beliefs about what constitutes valid knowledge shape how we design experiments and interpret results.\n\n## Schools of Thought\n\n- **Empiricism** - Knowledge comes from experience\n- **Rationalism** - Knowledge comes from reason\n- **Pragmatism** - Knowledge is what works\n\nSee also: [[metaphysics]], [[paradigm-shifts]]",
-      "wikilinks": ["scientific-method", "metaphysics", "paradigm-shifts"]
+    "silence": {
+      "id": "silence",
+      "title": "Silence",
+      "content": "# Silence\n\nWithin my teaching practice, the presence of silence has always interested me. What does it do, how is it palpable, and how might its impact, if not lessons, be understood? I am fascinated by more abstract notions of silence as articulated and evoked by [[john-cage]] and [[pauline-oliveros]]. But also, there are political understandings of silence. In the *Mother of All Questions: Further Feminisms*, [[rebecca-solnit]] writes about layers of silence, saying:\n\n> \"In the landscape of silence, the three realms might be: silence imposed from within; silence imposed from without; and silence that exists around what has not yet been named, recognized, described, or admitted. But they are not distinct; they feed each other; and what is unsayable becomes unknowable and vice versa, until something breaks.\"\n\nIn another life, with more time and, yes, silence, I would like to explore and unpack these ideas further.\n\n[[solnit-mother-of-all-questions|Rebecca Solnit, *Mother of All Questions*]]",
+      "wikilinks": ["john-cage", "pauline-oliveros", "rebecca-solnit", "solnit-mother-of-all-questions"]
     },
-    "metaphysics": {
-      "id": "metaphysics",
-      "title": "Metaphysics",
-      "content": "# Metaphysics\n\n**Metaphysics** explores the fundamental nature of reality—what exists, what things are, and how they relate.\n\n## Core Topics\n\n- **Ontology** - What kinds of things exist?\n- **Causation** - What does it mean for one thing to cause another?\n- **Time & Space** - What is the nature of time and space?\n- **Mind & Matter** - How do consciousness and physical reality relate?\n\n## Scientific Implications\n\nMetaphysical assumptions underlie all science. [[paradigm-shifts]] often involve changes in metaphysical commitments.\n\n## Related Areas\n\n- [[epistemology]] - How we know about reality\n- [[scientific-method]] - How we investigate reality",
-      "wikilinks": ["paradigm-shifts", "epistemology", "scientific-method"]
+    "rebecca-solnit": {
+      "id": "rebecca-solnit",
+      "title": "Rebecca Solnit",
+      "content": "# Rebecca Solnit\n\nRebecca Solnit is an American writer known for her essays on feminism, politics, and place.\n\n[[solnit-mother-of-all-questions|*Mother of All Questions: Further Feminisms*]] (London: Granta, 2017), 28.",
+      "wikilinks": ["solnit-mother-of-all-questions"]
     },
-    "scientific-method": {
-      "id": "scientific-method",
-      "title": "Scientific Method",
-      "content": "# The Scientific Method\n\nThe **scientific method** is a systematic approach to gaining knowledge through observation, hypothesis, and experimentation.\n\n## Steps\n\n1. **Observe** - Notice something interesting\n2. **Hypothesize** - Propose an explanation\n3. **Predict** - Derive testable predictions\n4. **Experiment** - Test the predictions\n5. **Analyze** - Evaluate the results\n6. **Iterate** - Refine or reject the hypothesis\n\n## Philosophical Foundations\n\nThe method rests on [[epistemology|epistemological]] assumptions about how we can know things. It's been shaped by [[paradigm-shifts]] throughout history.\n\n## Modern Science\n\nToday's science also involves:\n- Peer review\n- Statistical analysis\n- Replication\n- Open data\n\nSee: [[metaphysics]] for what science assumes about reality.",
-      "wikilinks": ["epistemology", "paradigm-shifts", "metaphysics"]
+    "solnit-mother-of-all-questions": {
+      "id": "solnit-mother-of-all-questions",
+      "title": "Mother of All Questions",
+      "content": "# Mother of All Questions\n\nRebecca Solnit, *Mother of All Questions: Further Feminisms* (London: Granta, 2017), 28.",
+      "wikilinks": []
     },
-    "paradigm-shifts": {
-      "id": "paradigm-shifts",
-      "title": "Paradigm Shifts",
-      "content": "# Paradigm Shifts\n\nA **paradigm shift** is a fundamental change in the basic concepts and practices of a scientific discipline.\n\n## Thomas Kuhn's Theory\n\nPhilosopher Thomas Kuhn argued that science doesn't progress linearly but through revolutionary changes:\n\n1. **Normal Science** - Working within accepted frameworks\n2. **Anomalies** - Results that don't fit\n3. **Crisis** - Accumulated anomalies challenge the paradigm\n4. **Revolution** - A new paradigm emerges\n5. **New Normal** - The cycle begins again\n\n## Famous Examples\n\n- Copernican Revolution (Earth-centered → Sun-centered)\n- Darwin's Evolution (fixed species → natural selection)\n- Einstein's Relativity (Newtonian mechanics → spacetime)\n- Quantum Mechanics (deterministic → probabilistic)\n\n## Implications\n\nParadigm shifts affect both [[metaphysics|metaphysical]] assumptions and [[epistemology|epistemological]] standards.\n\nSee: [[scientific-method]]",
-      "wikilinks": ["metaphysics", "epistemology", "scientific-method"]
+    "slow-readers-methodology": {
+      "id": "slow-readers-methodology",
+      "title": "Slow Readers Methodology",
+      "content": "# Slow Readers Methodology\n\nSlow reading is a methodology collectively developed by the [[slow-readers-group|Slow Readers]] during COVID and lockdown. Initiated as a part of my research fellowship at V2 Lab for the Unstable Media, the project took place online over the course of six months. Through reading relevant texts, we looked at AI and gender inequality.\n\nAside from informing my approach, reading [[maturana-varela-autopoiesis|*Autopoiesis and Cognition: The Realization of the Living*]] by Humberto Maturana and Francisco Varela was especially relevant to understanding our interdependency.\n\nI still remember that day sitting in my garden cottage, reading it aloud together while being apart in isolation. Confined to tiny squares on the screen, as we talked about the intricacies of living systems, messages from other gardeners suddenly poured in on my phone. An eagle owl had escaped from the neighbouring zoo and was sitting in the Dawn Redwood on my plot. I ran outside and tilted my laptop upwards for the Slow Readers to see it. While I wasn't sure if it was visible on the screen, that moment nonetheless felt stranger than fiction, a reminder in a surreal and mostly online time that the physical world was still out there and shared with other creatures.\n\nI am eternally thankful for that owl disrupting and simultaneously grounding our reading. And my heartfelt gratitude goes out to all the Slow Readers whose sharpness and generosity anchored me during the untethered life of lockdown.\n\nIt is also akin to [[lilla-watson]]'s declaration about solidarity and liberation.",
+      "wikilinks": ["slow-readers-group", "maturana-varela-autopoiesis", "lilla-watson"]
+    },
+    "slow-readers-group": {
+      "id": "slow-readers-group",
+      "title": "The Slow Readers",
+      "content": "# The Slow Readers\n\nThe Slow Readers are a collective who practice slow reading methodology.\n\nhttps://v2.hotglue.me/the_slow_reading_group",
+      "wikilinks": []
+    },
+    "maturana-varela-autopoiesis": {
+      "id": "maturana-varela-autopoiesis",
+      "title": "Autopoiesis and Cognition",
+      "content": "# Autopoiesis and Cognition\n\nHumberto Maturana and Francisco Varela, *Autopoiesis and Cognition: The Realization of the Living* (Dordrecht NL: D. Reidel Publishing, 1980).\n\nA foundational text on living systems and their self-organizing properties.",
+      "wikilinks": []
+    },
+    "lilla-watson": {
+      "id": "lilla-watson",
+      "title": "Lilla Watson",
+      "content": "# Lilla Watson\n\nLilla Watson is an indigenous Australian artist and activist. She is known for her declaration:\n\n> \"If you have come here to help me, you are wasting your time, but if you have come because your liberation is bound up with mine, then let us work together.\"\n\nIn these paradigms, \"we\" are tightly and inextricably knotted.\n\nFor more on Lilla Watson, see: https://en.wikipedia.org/wiki/Lilla_Watson",
+      "wikilinks": []
+    },
+    "john-cage": {
+      "id": "john-cage",
+      "title": "John Cage",
+      "content": "# John Cage\n\nJohn Cage was an American composer known for his exploration of silence and chance in music, most famously in *4'33\"*.",
+      "wikilinks": []
+    },
+    "pauline-oliveros": {
+      "id": "pauline-oliveros",
+      "title": "Pauline Oliveros",
+      "content": "# Pauline Oliveros\n\nPauline Oliveros was an American composer and accordionist who developed \"Deep Listening\" as a practice of radical attention.",
+      "wikilinks": []
+    },
+    "sedgwick-touching-feeling": {
+      "id": "sedgwick-touching-feeling",
+      "title": "Touching Feeling",
+      "content": "# Touching Feeling\n\nEve Kosofsky Sedgwick, *Touching Feeling: Affect, Pedagogy, Performativity* (Durham NC: Duke University Press, 2004), 146.",
+      "wikilinks": []
     }
   }
 }

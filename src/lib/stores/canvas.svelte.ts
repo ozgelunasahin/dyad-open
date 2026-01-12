@@ -8,6 +8,17 @@ const STORAGE_KEY = 'spatial-reader-state';
 interface PersistedState {
 	lastViewedNoteId: string | null;
 	cameraState: Camera;
+	// Full canvas state for restoration
+	cards?: Array<{
+		id: string;
+		noteId: string;
+		position: Point;
+		dimensions: Dimensions;
+		parentId: string | null;
+		sourceLink: Point | null;
+	}>;
+	connections?: Connection[];
+	activeChain?: string[];
 }
 
 function loadPersistedState(): PersistedState | null {
@@ -73,13 +84,45 @@ class CanvasStore {
 
 		// Load persisted state
 		const persisted = loadPersistedState();
-		const entryNoteId = persisted?.lastViewedNoteId || vault.entryPoint;
 
 		if (persisted?.cameraState) {
 			this.camera = persisted.cameraState;
 		}
 
-		// Open the entry note
+		// Try to restore full canvas state
+		if (persisted?.cards && persisted.cards.length > 0) {
+			const restoredCards = new Map<string, Card>();
+
+			for (const savedCard of persisted.cards) {
+				const note = vault.notes[savedCard.noteId];
+				if (note) {
+					restoredCards.set(savedCard.id, {
+						id: savedCard.id,
+						note,
+						position: savedCard.position,
+						dimensions: savedCard.dimensions,
+						parentId: savedCard.parentId,
+						sourceLink: savedCard.sourceLink
+					});
+				}
+			}
+
+			if (restoredCards.size > 0) {
+				this.cards = restoredCards;
+				this.connections = persisted.connections || [];
+				this.activeChain = persisted.activeChain || [];
+
+				// Focus on the current card
+				const currentCardId = this.activeChain[this.activeChain.length - 1];
+				if (currentCardId && this.cards.has(currentCardId)) {
+					this.focusCard(currentCardId);
+				}
+				return;
+			}
+		}
+
+		// Fallback: Open the entry note
+		const entryNoteId = persisted?.lastViewedNoteId || vault.entryPoint;
 		const entryNote = vault.notes[entryNoteId] || vault.notes[vault.entryPoint];
 		if (entryNote) {
 			this.openNote(entryNote.id, null, null);
@@ -135,12 +178,13 @@ class CanvasStore {
 		const parentCard = fromCardId ? this.cards.get(fromCardId) ?? null : null;
 		const existingCards = Array.from(this.cards.values());
 
-		// Calculate position using priority-based algorithm
+		// Calculate position using priority-based algorithm with crossing prevention
 		const { position } = calculateNewCardPosition(
 			parentCard,
 			existingCards,
 			linkPosition,
-			dimensions
+			dimensions,
+			this.connections
 		);
 
 		// Create new card
@@ -261,6 +305,10 @@ class CanvasStore {
 		return this.activeChain.includes(cardId);
 	}
 
+	isCurrentCard(cardId: string): boolean {
+		return this.activeChain[this.activeChain.length - 1] === cardId;
+	}
+
 	isConnectionActive(conn: Connection): boolean {
 		const fromIndex = this.activeChain.indexOf(conn.fromCardId);
 		const toIndex = this.activeChain.indexOf(conn.toCardId);
@@ -269,9 +317,23 @@ class CanvasStore {
 
 	private persistState(): void {
 		const lastNote = this.activeChain[this.activeChain.length - 1];
+
+		// Serialize cards (without note content, just references)
+		const serializedCards = Array.from(this.cards.values()).map(card => ({
+			id: card.id,
+			noteId: card.note.id,
+			position: card.position,
+			dimensions: card.dimensions,
+			parentId: card.parentId,
+			sourceLink: card.sourceLink
+		}));
+
 		savePersistedState({
 			lastViewedNoteId: lastNote || null,
-			cameraState: this.camera
+			cameraState: this.camera,
+			cards: serializedCards,
+			connections: [...this.connections],
+			activeChain: [...this.activeChain]
 		});
 	}
 
