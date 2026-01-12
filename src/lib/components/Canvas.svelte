@@ -21,6 +21,10 @@
 	onMount(() => {
 		zoomBehavior = zoom<SVGSVGElement, unknown>()
 			.scaleExtent([0.1, 3])
+			// Slow down zoom speed (default is ~0.002, we use 0.0005 for smoother zoom)
+			.wheelDelta((event) => {
+				return -event.deltaY * 0.0005;
+			})
 			// Only allow zoom on Ctrl+wheel, allow drag panning always
 			.filter((event) => {
 				// Always allow drag (mousedown/touchstart)
@@ -262,7 +266,7 @@
 
 		<!-- Note cards -->
 		{#each canvasStore.cardList as card (card.id)}
-			<NoteCard {card} isActive={canvasStore.isCurrentCard(card.id)} onLinkClick={handleLinkClick} />
+			<NoteCard {card} isActive={canvasStore.focusedCardId === card.id} onLinkClick={handleLinkClick} />
 		{/each}
 	</g>
 </svg>
