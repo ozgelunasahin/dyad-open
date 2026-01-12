@@ -9,7 +9,8 @@
       "Skill(compound-engineering:workflows:work)",
       "Bash(npx sv create:*)",
       "Bash(npm install:*)",
-      "mcp__plugin_compound-engineering_pw__browser_install"
+      "mcp__plugin_compound-engineering_pw__browser_install",
+      "Bash(npm run build:*)"
     ]
   }
 }

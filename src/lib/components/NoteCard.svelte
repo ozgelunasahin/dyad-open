@@ -87,20 +87,20 @@
 		font-family: 'Georgia', 'Times New Roman', 'Noto Serif', serif;
 		font-size: 14px;
 		line-height: 1.7;
-		color: #e8e6e3;
-		transition: opacity 0.3s ease;
+		color: var(--text-secondary);
+		transition: opacity 0.3s ease, color 0.3s ease;
 		padding: 8px 0;
 	}
 
 	.text-block.dimmed {
-		opacity: 0.35;
+		opacity: var(--dimmed-opacity);
 	}
 
 	.text-block :global(h1) {
 		font-size: 18px;
 		font-weight: 600;
 		margin: 0 0 16px 0;
-		color: #f5f3f0;
+		color: var(--text-primary);
 		letter-spacing: -0.01em;
 	}
 
@@ -108,14 +108,14 @@
 		font-size: 15px;
 		font-weight: 600;
 		margin: 20px 0 10px 0;
-		color: #f5f3f0;
+		color: var(--text-primary);
 	}
 
 	.text-block :global(h3) {
 		font-size: 14px;
 		font-weight: 600;
 		margin: 16px 0 8px 0;
-		color: #e8e6e3;
+		color: var(--text-secondary);
 	}
 
 	.text-block :global(p) {
@@ -135,21 +135,21 @@
 	}
 
 	.text-block :global(code) {
-		background: rgba(255, 255, 255, 0.08);
+		background: var(--bg-code);
 		padding: 2px 5px;
 		border-radius: 3px;
 		font-size: 12px;
 		font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
-		color: #d4d0c8;
+		color: var(--text-muted);
 	}
 
 	.text-block :global(pre) {
-		background: rgba(255, 255, 255, 0.05);
+		background: var(--bg-code-block);
 		padding: 12px;
 		border-radius: 4px;
 		overflow-x: auto;
 		margin: 0 0 14px 0;
-		border-left: 2px solid rgba(255, 255, 255, 0.15);
+		border-left: 2px solid var(--border-code);
 	}
 
 	.text-block :global(pre code) {
@@ -159,7 +159,7 @@
 
 	.text-block :global(strong) {
 		font-weight: 600;
-		color: #f5f3f0;
+		color: var(--text-primary);
 	}
 
 	.text-block :global(em) {
@@ -169,9 +169,9 @@
 	.text-block :global(.wikilink) {
 		background: none;
 		border: none;
-		color: #b8b4ac;
+		color: var(--text-link);
 		text-decoration: none;
-		border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+		border-bottom: 1px solid var(--border-link);
 		cursor: pointer;
 		padding: 0;
 		font: inherit;
@@ -179,22 +179,23 @@
 	}
 
 	.text-block :global(.wikilink:hover) {
-		color: #f5f3f0;
-		border-bottom-color: rgba(255, 255, 255, 0.5);
+		color: var(--text-link-hover);
+		border-bottom-color: var(--border-link-hover);
 	}
 
 	.text-block :global(.wikilink.broken) {
-		color: #666;
-		border-bottom-color: rgba(255, 255, 255, 0.1);
+		color: var(--text-muted);
+		border-bottom-color: var(--border-code);
 		cursor: not-allowed;
+		opacity: 0.5;
 	}
 
 	.text-block :global(.wikilink.broken:hover) {
-		color: #666;
-		border-bottom-color: rgba(255, 255, 255, 0.1);
+		color: var(--text-muted);
+		border-bottom-color: var(--border-code);
 	}
 
-	/* Scrollbar styling for dark theme */
+	/* Scrollbar styling */
 	.text-block::-webkit-scrollbar {
 		width: 4px;
 	}
@@ -204,11 +205,11 @@
 	}
 
 	.text-block::-webkit-scrollbar-thumb {
-		background: rgba(255, 255, 255, 0.15);
+		background: var(--scrollbar-thumb);
 		border-radius: 2px;
 	}
 
 	.text-block::-webkit-scrollbar-thumb:hover {
-		background: rgba(255, 255, 255, 0.25);
+		background: var(--scrollbar-thumb-hover);
 	}
 </style>

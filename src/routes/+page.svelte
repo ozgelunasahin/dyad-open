@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import type { Vault } from '$lib/types';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
+	import { themeStore } from '$lib/stores/theme.svelte';
 	import Canvas from '$lib/components/Canvas.svelte';
 
 	let loading = $state(true);
@@ -57,7 +58,7 @@
 	{:else}
 		<Canvas />
 
-		<!-- Minimal navigation (hidden by default, shows on hover) -->
+		<!-- Minimal navigation -->
 		<nav class="controls" class:can-navigate={canvasStore.canGoBack || canvasStore.canGoForward}>
 			<button
 				class="nav-btn"
@@ -80,22 +81,28 @@
 				</svg>
 			</button>
 		</nav>
+
+		<!-- Theme toggle -->
+		<button
+			class="theme-toggle"
+			onclick={() => themeStore.toggle()}
+			aria-label="Toggle theme"
+		>
+			{#if themeStore.current === 'light'}
+				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+					<circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5"/>
+					<path d="M8 1V2.5M8 13.5V15M1 8H2.5M13.5 8H15M3.05 3.05L4.11 4.11M11.89 11.89L12.95 12.95M3.05 12.95L4.11 11.89M11.89 4.11L12.95 3.05" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+				</svg>
+			{:else}
+				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+					<path d="M14 8.5A6 6 0 117.5 2a4.5 4.5 0 006.5 6.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+				</svg>
+			{/if}
+		</button>
 	{/if}
 </main>
 
 <style>
-	:global(*) {
-		box-sizing: border-box;
-	}
-
-	:global(body) {
-		margin: 0;
-		padding: 0;
-		font-family: 'Georgia', 'Times New Roman', serif;
-		overflow: hidden;
-		background: #1a1a1a;
-	}
-
 	.app {
 		width: 100vw;
 		height: 100vh;
@@ -111,15 +118,15 @@
 		justify-content: center;
 		height: 100%;
 		gap: 16px;
-		color: #666;
+		color: var(--text-muted);
 		font-family: 'Georgia', serif;
 	}
 
 	.error button {
 		padding: 8px 16px;
 		background: transparent;
-		color: #888;
-		border: 1px solid #444;
+		color: var(--text-muted);
+		border: 1px solid var(--border-link);
 		border-radius: 4px;
 		cursor: pointer;
 		font-family: inherit;
@@ -127,8 +134,8 @@
 	}
 
 	.error button:hover {
-		border-color: #666;
-		color: #aaa;
+		border-color: var(--border-link-hover);
+		color: var(--text-secondary);
 	}
 
 	.controls {
@@ -160,9 +167,9 @@
 		height: 32px;
 		border: none;
 		border-radius: 4px;
-		background: rgba(255, 255, 255, 0.05);
+		background: var(--bg-control);
 		cursor: pointer;
-		color: rgba(255, 255, 255, 0.5);
+		color: var(--control-color);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -170,12 +177,37 @@
 	}
 
 	.nav-btn:hover:not(:disabled) {
-		background: rgba(255, 255, 255, 0.1);
-		color: rgba(255, 255, 255, 0.8);
+		background: var(--bg-control-hover);
+		color: var(--control-color-hover);
 	}
 
 	.nav-btn:disabled {
 		opacity: 0.3;
 		cursor: not-allowed;
+	}
+
+	.theme-toggle {
+		position: fixed;
+		bottom: 24px;
+		right: 24px;
+		width: 32px;
+		height: 32px;
+		border: none;
+		border-radius: 4px;
+		background: var(--bg-control);
+		cursor: pointer;
+		color: var(--control-color);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: all 0.2s ease;
+		opacity: 0.4;
+		z-index: 100;
+	}
+
+	.theme-toggle:hover {
+		background: var(--bg-control-hover);
+		color: var(--control-color-hover);
+		opacity: 1;
 	}
 </style>

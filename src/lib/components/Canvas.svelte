@@ -103,8 +103,9 @@
 	.canvas {
 		width: 100%;
 		height: 100%;
-		background: #1a1a1a;
+		background: var(--bg-canvas);
 		cursor: grab;
+		transition: background 0.3s ease;
 	}
 
 	.canvas:active {
