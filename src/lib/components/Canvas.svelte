@@ -18,6 +18,32 @@
 	let transform = $state({ x: 0, y: 0, k: 1 });
 	let zoomBehavior: ZoomBehavior<SVGSVGElement, unknown>;
 
+	/**
+	 * Find and focus the card under the viewport center.
+	 */
+	function updateFocusFromViewportCenter() {
+		if (!svg) return;
+
+		// Calculate viewport center in canvas coordinates
+		const viewportCenterX = (svg.clientWidth / 2 - transform.x) / transform.k;
+		const viewportCenterY = (svg.clientHeight / 2 - transform.y) / transform.k;
+
+		// Find which card contains this point
+		for (const card of canvasStore.cardList) {
+			const inX = viewportCenterX >= card.position.x &&
+			            viewportCenterX <= card.position.x + card.dimensions.width;
+			const inY = viewportCenterY >= card.position.y &&
+			            viewportCenterY <= card.position.y + card.dimensions.height;
+
+			if (inX && inY) {
+				if (canvasStore.focusedCardId !== card.id) {
+					canvasStore.focusedCardId = card.id;
+				}
+				return;
+			}
+		}
+	}
+
 	onMount(() => {
 		zoomBehavior = zoom<SVGSVGElement, unknown>()
 			.scaleExtent([0.1, 3])
@@ -49,6 +75,7 @@
 					y: event.transform.y,
 					zoom: event.transform.k
 				});
+				updateFocusFromViewportCenter();
 			});
 
 		const selection = select(svg);
@@ -109,6 +136,9 @@
 			const initialTransform = zoomIdentity.translate(width / 2, height / 2);
 			selection.call(zoomBehavior.transform, initialTransform);
 		}
+
+		// Set initial focus based on viewport center
+		updateFocusFromViewportCenter();
 
 		// Listen for focus animation requests
 		const handleFocusAnimation = (event: Event) => {
