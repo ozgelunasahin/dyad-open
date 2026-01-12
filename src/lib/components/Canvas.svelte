@@ -21,6 +21,19 @@
 	onMount(() => {
 		zoomBehavior = zoom<SVGSVGElement, unknown>()
 			.scaleExtent([0.1, 3])
+			// Only allow zoom on Ctrl+wheel, allow drag panning always
+			.filter((event) => {
+				// Always allow drag (mousedown/touchstart)
+				if (event.type === 'mousedown' || event.type === 'touchstart') {
+					return true;
+				}
+				// For wheel events, only zoom if Ctrl is held
+				if (event.type === 'wheel') {
+					return event.ctrlKey;
+				}
+				// Allow other events (dblclick for reset, etc.)
+				return true;
+			})
 			.on('zoom', (event) => {
 				transform = {
 					x: event.transform.x,
@@ -36,6 +49,47 @@
 
 		const selection = select(svg);
 		selection.call(zoomBehavior);
+
+		// Handle regular scroll for vertical panning within focused card
+		function handleWheel(event: WheelEvent) {
+			// Skip if Ctrl is held (let d3-zoom handle it for zooming)
+			if (event.ctrlKey) return;
+
+			event.preventDefault();
+
+			const focusedCard = canvasStore.focusedCardId
+				? canvasStore.cards.get(canvasStore.focusedCardId)
+				: null;
+
+			if (!focusedCard) {
+				// No focused card - just pan freely
+				const newY = transform.y - event.deltaY;
+				const newTransform = zoomIdentity.translate(transform.x, newY).scale(transform.k);
+				selection.call(zoomBehavior.transform, newTransform);
+				return;
+			}
+
+			// Calculate vertical bounds based on focused card
+			const viewportHeight = svg.clientHeight;
+			const cardTop = focusedCard.position.y;
+			const cardBottom = focusedCard.position.y + focusedCard.dimensions.height;
+			const cardCenterY = (cardTop + cardBottom) / 2;
+
+			// Convert to screen coordinates for bounds
+			// When card top is at viewport center: transform.y = viewportHeight/2 - cardTop * transform.k
+			// When card bottom is at viewport center: transform.y = viewportHeight/2 - cardBottom * transform.k
+			const maxY = viewportHeight / 2 - cardTop * transform.k + 100; // Allow 100px past top
+			const minY = viewportHeight / 2 - cardBottom * transform.k - 100; // Allow 100px past bottom
+
+			// Apply scroll with bounds
+			let newY = transform.y - event.deltaY;
+			newY = Math.max(minY, Math.min(maxY, newY));
+
+			const newTransform = zoomIdentity.translate(transform.x, newY).scale(transform.k);
+			selection.call(zoomBehavior.transform, newTransform);
+		}
+
+		svg.addEventListener('wheel', handleWheel, { passive: false });
 
 		// Restore camera position from store
 		const storedCamera = canvasStore.camera;
@@ -62,6 +116,7 @@
 
 		return () => {
 			window.removeEventListener('canvas-focus', handleFocusAnimation);
+			svg.removeEventListener('wheel', handleWheel);
 		};
 	});
 

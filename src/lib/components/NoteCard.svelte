@@ -36,6 +36,9 @@
 			event.preventDefault();
 			event.stopPropagation();
 			handleInteraction(target);
+		} else {
+			// Click on card body - focus this card for scrolling
+			canvasStore.focusCard(card.id);
 		}
 	}
 
