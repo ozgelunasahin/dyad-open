@@ -24,7 +24,6 @@
 			const noteId = target.dataset.target;
 			if (!noteId) return;
 
-			// Check if link is broken
 			if (canvasStore.isLinkBroken(noteId)) {
 				return;
 			}
@@ -63,171 +62,153 @@
 	y={card.position.y}
 	width={CARD_WIDTH}
 	height={CARD_HEIGHT}
-	class="card-container"
+	class="text-block-container"
 >
 	<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
 	<div
 		xmlns="http://www.w3.org/1999/xhtml"
-		class="card"
+		class="text-block"
 		class:dimmed={!isActive}
 		onclick={handleClick}
+		bind:this={contentEl}
 	>
-		<header class="card-header">
-			<h2>{card.note.title}</h2>
-		</header>
-		<div class="card-content" bind:this={contentEl}>
-			{@html html}
-		</div>
+		{@html html}
 	</div>
 </foreignObject>
 
 <style>
-	.card-container {
+	.text-block-container {
 		overflow: visible;
 	}
 
-	.card {
-		background: white;
-		border-radius: 12px;
-		box-shadow:
-			0 4px 6px -1px rgb(0 0 0 / 0.1),
-			0 2px 4px -2px rgb(0 0 0 / 0.1);
-		overflow: hidden;
+	.text-block {
 		height: 100%;
-		display: flex;
-		flex-direction: column;
-		transition:
-			opacity 0.2s ease,
-			filter 0.2s ease,
-			box-shadow 0.2s ease;
-		border: 1px solid #e2e8f0;
+		overflow-y: auto;
+		font-family: 'Georgia', 'Times New Roman', 'Noto Serif', serif;
+		font-size: 14px;
+		line-height: 1.7;
+		color: #e8e6e3;
+		transition: opacity 0.3s ease;
+		padding: 8px 0;
 	}
 
-	.card:focus {
-		outline: 2px solid #3b82f6;
-		outline-offset: 2px;
+	.text-block.dimmed {
+		opacity: 0.35;
 	}
 
-	.card.dimmed {
-		opacity: 0.5;
-		filter: saturate(0.7);
+	.text-block :global(h1) {
+		font-size: 18px;
+		font-weight: 600;
+		margin: 0 0 16px 0;
+		color: #f5f3f0;
+		letter-spacing: -0.01em;
 	}
 
-	.card:not(.dimmed) {
-		box-shadow:
-			0 10px 15px -3px rgb(0 0 0 / 0.1),
-			0 4px 6px -4px rgb(0 0 0 / 0.1);
+	.text-block :global(h2) {
+		font-size: 15px;
+		font-weight: 600;
+		margin: 20px 0 10px 0;
+		color: #f5f3f0;
 	}
 
-	.card-header {
-		padding: 12px 16px;
-		border-bottom: 1px solid #e2e8f0;
-		background: #f8fafc;
-		flex-shrink: 0;
-	}
-
-	.card-header h2 {
-		margin: 0;
+	.text-block :global(h3) {
 		font-size: 14px;
 		font-weight: 600;
-		color: #1e293b;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
-	.card-content {
-		padding: 16px;
-		overflow-y: auto;
-		flex: 1;
-		font-size: 13px;
-		line-height: 1.6;
-		color: #334155;
-	}
-
-	.card-content :global(h1) {
-		font-size: 16px;
-		margin: 0 0 12px 0;
-		color: #1e293b;
-	}
-
-	.card-content :global(h2) {
-		font-size: 14px;
 		margin: 16px 0 8px 0;
-		color: #1e293b;
+		color: #e8e6e3;
 	}
 
-	.card-content :global(h3) {
-		font-size: 13px;
-		margin: 12px 0 6px 0;
-		color: #1e293b;
+	.text-block :global(p) {
+		margin: 0 0 14px 0;
+		text-align: justify;
+		hyphens: auto;
 	}
 
-	.card-content :global(p) {
-		margin: 0 0 12px 0;
+	.text-block :global(ul),
+	.text-block :global(ol) {
+		margin: 0 0 14px 0;
+		padding-left: 18px;
 	}
 
-	.card-content :global(ul),
-	.card-content :global(ol) {
-		margin: 0 0 12px 0;
-		padding-left: 20px;
+	.text-block :global(li) {
+		margin-bottom: 6px;
 	}
 
-	.card-content :global(li) {
-		margin-bottom: 4px;
-	}
-
-	.card-content :global(code) {
-		background: #f1f5f9;
-		padding: 2px 4px;
-		border-radius: 4px;
+	.text-block :global(code) {
+		background: rgba(255, 255, 255, 0.08);
+		padding: 2px 5px;
+		border-radius: 3px;
 		font-size: 12px;
-		font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+		font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+		color: #d4d0c8;
 	}
 
-	.card-content :global(pre) {
-		background: #f1f5f9;
+	.text-block :global(pre) {
+		background: rgba(255, 255, 255, 0.05);
 		padding: 12px;
-		border-radius: 6px;
+		border-radius: 4px;
 		overflow-x: auto;
-		margin: 0 0 12px 0;
+		margin: 0 0 14px 0;
+		border-left: 2px solid rgba(255, 255, 255, 0.15);
 	}
 
-	.card-content :global(pre code) {
+	.text-block :global(pre code) {
 		background: none;
 		padding: 0;
 	}
 
-	.card-content :global(strong) {
+	.text-block :global(strong) {
 		font-weight: 600;
-		color: #1e293b;
+		color: #f5f3f0;
 	}
 
-	.card-content :global(.wikilink) {
+	.text-block :global(em) {
+		font-style: italic;
+	}
+
+	.text-block :global(.wikilink) {
 		background: none;
 		border: none;
-		color: #3b82f6;
-		text-decoration: underline;
-		text-decoration-color: #93c5fd;
-		text-underline-offset: 2px;
+		color: #b8b4ac;
+		text-decoration: none;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.25);
 		cursor: pointer;
 		padding: 0;
 		font: inherit;
 		transition: all 0.15s ease;
 	}
 
-	.card-content :global(.wikilink:hover) {
-		color: #2563eb;
-		text-decoration-color: #3b82f6;
+	.text-block :global(.wikilink:hover) {
+		color: #f5f3f0;
+		border-bottom-color: rgba(255, 255, 255, 0.5);
 	}
 
-	.card-content :global(.wikilink.broken) {
-		color: #94a3b8;
-		text-decoration-color: #cbd5e1;
+	.text-block :global(.wikilink.broken) {
+		color: #666;
+		border-bottom-color: rgba(255, 255, 255, 0.1);
 		cursor: not-allowed;
 	}
 
-	.card-content :global(.wikilink.broken:hover) {
-		color: #94a3b8;
+	.text-block :global(.wikilink.broken:hover) {
+		color: #666;
+		border-bottom-color: rgba(255, 255, 255, 0.1);
+	}
+
+	/* Scrollbar styling for dark theme */
+	.text-block::-webkit-scrollbar {
+		width: 4px;
+	}
+
+	.text-block::-webkit-scrollbar-track {
+		background: transparent;
+	}
+
+	.text-block::-webkit-scrollbar-thumb {
+		background: rgba(255, 255, 255, 0.15);
+		border-radius: 2px;
+	}
+
+	.text-block::-webkit-scrollbar-thumb:hover {
+		background: rgba(255, 255, 255, 0.25);
 	}
 </style>

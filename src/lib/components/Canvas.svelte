@@ -60,36 +60,29 @@
 
 	// Compute connection line endpoints
 	let connectionData = $derived.by(() => {
-		return canvasStore.connections.map((conn) => {
-			const fromCard = canvasStore.cards.get(conn.fromCardId);
-			const toCard = canvasStore.cards.get(conn.toCardId);
+		return canvasStore.connections
+			.map((conn) => {
+				const fromCard = canvasStore.cards.get(conn.fromCardId);
+				const toCard = canvasStore.cards.get(conn.toCardId);
 
-			if (!fromCard || !toCard) return null;
+				if (!fromCard || !toCard) return null;
 
-			const points = getConnectionPoints(fromCard, toCard, conn.sourcePoint);
-			const isActive = canvasStore.isConnectionActive(conn);
+				const points = getConnectionPoints(fromCard, toCard, conn.sourcePoint);
+				const isActive = canvasStore.isConnectionActive(conn);
 
-			return {
-				...conn,
-				from: points.from,
-				to: points.to,
-				isActive
-			};
-		}).filter((c) => c !== null);
+				return {
+					...conn,
+					from: points.from,
+					to: points.to,
+					isActive
+				};
+			})
+			.filter((c) => c !== null);
 	});
 </script>
 
 <svg bind:this={svg} class="canvas">
-	<defs>
-		<pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-			<circle cx="1" cy="1" r="1" fill="#e2e8f0" />
-		</pattern>
-	</defs>
-
 	<g transform="translate({transform.x}, {transform.y}) scale({transform.k})">
-		<!-- Background grid -->
-		<rect x="-10000" y="-10000" width="20000" height="20000" fill="url(#grid)" />
-
 		<!-- Connection lines (rendered below cards) -->
 		{#each connectionData as conn (conn.fromCardId + '-' + conn.toCardId)}
 			<ConnectionLine from={conn.from} to={conn.to} isActive={conn.isActive} />
@@ -110,7 +103,7 @@
 	.canvas {
 		width: 100%;
 		height: 100%;
-		background: #f8fafc;
+		background: #1a1a1a;
 		cursor: grab;
 	}
 
