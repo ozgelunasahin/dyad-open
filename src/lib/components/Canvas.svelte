@@ -6,7 +6,7 @@
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import {
 		routeConnection,
-		pathToSvg,
+		pathToSvgWithHops,
 		getCardEntryPoint
 	} from '$lib/utils/pathfinding';
 	import NoteCard from './NoteCard.svelte';
@@ -230,9 +230,9 @@
 			existingPaths
 		);
 
-		// Generate SVG path
+		// Generate SVG path with hops where it crosses existing paths
 		const connectionId = `${fromCardId}-${toCardId}`;
-		const svgPath = pathToSvg(result.path);
+		const svgPath = pathToSvgWithHops(result.path, existingPaths);
 
 		// Store the computed path (frozen forever)
 		canvasStore.storePath(fromCardId, toCardId, {

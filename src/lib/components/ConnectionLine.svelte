@@ -13,7 +13,7 @@
 <style>
 	.connection {
 		stroke: var(--line-color);
-		stroke-width: 3;
+		stroke-width: 1;
 		stroke-linecap: round;
 		stroke-linejoin: round;
 		transition: stroke 0.3s ease;
@@ -22,7 +22,7 @@
 
 	.connection.active {
 		stroke: var(--line-color-active);
-		stroke-width: 4;
+		stroke-width: 1.5;
 	}
 
 	/* Failed pathfinding - visible red dashed line */

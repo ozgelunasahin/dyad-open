@@ -14,6 +14,7 @@ import type { Card, Point } from '$lib/types';
 /**
  * Route a connection between two cards.
  * Creates an orthogonal path: horizontal → vertical → horizontal
+ * Supports bidirectional routing (left or right exit based on target position)
  */
 export function routeConnection(
 	start: Point,
@@ -31,36 +32,66 @@ export function routeConnection(
 		};
 	}
 
-	// Calculate key X positions
+	// Determine direction based on target position relative to source
 	const sourceRightEdge = sourceCard.position.x + sourceCard.dimensions.width;
+	const sourceLeftEdge = sourceCard.position.x;
+	const targetRightEdge = targetCard.position.x + targetCard.dimensions.width;
 	const targetLeftEdge = targetCard.position.x;
 
-	// Exit point: just outside source card's right edge, at link Y
-	const exitX = sourceRightEdge + 10;
-	const exitPoint = { x: exitX, y: start.y };
+	// Target center determines exit direction
+	const targetCenterX = targetCard.position.x + targetCard.dimensions.width / 2;
+	const sourceCenterX = sourceCard.position.x + sourceCard.dimensions.width / 2;
+	const exitRight = targetCenterX > sourceCenterX;
 
-	// Entry point: just outside target card's left edge, at heading Y
-	const entryX = targetLeftEdge - 10;
 	const headingY = targetCard.position.y + 20; // Heading is ~20px from top
-	const entryPoint = { x: entryX, y: headingY };
 
-	// Find the best X position for the vertical segment
-	// It should be in the gap between source and target, avoiding other cards
-	const verticalX = findVerticalRoutingX(
-		exitX,
-		entryX,
-		Math.min(start.y, headingY),
-		Math.max(start.y, headingY),
-		cards,
-		sourceCard,
-		targetCard,
-		existingPaths
-	);
+	let exitX: number;
+	let exitPoint: Point;
+	let entryX: number;
+	let entryPoint: Point;
+	let verticalX: number;
 
-	// Build the path - start from card edge, not inside text
-	// This prevents lines from crossing through the source card's content
+	if (exitRight) {
+		// Exit to the right, enter from the left (standard case)
+		exitX = sourceRightEdge + 10;
+		exitPoint = { x: exitX, y: start.y };
+		entryX = targetLeftEdge - 10;
+		entryPoint = { x: entryX, y: headingY };
+
+		verticalX = findVerticalRoutingX(
+			exitX,
+			entryX,
+			Math.min(start.y, headingY),
+			Math.max(start.y, headingY),
+			cards,
+			sourceCard,
+			targetCard,
+			existingPaths
+		);
+	} else {
+		// Exit to the left, enter from the right (reverse case)
+		exitX = sourceLeftEdge - 10;
+		exitPoint = { x: exitX, y: start.y };
+		entryX = targetRightEdge + 10;
+		entryPoint = { x: entryX, y: headingY };
+
+		verticalX = findVerticalRoutingX(
+			entryX,  // Swap order for left-exit routing
+			exitX,
+			Math.min(start.y, headingY),
+			Math.max(start.y, headingY),
+			cards,
+			sourceCard,
+			targetCard,
+			existingPaths
+		);
+	}
+
+	// Build the path - start from link underline position
+	// The line extends from the link text itself, blending with the underline
 	const path: Point[] = [
-		exitPoint,                          // Start just outside source card's right edge
+		start,                              // Start at the link underline position
+		exitPoint,                          // Go horizontally to exit the card
 		{ x: verticalX, y: start.y },       // Move to vertical routing channel
 		{ x: verticalX, y: headingY },      // Go vertical to target row
 		entryPoint,                         // Approach target
@@ -75,7 +106,7 @@ export function routeConnection(
 
 	return {
 		path: compressed,
-		method: 'Z-route',
+		method: exitRight ? 'Z-route' : 'Z-route-L',
 		failed: hasCrossing
 	};
 }
@@ -303,11 +334,196 @@ export function pathToSvg(points: Point[]): string {
 }
 
 /**
- * Calculate entry point on a card - just outside the left edge at heading level.
+ * Find crossing points between a path segment and existing paths.
+ * Optimized for orthogonal (horizontal/vertical only) paths.
  */
-export function getCardEntryPoint(card: Card, _fromPoint: Point): Point {
+function findCrossingsOnSegment(
+	segStart: Point,
+	segEnd: Point,
+	existingPaths: Point[][]
+): Point[] {
+	const crossings: Point[] = [];
+
+	// Determine if our segment is horizontal or vertical
+	const isHorizontal = Math.abs(segEnd.y - segStart.y) < 1;
+	const isVertical = Math.abs(segEnd.x - segStart.x) < 1;
+
+	if (!isHorizontal && !isVertical) {
+		// Diagonal segment - use general intersection (shouldn't happen in orthogonal routing)
+		return crossings;
+	}
+
+	for (const path of existingPaths) {
+		for (let j = 0; j < path.length - 1; j++) {
+			const otherStart = path[j];
+			const otherEnd = path[j + 1];
+
+			// Determine if other segment is horizontal or vertical
+			const otherIsHorizontal = Math.abs(otherEnd.y - otherStart.y) < 1;
+			const otherIsVertical = Math.abs(otherEnd.x - otherStart.x) < 1;
+
+			// Only horizontal-vertical pairs can cross
+			if (isHorizontal && otherIsVertical) {
+				// Our segment is horizontal, other is vertical
+				const horzY = segStart.y;
+				const horzMinX = Math.min(segStart.x, segEnd.x);
+				const horzMaxX = Math.max(segStart.x, segEnd.x);
+
+				const vertX = otherStart.x;
+				const vertMinY = Math.min(otherStart.y, otherEnd.y);
+				const vertMaxY = Math.max(otherStart.y, otherEnd.y);
+
+				// Check if they cross (strictly inside, not at endpoints)
+				if (vertX > horzMinX + 1 && vertX < horzMaxX - 1 &&
+					horzY > vertMinY + 1 && horzY < vertMaxY - 1) {
+					crossings.push({ x: vertX, y: horzY });
+				}
+			} else if (isVertical && otherIsHorizontal) {
+				// Our segment is vertical, other is horizontal
+				const vertX = segStart.x;
+				const vertMinY = Math.min(segStart.y, segEnd.y);
+				const vertMaxY = Math.max(segStart.y, segEnd.y);
+
+				const horzY = otherStart.y;
+				const horzMinX = Math.min(otherStart.x, otherEnd.x);
+				const horzMaxX = Math.max(otherStart.x, otherEnd.x);
+
+				// Check if they cross (strictly inside, not at endpoints)
+				if (vertX > horzMinX + 1 && vertX < horzMaxX - 1 &&
+					horzY > vertMinY + 1 && horzY < vertMaxY - 1) {
+					crossings.push({ x: vertX, y: horzY });
+				}
+			}
+			// Parallel segments (both horizontal or both vertical) can't cross
+		}
+	}
+
+	// Sort crossings along the segment direction
+	const dx = segEnd.x - segStart.x;
+	const dy = segEnd.y - segStart.y;
+
+	crossings.sort((a, b) => {
+		if (Math.abs(dx) > Math.abs(dy)) {
+			// Horizontal segment - sort by x
+			return (a.x - segStart.x) - (b.x - segStart.x);
+		} else {
+			// Vertical segment - sort by y
+			return (a.y - segStart.y) - (b.y - segStart.y);
+		}
+	});
+
+	return crossings;
+}
+
+/**
+ * Calculate the intersection point of two line segments.
+ */
+function getIntersectionPoint(
+	p1: Point, p2: Point,
+	p3: Point, p4: Point
+): Point | null {
+	const denom = (p4.y - p3.y) * (p2.x - p1.x) - (p4.x - p3.x) * (p2.y - p1.y);
+	if (Math.abs(denom) < 0.001) return null;
+
+	const ua = ((p4.x - p3.x) * (p1.y - p3.y) - (p4.y - p3.y) * (p1.x - p3.x)) / denom;
+
 	return {
-		x: card.position.x - 8,
+		x: p1.x + ua * (p2.x - p1.x),
+		y: p1.y + ua * (p2.y - p1.y)
+	};
+}
+
+const HOP_RADIUS = 6;
+
+/**
+ * Generate SVG path string with hops (arcs) where it crosses existing paths.
+ */
+export function pathToSvgWithHops(points: Point[], existingPaths: Point[][]): string {
+	if (points.length < 2) return '';
+
+	let d = `M ${points[0].x} ${points[0].y}`;
+
+	for (let i = 1; i < points.length; i++) {
+		const prev = points[i - 1];
+		const curr = points[i];
+
+		const isHorizontal = Math.abs(curr.y - prev.y) < 0.5;
+		const isVertical = Math.abs(curr.x - prev.x) < 0.5;
+		const goingRight = curr.x > prev.x;
+		const goingDown = curr.y > prev.y;
+
+		// Find crossings on this segment
+		const crossings = findCrossingsOnSegment(prev, curr, existingPaths);
+
+		if (crossings.length === 0) {
+			// No crossings - simple segment
+			if (isHorizontal) {
+				d += ` H ${curr.x}`;
+			} else if (isVertical) {
+				d += ` V ${curr.y}`;
+			} else {
+				d += ` H ${curr.x} V ${curr.y}`;
+			}
+		} else {
+			// Has crossings - add hops
+			// Sort crossings in the direction of travel
+			if (isHorizontal) {
+				crossings.sort((a, b) => goingRight ? a.x - b.x : b.x - a.x);
+			} else {
+				crossings.sort((a, b) => goingDown ? a.y - b.y : b.y - a.y);
+			}
+
+			let lastPos = isHorizontal ? prev.x : prev.y;
+
+			for (const crossing of crossings) {
+				if (isHorizontal) {
+					const hopStart = goingRight ? crossing.x - HOP_RADIUS : crossing.x + HOP_RADIUS;
+					const hopEnd = goingRight ? crossing.x + HOP_RADIUS : crossing.x - HOP_RADIUS;
+
+					// Draw to just before crossing
+					if (goingRight ? hopStart > lastPos + 1 : hopStart < lastPos - 1) {
+						d += ` H ${hopStart}`;
+					}
+					// Arc over the crossing (semicircle)
+					// sweep-flag: 1 for going right, 0 for going left
+					d += ` A ${HOP_RADIUS} ${HOP_RADIUS} 0 0 ${goingRight ? 1 : 0} ${hopEnd} ${crossing.y}`;
+					lastPos = hopEnd;
+				} else if (isVertical) {
+					const hopStart = goingDown ? crossing.y - HOP_RADIUS : crossing.y + HOP_RADIUS;
+					const hopEnd = goingDown ? crossing.y + HOP_RADIUS : crossing.y - HOP_RADIUS;
+
+					// Draw to just before crossing
+					if (goingDown ? hopStart > lastPos + 1 : hopStart < lastPos - 1) {
+						d += ` V ${hopStart}`;
+					}
+					// Arc over the crossing (semicircle)
+					d += ` A ${HOP_RADIUS} ${HOP_RADIUS} 0 0 ${goingDown ? 0 : 1} ${crossing.x} ${hopEnd}`;
+					lastPos = hopEnd;
+				}
+			}
+
+			// Finish segment
+			if (isHorizontal) {
+				d += ` H ${curr.x}`;
+			} else if (isVertical) {
+				d += ` V ${curr.y}`;
+			}
+		}
+	}
+
+	return d;
+}
+
+/**
+ * Calculate entry point on a card - just outside the edge at heading level.
+ * Entry side depends on where the connection is coming from.
+ */
+export function getCardEntryPoint(card: Card, fromPoint: Point): Point {
+	const cardCenterX = card.position.x + card.dimensions.width / 2;
+	const enterFromLeft = fromPoint.x < cardCenterX;
+
+	return {
+		x: enterFromLeft ? card.position.x - 8 : card.position.x + card.dimensions.width + 8,
 		y: card.position.y + 20
 	};
 }

@@ -23,11 +23,14 @@
 
 		const rect = target.getBoundingClientRect();
 		const linkPosition: Point = {
-			x: rect.right, // End of link text (right edge)
+			x: rect.left, // Start of link text (left edge) - line replaces underline
 			y: rect.bottom // Bottom of link (underline level)
 		};
 
 		onLinkClick(noteId, card.id, linkPosition);
+
+		// Mark link as active (connection line replaces underline)
+		target.classList.add('has-connection');
 	}
 
 	function handleClick(event: MouseEvent) {
@@ -208,6 +211,11 @@
 	.text-block :global(.wikilink.broken:hover) {
 		color: var(--text-muted);
 		border-bottom-color: var(--border-code);
+	}
+
+	/* Hide underline when connection line replaces it */
+	.text-block :global(.wikilink.has-connection) {
+		border-bottom-color: transparent;
 	}
 
 	/* Scrollbar styling - hidden since we use full height */
