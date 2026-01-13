@@ -147,11 +147,60 @@
 
 		window.addEventListener('canvas-focus', handleFocusAnimation);
 
+		// Listen for zoom-to-fit requests
+		const handleZoomToFit = () => {
+			zoomToFitAll();
+		};
+		window.addEventListener('canvas-zoom-to-fit', handleZoomToFit);
+
+		// Listen for compute-paths requests (for programmatic card creation)
+		const handleComputePaths = () => {
+			computeMissingPaths();
+		};
+		window.addEventListener('canvas-compute-paths', handleComputePaths);
+
 		return () => {
 			window.removeEventListener('canvas-focus', handleFocusAnimation);
+			window.removeEventListener('canvas-zoom-to-fit', handleZoomToFit);
+			window.removeEventListener('canvas-compute-paths', handleComputePaths);
 			svg.removeEventListener('wheel', handleWheel);
 		};
 	});
+
+	/**
+	 * Zoom to fit all cards in the viewport with padding.
+	 */
+	function zoomToFitAll() {
+		if (!svg) return;
+
+		const bbox = canvasStore.getBoundingBox();
+		if (!bbox) return;
+
+		const padding = 50;
+		const contentWidth = bbox.maxX - bbox.minX + padding * 2;
+		const contentHeight = bbox.maxY - bbox.minY + padding * 2;
+
+		const viewportWidth = svg.clientWidth;
+		const viewportHeight = svg.clientHeight;
+
+		// Calculate zoom to fit
+		const scaleX = viewportWidth / contentWidth;
+		const scaleY = viewportHeight / contentHeight;
+		const newScale = Math.min(scaleX, scaleY, 1); // Don't zoom in past 1x
+
+		// Calculate center of content
+		const contentCenterX = (bbox.minX + bbox.maxX) / 2;
+		const contentCenterY = (bbox.minY + bbox.maxY) / 2;
+
+		// Calculate translation to center content
+		const newX = viewportWidth / 2 - contentCenterX * newScale;
+		const newY = viewportHeight / 2 - contentCenterY * newScale;
+
+		// Apply transform
+		const selection = select(svg);
+		const newTransform = zoomIdentity.translate(newX, newY).scale(newScale);
+		selection.transition().duration(500).call(zoomBehavior.transform, newTransform);
+	}
 
 	/**
 	 * Smoothly animate the view to center on a point.
@@ -266,6 +315,19 @@
 		// Only do this if a new card was actually created
 		if (!noteAlreadyOpen && canvasStore.cards.has(noteId)) {
 			computeAndStorePath(fromCardId, noteId, canvasPosition);
+		}
+	}
+
+	/**
+	 * Compute paths for all connections that don't have stored paths yet.
+	 * Used when cards are opened programmatically (e.g., openAllLinks).
+	 */
+	function computeMissingPaths(): void {
+		for (const conn of canvasStore.connections) {
+			const existingPath = canvasStore.getStoredPath(conn.fromCardId, conn.toCardId);
+			if (!existingPath) {
+				computeAndStorePath(conn.fromCardId, conn.toCardId, conn.sourcePoint);
+			}
 		}
 	}
 

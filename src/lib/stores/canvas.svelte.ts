@@ -422,6 +422,96 @@ class CanvasStore {
 			}
 		}
 	}
+
+	/**
+	 * Get bounding box of all cards (for zoom to fit).
+	 */
+	getBoundingBox(): { minX: number; minY: number; maxX: number; maxY: number } | null {
+		if (this.cards.size === 0) return null;
+
+		let minX = Infinity, minY = Infinity;
+		let maxX = -Infinity, maxY = -Infinity;
+
+		for (const card of this.cards.values()) {
+			minX = Math.min(minX, card.position.x);
+			minY = Math.min(minY, card.position.y);
+			maxX = Math.max(maxX, card.position.x + card.dimensions.width);
+			maxY = Math.max(maxY, card.position.y + card.dimensions.height);
+		}
+
+		return { minX, minY, maxX, maxY };
+	}
+
+	/**
+	 * Open all links in order (BFS from root, alphabetically within each level).
+	 * Returns a promise that resolves when all links are opened.
+	 */
+	async openAllLinks(): Promise<void> {
+		if (!this.vault) return;
+
+		// Process cards level by level (BFS)
+		const processedCards = new Set<string>();
+		let currentLevel = [...this.cards.keys()];
+
+		while (currentLevel.length > 0) {
+			const nextLevel: string[] = [];
+
+			// Sort current level alphabetically
+			currentLevel.sort();
+
+			for (const cardId of currentLevel) {
+				if (processedCards.has(cardId)) continue;
+				processedCards.add(cardId);
+
+				const card = this.cards.get(cardId);
+				if (!card) continue;
+
+				// Get all wikilinks from this card's note, sorted alphabetically
+				const links = [...card.note.wikilinks].sort();
+
+				for (const linkTarget of links) {
+					// Skip broken links and already open cards
+					if (this.brokenLinks.has(linkTarget)) continue;
+					if (this.cards.has(linkTarget)) continue;
+					if (this.cards.size >= MAX_CARDS) break;
+
+					// Simulate clicking the link - find link position in card
+					// Use a position relative to the card
+					const linkPosition: Point = {
+						x: card.position.x + 50,
+						y: card.position.y + 50 + (links.indexOf(linkTarget) * 20)
+					};
+
+					this.openNote(linkTarget, cardId, linkPosition);
+					nextLevel.push(linkTarget);
+
+					// Small delay to allow rendering
+					await new Promise(r => setTimeout(r, 50));
+				}
+			}
+
+			currentLevel = nextLevel;
+		}
+
+		// Dispatch compute-paths event to generate all connection lines
+		if (typeof window !== 'undefined') {
+			window.dispatchEvent(new CustomEvent('canvas-compute-paths'));
+		}
+
+		// Dispatch zoom to fit event after all links opened
+		if (typeof window !== 'undefined') {
+			window.dispatchEvent(new CustomEvent('canvas-zoom-to-fit'));
+		}
+	}
+
+	/**
+	 * Request zoom to fit all cards.
+	 */
+	zoomToFit(): void {
+		if (typeof window !== 'undefined') {
+			window.dispatchEvent(new CustomEvent('canvas-zoom-to-fit'));
+		}
+	}
 }
 
 export const canvasStore = new CanvasStore();

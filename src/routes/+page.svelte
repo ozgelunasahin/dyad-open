@@ -82,6 +82,37 @@
 			</button>
 		</nav>
 
+		<!-- Debug controls -->
+		{#if canvasStore.debugMode}
+			<!-- Open All Links button (only in debug mode) -->
+			<button
+				class="debug-btn open-all-btn"
+				onclick={() => canvasStore.openAllLinks()}
+				aria-label="Open all links"
+				title="Open all links (BFS order)"
+			>
+				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+					<path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+					<circle cx="13" cy="4" r="1.5" fill="currentColor"/>
+					<circle cx="13" cy="8" r="1.5" fill="currentColor"/>
+					<circle cx="13" cy="12" r="1.5" fill="currentColor"/>
+				</svg>
+			</button>
+
+			<!-- Zoom to Fit button (only in debug mode) -->
+			<button
+				class="debug-btn zoom-fit-btn"
+				onclick={() => canvasStore.zoomToFit()}
+				aria-label="Zoom to fit"
+				title="Zoom to fit all cards"
+			>
+				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+					<rect x="2" y="2" width="12" height="12" stroke="currentColor" stroke-width="1.5" rx="1"/>
+					<path d="M5 5L8 8M11 5L8 8M5 11L8 8M11 11L8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+				</svg>
+			</button>
+		{/if}
+
 		<!-- Debug toggle -->
 		<button
 			class="debug-toggle"
@@ -264,5 +295,37 @@
 		background: var(--bg-control-hover);
 		color: #4ade80;
 		opacity: 1;
+	}
+
+	/* Debug action buttons (only visible in debug mode) */
+	.debug-btn {
+		position: fixed;
+		bottom: 24px;
+		width: 32px;
+		height: 32px;
+		border: none;
+		border-radius: 4px;
+		background: var(--bg-control);
+		cursor: pointer;
+		color: #4ade80;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: all 0.2s ease;
+		opacity: 0.8;
+		z-index: 100;
+	}
+
+	.debug-btn:hover {
+		background: var(--bg-control-hover);
+		opacity: 1;
+	}
+
+	.open-all-btn {
+		right: 144px;
+	}
+
+	.zoom-fit-btn {
+		right: 104px;
 	}
 </style>
