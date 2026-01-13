@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { zoom, zoomIdentity, type ZoomBehavior } from 'd3-zoom';
 	import { select } from 'd3-selection';
+	import 'd3-transition'; // Adds .transition() method to selections
 	import type { Point } from '$lib/types';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import {
@@ -249,8 +250,9 @@
 	/**
 	 * Compute and store a path for a new connection.
 	 * Uses simple geometric routing (L-shape, Z-shape, around) without A*.
+	 * @param routingX - Optional pre-assigned routing channel X from layout
 	 */
-	function computeAndStorePath(fromCardId: string, toCardId: string, sourcePoint: Point): void {
+	function computeAndStorePath(fromCardId: string, toCardId: string, sourcePoint: Point, routingX?: number): void {
 		const fromCard = canvasStore.cards.get(fromCardId);
 		const toCard = canvasStore.cards.get(toCardId);
 
@@ -269,14 +271,15 @@
 		const startPoint = sourcePoint;
 		const endPoint = getCardEntryPoint(toCard, startPoint);
 
-		// Route the connection
+		// Route the connection with optional pre-assigned routing channel
 		const result = routeConnection(
 			startPoint,
 			endPoint,
 			allCards,
 			fromCard,
 			toCard,
-			existingPaths
+			existingPaths,
+			routingX
 		);
 
 		// Generate SVG path with hops where it crosses existing paths
@@ -326,7 +329,7 @@
 		for (const conn of canvasStore.connections) {
 			const existingPath = canvasStore.getStoredPath(conn.fromCardId, conn.toCardId);
 			if (!existingPath) {
-				computeAndStorePath(conn.fromCardId, conn.toCardId, conn.sourcePoint);
+				computeAndStorePath(conn.fromCardId, conn.toCardId, conn.sourcePoint, conn.routingX);
 			}
 		}
 	}

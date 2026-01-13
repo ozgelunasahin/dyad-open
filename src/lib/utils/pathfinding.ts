@@ -1,6 +1,159 @@
 import type { Card, Point } from '$lib/types';
 
 /**
+ * Coaxial overlap detection result.
+ */
+export interface CoaxialOverlap {
+	count: number;        // Number of coaxial segment pairs
+	totalLength: number;  // Total pixels of overlap
+}
+
+/**
+ * Detect coaxial (parallel and overlapping) segments between a path and existing paths.
+ * Coaxial overlap is when two segments run along the same line (same X for vertical, same Y for horizontal).
+ */
+export function detectCoaxialOverlap(
+	newPath: Point[],
+	existingPaths: Point[][]
+): CoaxialOverlap {
+	let count = 0;
+	let totalLength = 0;
+	const tolerance = 5; // Pixels - segments within this distance are considered coaxial
+
+	for (let i = 0; i < newPath.length - 1; i++) {
+		const seg1Start = newPath[i];
+		const seg1End = newPath[i + 1];
+
+		const isHorizontal1 = Math.abs(seg1End.y - seg1Start.y) < 1;
+		const isVertical1 = Math.abs(seg1End.x - seg1Start.x) < 1;
+
+		if (!isHorizontal1 && !isVertical1) continue;
+
+		for (const existingPath of existingPaths) {
+			for (let j = 0; j < existingPath.length - 1; j++) {
+				const seg2Start = existingPath[j];
+				const seg2End = existingPath[j + 1];
+
+				const isHorizontal2 = Math.abs(seg2End.y - seg2Start.y) < 1;
+				const isVertical2 = Math.abs(seg2End.x - seg2Start.x) < 1;
+
+				// Both must be same orientation (both horizontal or both vertical)
+				if (isHorizontal1 && isHorizontal2) {
+					// Check if same Y (within tolerance)
+					if (Math.abs(seg1Start.y - seg2Start.y) < tolerance) {
+						// Check X range overlap
+						const min1 = Math.min(seg1Start.x, seg1End.x);
+						const max1 = Math.max(seg1Start.x, seg1End.x);
+						const min2 = Math.min(seg2Start.x, seg2End.x);
+						const max2 = Math.max(seg2Start.x, seg2End.x);
+
+						const overlapStart = Math.max(min1, min2);
+						const overlapEnd = Math.min(max1, max2);
+
+						if (overlapEnd > overlapStart + 1) {
+							count++;
+							totalLength += overlapEnd - overlapStart;
+						}
+					}
+				} else if (isVertical1 && isVertical2) {
+					// Check if same X (within tolerance)
+					if (Math.abs(seg1Start.x - seg2Start.x) < tolerance) {
+						// Check Y range overlap
+						const min1 = Math.min(seg1Start.y, seg1End.y);
+						const max1 = Math.max(seg1Start.y, seg1End.y);
+						const min2 = Math.min(seg2Start.y, seg2End.y);
+						const max2 = Math.max(seg2Start.y, seg2End.y);
+
+						const overlapStart = Math.max(min1, min2);
+						const overlapEnd = Math.min(max1, max2);
+
+						if (overlapEnd > overlapStart + 1) {
+							count++;
+							totalLength += overlapEnd - overlapStart;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return { count, totalLength };
+}
+
+/**
+ * Find vertical X positions already used by existing paths in a given X range.
+ */
+export function findUsedVerticalChannels(
+	existingPaths: Point[][],
+	minX: number,
+	maxX: number
+): number[] {
+	const channels: number[] = [];
+
+	for (const path of existingPaths) {
+		for (let i = 0; i < path.length - 1; i++) {
+			const start = path[i];
+			const end = path[i + 1];
+
+			// Check if this is a vertical segment
+			if (Math.abs(end.x - start.x) < 1) {
+				const x = start.x;
+				if (x >= minX && x <= maxX) {
+					// Only add if not already tracked (within tolerance)
+					if (!channels.some(c => Math.abs(c - x) < 10)) {
+						channels.push(x);
+					}
+				}
+			}
+		}
+	}
+
+	return channels.sort((a, b) => a - b);
+}
+
+/**
+ * Simulate a path without storing it - for candidate scoring.
+ */
+export function simulatePath(
+	start: Point,
+	targetPosition: Point,
+	sourceCard: Card,
+	targetDimensions: { width: number; height: number },
+	routingX?: number
+): Point[] {
+	const sourceRightEdge = sourceCard.position.x + sourceCard.dimensions.width;
+	const sourceLeftEdge = sourceCard.position.x;
+	const targetCenterX = targetPosition.x + targetDimensions.width / 2;
+	const sourceCenterX = sourceCard.position.x + sourceCard.dimensions.width / 2;
+	const exitRight = targetCenterX > sourceCenterX;
+
+	const headingY = targetPosition.y + 20;
+
+	let exitX: number;
+	let entryX: number;
+	let verticalX: number;
+
+	if (exitRight) {
+		exitX = sourceRightEdge + 10;
+		entryX = targetPosition.x - 10;
+		verticalX = routingX ?? (exitX + entryX) / 2;
+	} else {
+		exitX = sourceLeftEdge - 10;
+		entryX = targetPosition.x + targetDimensions.width + 10;
+		verticalX = routingX ?? (entryX + exitX) / 2;
+	}
+
+	return [
+		start,
+		{ x: exitX, y: start.y },
+		{ x: verticalX, y: start.y },
+		{ x: verticalX, y: headingY },
+		{ x: entryX, y: headingY },
+		{ x: entryX, y: headingY }
+	];
+}
+
+/**
  * Simple orthogonal routing for newspaper-style layout.
  *
  * Path structure:
@@ -15,6 +168,7 @@ import type { Card, Point } from '$lib/types';
  * Route a connection between two cards.
  * Creates an orthogonal path: horizontal → vertical → horizontal
  * Supports bidirectional routing (left or right exit based on target position)
+ * @param preferredRoutingX - Optional pre-assigned routing channel X from layout
  */
 export function routeConnection(
 	start: Point,
@@ -22,7 +176,8 @@ export function routeConnection(
 	cards: Card[],
 	sourceCard: Card | null,
 	targetCard: Card | null,
-	existingPaths: Point[][] = []
+	existingPaths: Point[][] = [],
+	preferredRoutingX?: number
 ): { path: Point[]; method: string; failed: boolean } {
 	if (!sourceCard || !targetCard) {
 		return {
@@ -58,16 +213,21 @@ export function routeConnection(
 		entryX = targetLeftEdge - 10;
 		entryPoint = { x: entryX, y: headingY };
 
-		verticalX = findVerticalRoutingX(
-			exitX,
-			entryX,
-			Math.min(start.y, headingY),
-			Math.max(start.y, headingY),
-			cards,
-			sourceCard,
-			targetCard,
-			existingPaths
-		);
+		// Use preferred routing X if provided and valid, otherwise find one
+		if (preferredRoutingX !== undefined && preferredRoutingX > exitX && preferredRoutingX < entryX) {
+			verticalX = preferredRoutingX;
+		} else {
+			verticalX = findVerticalRoutingX(
+				exitX,
+				entryX,
+				Math.min(start.y, headingY),
+				Math.max(start.y, headingY),
+				cards,
+				sourceCard,
+				targetCard,
+				existingPaths
+			);
+		}
 	} else {
 		// Exit to the left, enter from the right (reverse case)
 		exitX = sourceLeftEdge - 10;
@@ -75,16 +235,21 @@ export function routeConnection(
 		entryX = targetRightEdge + 10;
 		entryPoint = { x: entryX, y: headingY };
 
-		verticalX = findVerticalRoutingX(
-			entryX,  // Swap order for left-exit routing
-			exitX,
-			Math.min(start.y, headingY),
-			Math.max(start.y, headingY),
-			cards,
-			sourceCard,
-			targetCard,
-			existingPaths
-		);
+		// Use preferred routing X if provided and valid, otherwise find one
+		if (preferredRoutingX !== undefined && preferredRoutingX > entryX && preferredRoutingX < exitX) {
+			verticalX = preferredRoutingX;
+		} else {
+			verticalX = findVerticalRoutingX(
+				entryX,  // Swap order for left-exit routing
+				exitX,
+				Math.min(start.y, headingY),
+				Math.max(start.y, headingY),
+				cards,
+				sourceCard,
+				targetCard,
+				existingPaths
+			);
+		}
 	}
 
 	// Build the path - start from link underline position

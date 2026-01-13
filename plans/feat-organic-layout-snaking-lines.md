@@ -18,16 +18,24 @@ Transform the spatial reader into a newspaper/broadsheet-style layout where card
 - Top edge to top edge alignment where possible
 - Creates visual rhythm like newspaper columns
 
-### 3. Horizontal Line Exit
+### 3. Line Origin and Exit
 - Lines originate from the underline of the source link
-- Lines exit horizontally to the right (between text lines)
+- Lines extend horizontally from link underline to card edge (visible connection)
+- Lines exit horizontally (prefer right side, allow left if right is blocked)
 - Lines don't turn until they've cleared the origin card
 - Maintains readability by not crossing text
 
-### 4. Obstacle Avoidance
-- Lines never intersect other cards after leaving origin
-- Lines never cross other lines
-- Clean orthogonal (90°) routing around obstacles
+### 4. Bidirectional Exit (Left or Right)
+- Prefer exiting to the right (toward next column)
+- If target is to the left of source, exit left instead
+- If right side is blocked by other cards/lines, try left side
+- Enables connections to cards in any direction
+
+### 5. Line Crossing Visualization (Hop/Bridge)
+- When lines must cross, add a small semicircular "hop" on one line
+- Standard convention from circuit diagrams and technical drawings
+- Clearly indicates lines cross but are not connected
+- Hop radius ~6px, centered on crossing point
 
 ---
 
@@ -236,10 +244,10 @@ export function pathToSvg(points: Point[]): string {
 - ✅ Debug visualization mode
 
 ### What Needs Fixing
-- ❌ Lines sometimes cross cards (layout doesn't consider path feasibility)
-- ❌ Lines can cross other lines (no existing-path avoidance)
-- ❌ No strict column grid alignment
-- ❌ Exit point is from inside card, should be from edge
+- ❌ Lines sometimes cross other lines (need hop/bridge visualization)
+- ❌ Lines only exit to the right (need bidirectional exit)
+- ❌ Lines don't visually connect back to link underline
+- ❌ No hop visualization where lines cross
 
 ### Recent Fixes
 - Layout now uses dynamic Y offsets based on card heights
@@ -261,11 +269,11 @@ export function pathToSvg(points: Point[]): string {
 
 ## Acceptance Criteria
 
-- [ ] Connection lines emerge from link underline position
-- [ ] Lines exit horizontally to the right (no turn until clear of card)
+- [ ] Connection lines visually extend from link underline to card edge
+- [ ] Lines can exit left or right depending on target position
 - [ ] Cards align on column grid (left edge to left edge)
 - [ ] Lines never cross card content after leaving origin
-- [ ] Lines never cross other lines
+- [ ] Line crossings show a hop/bridge arc (not a direct intersection)
 - [ ] Smooth 90° turns with rounded corners
 - [ ] Debug mode shows routing channels and obstacles
 - [ ] Performance: Path computation < 16ms for 20 cards

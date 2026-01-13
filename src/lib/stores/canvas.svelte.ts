@@ -202,7 +202,7 @@ class CanvasStore {
 		// Calculate position using priority-based algorithm with crossing prevention
 		// Pass existing path points (not connections) for collision detection
 		const existingPathPoints = this.getExistingPathPoints();
-		const { position } = calculateNewCardPosition(
+		const { position, routingX } = calculateNewCardPosition(
 			parentCard,
 			existingCards,
 			linkPosition,
@@ -232,7 +232,8 @@ class CanvasStore {
 				{
 					fromCardId,
 					toCardId: noteId,
-					sourcePoint: linkPosition
+					sourcePoint: linkPosition,
+					routingX // Include pre-assigned routing channel
 				}
 			];
 		}

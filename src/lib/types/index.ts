@@ -28,6 +28,7 @@ export interface Connection {
 	fromCardId: string;
 	toCardId: string;
 	sourcePoint: Point;
+	routingX?: number; // Pre-assigned routing channel X position
 }
 
 export interface Camera {
