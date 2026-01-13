@@ -498,9 +498,11 @@ export function pathToSvg(points: Point[]): string {
 	return d;
 }
 
+const HOP_RADIUS = 16;
+
 /**
  * Find crossing points between a path segment and existing paths.
- * Optimized for orthogonal (horizontal/vertical only) paths.
+ * Uses the same segmentsIntersect logic as checkPathCrossings for consistency.
  */
 function findCrossingsOnSegment(
 	segStart: Point,
@@ -509,57 +511,24 @@ function findCrossingsOnSegment(
 ): Point[] {
 	const crossings: Point[] = [];
 
-	// Determine if our segment is horizontal or vertical
-	const isHorizontal = Math.abs(segEnd.y - segStart.y) < 1;
-	const isVertical = Math.abs(segEnd.x - segStart.x) < 1;
-
-	if (!isHorizontal && !isVertical) {
-		// Diagonal segment - use general intersection (shouldn't happen in orthogonal routing)
-		return crossings;
-	}
-
 	for (const path of existingPaths) {
 		for (let j = 0; j < path.length - 1; j++) {
 			const otherStart = path[j];
 			const otherEnd = path[j + 1];
 
-			// Determine if other segment is horizontal or vertical
-			const otherIsHorizontal = Math.abs(otherEnd.y - otherStart.y) < 1;
-			const otherIsVertical = Math.abs(otherEnd.x - otherStart.x) < 1;
-
-			// Only horizontal-vertical pairs can cross
-			if (isHorizontal && otherIsVertical) {
-				// Our segment is horizontal, other is vertical
-				const horzY = segStart.y;
-				const horzMinX = Math.min(segStart.x, segEnd.x);
-				const horzMaxX = Math.max(segStart.x, segEnd.x);
-
-				const vertX = otherStart.x;
-				const vertMinY = Math.min(otherStart.y, otherEnd.y);
-				const vertMaxY = Math.max(otherStart.y, otherEnd.y);
-
-				// Check if they cross (strictly inside, not at endpoints)
-				if (vertX > horzMinX + 1 && vertX < horzMaxX - 1 &&
-					horzY > vertMinY + 1 && horzY < vertMaxY - 1) {
-					crossings.push({ x: vertX, y: horzY });
+			// Use same intersection check as checkPathCrossings
+			if (segmentsIntersect(segStart, segEnd, otherStart, otherEnd)) {
+				// Don't count shared endpoints as crossings
+				if (sharesEndpoint(segStart, segEnd, otherStart, otherEnd)) {
+					continue;
 				}
-			} else if (isVertical && otherIsHorizontal) {
-				// Our segment is vertical, other is horizontal
-				const vertX = segStart.x;
-				const vertMinY = Math.min(segStart.y, segEnd.y);
-				const vertMaxY = Math.max(segStart.y, segEnd.y);
 
-				const horzY = otherStart.y;
-				const horzMinX = Math.min(otherStart.x, otherEnd.x);
-				const horzMaxX = Math.max(otherStart.x, otherEnd.x);
-
-				// Check if they cross (strictly inside, not at endpoints)
-				if (vertX > horzMinX + 1 && vertX < horzMaxX - 1 &&
-					horzY > vertMinY + 1 && horzY < vertMaxY - 1) {
-					crossings.push({ x: vertX, y: horzY });
+				// Calculate exact crossing point
+				const intersection = getIntersectionPoint(segStart, segEnd, otherStart, otherEnd);
+				if (intersection) {
+					crossings.push(intersection);
 				}
 			}
-			// Parallel segments (both horizontal or both vertical) can't cross
 		}
 	}
 
@@ -577,7 +546,21 @@ function findCrossingsOnSegment(
 		}
 	});
 
-	return crossings;
+	// Deduplicate crossings that are too close (within 2 * HOP_RADIUS)
+	const deduped: Point[] = [];
+	for (const crossing of crossings) {
+		const tooClose = deduped.some(existing => {
+			const dist = Math.abs(dx) > Math.abs(dy)
+				? Math.abs(crossing.x - existing.x)
+				: Math.abs(crossing.y - existing.y);
+			return dist < HOP_RADIUS * 2;
+		});
+		if (!tooClose) {
+			deduped.push(crossing);
+		}
+	}
+
+	return deduped;
 }
 
 /**
@@ -598,8 +581,6 @@ function getIntersectionPoint(
 	};
 }
 
-const HOP_RADIUS = 6;
-
 /**
  * Generate SVG path string with hops (arcs) where it crosses existing paths.
  */
@@ -619,6 +600,7 @@ export function pathToSvgWithHops(points: Point[], existingPaths: Point[][]): st
 
 		// Find crossings on this segment
 		const crossings = findCrossingsOnSegment(prev, curr, existingPaths);
+
 
 		if (crossings.length === 0) {
 			// No crossings - simple segment
@@ -642,6 +624,7 @@ export function pathToSvgWithHops(points: Point[], existingPaths: Point[][]): st
 
 			for (const crossing of crossings) {
 				if (isHorizontal) {
+					const segmentY = prev.y; // Use segment's Y for consistency
 					const hopStart = goingRight ? crossing.x - HOP_RADIUS : crossing.x + HOP_RADIUS;
 					const hopEnd = goingRight ? crossing.x + HOP_RADIUS : crossing.x - HOP_RADIUS;
 
@@ -649,11 +632,14 @@ export function pathToSvgWithHops(points: Point[], existingPaths: Point[][]): st
 					if (goingRight ? hopStart > lastPos + 1 : hopStart < lastPos - 1) {
 						d += ` H ${hopStart}`;
 					}
-					// Arc over the crossing (semicircle)
-					// sweep-flag: 1 for going right, 0 for going left
-					d += ` A ${HOP_RADIUS} ${HOP_RADIUS} 0 0 ${goingRight ? 1 : 0} ${hopEnd} ${crossing.y}`;
+					// Arc over the crossing (semicircle curving upward - away from page)
+					// In SVG, Y increases downward, so "upward" = smaller Y
+					// sweep-flag: 0 for counter-clockwise (going right, curves up), 1 for clockwise (going left, curves up)
+					const arcCmd = ` A ${HOP_RADIUS} ${HOP_RADIUS} 0 0 ${goingRight ? 0 : 1} ${hopEnd} ${segmentY}`;
+					d += arcCmd;
 					lastPos = hopEnd;
 				} else if (isVertical) {
+					const segmentX = prev.x; // Use segment's X for consistency
 					const hopStart = goingDown ? crossing.y - HOP_RADIUS : crossing.y + HOP_RADIUS;
 					const hopEnd = goingDown ? crossing.y + HOP_RADIUS : crossing.y - HOP_RADIUS;
 
@@ -661,8 +647,9 @@ export function pathToSvgWithHops(points: Point[], existingPaths: Point[][]): st
 					if (goingDown ? hopStart > lastPos + 1 : hopStart < lastPos - 1) {
 						d += ` V ${hopStart}`;
 					}
-					// Arc over the crossing (semicircle)
-					d += ` A ${HOP_RADIUS} ${HOP_RADIUS} 0 0 ${goingDown ? 0 : 1} ${crossing.x} ${hopEnd}`;
+					// Arc over the crossing (semicircle curving to the right)
+					// sweep-flag: 1 for clockwise (going down, curves right), 0 for counter-clockwise (going up, curves right)
+					d += ` A ${HOP_RADIUS} ${HOP_RADIUS} 0 0 ${goingDown ? 1 : 0} ${segmentX} ${hopEnd}`;
 					lastPos = hopEnd;
 				}
 			}
