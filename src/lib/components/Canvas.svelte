@@ -215,6 +215,7 @@
 	});
 
 	// Compute connection paths with A* pathfinding (using cached grid)
+	// Paths are computed sequentially so each path avoids previous ones
 	let connectionPaths = $derived.by(() => {
 		// Group connections by target card to stagger entry points
 		const connectionsByTarget = new Map<string, typeof canvasStore.connections>();
@@ -239,16 +240,28 @@
 			});
 		}
 
-		return canvasStore.connections.map((conn) => {
+		// Sort connections by source Y position for consistent routing order
+		const sortedConnections = [...canvasStore.connections].sort(
+			(a, b) => a.sourcePoint.y - b.sourcePoint.y
+		);
+
+		// Use a shared grid that accumulates path obstacles
+		const sharedGrid = pathfindingGrid.clone();
+
+		// Compute paths sequentially, marking each as obstacle for next
+		const results: Array<typeof canvasStore.connections[0] & { path: string; isActive: boolean }> = [];
+
+		for (const conn of sortedConnections) {
 			const fromCard = canvasStore.cards.get(conn.fromCardId);
 			const toCard = canvasStore.cards.get(conn.toCardId);
 
 			if (!fromCard || !toCard) {
-				return { ...conn, path: '', isActive: false };
+				results.push({ ...conn, path: '', isActive: false });
+				continue;
 			}
 
-			// Clone grid and clear source/target regions
-			const grid = pathfindingGrid.clone();
+			// Clone shared grid and clear source/target regions for this connection
+			const grid = sharedGrid.clone();
 			grid.clearRegion(fromCard);
 			grid.clearRegion(toCard);
 
@@ -273,6 +286,11 @@
 				pathPoints.push(endPoint);
 			}
 
+			// Mark this path as obstacle on shared grid for subsequent connections
+			if (pathPoints.length >= 2) {
+				sharedGrid.markPathAsObstacle(pathPoints);
+			}
+
 			// Generate SVG path
 			const connectionId = `${conn.fromCardId}-${conn.toCardId}`;
 			const path =
@@ -282,8 +300,10 @@
 
 			const isActive = canvasStore.isConnectionActive(conn);
 
-			return { ...conn, path, isActive };
-		});
+			results.push({ ...conn, path, isActive });
+		}
+
+		return results;
 	});
 </script>
 

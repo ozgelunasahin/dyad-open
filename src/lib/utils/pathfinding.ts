@@ -235,6 +235,54 @@ export class PathfindingGrid {
 			}
 		}
 	}
+
+	/**
+	 * Mark a path as obstacle so subsequent paths avoid it.
+	 * Uses Bresenham-style line rasterization with small padding.
+	 */
+	markPathAsObstacle(points: Point[]): void {
+		const padding = 1; // Grid cells of padding around the line
+
+		for (let i = 0; i < points.length - 1; i++) {
+			const start = this.toGridCoords(points[i]);
+			const end = this.toGridCoords(points[i + 1]);
+
+			// Rasterize line segment
+			const dx = Math.abs(end.x - start.x);
+			const dy = Math.abs(end.y - start.y);
+			const sx = start.x < end.x ? 1 : -1;
+			const sy = start.y < end.y ? 1 : -1;
+			let err = dx - dy;
+
+			let x = start.x;
+			let y = start.y;
+
+			while (true) {
+				// Mark cell and neighbors as unwalkable
+				for (let px = -padding; px <= padding; px++) {
+					for (let py = -padding; py <= padding; py++) {
+						const gx = x + px;
+						const gy = y + py;
+						if (gy >= 0 && gy < this.rows && gx >= 0 && gx < this.cols) {
+							this.grid[gy][gx] = false;
+						}
+					}
+				}
+
+				if (x === end.x && y === end.y) break;
+
+				const e2 = 2 * err;
+				if (e2 > -dy) {
+					err -= dy;
+					x += sx;
+				}
+				if (e2 < dx) {
+					err += dx;
+					y += sy;
+				}
+			}
+		}
+	}
 }
 
 /**
