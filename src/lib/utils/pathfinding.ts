@@ -1,872 +1,313 @@
 import type { Card, Point } from '$lib/types';
-import { GRID_CELL_SIZE, OBSTACLE_PADDING } from '$lib/types';
-
-type Direction = 'up' | 'down' | 'left' | 'right';
-
-interface AStarNode {
-	x: number;
-	y: number;
-	g: number;
-	h: number;
-	f: number;
-	parent: AStarNode | null;
-	direction: Direction | null;
-}
-
-const DIRECTIONS: { dx: number; dy: number; name: Direction }[] = [
-	{ dx: 0, dy: -1, name: 'up' },
-	{ dx: 1, dy: 0, name: 'right' },
-	{ dx: 0, dy: 1, name: 'down' },
-	{ dx: -1, dy: 0, name: 'left' }
-];
-
-// Penalty for changing direction (to minimize turns)
-const TURN_PENALTY = 50;
 
 /**
- * MinHeap for efficient A* priority queue operations.
- * O(log n) for push/pop instead of O(n log n) for array sort.
+ * Simple orthogonal routing for newspaper-style layout.
+ *
+ * Path structure:
+ * 1. Exit source card horizontally (at link Y position)
+ * 2. Go vertical in the routing gap between card columns
+ * 3. Enter target card horizontally (at heading Y position)
+ *
+ * This creates clean Z-shaped or S-shaped paths that never cross card content.
  */
-class MinHeap<T> {
-	private heap: T[] = [];
-	private compareFn: (a: T, b: T) => number;
-
-	constructor(compareFn: (a: T, b: T) => number) {
-		this.compareFn = compareFn;
-	}
-
-	get length(): number {
-		return this.heap.length;
-	}
-
-	push(item: T): void {
-		this.heap.push(item);
-		this.bubbleUp(this.heap.length - 1);
-	}
-
-	pop(): T | undefined {
-		if (this.heap.length === 0) return undefined;
-		const result = this.heap[0];
-		const last = this.heap.pop()!;
-		if (this.heap.length > 0) {
-			this.heap[0] = last;
-			this.bubbleDown(0);
-		}
-		return result;
-	}
-
-	find(predicate: (item: T) => boolean): T | undefined {
-		return this.heap.find(predicate);
-	}
-
-	update(item: T): void {
-		const idx = this.heap.indexOf(item);
-		if (idx !== -1) {
-			this.bubbleUp(idx);
-			this.bubbleDown(idx);
-		}
-	}
-
-	private bubbleUp(idx: number): void {
-		while (idx > 0) {
-			const parentIdx = Math.floor((idx - 1) / 2);
-			if (this.compareFn(this.heap[idx], this.heap[parentIdx]) >= 0) break;
-			[this.heap[idx], this.heap[parentIdx]] = [this.heap[parentIdx], this.heap[idx]];
-			idx = parentIdx;
-		}
-	}
-
-	private bubbleDown(idx: number): void {
-		const length = this.heap.length;
-		while (true) {
-			const leftIdx = 2 * idx + 1;
-			const rightIdx = 2 * idx + 2;
-			let smallest = idx;
-
-			if (leftIdx < length && this.compareFn(this.heap[leftIdx], this.heap[smallest]) < 0) {
-				smallest = leftIdx;
-			}
-			if (rightIdx < length && this.compareFn(this.heap[rightIdx], this.heap[smallest]) < 0) {
-				smallest = rightIdx;
-			}
-			if (smallest === idx) break;
-			[this.heap[idx], this.heap[smallest]] = [this.heap[smallest], this.heap[idx]];
-			idx = smallest;
-		}
-	}
-}
 
 /**
- * Grid-based pathfinding system for orthogonal routing.
+ * Route a connection between two cards.
+ * Creates an orthogonal path: horizontal → vertical → horizontal
  */
-export class PathfindingGrid {
-	private grid: boolean[][];
-	private cols: number;
-	private rows: number;
-	private offsetX: number;
-	private offsetY: number;
-
-	constructor(cards: Card[], padding: number = OBSTACLE_PADDING) {
-		// Calculate bounds from cards
-		const bounds = this.calculateBounds(cards);
-
-		// Add margin around bounds
-		const margin = 200;
-		this.offsetX = bounds.minX - margin;
-		this.offsetY = bounds.minY - margin;
-
-		const width = bounds.maxX - bounds.minX + margin * 2;
-		const height = bounds.maxY - bounds.minY + margin * 2;
-
-		this.cols = Math.ceil(width / GRID_CELL_SIZE);
-		this.rows = Math.ceil(height / GRID_CELL_SIZE);
-
-		this.grid = this.buildGrid(cards, padding);
-	}
-
-	/**
-	 * Create a shallow clone for per-connection modifications.
-	 */
-	clone(): PathfindingGrid {
-		const cloned = Object.create(PathfindingGrid.prototype);
-		cloned.cols = this.cols;
-		cloned.rows = this.rows;
-		cloned.offsetX = this.offsetX;
-		cloned.offsetY = this.offsetY;
-		// Deep clone the grid
-		cloned.grid = this.grid.map((row) => [...row]);
-		return cloned;
-	}
-
-	private calculateBounds(cards: Card[]): {
-		minX: number;
-		maxX: number;
-		minY: number;
-		maxY: number;
-	} {
-		if (cards.length === 0) {
-			return { minX: 0, maxX: 1000, minY: 0, maxY: 1000 };
-		}
-
-		let minX = Infinity;
-		let maxX = -Infinity;
-		let minY = Infinity;
-		let maxY = -Infinity;
-
-		for (const card of cards) {
-			minX = Math.min(minX, card.position.x);
-			maxX = Math.max(maxX, card.position.x + card.dimensions.width);
-			minY = Math.min(minY, card.position.y);
-			maxY = Math.max(maxY, card.position.y + card.dimensions.height);
-		}
-
-		return { minX, maxX, minY, maxY };
-	}
-
-	private buildGrid(cards: Card[], padding: number): boolean[][] {
-		// Initialize all cells as walkable
-		const grid = Array(this.rows)
-			.fill(null)
-			.map(() => Array(this.cols).fill(true));
-
-		// Mark card regions as unwalkable
-		for (const card of cards) {
-			const left = Math.floor((card.position.x - padding - this.offsetX) / GRID_CELL_SIZE);
-			const right = Math.ceil(
-				(card.position.x + card.dimensions.width + padding - this.offsetX) / GRID_CELL_SIZE
-			);
-			const top = Math.floor((card.position.y - padding - this.offsetY) / GRID_CELL_SIZE);
-			const bottom = Math.ceil(
-				(card.position.y + card.dimensions.height + padding - this.offsetY) / GRID_CELL_SIZE
-			);
-
-			for (let row = top; row <= bottom; row++) {
-				for (let col = left; col <= right; col++) {
-					if (row >= 0 && row < this.rows && col >= 0 && col < this.cols) {
-						grid[row][col] = false;
-					}
-				}
-			}
-		}
-
-		return grid;
-	}
-
-	isWalkable(gridX: number, gridY: number): boolean {
-		if (gridX < 0 || gridX >= this.cols || gridY < 0 || gridY >= this.rows) {
-			return false;
-		}
-		return this.grid[gridY][gridX];
-	}
-
-	toGridCoords(canvasPoint: Point): Point {
-		return {
-			x: Math.floor((canvasPoint.x - this.offsetX) / GRID_CELL_SIZE),
-			y: Math.floor((canvasPoint.y - this.offsetY) / GRID_CELL_SIZE)
-		};
-	}
-
-	toCanvasCoords(gridPoint: Point): Point {
-		return {
-			x: gridPoint.x * GRID_CELL_SIZE + this.offsetX + GRID_CELL_SIZE / 2,
-			y: gridPoint.y * GRID_CELL_SIZE + this.offsetY + GRID_CELL_SIZE / 2
-		};
-	}
-
-	/**
-	 * Temporarily mark a region as walkable (for source/target cards).
-	 * Uses same padding as buildGrid() to ensure complete clearing.
-	 */
-	clearRegion(card: Card): void {
-		const left = Math.floor((card.position.x - OBSTACLE_PADDING - this.offsetX) / GRID_CELL_SIZE);
-		const right = Math.ceil(
-			(card.position.x + card.dimensions.width + OBSTACLE_PADDING - this.offsetX) / GRID_CELL_SIZE
-		);
-		const top = Math.floor((card.position.y - OBSTACLE_PADDING - this.offsetY) / GRID_CELL_SIZE);
-		const bottom = Math.ceil(
-			(card.position.y + card.dimensions.height + OBSTACLE_PADDING - this.offsetY) / GRID_CELL_SIZE
-		);
-
-		for (let row = top; row <= bottom; row++) {
-			for (let col = left; col <= right; col++) {
-				if (row >= 0 && row < this.rows && col >= 0 && col < this.cols) {
-					this.grid[row][col] = true;
-				}
-			}
-		}
-	}
-
-	/**
-	 * Mark a path as obstacle so subsequent paths avoid it.
-	 * Uses Bresenham-style line rasterization with padding.
-	 */
-	markPathAsObstacle(points: Point[]): void {
-		const padding = 3; // Grid cells of padding around the line for clearance
-
-		for (let i = 0; i < points.length - 1; i++) {
-			const start = this.toGridCoords(points[i]);
-			const end = this.toGridCoords(points[i + 1]);
-
-			// Rasterize line segment
-			const dx = Math.abs(end.x - start.x);
-			const dy = Math.abs(end.y - start.y);
-			const sx = start.x < end.x ? 1 : -1;
-			const sy = start.y < end.y ? 1 : -1;
-			let err = dx - dy;
-
-			let x = start.x;
-			let y = start.y;
-
-			while (true) {
-				// Mark cell and neighbors as unwalkable
-				for (let px = -padding; px <= padding; px++) {
-					for (let py = -padding; py <= padding; py++) {
-						const gx = x + px;
-						const gy = y + py;
-						if (gy >= 0 && gy < this.rows && gx >= 0 && gx < this.cols) {
-							this.grid[gy][gx] = false;
-						}
-					}
-				}
-
-				if (x === end.x && y === end.y) break;
-
-				const e2 = 2 * err;
-				if (e2 > -dy) {
-					err -= dy;
-					x += sx;
-				}
-				if (e2 < dx) {
-					err += dx;
-					y += sy;
-				}
-			}
-		}
-	}
-}
-
-/**
- * A* pathfinding with direction change penalty for orthogonal routing.
- * Uses MinHeap for O(log n) operations.
- */
-export function findOrthogonalPath(
-	grid: PathfindingGrid,
+export function routeConnection(
 	start: Point,
 	end: Point,
-	initialDirection?: Direction
-): Point[] {
-	const startGrid = grid.toGridCoords(start);
-	const endGrid = grid.toGridCoords(end);
-
-	// If start or end is not walkable, try alternative fallbacks
-	if (!grid.isWalkable(startGrid.x, startGrid.y) || !grid.isWalkable(endGrid.x, endGrid.y)) {
-		return createFallbackPath(start, end);
+	cards: Card[],
+	sourceCard: Card | null,
+	targetCard: Card | null,
+	existingPaths: Point[][] = []
+): { path: Point[]; method: string; failed: boolean } {
+	if (!sourceCard || !targetCard) {
+		return {
+			path: [start, end],
+			method: 'direct',
+			failed: true
+		};
 	}
 
-	const openSet = new MinHeap<AStarNode>((a, b) => a.f - b.f);
-	const closedSet = new Map<string, AStarNode>();
+	// Calculate key X positions
+	const sourceRightEdge = sourceCard.position.x + sourceCard.dimensions.width;
+	const targetLeftEdge = targetCard.position.x;
 
-	const startNode: AStarNode = {
-		...startGrid,
-		g: 0,
-		h: manhattanDistance(startGrid, endGrid),
-		f: manhattanDistance(startGrid, endGrid),
-		parent: null,
-		direction: initialDirection || null
-	};
+	// Exit point: just outside source card's right edge, at link Y
+	const exitX = sourceRightEdge + 10;
+	const exitPoint = { x: exitX, y: start.y };
 
-	openSet.push(startNode);
+	// Entry point: just outside target card's left edge, at heading Y
+	const entryX = targetLeftEdge - 10;
+	const headingY = targetCard.position.y + 20; // Heading is ~20px from top
+	const entryPoint = { x: entryX, y: headingY };
 
-	let iterations = 0;
-	const maxIterations = 5000;
+	// Find the best X position for the vertical segment
+	// It should be in the gap between source and target, avoiding other cards
+	const verticalX = findVerticalRoutingX(
+		exitX,
+		entryX,
+		Math.min(start.y, headingY),
+		Math.max(start.y, headingY),
+		cards,
+		sourceCard,
+		targetCard,
+		existingPaths
+	);
 
-	while (openSet.length > 0 && iterations < maxIterations) {
-		iterations++;
-
-		const current = openSet.pop()!;
-		const currentKey = `${current.x},${current.y}`;
-
-		if (current.x === endGrid.x && current.y === endGrid.y) {
-			return reconstructPath(current, grid, start, end);
-		}
-
-		closedSet.set(currentKey, current);
-
-		for (const dir of DIRECTIONS) {
-			const nx = current.x + dir.dx;
-			const ny = current.y + dir.dy;
-			const neighborKey = `${nx},${ny}`;
-
-			if (closedSet.has(neighborKey) || !grid.isWalkable(nx, ny)) {
-				continue;
-			}
-
-			// Calculate cost with turn penalty
-			let moveCost = 1;
-			if (current.direction && current.direction !== dir.name) {
-				moveCost += TURN_PENALTY;
-			}
-
-			const g = current.g + moveCost;
-			const h = manhattanDistance({ x: nx, y: ny }, endGrid);
-
-			const existingNode = openSet.find((n) => n.x === nx && n.y === ny);
-
-			if (!existingNode) {
-				openSet.push({
-					x: nx,
-					y: ny,
-					g,
-					h,
-					f: g + h,
-					parent: current,
-					direction: dir.name
-				});
-			} else if (g < existingNode.g) {
-				existingNode.g = g;
-				existingNode.f = g + h;
-				existingNode.parent = current;
-				existingNode.direction = dir.name;
-				openSet.update(existingNode);
-			}
-		}
-	}
-
-	// No path found - use fallback strategies
-	return createFallbackPath(start, end);
-}
-
-/**
- * Create fallback paths when A* fails.
- * Tries multiple routing strategies to avoid obstacles.
- */
-function createFallbackPath(start: Point, end: Point, grid?: PathfindingGrid): Point[] {
-	const goingRight = end.x > start.x;
-	const goingDown = end.y > start.y;
-
-	// Strategy 1: Try going around via different waypoints
-	const waypoints = [
-		// Go horizontal first, then vertical
-		{ x: end.x, y: start.y },
-		// Go vertical first, then horizontal
-		{ x: start.x, y: end.y },
-		// Go around with offset
-		{ x: goingRight ? end.x + 50 : end.x - 50, y: (start.y + end.y) / 2 },
-		{ x: (start.x + end.x) / 2, y: goingDown ? end.y + 50 : end.y - 50 }
+	// Build the path - start from card edge, not inside text
+	// This prevents lines from crossing through the source card's content
+	const path: Point[] = [
+		exitPoint,                          // Start just outside source card's right edge
+		{ x: verticalX, y: start.y },       // Move to vertical routing channel
+		{ x: verticalX, y: headingY },      // Go vertical to target row
+		entryPoint,                         // Approach target
+		end                                 // Entry point on target
 	];
 
-	// If we have a grid, try to find a waypoint that's walkable
-	if (grid) {
-		for (const waypoint of waypoints) {
-			const wpGrid = grid.toGridCoords(waypoint);
-			if (grid.isWalkable(wpGrid.x, wpGrid.y)) {
-				return compressPath([start, waypoint, end]);
+	// Compress path (remove redundant points on straight lines)
+	const compressed = compressPath(path);
+
+	// Check if path crosses any existing paths
+	const hasCrossing = checkPathCrossings(compressed, existingPaths);
+
+	return {
+		path: compressed,
+		method: 'Z-route',
+		failed: hasCrossing
+	};
+}
+
+/**
+ * Find the best X position for the vertical segment of the path.
+ * Tries the middle of the gap first, then searches for alternatives.
+ * Checks both card obstacles and existing path crossings.
+ */
+function findVerticalRoutingX(
+	exitX: number,
+	entryX: number,
+	minY: number,
+	maxY: number,
+	cards: Card[],
+	sourceCard: Card,
+	targetCard: Card,
+	existingPaths: Point[][]
+): number {
+	const gapWidth = entryX - exitX;
+	const midX = exitX + gapWidth / 2;
+
+	// Try middle first
+	if (isVerticalClear(midX, minY, maxY, cards, sourceCard, targetCard) &&
+		!verticalCrossesExistingPaths(midX, minY, maxY, existingPaths)) {
+		return midX;
+	}
+
+	// Try positions from middle outward with finer granularity
+	const offsets: number[] = [];
+	for (let i = 5; i <= 50; i += 5) {
+		offsets.push(i, -i);
+	}
+
+	for (const offset of offsets) {
+		const x = midX + offset;
+		if (x > exitX + 5 && x < entryX - 5) {
+			if (isVerticalClear(x, minY, maxY, cards, sourceCard, targetCard) &&
+				!verticalCrossesExistingPaths(x, minY, maxY, existingPaths)) {
+				return x;
 			}
 		}
 	}
 
-	// Last resort: simple L-route
-	const midY = (start.y + end.y) / 2;
-	if (goingRight) {
-		return compressPath([
-			start,
-			{ x: end.x, y: start.y },
-			end
-		]);
-	} else {
-		return compressPath([
-			start,
-			{ x: start.x, y: midY },
-			{ x: end.x, y: midY },
-			end
-		]);
-	}
+	// Fallback to middle (may have crossings)
+	return midX;
 }
 
 /**
- * Find path with initial horizontal segment (underline extension style).
- * Tries to route around obstacles, with flexible exit direction.
+ * Check if a vertical segment would cross any existing paths.
  */
-export function findPathWithHorizontalExit(
-	grid: PathfindingGrid,
-	start: Point,
-	end: Point
-): Point[] {
-	const exitDistance = 30;
-	const goingRight = end.x > start.x;
+function verticalCrossesExistingPaths(
+	x: number,
+	minY: number,
+	maxY: number,
+	existingPaths: Point[][]
+): boolean {
+	const verticalSegmentStart = { x, y: minY };
+	const verticalSegmentEnd = { x, y: maxY };
 
-	// Primary: Exit horizontally in direction of target
-	const primaryExitX = goingRight ? start.x + exitDistance : start.x - exitDistance;
-	const primaryExit = { x: primaryExitX, y: start.y };
-	const primaryDir: Direction = goingRight ? 'right' : 'left';
+	for (const path of existingPaths) {
+		for (let i = 0; i < path.length - 1; i++) {
+			const segStart = path[i];
+			const segEnd = path[i + 1];
 
-	// Check if primary exit point is walkable
-	const primaryGrid = grid.toGridCoords(primaryExit);
-	if (grid.isWalkable(primaryGrid.x, primaryGrid.y)) {
-		const mainPath = findOrthogonalPath(grid, primaryExit, end, primaryDir);
-		if (mainPath.length > 0) {
-			return [start, ...mainPath];
+			// Check if horizontal segment of existing path crosses our vertical
+			if (Math.abs(segStart.y - segEnd.y) < 1) {
+				// This is a horizontal segment
+				const segMinX = Math.min(segStart.x, segEnd.x);
+				const segMaxX = Math.max(segStart.x, segEnd.x);
+				const segY = segStart.y;
+
+				// Check if our vertical line crosses this horizontal segment
+				if (x > segMinX && x < segMaxX && segY > minY && segY < maxY) {
+					return true;
+				}
+			}
 		}
 	}
 
-	// Fallback: Try exiting downward first
-	const downExit = { x: start.x, y: start.y + exitDistance };
-	const downGrid = grid.toGridCoords(downExit);
-	if (grid.isWalkable(downGrid.x, downGrid.y)) {
-		const mainPath = findOrthogonalPath(grid, downExit, end, 'down');
-		if (mainPath.length > 0) {
-			return [start, ...mainPath];
-		}
-	}
-
-	// Fallback: Try exiting upward
-	const upExit = { x: start.x, y: start.y - exitDistance };
-	const upGrid = grid.toGridCoords(upExit);
-	if (grid.isWalkable(upGrid.x, upGrid.y)) {
-		const mainPath = findOrthogonalPath(grid, upExit, end, 'up');
-		if (mainPath.length > 0) {
-			return [start, ...mainPath];
-		}
-	}
-
-	// Last resort: Direct A* from start to end
-	const directPath = findOrthogonalPath(grid, start, end);
-	if (directPath.length > 0) {
-		return directPath;
-	}
-
-	// Ultimate fallback: Simple path ignoring obstacles
-	return createFallbackPath(start, end, grid);
-}
-
-function manhattanDistance(a: Point, b: Point): number {
-	return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-}
-
-function reconstructPath(
-	node: AStarNode,
-	grid: PathfindingGrid,
-	start: Point,
-	end: Point
-): Point[] {
-	const gridPath: Point[] = [];
-	let current: AStarNode | null = node;
-
-	while (current) {
-		gridPath.unshift({ x: current.x, y: current.y });
-		current = current.parent;
-	}
-
-	// Convert grid coords to canvas coords
-	const canvasPath = gridPath.map((p) => grid.toCanvasCoords(p));
-
-	// Ensure start and end points are exact
-	if (canvasPath.length > 0) {
-		canvasPath[0] = start;
-		canvasPath[canvasPath.length - 1] = end;
-	}
-
-	return compressPath(canvasPath);
+	return false;
 }
 
 /**
- * Remove intermediate points on straight lines.
+ * Check if a vertical line at X from minY to maxY is clear of cards.
+ */
+function isVerticalClear(
+	x: number,
+	minY: number,
+	maxY: number,
+	cards: Card[],
+	sourceCard: Card,
+	targetCard: Card
+): boolean {
+	const padding = 15;
+
+	for (const card of cards) {
+		if (card.id === sourceCard.id || card.id === targetCard.id) continue;
+
+		const cardLeft = card.position.x - padding;
+		const cardRight = card.position.x + card.dimensions.width + padding;
+		const cardTop = card.position.y - padding;
+		const cardBottom = card.position.y + card.dimensions.height + padding;
+
+		// Check if vertical line passes through card
+		if (x >= cardLeft && x <= cardRight) {
+			if (maxY >= cardTop && minY <= cardBottom) {
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+/**
+ * Check if a path crosses any existing paths.
+ */
+function checkPathCrossings(path: Point[], existingPaths: Point[][]): boolean {
+	for (const existing of existingPaths) {
+		for (let i = 0; i < path.length - 1; i++) {
+			for (let j = 0; j < existing.length - 1; j++) {
+				if (segmentsIntersect(path[i], path[i + 1], existing[j], existing[j + 1])) {
+					// Allow shared endpoints
+					if (!sharesEndpoint(path[i], path[i + 1], existing[j], existing[j + 1])) {
+						return true;
+					}
+				}
+			}
+		}
+	}
+	return false;
+}
+
+function sharesEndpoint(p1: Point, p2: Point, p3: Point, p4: Point): boolean {
+	return (
+		pointsClose(p1, p3) || pointsClose(p1, p4) ||
+		pointsClose(p2, p3) || pointsClose(p2, p4)
+	);
+}
+
+function pointsClose(a: Point, b: Point): boolean {
+	return Math.abs(a.x - b.x) < 3 && Math.abs(a.y - b.y) < 3;
+}
+
+function segmentsIntersect(p1: Point, p2: Point, p3: Point, p4: Point): boolean {
+	const d1 = direction(p3, p4, p1);
+	const d2 = direction(p3, p4, p2);
+	const d3 = direction(p1, p2, p3);
+	const d4 = direction(p1, p2, p4);
+
+	if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+		((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+		return true;
+	}
+
+	return false;
+}
+
+function direction(p1: Point, p2: Point, p3: Point): number {
+	return (p3.x - p1.x) * (p2.y - p1.y) - (p2.x - p1.x) * (p3.y - p1.y);
+}
+
+/**
+ * Remove intermediate points on straight lines and duplicate points.
  */
 function compressPath(path: Point[]): Point[] {
-	if (path.length < 3) return path;
+	if (path.length < 2) return path;
 
 	const compressed: Point[] = [path[0]];
 
-	for (let i = 1; i < path.length - 1; i++) {
+	for (let i = 1; i < path.length; i++) {
 		const prev = compressed[compressed.length - 1];
 		const curr = path[i];
-		const next = path[i + 1];
 
-		// Keep only corner points
-		const dx1 = Math.sign(curr.x - prev.x);
-		const dy1 = Math.sign(curr.y - prev.y);
-		const dx2 = Math.sign(next.x - curr.x);
-		const dy2 = Math.sign(next.y - curr.y);
+		// Skip duplicate points
+		if (Math.abs(curr.x - prev.x) < 0.5 && Math.abs(curr.y - prev.y) < 0.5) {
+			continue;
+		}
 
-		if (dx1 !== dx2 || dy1 !== dy2) {
+		// For intermediate points, check if direction changes
+		if (i < path.length - 1) {
+			const next = path[i + 1];
+			const dx1 = Math.sign(curr.x - prev.x);
+			const dy1 = Math.sign(curr.y - prev.y);
+			const dx2 = Math.sign(next.x - curr.x);
+			const dy2 = Math.sign(next.y - curr.y);
+
+			// Keep point only if direction changes
+			if (dx1 !== dx2 || dy1 !== dy2) {
+				compressed.push(curr);
+			}
+		} else {
+			// Always keep the last point
 			compressed.push(curr);
 		}
 	}
 
-	compressed.push(path[path.length - 1]);
 	return compressed;
 }
 
 /**
- * Determine if a segment is more vertical or horizontal.
- * Uses the actual delta to handle nearly-aligned points.
+ * Generate SVG path string with only horizontal and vertical segments.
  */
-function isVerticalSegment(from: Point, to: Point): boolean {
-	const dx = Math.abs(to.x - from.x);
-	const dy = Math.abs(to.y - from.y);
-	return dy > dx;
-}
-
-/**
- * Align path points to make segments strictly orthogonal.
- * This prevents jagged corners from floating-point coordinate misalignment.
- */
-function alignPathPoints(points: Point[]): Point[] {
-	if (points.length < 2) return points;
-
-	const aligned = [{ ...points[0] }];
-
-	for (let i = 1; i < points.length; i++) {
-		const prev = aligned[i - 1];
-		const curr = { ...points[i] };
-
-		// Determine if this segment should be vertical or horizontal
-		if (isVerticalSegment(prev, curr)) {
-			// Vertical segment - align X coordinates
-			curr.x = prev.x;
-		} else {
-			// Horizontal segment - align Y coordinates
-			curr.y = prev.y;
-		}
-
-		aligned.push(curr);
-	}
-
-	// Ensure the last point stays at its original position
-	// and work backwards to fix alignment if needed
-	const last = points[points.length - 1];
-	aligned[aligned.length - 1] = { ...last };
-
-	// Fix the second-to-last point to properly connect to the last point
-	if (aligned.length >= 2) {
-		const secondLast = aligned[aligned.length - 2];
-		if (isVerticalSegment(secondLast, last)) {
-			secondLast.x = last.x;
-		} else {
-			secondLast.y = last.y;
-		}
-	}
-
-	return aligned;
-}
-
-/**
- * Generate SVG path string with rounded corners.
- * Aligns points to ensure clean orthogonal segments before rendering.
- */
-export function pathToSvgWithRoundedCorners(points: Point[], cornerRadius: number = 8): string {
+export function pathToSvg(points: Point[]): string {
 	if (points.length < 2) return '';
 
-	if (points.length === 2) {
-		return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
-	}
+	let d = `M ${points[0].x} ${points[0].y}`;
 
-	// Align points to make segments strictly orthogonal
-	const aligned = alignPathPoints(points);
+	for (let i = 1; i < points.length; i++) {
+		const prev = points[i - 1];
+		const curr = points[i];
 
-	let d = `M ${aligned[0].x} ${aligned[0].y}`;
-
-	for (let i = 1; i < aligned.length - 1; i++) {
-		const prev = aligned[i - 1];
-		const curr = aligned[i];
-		const next = aligned[i + 1];
-
-		// Calculate distances to adjacent points
-		const distPrev = Math.abs(prev.x - curr.x) + Math.abs(prev.y - curr.y);
-		const distNext = Math.abs(next.x - curr.x) + Math.abs(next.y - curr.y);
-
-		// Limit radius to half the shortest segment
-		const radius = Math.min(cornerRadius, distPrev / 2, distNext / 2);
-
-		if (radius <= 1) {
-			d += ` L ${curr.x} ${curr.y}`;
-			continue;
-		}
-
-		// Calculate approach point (before corner)
-		// Use aligned coordinates so equality checks work correctly
-		let approachX: number, approachY: number;
-		if (Math.abs(curr.x - prev.x) < 1) {
-			// Vertical segment incoming
-			approachX = curr.x;
-			approachY = curr.y - Math.sign(curr.y - prev.y) * radius;
+		if (Math.abs(curr.y - prev.y) < 0.5) {
+			d += ` H ${curr.x}`;
+		} else if (Math.abs(curr.x - prev.x) < 0.5) {
+			d += ` V ${curr.y}`;
 		} else {
-			// Horizontal segment incoming
-			approachX = curr.x - Math.sign(curr.x - prev.x) * radius;
-			approachY = curr.y;
+			// Force orthogonal
+			d += ` H ${curr.x} V ${curr.y}`;
 		}
-
-		// Calculate departure point (after corner)
-		let departX: number, departY: number;
-		if (Math.abs(curr.x - next.x) < 1) {
-			// Vertical segment outgoing
-			departX = curr.x;
-			departY = curr.y + Math.sign(next.y - curr.y) * radius;
-		} else {
-			// Horizontal segment outgoing
-			departX = curr.x + Math.sign(next.x - curr.x) * radius;
-			departY = curr.y;
-		}
-
-		// Draw line to approach, then quadratic curve
-		d += ` L ${approachX} ${approachY}`;
-		d += ` Q ${curr.x} ${curr.y} ${departX} ${departY}`;
 	}
-
-	// Line to final point
-	d += ` L ${aligned[aligned.length - 1].x} ${aligned[aligned.length - 1].y}`;
 
 	return d;
 }
 
 /**
- * Seeded random number generator for deterministic organic variation.
- * Uses a simple LCG algorithm.
+ * Calculate entry point on a card - just outside the left edge at heading level.
  */
-function seededRandom(seed: number): () => number {
-	let state = seed;
-	return () => {
-		state = (state * 1664525 + 1013904223) >>> 0;
-		return (state / 0xffffffff) * 2 - 1; // Returns -1 to 1
+export function getCardEntryPoint(card: Card, _fromPoint: Point): Point {
+	return {
+		x: card.position.x - 8,
+		y: card.position.y + 20
 	};
-}
-
-/**
- * Generate a simple numeric hash from a string (for connection IDs).
- */
-function stringToSeed(str: string): number {
-	let hash = 0;
-	for (let i = 0; i < str.length; i++) {
-		hash = (hash << 5) - hash + str.charCodeAt(i);
-		hash |= 0;
-	}
-	return Math.abs(hash);
-}
-
-/**
- * Catmull-Rom spline interpolation for smooth curves through control points.
- * Creates natural-looking curves that pass through all given points.
- */
-function catmullRomSpline(points: Point[], tension: number = 0.5, segments: number = 8): Point[] {
-	if (points.length < 2) return points;
-	if (points.length === 2) return points;
-
-	const result: Point[] = [];
-
-	// Add phantom points at start and end for smooth endpoints
-	const extended = [
-		{ x: points[0].x * 2 - points[1].x, y: points[0].y * 2 - points[1].y },
-		...points,
-		{
-			x: points[points.length - 1].x * 2 - points[points.length - 2].x,
-			y: points[points.length - 1].y * 2 - points[points.length - 2].y
-		}
-	];
-
-	// Interpolate between each pair of points
-	for (let i = 1; i < extended.length - 2; i++) {
-		const p0 = extended[i - 1];
-		const p1 = extended[i];
-		const p2 = extended[i + 1];
-		const p3 = extended[i + 2];
-
-		for (let t = 0; t < segments; t++) {
-			const s = t / segments;
-			const s2 = s * s;
-			const s3 = s2 * s;
-
-			// Catmull-Rom basis functions
-			const h1 = -tension * s3 + 2 * tension * s2 - tension * s;
-			const h2 = (2 - tension) * s3 + (tension - 3) * s2 + 1;
-			const h3 = (tension - 2) * s3 + (3 - 2 * tension) * s2 + tension * s;
-			const h4 = tension * s3 - tension * s2;
-
-			result.push({
-				x: h1 * p0.x + h2 * p1.x + h3 * p2.x + h4 * p3.x,
-				y: h1 * p0.y + h2 * p1.y + h3 * p2.y + h4 * p3.y
-			});
-		}
-	}
-
-	// Add the final point
-	result.push(points[points.length - 1]);
-
-	return result;
-}
-
-/**
- * Add organic displacement to path points for hand-drawn feel.
- * Preserves start and end points exactly.
- */
-function organicifyPath(points: Point[], seed: number, amplitude: number = 2): Point[] {
-	if (points.length < 3) return points;
-
-	const random = seededRandom(seed);
-	const result: Point[] = [points[0]]; // Keep start point exact
-
-	for (let i = 1; i < points.length - 1; i++) {
-		const prev = points[i - 1];
-		const curr = points[i];
-		const next = points[i + 1];
-
-		// Calculate perpendicular direction
-		const dx = next.x - prev.x;
-		const dy = next.y - prev.y;
-		const len = Math.sqrt(dx * dx + dy * dy);
-
-		if (len > 0) {
-			// Perpendicular unit vector
-			const perpX = -dy / len;
-			const perpY = dx / len;
-
-			// Random displacement perpendicular to path direction
-			const displacement = random() * amplitude;
-
-			result.push({
-				x: curr.x + perpX * displacement,
-				y: curr.y + perpY * displacement
-			});
-		} else {
-			result.push(curr);
-		}
-	}
-
-	result.push(points[points.length - 1]); // Keep end point exact
-	return result;
-}
-
-/**
- * Generate SVG path with rounded corners at turns.
- * Uses simple rounded corners instead of splines to prevent overshooting.
- */
-export function pathToOrganicSvg(points: Point[], connectionId: string): string {
-	if (points.length < 2) return '';
-
-	if (points.length === 2) {
-		// For simple two-point paths, just draw a straight line
-		return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
-	}
-
-	// Use rounded corners approach - larger radius for smoother curves
-	return pathToSvgWithRoundedCorners(points, 20);
-}
-
-/**
- * Determine initial direction from a card edge based on link position.
- */
-export function getInitialDirection(card: Card, linkPoint: Point): Direction {
-	// Determine which edge the link is closest to
-	const toLeft = linkPoint.x - card.position.x;
-	const toRight = card.position.x + card.dimensions.width - linkPoint.x;
-	const toTop = linkPoint.y - card.position.y;
-	const toBottom = card.position.y + card.dimensions.height - linkPoint.y;
-
-	const min = Math.min(toLeft, toRight, toTop, toBottom);
-
-	if (min === toBottom) return 'down';
-	if (min === toTop) return 'up';
-	if (min === toRight) return 'right';
-	return 'left';
-}
-
-/**
- * Calculate entry point on a card - targets the heading area (top of card).
- * The heading is approximately 20px from the top of the card.
- * Returns both the entry point and an approach point for horizontal entry.
- */
-export function getCardEntryPoint(card: Card, fromPoint: Point): Point {
-	// Heading Y position: card top + padding (8px) + half of h1 line-height (~12px)
-	const headingY = card.position.y + 20;
-
-	const cardCenter = {
-		x: card.position.x + card.dimensions.width / 2,
-		y: card.position.y + card.dimensions.height / 2
-	};
-
-	const dx = cardCenter.x - fromPoint.x;
-
-	// Determine entry edge based on horizontal position
-	if (dx > 0) {
-		// Card is to the right - enter from left edge at heading height
-		return {
-			x: card.position.x,
-			y: headingY
-		};
-	} else {
-		// Card is to the left - enter from right edge at heading height
-		return {
-			x: card.position.x + card.dimensions.width,
-			y: headingY
-		};
-	}
-}
-
-/**
- * Get approach point for horizontal entry - a point offset from entry to ensure horizontal final segment.
- */
-export function getCardApproachPoint(card: Card, fromPoint: Point): Point {
-	const entry = getCardEntryPoint(card, fromPoint);
-	const approachDistance = 30;
-
-	const cardCenter = {
-		x: card.position.x + card.dimensions.width / 2,
-		y: card.position.y + card.dimensions.height / 2
-	};
-
-	const dx = cardCenter.x - fromPoint.x;
-
-	// Approach from the side horizontally
-	if (dx > 0) {
-		// Approaching from left
-		return {
-			x: entry.x - approachDistance,
-			y: entry.y
-		};
-	} else {
-		// Approaching from right
-		return {
-			x: entry.x + approachDistance,
-			y: entry.y
-		};
-	}
 }

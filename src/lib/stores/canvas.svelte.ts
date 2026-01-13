@@ -1,7 +1,15 @@
-import type { Card, Connection, Camera, Point, Vault, Dimensions } from '$lib/types';
+import type { Card, Connection, Camera, Point, Vault, Dimensions, AStarExplorationFrame } from '$lib/types';
 import { MAX_CARDS, DEFAULT_CARD_WIDTH, MIN_CARD_WIDTH, MAX_CARD_WIDTH } from '$lib/types';
 import { calculateNewCardPosition } from '$lib/utils/layout';
 import { measureMarkdownContent, calculateOptimalWidth } from '$lib/utils/measure';
+
+// Stored path with metadata
+export interface StoredPath {
+	points: Point[];
+	svgPath: string;
+	method: string;
+	failed: boolean;
+}
 
 const STORAGE_KEY = 'spatial-reader-state';
 
@@ -22,25 +30,29 @@ interface PersistedState {
 }
 
 function loadPersistedState(): PersistedState | null {
-	if (typeof window === 'undefined') return null;
-	try {
-		const stored = localStorage.getItem(STORAGE_KEY);
-		if (stored) {
-			return JSON.parse(stored);
-		}
-	} catch {
-		// Ignore parse errors
-	}
+	// Disabled for testing
 	return null;
+	// if (typeof window === 'undefined') return null;
+	// try {
+	// 	const stored = localStorage.getItem(STORAGE_KEY);
+	// 	if (stored) {
+	// 		return JSON.parse(stored);
+	// 	}
+	// } catch {
+	// 	// Ignore parse errors
+	// }
+	// return null;
 }
 
 function savePersistedState(state: PersistedState): void {
-	if (typeof window === 'undefined') return;
-	try {
-		localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-	} catch {
-		// Ignore storage errors
-	}
+	// Disabled for testing
+	return;
+	// if (typeof window === 'undefined') return;
+	// try {
+	// 	localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+	// } catch {
+	// 	// Ignore storage errors
+	// }
 }
 
 class CanvasStore {
@@ -49,9 +61,18 @@ class CanvasStore {
 	activeChain = $state<string[]>([]);
 	camera = $state<Camera>({ x: 0, y: 0, zoom: 1 });
 
+	// Stored paths - computed once when connection is created, never recalculated
+	// Key format: "fromCardId-toCardId"
+	storedPaths = $state<Map<string, StoredPath>>(new Map());
+
 	// Focus state for smooth centering
 	focusedCardId = $state<string | null>(null);
 	isAnimating = $state<boolean>(false);
+
+	// Debug visualization state
+	debugMode = $state<boolean>(false);
+	debugExploration = $state<AStarExplorationFrame[]>([]);
+	debugCurrentFrame = $state<number>(0);
 
 	private history = $state<{ back: string[][]; forward: string[][] }>({
 		back: [],
@@ -179,12 +200,14 @@ class CanvasStore {
 		const existingCards = Array.from(this.cards.values());
 
 		// Calculate position using priority-based algorithm with crossing prevention
+		// Pass existing path points (not connections) for collision detection
+		const existingPathPoints = this.getExistingPathPoints();
 		const { position } = calculateNewCardPosition(
 			parentCard,
 			existingCards,
 			linkPosition,
 			dimensions,
-			this.connections
+			existingPathPoints
 		);
 
 		// Create new card
@@ -301,6 +324,28 @@ class CanvasStore {
 		this.isAnimating = animating;
 	}
 
+	toggleDebugMode(): void {
+		this.debugMode = !this.debugMode;
+		if (!this.debugMode) {
+			// Clear debug state when disabling
+			this.debugExploration = [];
+			this.debugCurrentFrame = 0;
+		}
+	}
+
+	setDebugExploration(frames: AStarExplorationFrame[]): void {
+		this.debugExploration = frames;
+		this.debugCurrentFrame = 0;
+	}
+
+	advanceDebugFrame(): boolean {
+		if (this.debugCurrentFrame < this.debugExploration.length - 1) {
+			this.debugCurrentFrame++;
+			return true;
+		}
+		return false;
+	}
+
 	isInActiveChain(cardId: string): boolean {
 		return this.activeChain.includes(cardId);
 	}
@@ -313,6 +358,31 @@ class CanvasStore {
 		const fromIndex = this.activeChain.indexOf(conn.fromCardId);
 		const toIndex = this.activeChain.indexOf(conn.toCardId);
 		return fromIndex !== -1 && toIndex !== -1 && Math.abs(fromIndex - toIndex) === 1;
+	}
+
+	/**
+	 * Store a computed path for a connection (pen-and-paper: paths are frozen once drawn).
+	 */
+	storePath(fromCardId: string, toCardId: string, path: StoredPath): void {
+		const key = `${fromCardId}-${toCardId}`;
+		const newPaths = new Map(this.storedPaths);
+		newPaths.set(key, path);
+		this.storedPaths = newPaths;
+	}
+
+	/**
+	 * Get stored path for a connection.
+	 */
+	getStoredPath(fromCardId: string, toCardId: string): StoredPath | null {
+		const key = `${fromCardId}-${toCardId}`;
+		return this.storedPaths.get(key) || null;
+	}
+
+	/**
+	 * Get all existing path point arrays (for collision detection).
+	 */
+	getExistingPathPoints(): Point[][] {
+		return Array.from(this.storedPaths.values()).map(p => p.points);
 	}
 
 	private persistState(): void {
@@ -340,6 +410,7 @@ class CanvasStore {
 	reset(): void {
 		this.cards = new Map();
 		this.connections = [];
+		this.storedPaths = new Map();
 		this.activeChain = [];
 		this.history = { back: [], forward: [] };
 		this.focusedCardId = null;
