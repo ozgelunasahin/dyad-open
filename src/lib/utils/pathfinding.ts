@@ -238,10 +238,10 @@ export class PathfindingGrid {
 
 	/**
 	 * Mark a path as obstacle so subsequent paths avoid it.
-	 * Uses Bresenham-style line rasterization with small padding.
+	 * Uses Bresenham-style line rasterization with padding.
 	 */
 	markPathAsObstacle(points: Point[]): void {
-		const padding = 1; // Grid cells of padding around the line
+		const padding = 3; // Grid cells of padding around the line for clearance
 
 		for (let i = 0; i < points.length - 1; i++) {
 			const start = this.toGridCoords(points[i]);
