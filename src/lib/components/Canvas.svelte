@@ -2,14 +2,12 @@
 	import { onMount } from 'svelte';
 	import { zoom, zoomIdentity, type ZoomBehavior } from 'd3-zoom';
 	import { select } from 'd3-selection';
-	import type { Point, Card } from '$lib/types';
+	import type { Point } from '$lib/types';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import {
-		PathfindingGrid,
-		findPathWithHorizontalExit,
-		pathToOrganicSvg,
-		getCardEntryPoint,
-		getCardApproachPoint
+		routeConnection,
+		pathToSvg,
+		getCardEntryPoint
 	} from '$lib/utils/pathfinding';
 	import NoteCard from './NoteCard.svelte';
 	import ConnectionLine from './ConnectionLine.svelte';
@@ -17,6 +15,7 @@
 	let svg: SVGSVGElement;
 	let transform = $state({ x: 0, y: 0, k: 1 });
 	let zoomBehavior: ZoomBehavior<SVGSVGElement, unknown>;
+	let zoomSpeed = 0.001;
 
 	/**
 	 * Find and focus the card under the viewport center.
@@ -49,7 +48,7 @@
 			.scaleExtent([0.1, 3])
 			// Slow down zoom speed (default is ~0.002, we use 0.0005 for smoother zoom)
 			.wheelDelta((event) => {
-				return -event.deltaY * 0.0005;
+				return -event.deltaY * zoomSpeed;
 			})
 			// Only allow zoom on Ctrl+wheel, allow drag panning always
 			.filter((event) => {
@@ -198,6 +197,58 @@
 		requestAnimationFrame(animate);
 	}
 
+	/**
+	 * Compute and store a path for a new connection.
+	 * Uses simple geometric routing (L-shape, Z-shape, around) without A*.
+	 */
+	function computeAndStorePath(fromCardId: string, toCardId: string, sourcePoint: Point): void {
+		const fromCard = canvasStore.cards.get(fromCardId);
+		const toCard = canvasStore.cards.get(toCardId);
+
+		if (!fromCard || !toCard) {
+			console.error('[Pathfinding] Missing cards for connection', { fromCardId, toCardId });
+			return;
+		}
+
+		// Get all cards as array for obstacle checking
+		const allCards = canvasStore.cardList;
+
+		// Get existing paths for crossing detection
+		const existingPaths = canvasStore.getExistingPathPoints();
+
+		// Calculate start and end points
+		const startPoint = sourcePoint;
+		const endPoint = getCardEntryPoint(toCard, startPoint);
+
+		// Route the connection
+		const result = routeConnection(
+			startPoint,
+			endPoint,
+			allCards,
+			fromCard,
+			toCard,
+			existingPaths
+		);
+
+		// Generate SVG path
+		const connectionId = `${fromCardId}-${toCardId}`;
+		const svgPath = pathToSvg(result.path);
+
+		// Store the computed path (frozen forever)
+		canvasStore.storePath(fromCardId, toCardId, {
+			points: result.path,
+			svgPath,
+			method: result.method,
+			failed: result.failed
+		});
+
+		console.log(
+			`[Pathfinding] ${connectionId}: ${result.method}`,
+			result.path.length, 'points',
+			result.failed ? '(FAILED)' : ''
+		);
+	}
+
 	function handleLinkClick(noteId: string, fromCardId: string, screenPosition: Point) {
 		// Convert screen position to canvas coordinates
 		const svgRect = svg.getBoundingClientRect();
@@ -206,113 +257,121 @@
 			y: (screenPosition.y - svgRect.top - transform.y) / transform.k
 		};
 
+		// Check if note is already open (will just refocus)
+		const noteAlreadyOpen = canvasStore.cards.has(noteId);
+
 		canvasStore.openNote(noteId, fromCardId, canvasPosition);
+
+		// Compute and store path for new connection
+		// Only do this if a new card was actually created
+		if (!noteAlreadyOpen && canvasStore.cards.has(noteId)) {
+			computeAndStorePath(fromCardId, noteId, canvasPosition);
+		}
 	}
 
-	// Build pathfinding grid once when cards change (cached)
-	let pathfindingGrid = $derived.by(() => {
-		return new PathfindingGrid(canvasStore.cardList);
-	});
 
-	// Compute connection paths with A* pathfinding (using cached grid)
-	// Paths are computed sequentially so each path avoids previous ones
+	// Pen-and-paper approach: paths are stored when connections are created
+	// This derived just reads from stored paths and adds active state
 	let connectionPaths = $derived.by(() => {
-		// Group connections by target card to stagger entry points
-		const connectionsByTarget = new Map<string, typeof canvasStore.connections>();
+		const results: Array<{
+			fromCardId: string;
+			toCardId: string;
+			sourcePoint: Point;
+			path: string;
+			isActive: boolean;
+			pathFailed: boolean;
+			method?: string;
+		}> = [];
+
 		for (const conn of canvasStore.connections) {
-			const existing = connectionsByTarget.get(conn.toCardId) || [];
-			existing.push(conn);
-			connectionsByTarget.set(conn.toCardId, existing);
-		}
+			const storedPath = canvasStore.getStoredPath(conn.fromCardId, conn.toCardId);
 
-		// Calculate entry offset for each connection (stagger multiple entries)
-		const entryOffsets = new Map<string, number>();
-		for (const [targetId, conns] of connectionsByTarget) {
-			// Sort by source Y position so lines don't cross
-			const sorted = [...conns].sort((a, b) => a.sourcePoint.y - b.sourcePoint.y);
-			const spacing = 15; // Vertical spacing between entry points
-			const totalHeight = (sorted.length - 1) * spacing;
-			const startOffset = -totalHeight / 2;
-
-			sorted.forEach((conn, index) => {
-				const key = `${conn.fromCardId}-${conn.toCardId}`;
-				entryOffsets.set(key, startOffset + index * spacing);
-			});
-		}
-
-		// Sort connections by source Y position for consistent routing order
-		const sortedConnections = [...canvasStore.connections].sort(
-			(a, b) => a.sourcePoint.y - b.sourcePoint.y
-		);
-
-		// Use a shared grid that accumulates path obstacles
-		const sharedGrid = pathfindingGrid.clone();
-
-		// Compute paths sequentially, marking each as obstacle for next
-		const results: Array<typeof canvasStore.connections[0] & { path: string; isActive: boolean }> = [];
-
-		for (const conn of sortedConnections) {
-			const fromCard = canvasStore.cards.get(conn.fromCardId);
-			const toCard = canvasStore.cards.get(conn.toCardId);
-
-			if (!fromCard || !toCard) {
-				results.push({ ...conn, path: '', isActive: false });
-				continue;
+			if (storedPath) {
+				results.push({
+					...conn,
+					path: storedPath.svgPath,
+					isActive: canvasStore.isConnectionActive(conn),
+					pathFailed: storedPath.failed,
+					method: storedPath.method
+				});
+			} else {
+				// No stored path yet (shouldn't happen in normal flow)
+				results.push({
+					...conn,
+					path: '',
+					isActive: false,
+					pathFailed: true,
+					method: 'none'
+				});
 			}
-
-			// Clone shared grid and clear source/target regions for this connection
-			const grid = sharedGrid.clone();
-			grid.clearRegion(fromCard);
-			grid.clearRegion(toCard);
-
-			// Get entry offset for this connection
-			const connectionKey = `${conn.fromCardId}-${conn.toCardId}`;
-			const entryOffset = entryOffsets.get(connectionKey) || 0;
-
-			// Get start and end points with staggered entry
-			const startPoint = conn.sourcePoint;
-			const baseApproachPoint = getCardApproachPoint(toCard, startPoint);
-			const baseEndPoint = getCardEntryPoint(toCard, startPoint);
-
-			// Apply offset to entry points
-			const approachPoint = { x: baseApproachPoint.x, y: baseApproachPoint.y + entryOffset };
-			const endPoint = { x: baseEndPoint.x, y: baseEndPoint.y + entryOffset };
-
-			// Find path with horizontal exit to the approach point
-			const pathPoints = findPathWithHorizontalExit(grid, startPoint, approachPoint);
-
-			// Add the final horizontal segment to the entry point
-			if (pathPoints.length > 0) {
-				pathPoints.push(endPoint);
-			}
-
-			// Mark this path as obstacle on shared grid for subsequent connections
-			if (pathPoints.length >= 2) {
-				sharedGrid.markPathAsObstacle(pathPoints);
-			}
-
-			// Generate SVG path
-			const connectionId = `${conn.fromCardId}-${conn.toCardId}`;
-			const path =
-				pathPoints.length >= 2
-					? pathToOrganicSvg(pathPoints, connectionId)
-					: `M ${startPoint.x} ${startPoint.y} L ${endPoint.x} ${endPoint.y}`;
-
-			const isActive = canvasStore.isConnectionActive(conn);
-
-			results.push({ ...conn, path, isActive });
 		}
 
 		return results;
 	});
 </script>
 
-<svg bind:this={svg} class="canvas">
+<svg bind:this={svg} class="canvas" class:debug-active={canvasStore.debugMode}>
 	<g transform="translate({transform.x}, {transform.y}) scale({transform.k})">
+		<!-- Debug grid overlay - show card obstacle zones and path obstacle corridors -->
+		{#if canvasStore.debugMode}
+			<g class="debug-grid">
+				<!-- Card obstacle zones (20px padding around cards) -->
+				{#each canvasStore.cardList as card (card.id)}
+					<rect
+						x={card.position.x - 20}
+						y={card.position.y - 20}
+						width={card.dimensions.width + 40}
+						height={card.dimensions.height + 40}
+						class="cell-obstacle"
+					/>
+				{/each}
+				<!-- Path obstacle corridors (3-cell padding = ~30px on each side) -->
+				{#each connectionPaths as conn (conn.fromCardId + '-' + conn.toCardId + '-obstacle')}
+					{#if conn.path}
+						<path
+							d={conn.path}
+							class="path-obstacle"
+						/>
+					{/if}
+				{/each}
+			</g>
+		{/if}
+
 		<!-- Connection lines (rendered below cards) -->
 		{#each connectionPaths as conn (conn.fromCardId + '-' + conn.toCardId)}
-			<ConnectionLine path={conn.path} isActive={conn.isActive} />
+			<ConnectionLine path={conn.path} isActive={conn.isActive} pathFailed={conn.pathFailed} />
 		{/each}
+
+		<!-- Debug: Show routing method labels -->
+		{#if canvasStore.debugMode}
+			{#each connectionPaths as conn (conn.fromCardId + '-' + conn.toCardId + '-debug')}
+				{#if conn.method}
+					{@const fromCard = canvasStore.cards.get(conn.fromCardId)}
+					{#if fromCard}
+						<g class="debug-method-label" transform="translate({conn.sourcePoint.x + 15}, {conn.sourcePoint.y - 5})">
+							<rect
+								x="-2"
+								y="-10"
+								width={conn.method.length * 6 + 4}
+								height="14"
+								fill={conn.method === 'L-shape' ? '#22c55e' :
+									  conn.method === 'Z-shape' ? '#3b82f6' :
+									  conn.method === 'around' ? '#f97316' : '#ef4444'}
+								fill-opacity="0.8"
+								rx="2"
+							/>
+							<text
+								x="0"
+								y="0"
+								fill="white"
+								font-size="9"
+								font-family="monospace"
+							>{conn.method}</text>
+						</g>
+					{/if}
+				{/if}
+			{/each}
+		{/if}
 
 		<!-- Note cards -->
 		{#each canvasStore.cardList as card (card.id)}
@@ -332,5 +391,31 @@
 
 	.canvas:active {
 		cursor: grabbing;
+	}
+
+	.canvas.debug-active {
+		background:
+			linear-gradient(90deg, rgba(74, 222, 128, 0.03) 1px, transparent 1px),
+			linear-gradient(rgba(74, 222, 128, 0.03) 1px, transparent 1px),
+			var(--bg-canvas);
+		background-size: 20px 20px, 20px 20px, 100% 100%;
+	}
+
+	/* Debug visualization styles */
+	.debug-grid .cell-obstacle {
+		fill: #ef4444;
+		fill-opacity: 0.3;
+		stroke: #ef4444;
+		stroke-opacity: 0.4;
+		stroke-width: 0.5;
+	}
+
+	.debug-grid .path-obstacle {
+		fill: none;
+		stroke: #f97316;
+		stroke-opacity: 0.4;
+		stroke-width: 20;
+		stroke-linecap: round;
+		stroke-linejoin: round;
 	}
 </style>

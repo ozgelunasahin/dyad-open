@@ -82,6 +82,30 @@
 			</button>
 		</nav>
 
+		<!-- Debug toggle -->
+		<button
+			class="debug-toggle"
+			class:active={canvasStore.debugMode}
+			onclick={() => canvasStore.toggleDebugMode()}
+			aria-label="Toggle debug mode"
+		>
+			<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+				{#if canvasStore.debugMode}
+					<!-- Grid icon filled -->
+					<rect x="1" y="1" width="6" height="6" fill="currentColor" rx="1"/>
+					<rect x="9" y="1" width="6" height="6" fill="currentColor" rx="1"/>
+					<rect x="1" y="9" width="6" height="6" fill="currentColor" rx="1"/>
+					<rect x="9" y="9" width="6" height="6" fill="currentColor" rx="1"/>
+				{:else}
+					<!-- Grid icon outline -->
+					<rect x="1" y="1" width="6" height="6" stroke="currentColor" stroke-width="1.5" rx="1"/>
+					<rect x="9" y="1" width="6" height="6" stroke="currentColor" stroke-width="1.5" rx="1"/>
+					<rect x="1" y="9" width="6" height="6" stroke="currentColor" stroke-width="1.5" rx="1"/>
+					<rect x="9" y="9" width="6" height="6" stroke="currentColor" stroke-width="1.5" rx="1"/>
+				{/if}
+			</svg>
+		</button>
+
 		<!-- Theme toggle -->
 		<button
 			class="theme-toggle"
@@ -208,6 +232,37 @@
 	.theme-toggle:hover {
 		background: var(--bg-control-hover);
 		color: var(--control-color-hover);
+		opacity: 1;
+	}
+
+	.debug-toggle {
+		position: fixed;
+		bottom: 24px;
+		right: 64px;
+		width: 32px;
+		height: 32px;
+		border: none;
+		border-radius: 4px;
+		background: var(--bg-control);
+		cursor: pointer;
+		color: var(--control-color);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: all 0.2s ease;
+		opacity: 0.4;
+		z-index: 100;
+	}
+
+	.debug-toggle:hover {
+		background: var(--bg-control-hover);
+		color: var(--control-color-hover);
+		opacity: 1;
+	}
+
+	.debug-toggle.active {
+		background: var(--bg-control-hover);
+		color: #4ade80;
 		opacity: 1;
 	}
 </style>
