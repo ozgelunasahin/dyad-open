@@ -1,457 +1,247 @@
-import type { Card, Point, Dimensions, Connection } from '$lib/types';
-import { CARD_SPACING } from '$lib/types';
-
-export type PlacementDirection = 'right' | 'below' | 'left' | 'above';
-
-interface PlacementResult {
-	position: Point;
-	direction: PlacementDirection;
-}
+import type { Card, Point, Dimensions } from '$lib/types';
+import { CARD_SPACING, DEFAULT_CARD_WIDTH } from '$lib/types';
 
 /**
- * Line segment for crossing detection.
+ * Card placement with column-based newspaper/broadsheet layout.
+ *
+ * Design principles:
+ * 1. Cards align on a virtual column grid (left edge to left edge)
+ * 2. New cards placed in the next column to the right of parent
+ * 3. Y position aligns with link position for horizontal exit
+ * 4. Routing gaps between columns for orthogonal line paths
+ * 5. Positions are immutable once placed (pen-and-paper model)
  */
-interface LineSegment {
-	start: Point;
-	end: Point;
-}
 
-interface BoundingBox {
-	minX: number;
-	maxX: number;
-	minY: number;
-	maxY: number;
-	width: number;
-	height: number;
-	area: number;
-}
-
-interface ScoredCandidate {
-	position: Point;
-	direction: PlacementDirection;
-	score: number;
-}
+const ROUTING_GAP = 60; // Horizontal gap between columns for routing vertical segments
+const COLUMN_WIDTH = DEFAULT_CARD_WIDTH + CARD_SPACING + ROUTING_GAP; // ~480px per column
 
 /**
- * Calculate new card position optimizing for compact rectangular layout.
- * Considers positions in all directions and picks the one that minimizes bounding box expansion.
- * Also avoids positions that would cause connection line crossings.
+ * Calculate position for a new card.
+ * Aligns the new card's heading with the source link Y position.
+ * Places cards in columns to the right with proper grid alignment.
  */
 export function calculateNewCardPosition(
 	parentCard: Card | null,
 	existingCards: Card[],
 	linkPosition: Point | null,
 	newCardDimensions: Dimensions,
-	existingConnections: Connection[] = []
-): PlacementResult {
-	if (!parentCard) {
-		return { position: { x: 0, y: 0 }, direction: 'right' };
+	existingPaths: Point[][] = []
+): { position: Point } {
+	if (!parentCard || !linkPosition) {
+		return { position: { x: 0, y: 0 } };
 	}
 
-	// Get current bounding box
-	const currentBounds = calculateBoundingBox(existingCards);
+	// Target Y: align new card's heading (top + 20px) with the link Y
+	// So card top = linkY - 20
+	const headingOffset = 20;
+	const baseY = linkPosition.y - headingOffset;
 
-	// Generate all candidate positions
-	const candidates = generateCandidates(
-		parentCard,
-		existingCards,
-		linkPosition,
-		newCardDimensions,
-		currentBounds
+	// Determine target column based on parent's column
+	// Column 0 starts at x=0, Column 1 at x=COLUMN_WIDTH, etc.
+	const parentColumn = Math.floor(parentCard.position.x / COLUMN_WIDTH);
+	const targetColumn = parentColumn + 1;
+
+	// Target X aligns to column grid
+	const targetX = targetColumn * COLUMN_WIDTH;
+
+	// Generate Y offsets dynamically based on card heights
+	// Include larger offsets to handle tall cards
+	const maxCardHeight = Math.max(
+		newCardDimensions.height,
+		...existingCards.map(c => c.dimensions.height)
 	);
+	const maxOffset = Math.max(400, maxCardHeight + 100);
 
-	// Build existing line segments from connections
-	const existingLines = buildExistingLineSegments(existingConnections, existingCards);
+	const yOffsets: number[] = [0];
+	for (let offset = 50; offset <= maxOffset; offset += 50) {
+		yOffsets.push(-offset, offset);
+	}
 
-	// Filter out overlapping positions and score remaining ones
-	const validCandidates: ScoredCandidate[] = [];
+	for (const offset of yOffsets) {
+		const candidateY = Math.max(0, baseY + offset);
+		const candidate = { x: targetX, y: candidateY };
 
-	for (const candidate of candidates) {
-		if (!hasOverlap(candidate.position, newCardDimensions, existingCards)) {
-			const score = scoreCandidate(
-				candidate.position,
-				newCardDimensions,
-				existingCards,
-				parentCard,
-				currentBounds,
+		// Check for overlap with existing cards
+		if (!hasOverlap(candidate, newCardDimensions, existingCards)) {
+			// Check if a clean path can be drawn
+			const pathClear = canDrawCleanPath(
 				linkPosition,
-				existingLines
+				candidate,
+				newCardDimensions,
+				parentCard,
+				existingCards,
+				existingPaths
 			);
-			validCandidates.push({ ...candidate, score });
-		}
-	}
 
-	// Sort by score (lower is better) and return best
-	if (validCandidates.length > 0) {
-		validCandidates.sort((a, b) => a.score - b.score);
-		return { position: validCandidates[0].position, direction: validCandidates[0].direction };
-	}
-
-	// Fallback: scan for any available space
-	return {
-		position: findAnyAvailableSpace(existingCards, newCardDimensions, currentBounds),
-		direction: 'right'
-	};
-}
-
-/**
- * Calculate bounding box of all cards.
- */
-function calculateBoundingBox(cards: Card[]): BoundingBox {
-	if (cards.length === 0) {
-		return { minX: 0, maxX: 0, minY: 0, maxY: 0, width: 0, height: 0, area: 0 };
-	}
-
-	let minX = Infinity;
-	let maxX = -Infinity;
-	let minY = Infinity;
-	let maxY = -Infinity;
-
-	for (const card of cards) {
-		minX = Math.min(minX, card.position.x);
-		maxX = Math.max(maxX, card.position.x + card.dimensions.width);
-		minY = Math.min(minY, card.position.y);
-		maxY = Math.max(maxY, card.position.y + card.dimensions.height);
-	}
-
-	const width = maxX - minX;
-	const height = maxY - minY;
-
-	return { minX, maxX, minY, maxY, width, height, area: width * height };
-}
-
-/**
- * Generate candidate positions in all directions.
- */
-function generateCandidates(
-	parentCard: Card,
-	existingCards: Card[],
-	linkPosition: Point | null,
-	newCardDimensions: Dimensions,
-	bounds: BoundingBox
-): Array<{ position: Point; direction: PlacementDirection }> {
-	const candidates: Array<{ position: Point; direction: PlacementDirection }> = [];
-	const baseY = linkPosition ? linkPosition.y - 30 : parentCard.position.y;
-
-	// RIGHT of parent (primary direction)
-	const rightX = parentCard.position.x + parentCard.dimensions.width + CARD_SPACING;
-	for (const yOffset of [0, -30, 30, -60, 60, -90, 90]) {
-		candidates.push({
-			position: { x: rightX, y: Math.max(0, baseY + yOffset) },
-			direction: 'right'
-		});
-	}
-
-	// LEFT of parent
-	const leftX = parentCard.position.x - newCardDimensions.width - CARD_SPACING;
-	if (leftX >= 0) {
-		for (const yOffset of [0, -30, 30, -60, 60]) {
-			candidates.push({
-				position: { x: leftX, y: Math.max(0, baseY + yOffset) },
-				direction: 'left'
-			});
-		}
-	}
-
-	// BELOW parent
-	const belowY = parentCard.position.y + parentCard.dimensions.height + CARD_SPACING;
-	for (const xOffset of [0, -50, 50, -100, 100]) {
-		candidates.push({
-			position: { x: Math.max(0, parentCard.position.x + xOffset), y: belowY },
-			direction: 'below'
-		});
-	}
-
-	// ABOVE parent
-	const aboveY = parentCard.position.y - newCardDimensions.height - CARD_SPACING;
-	if (aboveY >= 0) {
-		for (const xOffset of [0, -50, 50]) {
-			candidates.push({
-				position: { x: Math.max(0, parentCard.position.x + xOffset), y: aboveY },
-				direction: 'above'
-			});
-		}
-	}
-
-	// Along bounding box edges (for dense packing)
-	if (existingCards.length > 1) {
-		// Right edge of bounds
-		candidates.push({
-			position: { x: bounds.maxX + CARD_SPACING, y: bounds.minY },
-			direction: 'right'
-		});
-		candidates.push({
-			position: { x: bounds.maxX + CARD_SPACING, y: (bounds.minY + bounds.maxY) / 2 - newCardDimensions.height / 2 },
-			direction: 'right'
-		});
-
-		// Left edge of bounds
-		if (bounds.minX - newCardDimensions.width - CARD_SPACING >= 0) {
-			candidates.push({
-				position: { x: bounds.minX - newCardDimensions.width - CARD_SPACING, y: bounds.minY },
-				direction: 'left'
-			});
-		}
-
-		// Bottom edge of bounds
-		candidates.push({
-			position: { x: bounds.minX, y: bounds.maxY + CARD_SPACING },
-			direction: 'below'
-		});
-		candidates.push({
-			position: { x: (bounds.minX + bounds.maxX) / 2 - newCardDimensions.width / 2, y: bounds.maxY + CARD_SPACING },
-			direction: 'below'
-		});
-
-		// Top edge of bounds
-		if (bounds.minY - newCardDimensions.height - CARD_SPACING >= 0) {
-			candidates.push({
-				position: { x: bounds.minX, y: bounds.minY - newCardDimensions.height - CARD_SPACING },
-				direction: 'above'
-			});
-		}
-	}
-
-	// Interior gap positions (scan for gaps between cards)
-	const gapPositions = findInteriorGaps(existingCards, newCardDimensions, bounds);
-	for (const gap of gapPositions) {
-		candidates.push({ position: gap, direction: 'right' });
-	}
-
-	return candidates;
-}
-
-/**
- * Find gaps in the interior of the bounding box large enough for a new card.
- */
-function findInteriorGaps(
-	existingCards: Card[],
-	newCardDimensions: Dimensions,
-	bounds: BoundingBox
-): Point[] {
-	const gaps: Point[] = [];
-	const step = 50; // Scan resolution
-
-	for (let x = bounds.minX; x <= bounds.maxX - newCardDimensions.width; x += step) {
-		for (let y = bounds.minY; y <= bounds.maxY - newCardDimensions.height; y += step) {
-			const candidate = { x, y };
-			if (!hasOverlap(candidate, newCardDimensions, existingCards)) {
-				gaps.push(candidate);
+			if (pathClear) {
+				return { position: candidate };
 			}
 		}
 	}
 
-	return gaps;
-}
+	// Fallback: find any non-overlapping position with larger range
+	for (const offset of yOffsets) {
+		const candidateY = Math.max(0, baseY + offset);
+		const candidate = { x: targetX, y: candidateY };
 
-/**
- * Build line segments representing existing connections.
- * Uses simplified straight-line approximation for crossing detection.
- */
-function buildExistingLineSegments(connections: Connection[], cards: Card[]): LineSegment[] {
-	const segments: LineSegment[] = [];
-	const cardMap = new Map(cards.map(c => [c.id, c]));
-
-	for (const conn of connections) {
-		const toCard = cardMap.get(conn.toCardId);
-		if (!toCard) continue;
-
-		// Approximate the connection as a line from source point to card entry
-		const entryPoint = getSimplifiedEntryPoint(toCard, conn.sourcePoint);
-		segments.push({
-			start: conn.sourcePoint,
-			end: entryPoint
-		});
+		if (!hasOverlap(candidate, newCardDimensions, existingCards)) {
+			return { position: candidate };
+		}
 	}
 
-	return segments;
-}
+	// Last resort: place in the next column further right
+	const nextColumn = targetColumn + 1;
+	const newColumnX = nextColumn * COLUMN_WIDTH;
 
-/**
- * Get simplified entry point for crossing detection.
- */
-function getSimplifiedEntryPoint(card: Card, fromPoint: Point): Point {
-	const cardCenterX = card.position.x + card.dimensions.width / 2;
-	const headingY = card.position.y + 20; // Same as pathfinding entry point
+	// Try to find non-overlapping position in the new column
+	for (const offset of yOffsets) {
+		const candidateY = Math.max(0, baseY + offset);
+		const candidate = { x: newColumnX, y: candidateY };
 
-	// Enter from left or right depending on position
-	if (fromPoint.x < cardCenterX) {
-		return { x: card.position.x, y: headingY };
-	} else {
-		return { x: card.position.x + card.dimensions.width, y: headingY };
+		if (!hasOverlap(candidate, newCardDimensions, existingCards)) {
+			return { position: candidate };
+		}
 	}
+
+	// Ultimate fallback: continue trying columns to the right
+	for (let col = nextColumn + 1; col <= nextColumn + 5; col++) {
+		const colX = col * COLUMN_WIDTH;
+		for (const offset of yOffsets) {
+			const candidateY = Math.max(0, baseY + offset);
+			const candidate = { x: colX, y: candidateY };
+
+			if (!hasOverlap(candidate, newCardDimensions, existingCards)) {
+				return { position: candidate };
+			}
+		}
+	}
+
+	// Final fallback
+	return {
+		position: {
+			x: newColumnX,
+			y: Math.max(0, baseY)
+		}
+	};
 }
 
 /**
- * Check if two line segments intersect.
- * Uses cross product method for robust intersection detection.
+ * Get all cards in the same column as the given card.
+ * Cards are in the same column if they share the same column index.
  */
-function segmentsIntersect(seg1: LineSegment, seg2: LineSegment): boolean {
-	const { start: p1, end: p2 } = seg1;
-	const { start: p3, end: p4 } = seg2;
+function getCardColumn(card: Card, allCards: Card[]): Card[] {
+	const cardColumn = Math.floor(card.position.x / COLUMN_WIDTH);
+	return allCards.filter(c => {
+		const otherColumn = Math.floor(c.position.x / COLUMN_WIDTH);
+		return otherColumn === cardColumn;
+	});
+}
 
-	// Calculate cross products
+/**
+ * Check if a clean path can be drawn from source to target.
+ * A clean path goes: horizontal exit → vertical in gap → horizontal entry
+ */
+function canDrawCleanPath(
+	linkPosition: Point,
+	targetPosition: Point,
+	targetDimensions: Dimensions,
+	sourceCard: Card,
+	existingCards: Card[],
+	existingPaths: Point[][]
+): boolean {
+	// Path structure:
+	// 1. Exit source card horizontally (linkY)
+	// 2. Go vertical in the gap between source and target columns
+	// 3. Enter target card horizontally (at heading Y = targetPosition.y + 20)
+
+	const sourceExitX = sourceCard.position.x + sourceCard.dimensions.width + 10;
+	const targetEntryX = targetPosition.x - 10;
+	const targetHeadingY = targetPosition.y + 20;
+
+	// Vertical routing X is in the middle of the gap
+	const verticalX = (sourceExitX + targetEntryX) / 2;
+
+	// Check if vertical segment would cross any cards
+	const minY = Math.min(linkPosition.y, targetHeadingY);
+	const maxY = Math.max(linkPosition.y, targetHeadingY);
+
+	for (const card of existingCards) {
+		if (card.id === sourceCard.id) continue;
+
+		// Check if vertical line at verticalX intersects this card
+		const cardLeft = card.position.x - 20; // padding
+		const cardRight = card.position.x + card.dimensions.width + 20;
+		const cardTop = card.position.y - 20;
+		const cardBottom = card.position.y + card.dimensions.height + 20;
+
+		if (verticalX >= cardLeft && verticalX <= cardRight) {
+			// X is within card bounds, check Y overlap
+			if (maxY >= cardTop && minY <= cardBottom) {
+				return false; // Path would cross this card
+			}
+		}
+	}
+
+	// Check if path would cross existing paths
+	const newPath = [
+		linkPosition,
+		{ x: verticalX, y: linkPosition.y },
+		{ x: verticalX, y: targetHeadingY },
+		{ x: targetEntryX, y: targetHeadingY }
+	];
+
+	for (const existingPath of existingPaths) {
+		if (pathsCross(newPath, existingPath)) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+/**
+ * Check if two paths cross each other.
+ */
+function pathsCross(path1: Point[], path2: Point[]): boolean {
+	for (let i = 0; i < path1.length - 1; i++) {
+		for (let j = 0; j < path2.length - 1; j++) {
+			if (segmentsIntersect(path1[i], path1[i + 1], path2[j], path2[j + 1])) {
+				// Check if they share an endpoint (allowed)
+				const shareEndpoint =
+					pointsClose(path1[i], path2[j]) ||
+					pointsClose(path1[i], path2[j + 1]) ||
+					pointsClose(path1[i + 1], path2[j]) ||
+					pointsClose(path1[i + 1], path2[j + 1]);
+
+				if (!shareEndpoint) {
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+function pointsClose(a: Point, b: Point): boolean {
+	return Math.abs(a.x - b.x) < 5 && Math.abs(a.y - b.y) < 5;
+}
+
+function segmentsIntersect(p1: Point, p2: Point, p3: Point, p4: Point): boolean {
 	const d1 = direction(p3, p4, p1);
 	const d2 = direction(p3, p4, p2);
 	const d3 = direction(p1, p2, p3);
 	const d4 = direction(p1, p2, p4);
 
-	// Standard intersection check
 	if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
 		((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
 		return true;
 	}
 
-	// Check collinear cases
-	if (d1 === 0 && onSegment(p3, p4, p1)) return true;
-	if (d2 === 0 && onSegment(p3, p4, p2)) return true;
-	if (d3 === 0 && onSegment(p1, p2, p3)) return true;
-	if (d4 === 0 && onSegment(p1, p2, p4)) return true;
-
 	return false;
 }
 
-/**
- * Calculate cross product direction.
- */
 function direction(p1: Point, p2: Point, p3: Point): number {
 	return (p3.x - p1.x) * (p2.y - p1.y) - (p2.x - p1.x) * (p3.y - p1.y);
-}
-
-/**
- * Check if point is on segment (for collinear cases).
- */
-function onSegment(p1: Point, p2: Point, p: Point): boolean {
-	return (
-		Math.min(p1.x, p2.x) <= p.x && p.x <= Math.max(p1.x, p2.x) &&
-		Math.min(p1.y, p2.y) <= p.y && p.y <= Math.max(p1.y, p2.y)
-	);
-}
-
-/**
- * Count how many existing lines a new connection would cross.
- */
-function countLineCrossings(
-	linkPosition: Point | null,
-	candidatePosition: Point,
-	candidateDimensions: Dimensions,
-	existingLines: LineSegment[]
-): number {
-	if (!linkPosition || existingLines.length === 0) return 0;
-
-	// Create the new connection line segment
-	const newEntry = getSimplifiedEntryPoint(
-		{
-			position: candidatePosition,
-			dimensions: candidateDimensions
-		} as Card,
-		linkPosition
-	);
-
-	const newLine: LineSegment = {
-		start: linkPosition,
-		end: newEntry
-	};
-
-	// Count intersections
-	let crossings = 0;
-	for (const existing of existingLines) {
-		if (segmentsIntersect(newLine, existing)) {
-			crossings++;
-		}
-	}
-
-	return crossings;
-}
-
-/**
- * Score a candidate position. Lower score = better.
- * Strongly prefers horizontal (right) placement, then nearby positions.
- * Penalizes positions that would cause line crossings.
- */
-function scoreCandidate(
-	position: Point,
-	dimensions: Dimensions,
-	existingCards: Card[],
-	parentCard: Card,
-	currentBounds: BoundingBox,
-	linkPosition: Point | null,
-	existingLines: LineSegment[]
-): number {
-	const parentRight = parentCard.position.x + parentCard.dimensions.width;
-	const parentBottom = parentCard.position.y + parentCard.dimensions.height;
-
-	// Direction-based scoring (primary factor)
-	let directionScore = 0;
-
-	if (position.x >= parentRight) {
-		// RIGHT of parent - best! Score based on how aligned vertically
-		const verticalOverlap = Math.min(
-			position.y + dimensions.height,
-			parentBottom
-		) - Math.max(position.y, parentCard.position.y);
-		directionScore = verticalOverlap > 0 ? 0 : 100; // Prefer overlapping rows
-	} else if (position.y >= parentBottom) {
-		// BELOW parent - okay, but penalize
-		directionScore = 300;
-	} else if (position.x + dimensions.width <= parentCard.position.x) {
-		// LEFT of parent - acceptable
-		directionScore = 200;
-	} else {
-		// ABOVE or overlapping - worst
-		directionScore = 500;
-	}
-
-	// Distance from parent's right edge (for right placements) or bottom edge (for below)
-	let proximityScore = 0;
-	if (position.x >= parentRight) {
-		// Horizontal distance from parent's right edge
-		proximityScore = (position.x - parentRight) * 0.5;
-		// Vertical alignment bonus - prefer same row
-		const verticalDiff = Math.abs(position.y - parentCard.position.y);
-		proximityScore += verticalDiff * 0.3;
-	} else {
-		// General distance for non-right placements
-		const dx = position.x - parentCard.position.x;
-		const dy = position.y - parentCard.position.y;
-		proximityScore = Math.sqrt(dx * dx + dy * dy) * 0.5;
-	}
-
-	// Line crossing penalty (high priority)
-	const crossings = countLineCrossings(linkPosition, position, dimensions, existingLines);
-	const crossingPenalty = crossings * 1000; // Heavy penalty for each crossing
-
-	// Combine scores
-	return directionScore + proximityScore + crossingPenalty;
-}
-
-/**
- * Find any available space when all candidates fail.
- */
-function findAnyAvailableSpace(
-	existingCards: Card[],
-	dimensions: Dimensions,
-	bounds: BoundingBox
-): Point {
-	// Scan around the perimeter of the bounding box
-	const positions = [
-		{ x: bounds.maxX + CARD_SPACING, y: bounds.minY },
-		{ x: bounds.maxX + CARD_SPACING, y: bounds.maxY - dimensions.height },
-		{ x: bounds.minX, y: bounds.maxY + CARD_SPACING },
-		{ x: bounds.maxX - dimensions.width, y: bounds.maxY + CARD_SPACING },
-	];
-
-	for (const pos of positions) {
-		if (!hasOverlap(pos, dimensions, existingCards)) {
-			return pos;
-		}
-	}
-
-	// Last resort: extend right
-	return {
-		x: bounds.maxX + CARD_SPACING * 2,
-		y: bounds.minY
-	};
 }
 
 /**
@@ -471,14 +261,4 @@ function hasOverlap(candidate: Point, dimensions: Dimensions, cards: Card[]): bo
 		const overlapY = (dimensions.height + card.dimensions.height) / 2 + padding;
 		return dx < overlapX && dy < overlapY;
 	});
-}
-
-/**
- * Get the center point of a card.
- */
-export function getCardCenter(card: Card): Point {
-	return {
-		x: card.position.x + card.dimensions.width / 2,
-		y: card.position.y + card.dimensions.height / 2
-	};
 }
