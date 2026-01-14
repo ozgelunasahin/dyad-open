@@ -251,7 +251,7 @@ class CanvasStore {
 	}
 
 	/**
-	 * Focus on a card and smoothly center the view.
+	 * Focus on a card and position for reading (top of card near top of viewport).
 	 */
 	focusCard(cardId: string): void {
 		const card = this.cards.get(cardId);
@@ -266,7 +266,7 @@ class CanvasStore {
 				new CustomEvent('canvas-focus', {
 					detail: {
 						x: card.position.x + card.dimensions.width / 2,
-						y: card.position.y + card.dimensions.height / 2,
+						y: card.position.y, // Card top, not center
 						cardId: card.id
 					}
 				})

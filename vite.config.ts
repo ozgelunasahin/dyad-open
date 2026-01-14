@@ -62,8 +62,8 @@ export default defineConfig({
 		SvelteKitPWA({
 			registerType: 'autoUpdate',
 			manifest: {
-				name: 'Spatial Reader',
-				short_name: 'SpatialRead',
+				name: 'dyad',
+				short_name: 'dyad',
 				description: 'Explore connected notes in space',
 				theme_color: '#ffffff',
 				background_color: '#f8fafc',
