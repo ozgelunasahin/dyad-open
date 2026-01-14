@@ -1,6 +1,55 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import { SvelteKitPWA } from '@vite-pwa/sveltekit';
 import { defineConfig } from 'vite';
+import { execSync } from 'child_process';
+import type { Plugin } from 'vite';
+
+function vaultHotReload(): Plugin {
+	return {
+		name: 'vault-hot-reload',
+		configureServer(server) {
+			const contentDir = 'content/notes';
+
+			server.watcher.add(contentDir);
+
+			server.watcher.on('change', (path) => {
+				if (path.includes('content/notes') && path.endsWith('.md')) {
+					console.log(`\n[vault] ${path} changed, rebuilding...`);
+					try {
+						execSync('npx tsx scripts/build-vault.ts', { stdio: 'inherit' });
+						server.ws.send({ type: 'full-reload' });
+					} catch (e) {
+						console.error('[vault] Build failed:', e);
+					}
+				}
+			});
+
+			server.watcher.on('add', (path) => {
+				if (path.includes('content/notes') && path.endsWith('.md')) {
+					console.log(`\n[vault] ${path} added, rebuilding...`);
+					try {
+						execSync('npx tsx scripts/build-vault.ts', { stdio: 'inherit' });
+						server.ws.send({ type: 'full-reload' });
+					} catch (e) {
+						console.error('[vault] Build failed:', e);
+					}
+				}
+			});
+
+			server.watcher.on('unlink', (path) => {
+				if (path.includes('content/notes') && path.endsWith('.md')) {
+					console.log(`\n[vault] ${path} removed, rebuilding...`);
+					try {
+						execSync('npx tsx scripts/build-vault.ts', { stdio: 'inherit' });
+						server.ws.send({ type: 'full-reload' });
+					} catch (e) {
+						console.error('[vault] Build failed:', e);
+					}
+				}
+			});
+		}
+	};
+}
 
 export default defineConfig({
 	test: {
@@ -8,6 +57,7 @@ export default defineConfig({
 		environment: 'node'
 	},
 	plugins: [
+		vaultHotReload(),
 		sveltekit(),
 		SvelteKitPWA({
 			registerType: 'autoUpdate',
