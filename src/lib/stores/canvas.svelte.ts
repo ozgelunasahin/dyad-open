@@ -254,9 +254,10 @@ class CanvasStore {
 	}
 
 	/**
-	 * Create a new note and open it as a card, entering edit mode.
+	 * Add a new note to the vault (for dynamically created notes).
+	 * This makes the note available for opening without a page reload.
 	 */
-	createAndOpenNote(noteId: string, title: string, linkPosition: Point, fromCardId: string): void {
+	addNoteToVault(noteId: string, title: string): void {
 		if (!this.vault) return;
 
 		// Create a minimal note object
@@ -274,12 +275,6 @@ class CanvasStore {
 		const newBrokenLinks = new Set(this.brokenLinks);
 		newBrokenLinks.delete(noteId);
 		this.brokenLinks = newBrokenLinks;
-
-		// Open the card
-		this.openNote(noteId, fromCardId, linkPosition);
-
-		// Enter edit mode
-		this.enterEditMode(noteId);
 	}
 
 	/**

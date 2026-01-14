@@ -100,7 +100,7 @@
 
 		// If link is broken (note doesn't exist), create it
 		if (canvasStore.isLinkBroken(noteId)) {
-			await createNewNote(noteId, linkPosition);
+			await createNewNote(noteId, linkPosition, target);
 			return;
 		}
 
@@ -108,7 +108,7 @@
 		target.classList.add('has-connection');
 	}
 
-	async function createNewNote(noteId: string, linkPosition: Point) {
+	async function createNewNote(noteId: string, linkPosition: Point, target: HTMLElement) {
 		// Create title from noteId (convert hyphens to spaces, title case)
 		const title = noteId
 			.split('-')
@@ -131,8 +131,15 @@
 				return;
 			}
 
-			// Add note to the vault and open it
-			canvasStore.createAndOpenNote(noteId, title, linkPosition, card.id);
+			// Add note to vault (so it's no longer "broken")
+			canvasStore.addNoteToVault(noteId, title);
+
+			// Use normal link click flow for proper coordinate conversion and path computation
+			onLinkClick(noteId, card.id, linkPosition);
+			target.classList.add('has-connection');
+
+			// Enter edit mode on the new card after a brief delay
+			setTimeout(() => canvasStore.enterEditMode(noteId), 100);
 		} catch (err) {
 			console.error('Failed to create note:', err);
 		}
@@ -421,7 +428,8 @@
 	}
 
 	.text-block.editing {
-		box-shadow: 0 0 0 2px var(--text-link);
+		outline: 2px solid var(--text-link);
+		outline-offset: 6px;
 	}
 
 	.save-indicator {
