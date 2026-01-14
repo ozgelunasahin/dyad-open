@@ -332,18 +332,46 @@
 				computeAndStorePath(conn.fromCardId, conn.toCardId, conn.sourcePoint, conn.routingX);
 			}
 		}
+
+		// After all paths are computed, regenerate SVGs so every path sees all others for crossings
+		regenerateAllPathSvgs();
+	}
+
+	/**
+	 * Regenerate SVG paths for all stored connections.
+	 * This ensures every path has hops where it crosses ANY other path,
+	 * not just paths that existed when it was first computed.
+	 */
+	function regenerateAllPathSvgs(): void {
+		const allPathPoints = canvasStore.getExistingPathPoints();
+
+		for (const conn of canvasStore.connections) {
+			const storedPath = canvasStore.getStoredPath(conn.fromCardId, conn.toCardId);
+			if (!storedPath) continue;
+
+			// Get all OTHER paths (exclude self)
+			const otherPaths = allPathPoints.filter(p => p !== storedPath.points);
+
+			// Regenerate SVG with hops considering all other paths
+			const newSvgPath = pathToSvgWithHops(storedPath.points, otherPaths);
+
+			// Update the stored path with new SVG
+			canvasStore.storePath(conn.fromCardId, conn.toCardId, {
+				...storedPath,
+				svgPath: newSvgPath
+			});
+		}
 	}
 
 
 	// Pen-and-paper approach: paths are stored when connections are created
-	// This derived just reads from stored paths and adds active state
+	// This derived just reads from stored paths
 	let connectionPaths = $derived.by(() => {
 		const results: Array<{
 			fromCardId: string;
 			toCardId: string;
 			sourcePoint: Point;
 			path: string;
-			isActive: boolean;
 			pathFailed: boolean;
 			method?: string;
 		}> = [];
@@ -355,7 +383,6 @@
 				results.push({
 					...conn,
 					path: storedPath.svgPath,
-					isActive: canvasStore.isConnectionActive(conn),
 					pathFailed: storedPath.failed,
 					method: storedPath.method
 				});
@@ -364,7 +391,6 @@
 				results.push({
 					...conn,
 					path: '',
-					isActive: false,
 					pathFailed: true,
 					method: 'none'
 				});
@@ -404,7 +430,7 @@
 
 		<!-- Connection lines (rendered below cards) -->
 		{#each connectionPaths as conn (conn.fromCardId + '-' + conn.toCardId)}
-			<ConnectionLine path={conn.path} isActive={conn.isActive} pathFailed={conn.pathFailed} />
+			<ConnectionLine path={conn.path} pathFailed={conn.pathFailed} />
 		{/each}
 
 		<!-- Debug: Show routing method labels -->

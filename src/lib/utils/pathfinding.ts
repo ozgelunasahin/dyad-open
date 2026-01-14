@@ -266,13 +266,10 @@ export function routeConnection(
 	// Compress path (remove redundant points on straight lines)
 	const compressed = compressPath(path);
 
-	// Check if path crosses any existing paths
-	const hasCrossing = checkPathCrossings(compressed, existingPaths);
-
 	return {
 		path: compressed,
 		method: exitRight ? 'Z-route' : 'Z-route-L',
-		failed: hasCrossing
+		failed: false // Crossings are handled by hop arcs, not failures
 	};
 }
 
@@ -417,7 +414,43 @@ function pointsClose(a: Point, b: Point): boolean {
 	return Math.abs(a.x - b.x) < 3 && Math.abs(a.y - b.y) < 3;
 }
 
-function segmentsIntersect(p1: Point, p2: Point, p3: Point, p4: Point): boolean {
+export function segmentsIntersect(p1: Point, p2: Point, p3: Point, p4: Point): boolean {
+	// Check for orthogonal segment intersection (vertical vs horizontal)
+	// This handles cases the cross-product method misses (when segments touch at boundaries)
+	const seg1Vertical = Math.abs(p2.x - p1.x) < 1;
+	const seg1Horizontal = Math.abs(p2.y - p1.y) < 1;
+	const seg2Vertical = Math.abs(p4.x - p3.x) < 1;
+	const seg2Horizontal = Math.abs(p4.y - p3.y) < 1;
+
+	if (seg1Vertical && seg2Horizontal) {
+		// Segment 1 is vertical, segment 2 is horizontal
+		const vx = p1.x;
+		const minY = Math.min(p1.y, p2.y);
+		const maxY = Math.max(p1.y, p2.y);
+		const hy = p3.y;
+		const minX = Math.min(p3.x, p4.x);
+		const maxX = Math.max(p3.x, p4.x);
+
+		// Strictly inside (not touching at boundaries)
+		if (vx > minX && vx < maxX && hy > minY && hy < maxY) {
+			return true;
+		}
+	} else if (seg1Horizontal && seg2Vertical) {
+		// Segment 1 is horizontal, segment 2 is vertical
+		const hy = p1.y;
+		const minX = Math.min(p1.x, p2.x);
+		const maxX = Math.max(p1.x, p2.x);
+		const vx = p3.x;
+		const minY = Math.min(p3.y, p4.y);
+		const maxY = Math.max(p3.y, p4.y);
+
+		// Strictly inside (not touching at boundaries)
+		if (vx > minX && vx < maxX && hy > minY && hy < maxY) {
+			return true;
+		}
+	}
+
+	// Fall back to cross-product method for non-orthogonal segments
 	const d1 = direction(p3, p4, p1);
 	const d2 = direction(p3, p4, p2);
 	const d3 = direction(p1, p2, p3);
@@ -498,7 +531,7 @@ export function pathToSvg(points: Point[]): string {
 	return d;
 }
 
-const HOP_RADIUS = 16;
+const HOP_RADIUS = 8;
 
 /**
  * Find crossing points between a path segment and existing paths.
@@ -566,7 +599,7 @@ function findCrossingsOnSegment(
 /**
  * Calculate the intersection point of two line segments.
  */
-function getIntersectionPoint(
+export function getIntersectionPoint(
 	p1: Point, p2: Point,
 	p3: Point, p4: Point
 ): Point | null {
@@ -600,7 +633,6 @@ export function pathToSvgWithHops(points: Point[], existingPaths: Point[][]): st
 
 		// Find crossings on this segment
 		const crossings = findCrossingsOnSegment(prev, curr, existingPaths);
-
 
 		if (crossings.length === 0) {
 			// No crossings - simple segment
