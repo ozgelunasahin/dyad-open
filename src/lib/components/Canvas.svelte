@@ -155,15 +155,36 @@
 
 		window.addEventListener('canvas-focus', handleFocusAnimation);
 
-		// 'e' key to enter edit mode on focused card
+		// Listen for restore position requests (returning to previous card)
+		const handleRestorePosition = (event: Event) => {
+			const customEvent = event as CustomEvent<{ camera: { x: number; y: number; zoom: number } }>;
+			animateToPosition(customEvent.detail.camera);
+		};
+
+		window.addEventListener('canvas-restore', handleRestorePosition);
+
+		// Keyboard shortcuts for canvas navigation
 		const handleKeyDown = (event: KeyboardEvent) => {
 			// Don't trigger if already editing or if typing in an input
 			if (canvasStore.editingCardId) return;
 			if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
 
+			// 'e' key to enter edit mode on focused card
 			if (event.key === 'e' && canvasStore.focusedCardId) {
 				event.preventDefault();
 				canvasStore.enterEditMode(canvasStore.focusedCardId);
+			}
+
+			// Left arrow to return to parent card
+			if (event.key === 'ArrowLeft' && !event.altKey) {
+				event.preventDefault();
+				canvasStore.returnToParent();
+			}
+
+			// Right arrow to go forward to child (after going back)
+			if (event.key === 'ArrowRight' && !event.altKey) {
+				event.preventDefault();
+				canvasStore.goForwardToChild();
 			}
 		};
 
@@ -183,6 +204,7 @@
 
 		return () => {
 			window.removeEventListener('canvas-focus', handleFocusAnimation);
+			window.removeEventListener('canvas-restore', handleRestorePosition);
 			window.removeEventListener('canvas-zoom-to-fit', handleZoomToFit);
 			window.removeEventListener('canvas-compute-paths', handleComputePaths);
 			window.removeEventListener('keydown', handleKeyDown);
@@ -260,6 +282,46 @@
 			const currentY = startY + (endY - startY) * eased;
 
 			const newTransform = zoomIdentity.translate(currentX, currentY).scale(transform.k);
+
+			selection.call(zoomBehavior.transform, newTransform);
+
+			if (progress < 1) {
+				requestAnimationFrame(animate);
+			} else {
+				canvasStore.setAnimating(false);
+			}
+		}
+
+		requestAnimationFrame(animate);
+	}
+
+	/**
+	 * Smoothly animate to a specific camera position (for restoring previous position).
+	 */
+	function animateToPosition(targetCamera: { x: number; y: number; zoom: number }) {
+		if (!svg) return;
+
+		const selection = select(svg);
+
+		const startX = transform.x;
+		const startY = transform.y;
+		const startZoom = transform.k;
+
+		const duration = 300; // Slightly faster for "going back"
+		const startTime = Date.now();
+
+		function animate() {
+			const elapsed = Date.now() - startTime;
+			const progress = Math.min(elapsed / duration, 1);
+
+			// Ease out quad
+			const eased = 1 - (1 - progress) * (1 - progress);
+
+			const currentX = startX + (targetCamera.x - startX) * eased;
+			const currentY = startY + (targetCamera.y - startY) * eased;
+			const currentZoom = startZoom + (targetCamera.zoom - startZoom) * eased;
+
+			const newTransform = zoomIdentity.translate(currentX, currentY).scale(currentZoom);
 
 			selection.call(zoomBehavior.transform, newTransform);
 

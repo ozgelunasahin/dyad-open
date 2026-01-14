@@ -73,6 +73,11 @@ class CanvasStore {
 	// Edit mode state
 	editingCardId = $state<string | null>(null);
 
+	// Track position when leaving a card (for restoring on return)
+	private previousCardState = $state<{ cardId: string; camera: Camera } | null>(null);
+	// Track forward navigation (child we came from when going back)
+	private forwardCardState = $state<{ cardId: string; camera: Camera } | null>(null);
+
 	private history = $state<{ back: string[][]; forward: string[][] }>({
 		back: [],
 		forward: []
@@ -279,26 +284,119 @@ class CanvasStore {
 
 	/**
 	 * Focus on a card and position for reading (top of card near top of viewport).
+	 * If returning to the card we just came from, restore the previous scroll position.
 	 */
 	focusCard(cardId: string): void {
 		const card = this.cards.get(cardId);
 		if (!card) return;
+
+		// Check if we're returning to the previous card
+		const isReturning = this.previousCardState?.cardId === cardId;
+		const restoreCamera = isReturning ? this.previousCardState.camera : null;
+
+		// Save current card's position before switching (if we have a focused card)
+		if (this.focusedCardId && this.focusedCardId !== cardId) {
+			this.previousCardState = {
+				cardId: this.focusedCardId,
+				camera: { ...this.camera }
+			};
+		}
 
 		this.focusedCardId = cardId;
 
 		// Dispatch event for Canvas to animate
 		if (typeof window !== 'undefined') {
 			this.isAnimating = true;
+
+			if (restoreCamera) {
+				// Returning to previous card - restore exact position
+				window.dispatchEvent(
+					new CustomEvent('canvas-restore', {
+						detail: { camera: restoreCamera }
+					})
+				);
+			} else {
+				// New card - animate to reading position
+				window.dispatchEvent(
+					new CustomEvent('canvas-focus', {
+						detail: {
+							x: card.position.x + card.dimensions.width / 2,
+							y: card.position.y, // Card top, not center
+							cardId: card.id
+						}
+					})
+				);
+			}
+		}
+	}
+
+	/**
+	 * Get the parent card of the currently focused card.
+	 */
+	getParentCardId(): string | null {
+		if (!this.focusedCardId) return null;
+		const card = this.cards.get(this.focusedCardId);
+		return card?.parentId || null;
+	}
+
+	/**
+	 * Return to the parent card of the currently focused card.
+	 * Saves current card as forward target for right arrow navigation.
+	 */
+	returnToParent(): boolean {
+		const parentId = this.getParentCardId();
+		if (!parentId || !this.focusedCardId) return false;
+
+		// Save current card as forward target (so right arrow can return here)
+		this.forwardCardState = {
+			cardId: this.focusedCardId,
+			camera: { ...this.camera }
+		};
+
+		this.focusCard(parentId);
+		return true;
+	}
+
+	/**
+	 * Check if we can go forward (have a forward target).
+	 */
+	canGoForwardToChild(): boolean {
+		return this.forwardCardState !== null;
+	}
+
+	/**
+	 * Go forward to the child card we came from (after going back).
+	 */
+	goForwardToChild(): boolean {
+		if (!this.forwardCardState) return false;
+
+		const targetCardId = this.forwardCardState.cardId;
+		const targetCamera = this.forwardCardState.camera;
+
+		// Clear forward state (we're going there now)
+		this.forwardCardState = null;
+
+		// Save current position for going back again
+		if (this.focusedCardId) {
+			this.previousCardState = {
+				cardId: this.focusedCardId,
+				camera: { ...this.camera }
+			};
+		}
+
+		this.focusedCardId = targetCardId;
+
+		// Restore the saved camera position
+		if (typeof window !== 'undefined') {
+			this.isAnimating = true;
 			window.dispatchEvent(
-				new CustomEvent('canvas-focus', {
-					detail: {
-						x: card.position.x + card.dimensions.width / 2,
-						y: card.position.y, // Card top, not center
-						cardId: card.id
-					}
+				new CustomEvent('canvas-restore', {
+					detail: { camera: targetCamera }
 				})
 			);
 		}
+
+		return true;
 	}
 
 	goBack(): void {
