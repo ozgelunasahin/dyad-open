@@ -82,16 +82,14 @@
 		canvasStore.exitEditMode();
 	}
 
-	function handleInteraction(target: HTMLElement) {
+	async function handleInteraction(target: HTMLElement) {
 		if (!target.classList.contains('wikilink')) return;
 
 		const noteId = target.dataset.target;
 		if (!noteId) return;
 
-		if (canvasStore.isLinkBroken(noteId)) return;
-
 		if (isEditing) {
-			exitEditMode();
+			await exitEditMode();
 		}
 
 		const rect = target.getBoundingClientRect();
@@ -100,8 +98,44 @@
 			y: rect.bottom
 		};
 
+		// If link is broken (note doesn't exist), create it
+		if (canvasStore.isLinkBroken(noteId)) {
+			await createNewNote(noteId, linkPosition);
+			return;
+		}
+
 		onLinkClick(noteId, card.id, linkPosition);
 		target.classList.add('has-connection');
+	}
+
+	async function createNewNote(noteId: string, linkPosition: Point) {
+		// Create title from noteId (convert hyphens to spaces, title case)
+		const title = noteId
+			.split('-')
+			.map(word => word.charAt(0).toUpperCase() + word.slice(1))
+			.join(' ');
+
+		// Create initial content
+		const content = `---\ntitle: "${title}"\n---\n\n# ${title}\n\n`;
+
+		try {
+			// Save the new note file
+			const res = await fetch(`/api/notes/${noteId}`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ content })
+			});
+
+			if (!res.ok) {
+				console.error('Failed to create note:', noteId);
+				return;
+			}
+
+			// Add note to the vault and open it
+			canvasStore.createAndOpenNote(noteId, title, linkPosition, card.id);
+		} catch (err) {
+			console.error('Failed to create note:', err);
+		}
 	}
 
 	function handleClick(event: MouseEvent) {
@@ -163,7 +197,67 @@
 
 	// Handle input changes (contenteditable)
 	function handleInput() {
+		convertWikilinks();
 		scheduleSave();
+	}
+
+	// Convert [[text]] patterns to wikilink elements
+	function convertWikilinks() {
+		if (!contentEl) return;
+
+		const walker = document.createTreeWalker(contentEl, NodeFilter.SHOW_TEXT);
+		const nodesToProcess: { node: Text; match: RegExpExecArray }[] = [];
+
+		// Find all [[...]] patterns in text nodes
+		const pattern = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
+		let textNode: Text | null;
+		while ((textNode = walker.nextNode() as Text | null)) {
+			pattern.lastIndex = 0;
+			let match: RegExpExecArray | null;
+			while ((match = pattern.exec(textNode.textContent || '')) !== null) {
+				nodesToProcess.push({ node: textNode, match });
+				break; // Process one match per node at a time
+			}
+		}
+
+		// Process matches (in reverse to not invalidate positions)
+		for (const { node, match } of nodesToProcess.reverse()) {
+			const target = match[1].trim();
+			const display = (match[2] || match[1]).trim();
+			const startIdx = match.index;
+			const endIdx = startIdx + match[0].length;
+
+			// Create wikilink button
+			const link = document.createElement('button');
+			link.className = 'wikilink';
+			link.dataset.target = target.toLowerCase().replace(/\s+/g, '-');
+			link.textContent = display;
+
+			// Split text node and insert link
+			const before = node.textContent?.slice(0, startIdx) || '';
+			const after = node.textContent?.slice(endIdx) || '';
+
+			const parent = node.parentNode;
+			if (!parent) continue;
+
+			const beforeNode = document.createTextNode(before);
+			const afterNode = document.createTextNode(after);
+
+			parent.insertBefore(beforeNode, node);
+			parent.insertBefore(link, node);
+			parent.insertBefore(afterNode, node);
+			parent.removeChild(node);
+
+			// Place cursor after the link
+			const sel = window.getSelection();
+			if (sel) {
+				const range = document.createRange();
+				range.setStartAfter(link);
+				range.collapse(true);
+				sel.removeAllRanges();
+				sel.addRange(range);
+			}
+		}
 	}
 
 	// Debounced save
