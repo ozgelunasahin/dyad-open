@@ -150,6 +150,10 @@ class CanvasStore {
 	}
 
 	isLinkBroken(target: string): boolean {
+		// Check if note exists in vault (handles dynamically created wikilinks)
+		if (this.vault && !this.vault.notes[target]) {
+			return true;
+		}
 		return this.brokenLinks.has(target);
 	}
 
@@ -247,6 +251,35 @@ class CanvasStore {
 
 		this.persistState();
 		return true;
+	}
+
+	/**
+	 * Create a new note and open it as a card, entering edit mode.
+	 */
+	createAndOpenNote(noteId: string, title: string, linkPosition: Point, fromCardId: string): void {
+		if (!this.vault) return;
+
+		// Create a minimal note object
+		const note = {
+			id: noteId,
+			title,
+			content: `# ${title}\n\n`,
+			wikilinks: [] as string[]
+		};
+
+		// Add to vault
+		this.vault.notes[noteId] = note;
+
+		// Remove from broken links
+		const newBrokenLinks = new Set(this.brokenLinks);
+		newBrokenLinks.delete(noteId);
+		this.brokenLinks = newBrokenLinks;
+
+		// Open the card
+		this.openNote(noteId, fromCardId, linkPosition);
+
+		// Enter edit mode
+		this.enterEditMode(noteId);
 	}
 
 	/**
