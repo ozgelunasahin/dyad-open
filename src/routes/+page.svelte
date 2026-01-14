@@ -32,11 +32,6 @@
 			event.preventDefault();
 			canvasStore.goForward();
 		}
-		// Escape is used to exit edit mode (handled in NoteCard)
-		// Shift+Escape resets the canvas
-		if (event.shiftKey && event.key === 'Escape') {
-			canvasStore.reset();
-		}
 	}
 </script>
 
@@ -111,6 +106,19 @@
 				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
 					<rect x="2" y="2" width="12" height="12" stroke="currentColor" stroke-width="1.5" rx="1"/>
 					<path d="M5 5L8 8M11 5L8 8M5 11L8 8M11 11L8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+				</svg>
+			</button>
+
+			<!-- Reset button (only in debug mode) -->
+			<button
+				class="debug-btn reset-btn"
+				onclick={() => canvasStore.reset()}
+				aria-label="Reset canvas"
+				title="Reset canvas to entry note"
+			>
+				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+					<path d="M2 8a6 6 0 1 1 1.5 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+					<path d="M2 12V8h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
 				</svg>
 			</button>
 		{/if}
@@ -329,5 +337,9 @@
 
 	.zoom-fit-btn {
 		right: 104px;
+	}
+
+	.reset-btn {
+		right: 184px;
 	}
 </style>
