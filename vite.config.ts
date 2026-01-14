@@ -2,7 +2,23 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { SvelteKitPWA } from '@vite-pwa/sveltekit';
 import { defineConfig } from 'vite';
 import { execSync } from 'child_process';
+import { statSync } from 'fs';
+import { join } from 'path';
 import type { Plugin } from 'vite';
+
+// Marker file to track API writes - prevents reload loop during in-app editing
+const API_WRITE_MARKER = '.last-api-write';
+const SUPPRESS_WINDOW_MS = 2000; // Ignore changes within 2s of API write
+
+function wasRecentlyWrittenByApi(): boolean {
+	try {
+		const stat = statSync(API_WRITE_MARKER);
+		const elapsed = Date.now() - stat.mtimeMs;
+		return elapsed < SUPPRESS_WINDOW_MS;
+	} catch {
+		return false;
+	}
+}
 
 function vaultHotReload(): Plugin {
 	return {
@@ -14,6 +30,11 @@ function vaultHotReload(): Plugin {
 
 			server.watcher.on('change', (path) => {
 				if (path.includes('content/notes') && path.endsWith('.md')) {
+					// Skip if this change was triggered by our own API write
+					if (wasRecentlyWrittenByApi()) {
+						console.log(`\n[vault] ${path} changed (API write, skipping reload)`);
+						return;
+					}
 					console.log(`\n[vault] ${path} changed, rebuilding...`);
 					try {
 						execSync('npx tsx scripts/build-vault.ts', { stdio: 'inherit' });

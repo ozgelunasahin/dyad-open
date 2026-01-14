@@ -1,7 +1,9 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import type { Card, Point } from '$lib/types';
 	import { parseMarkdown } from '$lib/utils/markdown';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
+	import TurndownService from 'turndown';
 
 	interface Props {
 		card: Card;
@@ -11,7 +13,74 @@
 
 	let { card, isActive, onLinkClick }: Props = $props();
 
+	// Edit state
+	let isEditing = $derived(canvasStore.editingCardId === card.id);
+	let saveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
+	let debounceTimer: ReturnType<typeof setTimeout>;
+	let originalMarkdown = $state('');
+
+	// Rendered HTML for view mode
 	let html = $derived(parseMarkdown(card.note.content));
+
+	// Content element reference
+	let contentEl: HTMLDivElement;
+
+	// Setup turndown with wikilink handling
+	const turndown = new TurndownService({
+		headingStyle: 'atx',
+		bulletListMarker: '-',
+		emDelimiter: '*'
+	});
+
+	// Custom rule for wikilinks - convert back to [[target|display]] syntax
+	turndown.addRule('wikilink', {
+		filter: (node) => {
+			return node.nodeName === 'BUTTON' && node.classList.contains('wikilink');
+		},
+		replacement: (content, node) => {
+			const target = (node as HTMLElement).dataset.target || '';
+			const display = content.trim();
+			// If display matches target, use short form
+			if (display === target) {
+				return `[[${target}]]`;
+			}
+			return `[[${target}|${display}]]`;
+		}
+	});
+
+	// Enter edit mode
+	async function enterEditMode() {
+		if (canvasStore.editingCardId && canvasStore.editingCardId !== card.id) {
+			canvasStore.exitEditMode();
+		}
+
+		// Load original markdown for frontmatter preservation
+		try {
+			const res = await fetch(`/api/notes/${card.note.id}`);
+			if (res.ok) {
+				const data = await res.json();
+				originalMarkdown = data.content;
+			} else {
+				originalMarkdown = `---\ntitle: "${card.note.title}"\n---\n\n${card.note.content}`;
+			}
+		} catch {
+			originalMarkdown = `---\ntitle: "${card.note.title}"\n---\n\n${card.note.content}`;
+		}
+
+		canvasStore.enterEditMode(card.id);
+
+		await tick();
+		contentEl?.focus();
+	}
+
+	// Exit edit mode and save
+	async function exitEditMode() {
+		clearTimeout(debounceTimer);
+		if (saveStatus !== 'saving') {
+			await saveNow();
+		}
+		canvasStore.exitEditMode();
+	}
 
 	function handleInteraction(target: HTMLElement) {
 		if (!target.classList.contains('wikilink')) return;
@@ -21,37 +90,120 @@
 
 		if (canvasStore.isLinkBroken(noteId)) return;
 
+		if (isEditing) {
+			exitEditMode();
+		}
+
 		const rect = target.getBoundingClientRect();
 		const linkPosition: Point = {
-			x: rect.left, // Start of link text (left edge) - line replaces underline
-			y: rect.bottom // Bottom of link (underline level)
+			x: rect.left,
+			y: rect.bottom
 		};
 
 		onLinkClick(noteId, card.id, linkPosition);
-
-		// Mark link as active (connection line replaces underline)
 		target.classList.add('has-connection');
 	}
 
 	function handleClick(event: MouseEvent) {
 		const target = event.target as HTMLElement;
-		if (target.classList.contains('wikilink')) {
+
+		// Handle wikilink clicks (only in view mode)
+		if (target.classList.contains('wikilink') && !isEditing) {
 			event.preventDefault();
 			event.stopPropagation();
 			handleInteraction(target);
-		} else {
-			// Click on card body - focus this card for scrolling
-			canvasStore.focusCard(card.id);
+			return;
 		}
 	}
 
-	function handleKeyDown(event: KeyboardEvent) {
+	function handleViewKeyDown(event: KeyboardEvent) {
 		if (event.key === 'Enter' || event.key === ' ') {
 			const target = event.target as HTMLElement;
 			if (target.classList.contains('wikilink')) {
 				event.preventDefault();
 				handleInteraction(target);
 			}
+		}
+	}
+
+	// Handle keyboard shortcuts in edit mode
+	function handleEditKeyDown(event: KeyboardEvent) {
+		const isMod = event.metaKey || event.ctrlKey;
+
+		// Cmd+B = Bold
+		if (isMod && event.key === 'b') {
+			event.preventDefault();
+			document.execCommand('bold');
+			scheduleSave();
+			return;
+		}
+
+		// Cmd+I = Italic
+		if (isMod && event.key === 'i') {
+			event.preventDefault();
+			document.execCommand('italic');
+			scheduleSave();
+			return;
+		}
+
+		// Cmd+S = Force save
+		if (isMod && event.key === 's') {
+			event.preventDefault();
+			saveNow();
+			return;
+		}
+
+		// Escape = Exit edit mode
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			exitEditMode();
+			return;
+		}
+	}
+
+	// Handle input changes (contenteditable)
+	function handleInput() {
+		scheduleSave();
+	}
+
+	// Debounced save
+	function scheduleSave() {
+		clearTimeout(debounceTimer);
+		debounceTimer = setTimeout(saveNow, 1500);
+	}
+
+	// Convert HTML to markdown and save
+	async function saveNow() {
+		if (!contentEl) return;
+
+		saveStatus = 'saving';
+
+		try {
+			// Convert contenteditable HTML back to markdown
+			const htmlContent = contentEl.innerHTML;
+			const markdown = turndown.turndown(htmlContent);
+
+			// Extract frontmatter from original and prepend
+			const frontmatterMatch = originalMarkdown.match(/^---\n[\s\S]*?\n---\n*/);
+			const frontmatter = frontmatterMatch ? frontmatterMatch[0] : `---\ntitle: "${card.note.title}"\n---\n\n`;
+			const fullContent = frontmatter + markdown;
+
+			const res = await fetch(`/api/notes/${card.note.id}`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ content: fullContent })
+			});
+
+			if (res.ok) {
+				saveStatus = 'saved';
+				setTimeout(() => {
+					if (saveStatus === 'saved') saveStatus = 'idle';
+				}, 2000);
+			} else {
+				saveStatus = 'error';
+			}
+		} catch {
+			saveStatus = 'error';
 		}
 	}
 
@@ -65,12 +217,63 @@
 		});
 	}
 
-	let contentEl: HTMLDivElement;
-
 	$effect(() => {
 		if (contentEl && html) {
 			processBrokenLinks(contentEl);
 		}
+	});
+
+	// Auto-expand card height as content grows
+	$effect(() => {
+		if (!contentEl) return;
+
+		const observer = new ResizeObserver((entries) => {
+			for (const entry of entries) {
+				const newHeight = entry.contentRect.height + 16; // Add padding
+				if (newHeight > card.dimensions.height) {
+					canvasStore.updateCardHeight(card.id, newHeight);
+				}
+			}
+		});
+
+		observer.observe(contentEl);
+		return () => observer.disconnect();
+	});
+
+	// Handle edit mode changes (entered via 'e' key or exited via click outside)
+	let wasEditing = $state(false);
+	$effect(() => {
+		if (!wasEditing && isEditing) {
+			// Just entered edit mode - load original markdown and focus
+			loadOriginalMarkdown();
+			tick().then(() => contentEl?.focus());
+		} else if (wasEditing && !isEditing) {
+			// Just exited edit mode - save any pending changes
+			clearTimeout(debounceTimer);
+			saveNow();
+		}
+		wasEditing = isEditing;
+	});
+
+	async function loadOriginalMarkdown() {
+		try {
+			const res = await fetch(`/api/notes/${card.note.id}`);
+			if (res.ok) {
+				const data = await res.json();
+				originalMarkdown = data.content;
+			} else {
+				originalMarkdown = `---\ntitle: "${card.note.title}"\n---\n\n${card.note.content}`;
+			}
+		} catch {
+			originalMarkdown = `---\ntitle: "${card.note.title}"\n---\n\n${card.note.content}`;
+		}
+	}
+
+	// Cleanup on unmount
+	$effect(() => {
+		return () => {
+			clearTimeout(debounceTimer);
+		};
 	});
 </script>
 
@@ -85,13 +288,21 @@
 	<div
 		xmlns="http://www.w3.org/1999/xhtml"
 		class="text-block"
-		class:dimmed={!isActive}
+		class:dimmed={!isActive && !isEditing}
+		class:editing={isEditing}
+		contenteditable={isEditing}
 		onclick={handleClick}
-		onkeydown={handleKeyDown}
+		onkeydown={isEditing ? handleEditKeyDown : handleViewKeyDown}
+		oninput={handleInput}
 		bind:this={contentEl}
 	>
 		{@html html}
 	</div>
+	{#if isEditing && saveStatus !== 'idle'}
+		<div xmlns="http://www.w3.org/1999/xhtml" class="save-indicator" class:saving={saveStatus === 'saving'} class:error={saveStatus === 'error'}>
+			{saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved' : 'Error'}
+		</div>
+	{/if}
 </foreignObject>
 
 <style>
@@ -100,18 +311,44 @@
 	}
 
 	.text-block {
-		height: 100%;
-		overflow: hidden;
+		min-height: 100%;
 		font-family: 'Georgia', 'Times New Roman', 'Noto Serif', serif;
 		font-size: 14px;
 		line-height: 1.7;
 		color: var(--text-secondary);
 		transition: opacity 0.3s ease, color 0.3s ease;
 		padding: 8px 0;
+		cursor: text;
+		outline: none;
 	}
 
 	.text-block.dimmed {
 		opacity: var(--dimmed-opacity);
+	}
+
+	.text-block.editing {
+		box-shadow: 0 0 0 2px var(--text-link);
+	}
+
+	.save-indicator {
+		position: absolute;
+		top: 12px;
+		right: 12px;
+		font-size: 11px;
+		padding: 2px 6px;
+		border-radius: 3px;
+		background: var(--bg-control);
+		color: var(--text-muted);
+		font-family: system-ui, sans-serif;
+	}
+
+	.save-indicator.saving {
+		opacity: 0.7;
+	}
+
+	.save-indicator.error {
+		background: #fee2e2;
+		color: #dc2626;
 	}
 
 	.text-block :global(h1) {
@@ -213,12 +450,10 @@
 		border-bottom-color: var(--border-code);
 	}
 
-	/* Hide underline when connection line replaces it */
 	.text-block :global(.wikilink.has-connection) {
 		border-bottom-color: transparent;
 	}
 
-	/* Scrollbar styling - hidden since we use full height */
 	.text-block::-webkit-scrollbar {
 		width: 0;
 		display: none;

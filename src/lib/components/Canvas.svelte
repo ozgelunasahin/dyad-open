@@ -51,17 +51,21 @@
 			.wheelDelta((event) => {
 				return -event.deltaY * zoomSpeed;
 			})
-			// Only allow zoom on Ctrl+wheel, allow drag panning always
+			// Only allow zoom on Ctrl+wheel, allow drag panning on canvas background only
 			.filter((event) => {
-				// Always allow drag (mousedown/touchstart)
-				if (event.type === 'mousedown' || event.type === 'touchstart') {
-					return true;
+				// Don't capture events when editing (let text selection work)
+				if (canvasStore.editingCardId) {
+					const target = event.target as Element;
+					const inForeignObject = target.closest('foreignObject') !== null;
+					if (inForeignObject && (event.type === 'mousedown' || event.type === 'touchstart')) {
+						return false;
+					}
 				}
 				// For wheel events, only zoom if Ctrl is held
 				if (event.type === 'wheel') {
 					return event.ctrlKey;
 				}
-				// Allow other events (dblclick for reset, etc.)
+				// Allow drag/pan and other events
 				return true;
 			})
 			.on('zoom', (event) => {
@@ -148,6 +152,20 @@
 
 		window.addEventListener('canvas-focus', handleFocusAnimation);
 
+		// 'e' key to enter edit mode on focused card
+		const handleKeyDown = (event: KeyboardEvent) => {
+			// Don't trigger if already editing or if typing in an input
+			if (canvasStore.editingCardId) return;
+			if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+
+			if (event.key === 'e' && canvasStore.focusedCardId) {
+				event.preventDefault();
+				canvasStore.enterEditMode(canvasStore.focusedCardId);
+			}
+		};
+
+		window.addEventListener('keydown', handleKeyDown);
+
 		// Listen for zoom-to-fit requests
 		const handleZoomToFit = () => {
 			zoomToFitAll();
@@ -164,6 +182,7 @@
 			window.removeEventListener('canvas-focus', handleFocusAnimation);
 			window.removeEventListener('canvas-zoom-to-fit', handleZoomToFit);
 			window.removeEventListener('canvas-compute-paths', handleComputePaths);
+			window.removeEventListener('keydown', handleKeyDown);
 			svg.removeEventListener('wheel', handleWheel);
 		};
 	});
@@ -303,6 +322,17 @@
 		);
 	}
 
+	function handleCanvasClick(event: MouseEvent) {
+		// Exit edit mode if clicking outside card content
+		if (canvasStore.editingCardId) {
+			const target = event.target as Element;
+			const inForeignObject = target.closest('foreignObject') !== null;
+			if (!inForeignObject) {
+				canvasStore.exitEditMode();
+			}
+		}
+	}
+
 	function handleLinkClick(noteId: string, fromCardId: string, screenPosition: Point) {
 		// Convert screen position to canvas coordinates
 		const svgRect = svg.getBoundingClientRect();
@@ -403,7 +433,7 @@
 	});
 </script>
 
-<svg bind:this={svg} class="canvas" class:debug-active={canvasStore.debugMode}>
+<svg bind:this={svg} class="canvas" class:debug-active={canvasStore.debugMode} onclick={handleCanvasClick}>
 	<g transform="translate({transform.x}, {transform.y}) scale({transform.k})">
 		<!-- Debug grid overlay - show card obstacle zones and path obstacle corridors -->
 		{#if canvasStore.debugMode}

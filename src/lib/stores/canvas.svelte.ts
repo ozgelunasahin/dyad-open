@@ -30,29 +30,25 @@ interface PersistedState {
 }
 
 function loadPersistedState(): PersistedState | null {
-	// Disabled for testing
+	if (typeof window === 'undefined') return null;
+	try {
+		const stored = localStorage.getItem(STORAGE_KEY);
+		if (stored) {
+			return JSON.parse(stored);
+		}
+	} catch {
+		// Ignore parse errors
+	}
 	return null;
-	// if (typeof window === 'undefined') return null;
-	// try {
-	// 	const stored = localStorage.getItem(STORAGE_KEY);
-	// 	if (stored) {
-	// 		return JSON.parse(stored);
-	// 	}
-	// } catch {
-	// 	// Ignore parse errors
-	// }
-	// return null;
 }
 
 function savePersistedState(state: PersistedState): void {
-	// Disabled for testing
-	return;
-	// if (typeof window === 'undefined') return;
-	// try {
-	// 	localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-	// } catch {
-	// 	// Ignore storage errors
-	// }
+	if (typeof window === 'undefined') return;
+	try {
+		localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+	} catch {
+		// Ignore storage errors
+	}
 }
 
 class CanvasStore {
@@ -73,6 +69,9 @@ class CanvasStore {
 	debugMode = $state<boolean>(false);
 	debugExploration = $state<AStarExplorationFrame[]>([]);
 	debugCurrentFrame = $state<number>(0);
+
+	// Edit mode state
+	editingCardId = $state<string | null>(null);
 
 	private history = $state<{ back: string[][]; forward: string[][] }>({
 		back: [],
@@ -323,6 +322,26 @@ class CanvasStore {
 
 	setAnimating(animating: boolean): void {
 		this.isAnimating = animating;
+	}
+
+	enterEditMode(cardId: string): void {
+		this.editingCardId = cardId;
+	}
+
+	exitEditMode(): void {
+		this.editingCardId = null;
+	}
+
+	updateCardHeight(cardId: string, height: number): void {
+		const card = this.cards.get(cardId);
+		if (!card || card.dimensions.height === height) return;
+
+		const newCards = new Map(this.cards);
+		newCards.set(cardId, {
+			...card,
+			dimensions: { ...card.dimensions, height }
+		});
+		this.cards = newCards;
 	}
 
 	toggleDebugMode(): void {
