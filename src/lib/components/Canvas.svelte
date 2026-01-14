@@ -204,7 +204,8 @@
 	}
 
 	/**
-	 * Smoothly animate the view to center on a point.
+	 * Smoothly animate the view to position for reading.
+	 * Card top is placed near the top of viewport, horizontally centered.
 	 */
 	function animateToCenter(targetX: number, targetY: number) {
 		if (!svg) return;
@@ -213,9 +214,10 @@
 		const width = svg.clientWidth;
 		const height = svg.clientHeight;
 
-		// Calculate target transform to center on point
+		// Reading view: place card top at ~15% from viewport top, horizontally centered
+		const topMargin = height * 0.15;
 		const endX = width / 2 - targetX * transform.k;
-		const endY = height / 2 - targetY * transform.k;
+		const endY = topMargin - targetY * transform.k;
 
 		const startX = transform.x;
 		const startY = transform.y;

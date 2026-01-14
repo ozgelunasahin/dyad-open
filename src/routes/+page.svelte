@@ -39,7 +39,7 @@
 </script>
 
 <svelte:head>
-	<title>Spatial Reader</title>
+	<title>dyad</title>
 	<meta name="description" content="A spatial reading environment for connected notes" />
 </svelte:head>
 
