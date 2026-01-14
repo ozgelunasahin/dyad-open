@@ -228,6 +228,7 @@
 	/**
 	 * Smoothly animate the view to position for reading.
 	 * Card top is placed near the top of viewport, horizontally centered.
+	 * Zoom level is always preserved - user controls their reading zoom.
 	 */
 	function animateToCenter(targetX: number, targetY: number) {
 		if (!svg) return;
@@ -237,6 +238,7 @@
 		const height = svg.clientHeight;
 
 		// Reading view: place card top at ~15% from viewport top, horizontally centered
+		// Always preserve current zoom level
 		const topMargin = height * 0.15;
 		const endX = width / 2 - targetX * transform.k;
 		const endY = topMargin - targetY * transform.k;
@@ -334,6 +336,14 @@
 				canvasStore.exitEditMode();
 			}
 		}
+	}
+
+	/**
+	 * Handle clicking on a card - focus it and bring into reading view.
+	 */
+	function handleCardClick(cardId: string) {
+		// Focus the card and animate to reading position
+		canvasStore.focusCard(cardId);
 	}
 
 	function handleLinkClick(noteId: string, fromCardId: string, screenPosition: Point) {
@@ -501,7 +511,7 @@
 
 		<!-- Note cards -->
 		{#each canvasStore.cardList as card (card.id)}
-			<NoteCard {card} isActive={canvasStore.focusedCardId === card.id} onLinkClick={handleLinkClick} />
+			<NoteCard {card} isActive={canvasStore.focusedCardId === card.id} onLinkClick={handleLinkClick} onCardClick={handleCardClick} />
 		{/each}
 	</g>
 </svg>

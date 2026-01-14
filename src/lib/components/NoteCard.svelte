@@ -9,9 +9,10 @@
 		card: Card;
 		isActive: boolean;
 		onLinkClick: (noteId: string, fromCardId: string, linkPosition: Point) => void;
+		onCardClick: (cardId: string) => void;
 	}
 
-	let { card, isActive, onLinkClick }: Props = $props();
+	let { card, isActive, onLinkClick, onCardClick }: Props = $props();
 
 	// Edit state
 	let isEditing = $derived(canvasStore.editingCardId === card.id);
@@ -154,6 +155,11 @@
 			event.stopPropagation();
 			handleInteraction(target);
 			return;
+		}
+
+		// Clicking on card content focuses the card (unless already editing)
+		if (!isEditing) {
+			onCardClick(card.id);
 		}
 	}
 
