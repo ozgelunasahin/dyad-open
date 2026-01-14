@@ -32,7 +32,9 @@
 			event.preventDefault();
 			canvasStore.goForward();
 		}
-		if (event.key === 'Escape') {
+		// Escape is used to exit edit mode (handled in NoteCard)
+		// Shift+Escape resets the canvas
+		if (event.shiftKey && event.key === 'Escape') {
 			canvasStore.reset();
 		}
 	}
