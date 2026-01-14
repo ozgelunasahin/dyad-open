@@ -144,6 +144,9 @@
 		// Set initial focus based on viewport center
 		updateFocusFromViewportCenter();
 
+		// Compute paths for any restored connections (after state initialization)
+		setTimeout(() => computeMissingPaths(), 0);
+
 		// Listen for focus animation requests
 		const handleFocusAnimation = (event: Event) => {
 			const customEvent = event as CustomEvent<{ x: number; y: number; cardId: string }>;
