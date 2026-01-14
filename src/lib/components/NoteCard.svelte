@@ -150,10 +150,12 @@
 		const target = event.target as HTMLElement;
 
 		// Handle wikilink clicks (only in view mode)
-		if (target.classList.contains('wikilink') && !isEditing) {
+		// Use closest() to find wikilink even if click was on child element
+		const wikilinkTarget = target.closest('.wikilink') as HTMLElement | null;
+		if (wikilinkTarget && !isEditing) {
 			event.preventDefault();
 			event.stopPropagation();
-			handleInteraction(target);
+			handleInteraction(wikilinkTarget);
 			return;
 		}
 
