@@ -11,7 +11,7 @@ export interface StoredPath {
 	failed: boolean;
 }
 
-const STORAGE_KEY = 'spatial-reader-state';
+const STORAGE_KEY_PREFIX = 'spatial-reader-state';
 
 interface PersistedState {
 	lastViewedNoteId: string | null;
@@ -29,10 +29,14 @@ interface PersistedState {
 	activeChain?: string[];
 }
 
-function loadPersistedState(): PersistedState | null {
+function getStorageKey(canvasId: string | null): string {
+	return canvasId ? `${STORAGE_KEY_PREFIX}-${canvasId}` : STORAGE_KEY_PREFIX;
+}
+
+function loadPersistedState(canvasId: string | null): PersistedState | null {
 	if (typeof window === 'undefined') return null;
 	try {
-		const stored = localStorage.getItem(STORAGE_KEY);
+		const stored = localStorage.getItem(getStorageKey(canvasId));
 		if (stored) {
 			return JSON.parse(stored);
 		}
@@ -42,13 +46,26 @@ function loadPersistedState(): PersistedState | null {
 	return null;
 }
 
-function savePersistedState(state: PersistedState): void {
+function savePersistedState(canvasId: string | null, state: PersistedState): void {
 	if (typeof window === 'undefined') return;
 	try {
-		localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+		localStorage.setItem(getStorageKey(canvasId), JSON.stringify(state));
 	} catch {
 		// Ignore storage errors
 	}
+}
+
+// Database-saved position format
+export interface SavedPosition {
+	id: string;
+	noteId: string;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	parentCardId: string | null;
+	sourceLinkX: number | null;
+	sourceLinkY: number | null;
 }
 
 class CanvasStore {
@@ -73,6 +90,9 @@ class CanvasStore {
 	// Edit mode state
 	editingCardId = $state<string | null>(null);
 
+	// Current canvas ID for per-canvas state persistence
+	private currentCanvasId: string | null = null;
+
 	// Track position when leaving a card (for restoring on return)
 	private previousCardState = $state<{ cardId: string; camera: Camera } | null>(null);
 	// Track forward navigation (child we came from when going back)
@@ -92,8 +112,20 @@ class CanvasStore {
 	cardCount = $derived(this.cards.size);
 	isAtLimit = $derived(this.cards.size >= MAX_CARDS);
 
-	async initialize(vault: Vault): Promise<void> {
+	async initialize(vault: Vault, canvasId?: string, savedPositions?: SavedPosition[]): Promise<void> {
 		this.vault = vault;
+		this.currentCanvasId = canvasId ?? null;
+
+		// Clear previous state when switching canvases
+		this.cards = new Map();
+		this.connections = [];
+		this.activeChain = [];
+		this.storedPaths = new Map();
+		this.focusedCardId = null;
+		this.editingCardId = null;
+		this.previousCardState = null;
+		this.forwardCardState = null;
+		this.history = { back: [], forward: [] };
 
 		// Pre-compute broken links
 		const validNoteIds = new Set(Object.keys(vault.notes));
@@ -107,14 +139,66 @@ class CanvasStore {
 		}
 		this.brokenLinks = broken;
 
-		// Load persisted state
-		const persisted = loadPersistedState();
-
+		// Load camera state from localStorage (camera is local preference)
+		const persisted = loadPersistedState(this.currentCanvasId);
 		if (persisted?.cameraState) {
 			this.camera = persisted.cameraState;
 		}
 
-		// Try to restore full canvas state
+		// Try to restore from database positions first
+		if (savedPositions && savedPositions.length > 0) {
+			const restoredCards = new Map<string, Card>();
+
+			// Helper to extract noteId from parent reference (strip canvasId prefix)
+			const extractNoteId = (parentCardId: string | null): string | null => {
+				if (!parentCardId) return null;
+				// parentCardId format is "canvasId-noteId", extract noteId
+				const dashIndex = parentCardId.indexOf('-');
+				return dashIndex !== -1 ? parentCardId.substring(dashIndex + 1) : parentCardId;
+			};
+
+			for (const pos of savedPositions) {
+				const note = vault.notes[pos.noteId];
+				if (note) {
+					// Use noteId as the card id (consistent with rest of codebase)
+					restoredCards.set(pos.noteId, {
+						id: pos.noteId,
+						note,
+						position: { x: pos.x, y: pos.y },
+						dimensions: { width: pos.width, height: pos.height },
+						parentId: extractNoteId(pos.parentCardId),
+						sourceLink: pos.sourceLinkX !== null && pos.sourceLinkY !== null
+							? { x: pos.sourceLinkX, y: pos.sourceLinkY }
+							: null
+					});
+				}
+			}
+
+			if (restoredCards.size > 0) {
+				this.cards = restoredCards;
+				// Rebuild connections from parent relationships
+				for (const card of restoredCards.values()) {
+					if (card.parentId && restoredCards.has(card.parentId)) {
+						this.connections.push({
+							fromCardId: card.parentId,
+							toCardId: card.id,
+							sourcePoint: card.sourceLink || { x: card.position.x, y: card.position.y }
+						});
+					}
+				}
+				// Build active chain (cards without children at end)
+				this.activeChain = Array.from(restoredCards.keys());
+
+				// Focus on last card
+				const lastCard = this.activeChain[this.activeChain.length - 1];
+				if (lastCard) {
+					this.focusCard(lastCard);
+				}
+				return;
+			}
+		}
+
+		// Fallback to localStorage if no DB positions
 		if (persisted?.cards && persisted.cards.length > 0) {
 			const restoredCards = new Map<string, Card>();
 
@@ -142,6 +226,9 @@ class CanvasStore {
 				if (currentCardId && this.cards.has(currentCardId)) {
 					this.focusCard(currentCardId);
 				}
+
+				// Migrate to DB
+				this.persistToDatabase();
 				return;
 			}
 		}
@@ -152,6 +239,49 @@ class CanvasStore {
 		if (entryNote) {
 			this.openNote(entryNote.id, null, null);
 		}
+	}
+
+	// Debounced save to database
+	private persistDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+	private schedulePersist(): void {
+		if (this.persistDebounceTimer) {
+			clearTimeout(this.persistDebounceTimer);
+		}
+		this.persistDebounceTimer = setTimeout(() => {
+			this.persistToDatabase();
+		}, 1000);
+	}
+
+	private async persistToDatabase(): Promise<void> {
+		if (!this.currentCanvasId) return;
+
+		// Use canvasId-noteId as unique ID to avoid conflicts across canvases
+		const canvasId = this.currentCanvasId;
+		const positions = Array.from(this.cards.values()).map((card) => ({
+			id: `${canvasId}-${card.id}`,
+			noteId: card.note.id,
+			x: card.position.x,
+			y: card.position.y,
+			width: card.dimensions.width,
+			height: card.dimensions.height,
+			parentCardId: card.parentId ? `${canvasId}-${card.parentId}` : null,
+			sourceLinkX: card.sourceLink?.x ?? null,
+			sourceLinkY: card.sourceLink?.y ?? null
+		}));
+
+		try {
+			await fetch(`/api/canvases/${this.currentCanvasId}/positions`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ positions })
+			});
+		} catch (err) {
+			console.error('Failed to persist canvas state:', err);
+		}
+
+		// Also save camera to localStorage (local preference)
+		this.persistState();
 	}
 
 	isLinkBroken(target: string): boolean {
@@ -255,6 +385,7 @@ class CanvasStore {
 		this.focusCard(noteId);
 
 		this.persistState();
+		this.schedulePersist();
 		return true;
 	}
 
@@ -468,6 +599,7 @@ class CanvasStore {
 			dimensions: { ...card.dimensions, height }
 		});
 		this.cards = newCards;
+		this.schedulePersist();
 	}
 
 	toggleDebugMode(): void {
@@ -544,7 +676,7 @@ class CanvasStore {
 			sourceLink: card.sourceLink
 		}));
 
-		savePersistedState({
+		savePersistedState(this.currentCanvasId, {
 			lastViewedNoteId: lastNote || null,
 			cameraState: this.camera,
 			cards: serializedCards,
@@ -625,6 +757,7 @@ class CanvasStore {
 		this.focusCard(noteId);
 
 		this.persistState();
+		this.schedulePersist();
 		return true;
 	}
 

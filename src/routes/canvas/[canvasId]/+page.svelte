@@ -73,7 +73,8 @@
 				vault.entryPoint = data.canvas.entryPointNoteId;
 			}
 
-			await canvasStore.initialize(vault);
+			// Pass canvasId and saved positions for per-canvas state persistence
+			await canvasStore.initialize(vault, data.canvas.id, data.cardPositions);
 			loading = false;
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Unknown error';

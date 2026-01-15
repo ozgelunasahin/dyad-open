@@ -1,6 +1,6 @@
 import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { getCanvasById, updateCanvas, getUserById } from '$lib/server/db/operations';
+import { getCanvasById, updateCanvas, getUserById, getCardPositions } from '$lib/server/db/operations';
 import { fail } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -18,9 +18,13 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		error(403, 'You do not have access to this canvas');
 	}
 
+	// Load saved card positions
+	const cardPositions = await getCardPositions(params.canvasId);
+
 	return {
 		user: locals.user,
-		canvas
+		canvas,
+		cardPositions
 	};
 };
 
