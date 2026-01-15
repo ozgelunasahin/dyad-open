@@ -202,24 +202,25 @@ export async function getPublishedCanvas(
 
 // ============ Card Position Operations ============
 
-export async function saveCardPositions(
+export function saveCardPositions(
 	canvasId: string,
 	positions: NewCardPosition[]
-): Promise<void> {
+): void {
 	// Use transaction to ensure atomicity - prevents data loss on partial failure
-	await db.transaction(async (tx) => {
+	// Note: better-sqlite3 transactions are synchronous
+	db.transaction((tx) => {
 		// Delete all existing positions for this canvas first
-		await tx.delete(cardPositions).where(eq(cardPositions.canvasId, canvasId));
+		tx.delete(cardPositions).where(eq(cardPositions.canvasId, canvasId)).run();
 
 		// Insert new positions (IDs are now canvasId-noteId format, guaranteed unique)
 		if (positions.length > 0) {
-			await tx.insert(cardPositions).values(
+			tx.insert(cardPositions).values(
 				positions.map((pos) => ({
 					...pos,
 					id: pos.id || nanoid(),
 					canvasId
 				}))
-			);
+			).run();
 		}
 	});
 }
