@@ -30,14 +30,14 @@
 			}}
 		>
 			<div class="form-group">
-				<label for="email">Email</label>
+				<label for="identifier">Email or Username</label>
 				<input
-					type="email"
-					id="email"
-					name="email"
-					value={form?.email ?? ''}
+					type="text"
+					id="identifier"
+					name="identifier"
+					value={form?.identifier ?? ''}
 					required
-					autocomplete="email"
+					autocomplete="username"
 					disabled={loading}
 				/>
 			</div>

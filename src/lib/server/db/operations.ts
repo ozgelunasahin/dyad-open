@@ -206,10 +206,10 @@ export async function saveCardPositions(
 	canvasId: string,
 	positions: NewCardPosition[]
 ): Promise<void> {
-	// Delete existing positions for this canvas
+	// Delete all existing positions for this canvas first
 	await db.delete(cardPositions).where(eq(cardPositions.canvasId, canvasId));
 
-	// Insert new positions if any
+	// Insert new positions (IDs are now canvasId-noteId format, guaranteed unique)
 	if (positions.length > 0) {
 		await db.insert(cardPositions).values(
 			positions.map((pos) => ({

@@ -172,6 +172,14 @@
 	}
 
 	function handleViewKeyDown(event: KeyboardEvent) {
+		// 'e' key to enter edit mode (prevent typing 'e' into content)
+		if (event.key === 'e' && !readOnly) {
+			event.preventDefault();
+			event.stopPropagation();
+			enterEditMode();
+			return;
+		}
+
 		if (event.key === 'Enter' || event.key === ' ') {
 			const target = event.target as HTMLElement;
 			if (target.classList.contains('wikilink')) {
