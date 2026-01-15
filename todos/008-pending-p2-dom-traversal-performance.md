@@ -1,5 +1,5 @@
 ---
-status: pending
+status: complete
 priority: p2
 issue_id: "008"
 tags: [code-review, performance]
@@ -80,6 +80,7 @@ function handleInput() {
 | Date | Action | Notes |
 |------|--------|-------|
 | 2025-01-15 | Created | Identified by performance-oracle agent |
+| 2026-01-15 | Fixed | Debounced convertWikilinks with 300ms timer |
 
 ## Resources
 

@@ -1,5 +1,5 @@
 ---
-status: pending
+status: complete
 priority: p2
 issue_id: "011"
 tags: [code-review, performance]
@@ -88,6 +88,7 @@ $effect(() => {
 | Date | Action | Notes |
 |------|--------|-------|
 | 2025-01-15 | Created | Identified by performance-oracle agent |
+| 2026-01-15 | Fixed | Throttled with rAF + 5px threshold for significant changes |
 
 ## Resources
 

@@ -1,5 +1,5 @@
 ---
-status: pending
+status: complete
 priority: p3
 issue_id: "016"
 tags: [code-review, quality]
@@ -66,6 +66,7 @@ if (canvasStore.debugMode) {
 | Date | Action | Notes |
 |------|--------|-------|
 | 2025-01-15 | Created | Identified by pattern-recognition-specialist agent |
+| 2026-01-15 | Fixed | Gated behind canvasStore.debugMode check |
 
 ## Resources
 

@@ -1,5 +1,5 @@
 ---
-status: pending
+status: complete
 priority: p2
 issue_id: "007"
 tags: [code-review, performance, memory-leak]
@@ -88,6 +88,7 @@ if (animationFrameId) cancelAnimationFrame(animationFrameId);
 | Date | Action | Notes |
 |------|--------|-------|
 | 2025-01-15 | Created | Identified by performance-oracle agent |
+| 2026-01-15 | Fixed | Added animationCancelled flag + cleanup in onMount return |
 
 ## Resources
 

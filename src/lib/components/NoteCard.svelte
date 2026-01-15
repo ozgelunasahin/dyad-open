@@ -19,6 +19,7 @@
 	let saveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
 	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 	let savedStatusTimer: ReturnType<typeof setTimeout> | undefined;
+	let wikilinkConversionTimer: ReturnType<typeof setTimeout> | undefined; // P2-008 fix
 	let originalMarkdown = $state('');
 
 	// Generation counter to detect content changes during save (P1-003 fix)
@@ -200,8 +201,10 @@
 	}
 
 	// Handle input changes (contenteditable)
+	// P2-008 fix: debounce wikilink conversion separately from save
 	function handleInput() {
-		convertWikilinks();
+		clearTimeout(wikilinkConversionTimer);
+		wikilinkConversionTimer = setTimeout(convertWikilinks, 300);
 		scheduleSave();
 	}
 
@@ -336,20 +339,33 @@
 	});
 
 	// Auto-expand card height as content grows
+	// P2-011 fix: throttle with requestAnimationFrame to reduce GC pressure
 	$effect(() => {
 		if (!contentEl) return;
 
+		let rafId: number | null = null;
+		let lastHeight = card.dimensions.height;
+
 		const observer = new ResizeObserver((entries) => {
-			for (const entry of entries) {
+			// Skip if we already have a pending rAF
+			if (rafId) return;
+			rafId = requestAnimationFrame(() => {
+				rafId = null;
+				const entry = entries[0];
 				const newHeight = entry.contentRect.height + 16; // Add padding
-				if (newHeight > card.dimensions.height) {
+				// Only update if significant change (>5px) to reduce unnecessary updates
+				if (newHeight > lastHeight + 5) {
+					lastHeight = newHeight;
 					canvasStore.updateCardHeight(card.id, newHeight);
 				}
-			}
+			});
 		});
 
 		observer.observe(contentEl);
-		return () => observer.disconnect();
+		return () => {
+			if (rafId) cancelAnimationFrame(rafId);
+			observer.disconnect();
+		};
 	});
 
 	// Helper to generate fallback markdown with frontmatter
@@ -400,6 +416,7 @@
 		return () => {
 			clearTimeout(debounceTimer);
 			clearTimeout(savedStatusTimer);
+			clearTimeout(wikilinkConversionTimer); // P2-008 fix
 		};
 	});
 </script>
