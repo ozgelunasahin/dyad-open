@@ -17,8 +17,12 @@
 	// Edit state
 	let isEditing = $derived(canvasStore.editingCardId === card.id);
 	let saveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
-	let debounceTimer: ReturnType<typeof setTimeout>;
+	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+	let savedStatusTimer: ReturnType<typeof setTimeout> | undefined;
 	let originalMarkdown = $state('');
+
+	// Generation counter to detect content changes during save (P1-003 fix)
+	let saveGeneration = 0;
 
 	// Rendered HTML for view mode
 	let html = $derived(parseMarkdown(card.note.content));
@@ -49,38 +53,23 @@
 		}
 	});
 
-	// Enter edit mode
-	async function enterEditMode() {
+	// Enter edit mode (P1-004 fix: claim edit mode BEFORE async operations)
+	function enterEditMode() {
+		// Exit any other card's edit mode first
 		if (canvasStore.editingCardId && canvasStore.editingCardId !== card.id) {
 			canvasStore.exitEditMode();
 		}
 
-		// Load original markdown for frontmatter preservation
-		try {
-			const res = await fetch(`/api/notes/${card.note.id}`);
-			if (res.ok) {
-				const data = await res.json();
-				originalMarkdown = data.content;
-			} else {
-				originalMarkdown = `---\ntitle: "${card.note.title}"\n---\n\n${card.note.content}`;
-			}
-		} catch {
-			originalMarkdown = `---\ntitle: "${card.note.title}"\n---\n\n${card.note.content}`;
-		}
-
+		// Claim edit mode immediately to prevent race conditions
+		// The $effect watching isEditing will handle loading originalMarkdown and focusing
 		canvasStore.enterEditMode(card.id);
-
-		await tick();
-		contentEl?.focus();
 	}
 
-	// Exit edit mode and save
-	async function exitEditMode() {
+	// Exit edit mode (P1-002 fix: don't save here, let $effect handle it)
+	function exitEditMode() {
 		clearTimeout(debounceTimer);
-		if (saveStatus !== 'saving') {
-			await saveNow();
-		}
 		canvasStore.exitEditMode();
+		// Save is handled by the $effect watching isEditing transition
 	}
 
 	async function handleInteraction(target: HTMLElement) {
@@ -278,14 +267,20 @@
 	// Debounced save
 	function scheduleSave() {
 		clearTimeout(debounceTimer);
+		// Increment generation to indicate content changed (for P1-003 snapshot divergence fix)
+		saveGeneration++;
 		debounceTimer = setTimeout(saveNow, 1500);
 	}
 
-	// Convert HTML to markdown and save
+	// Convert HTML to markdown and save (P1-003 fix: track generation for snapshot divergence)
 	async function saveNow() {
 		if (!contentEl) return;
 
+		// Increment generation to track if content changes during save
+		const currentGeneration = ++saveGeneration;
+
 		saveStatus = 'saving';
+		clearTimeout(savedStatusTimer);
 
 		try {
 			// Convert contenteditable HTML back to markdown
@@ -304,10 +299,18 @@
 			});
 
 			if (res.ok) {
-				saveStatus = 'saved';
-				setTimeout(() => {
-					if (saveStatus === 'saved') saveStatus = 'idle';
-				}, 2000);
+				// Check if content changed during the save operation
+				if (saveGeneration === currentGeneration) {
+					// No new changes - safe to show "Saved"
+					saveStatus = 'saved';
+					savedStatusTimer = setTimeout(() => {
+						if (saveStatus === 'saved') saveStatus = 'idle';
+					}, 2000);
+				} else {
+					// Content changed during save - schedule another save
+					saveStatus = 'idle';
+					scheduleSave();
+				}
 			} else {
 				saveStatus = 'error';
 			}
@@ -349,7 +352,32 @@
 		return () => observer.disconnect();
 	});
 
+	// Helper to generate fallback markdown with frontmatter
+	function getFallbackMarkdown(): string {
+		return `---\ntitle: "${card.note.title}"\n---\n\n${card.note.content}`;
+	}
+
+	// Load original markdown from server for frontmatter preservation
+	async function loadOriginalMarkdown(): Promise<void> {
+		try {
+			const res = await fetch(`/api/notes/${card.note.id}`);
+			if (res.ok) {
+				const data = await res.json();
+				if (typeof data.content === 'string') {
+					originalMarkdown = data.content;
+				} else {
+					originalMarkdown = getFallbackMarkdown();
+				}
+			} else {
+				originalMarkdown = getFallbackMarkdown();
+			}
+		} catch {
+			originalMarkdown = getFallbackMarkdown();
+		}
+	}
+
 	// Handle edit mode changes (entered via 'e' key or exited via click outside)
+	// P1-002 fix: single source of truth for save-on-exit
 	let wasEditing = $state(false);
 	$effect(() => {
 		if (!wasEditing && isEditing) {
@@ -359,29 +387,19 @@
 		} else if (wasEditing && !isEditing) {
 			// Just exited edit mode - save any pending changes
 			clearTimeout(debounceTimer);
-			saveNow();
+			// Only save if we're not already saving (prevents double-save)
+			if (saveStatus !== 'saving') {
+				saveNow();
+			}
 		}
 		wasEditing = isEditing;
 	});
-
-	async function loadOriginalMarkdown() {
-		try {
-			const res = await fetch(`/api/notes/${card.note.id}`);
-			if (res.ok) {
-				const data = await res.json();
-				originalMarkdown = data.content;
-			} else {
-				originalMarkdown = `---\ntitle: "${card.note.title}"\n---\n\n${card.note.content}`;
-			}
-		} catch {
-			originalMarkdown = `---\ntitle: "${card.note.title}"\n---\n\n${card.note.content}`;
-		}
-	}
 
 	// Cleanup on unmount
 	$effect(() => {
 		return () => {
 			clearTimeout(debounceTimer);
+			clearTimeout(savedStatusTimer);
 		};
 	});
 </script>
