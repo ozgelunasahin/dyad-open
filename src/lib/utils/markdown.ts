@@ -1,10 +1,21 @@
 import { marked, type TokenizerExtension, type RendererExtension, type Tokens } from 'marked';
+import DOMPurify from 'isomorphic-dompurify';
 
 interface WikilinkToken extends Tokens.Generic {
 	type: 'wikilink';
 	raw: string;
 	target: string;
 	alias: string;
+}
+
+// HTML-escape a string to prevent XSS in attribute values
+function escapeHtml(str: string): string {
+	return str
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#039;');
 }
 
 const wikilinkExtension: TokenizerExtension & RendererExtension = {
@@ -26,14 +37,20 @@ const wikilinkExtension: TokenizerExtension & RendererExtension = {
 	},
 	renderer(token) {
 		const t = token as WikilinkToken;
-		return `<button type="button" class="wikilink" data-target="${t.target}">${t.alias}</button>`;
+		// Escape attributes to prevent XSS via crafted wikilinks
+		return `<button type="button" class="wikilink" data-target="${escapeHtml(t.target)}">${escapeHtml(t.alias)}</button>`;
 	}
 };
 
 marked.use({ extensions: [wikilinkExtension] });
 
 export function parseMarkdown(content: string): string {
-	return marked.parse(content, { async: false }) as string;
+	const html = marked.parse(content, { async: false }) as string;
+	// Sanitize HTML to prevent XSS attacks
+	return DOMPurify.sanitize(html, {
+		ADD_TAGS: ['button'],
+		ADD_ATTR: ['data-target']
+	});
 }
 
 export function extractWikilinks(content: string): string[] {

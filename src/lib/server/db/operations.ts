@@ -206,19 +206,22 @@ export async function saveCardPositions(
 	canvasId: string,
 	positions: NewCardPosition[]
 ): Promise<void> {
-	// Delete all existing positions for this canvas first
-	await db.delete(cardPositions).where(eq(cardPositions.canvasId, canvasId));
+	// Use transaction to ensure atomicity - prevents data loss on partial failure
+	await db.transaction(async (tx) => {
+		// Delete all existing positions for this canvas first
+		await tx.delete(cardPositions).where(eq(cardPositions.canvasId, canvasId));
 
-	// Insert new positions (IDs are now canvasId-noteId format, guaranteed unique)
-	if (positions.length > 0) {
-		await db.insert(cardPositions).values(
-			positions.map((pos) => ({
-				...pos,
-				id: pos.id || nanoid(),
-				canvasId
-			}))
-		);
-	}
+		// Insert new positions (IDs are now canvasId-noteId format, guaranteed unique)
+		if (positions.length > 0) {
+			await tx.insert(cardPositions).values(
+				positions.map((pos) => ({
+					...pos,
+					id: pos.id || nanoid(),
+					canvasId
+				}))
+			);
+		}
+	});
 }
 
 export async function getCardPositions(canvasId: string): Promise<CardPosition[]> {

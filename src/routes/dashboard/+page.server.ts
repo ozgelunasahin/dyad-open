@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { getUserCanvases, createCanvas, deleteCanvas } from '$lib/server/db/operations';
+import { getUserCanvases, createCanvas, deleteCanvas, getCanvasById } from '$lib/server/db/operations';
 import { fail } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -64,6 +64,12 @@ export const actions: Actions = {
 
 		if (typeof canvasId !== 'string') {
 			return fail(400, { error: 'Invalid canvas ID' });
+		}
+
+		// Verify ownership before deletion
+		const canvas = await getCanvasById(canvasId);
+		if (!canvas || canvas.userId !== locals.user.id) {
+			return fail(403, { error: 'Access denied' });
 		}
 
 		try {
