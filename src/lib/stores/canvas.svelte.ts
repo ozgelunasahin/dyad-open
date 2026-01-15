@@ -292,7 +292,7 @@ class CanvasStore {
 
 		// Check if we're returning to the previous card
 		const isReturning = this.previousCardState?.cardId === cardId;
-		const restoreCamera = isReturning ? this.previousCardState.camera : null;
+		const restoreCamera = isReturning && this.previousCardState ? this.previousCardState.camera : null;
 
 		// Save current card's position before switching (if we have a focused card)
 		if (this.focusedCardId && this.focusedCardId !== cardId) {
@@ -567,6 +567,100 @@ class CanvasStore {
 				this.openNote(entry.id, null, null);
 			}
 		}
+	}
+
+	/**
+	 * Create an orphan card (a card with no parent).
+	 * The card is positioned in a designated orphan area above the main canvas.
+	 */
+	async createOrphanCard(noteId: string, title: string): Promise<boolean> {
+		if (!this.vault) return false;
+
+		// Check card limit
+		if (this.cards.size >= MAX_CARDS) {
+			return false;
+		}
+
+		// Create note in vault if it doesn't exist
+		if (!this.vault.notes[noteId]) {
+			this.addNoteToVault(noteId, title);
+		}
+
+		const note = this.vault.notes[noteId];
+		if (!note) return false;
+
+		// Check if already open
+		if (this.cards.has(noteId)) {
+			this.focusCard(noteId);
+			return true;
+		}
+
+		// Calculate dimensions
+		const dimensions = this.calculateCardDimensions(note.content);
+
+		// Calculate orphan position - place above existing cards
+		const position = this.calculateOrphanPosition(dimensions);
+
+		// Create new card without parent
+		const newCard: Card = {
+			id: noteId,
+			note,
+			position,
+			dimensions,
+			parentId: null,
+			sourceLink: null
+		};
+
+		// Update state
+		const newCards = new Map(this.cards);
+		newCards.set(noteId, newCard);
+		this.cards = newCards;
+
+		// Update navigation
+		this.history.back.push([...this.activeChain]);
+		this.history.forward = [];
+		this.activeChain = [...this.activeChain, noteId];
+
+		// Focus on new card
+		this.focusCard(noteId);
+
+		this.persistState();
+		return true;
+	}
+
+	/**
+	 * Calculate position for a new orphan card.
+	 * Places orphans in a row above the main canvas content.
+	 */
+	private calculateOrphanPosition(dimensions: Dimensions): Point {
+		const ORPHAN_Y_OFFSET = -400; // Place above origin
+		const ORPHAN_SPACING = 50;
+
+		// Find existing orphan cards (cards with no parent that aren't the entry point)
+		const orphanCards = Array.from(this.cards.values()).filter(
+			c => c.parentId === null && (!this.vault || c.id !== this.vault.entryPoint)
+		);
+
+		// Calculate X position based on existing orphans
+		let x = 0;
+		if (orphanCards.length > 0) {
+			// Place after the rightmost orphan
+			const rightmostOrphan = orphanCards.reduce((max, card) =>
+				card.position.x + card.dimensions.width > max.position.x + max.dimensions.width ? card : max
+			);
+			x = rightmostOrphan.position.x + rightmostOrphan.dimensions.width + ORPHAN_SPACING;
+		}
+
+		return { x, y: ORPHAN_Y_OFFSET };
+	}
+
+	/**
+	 * Get all orphan cards (cards with no parent, excluding entry point).
+	 */
+	getOrphanCards(): Card[] {
+		return Array.from(this.cards.values()).filter(
+			c => c.parentId === null && (!this.vault || c.id !== this.vault.entryPoint)
+		);
 	}
 
 	/**
