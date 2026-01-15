@@ -10,9 +10,10 @@
 		isActive: boolean;
 		onLinkClick: (noteId: string, fromCardId: string, linkPosition: Point) => void;
 		onCardClick: (cardId: string) => void;
+		readOnly?: boolean;
 	}
 
-	let { card, isActive, onLinkClick, onCardClick }: Props = $props();
+	let { card, isActive, onLinkClick, onCardClick, readOnly = false }: Props = $props();
 
 	// Edit state
 	let isEditing = $derived(canvasStore.editingCardId === card.id);
@@ -51,6 +52,9 @@
 
 	// Enter edit mode
 	async function enterEditMode() {
+		// Don't allow editing in read-only mode
+		if (readOnly) return;
+
 		if (canvasStore.editingCardId && canvasStore.editingCardId !== card.id) {
 			canvasStore.exitEditMode();
 		}
@@ -99,9 +103,11 @@
 			y: rect.bottom
 		};
 
-		// If link is broken (note doesn't exist), create it
+		// If link is broken (note doesn't exist), create it (unless read-only)
 		if (canvasStore.isLinkBroken(noteId)) {
-			await createNewNote(noteId, linkPosition, target);
+			if (!readOnly) {
+				await createNewNote(noteId, linkPosition, target);
+			}
 			return;
 		}
 

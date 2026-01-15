@@ -5,22 +5,27 @@
 	"type": "module",
 	"scripts": {
 		"build:vault": "npx tsx scripts/build-vault.ts",
-		"dev": "npm run build:vault && vite dev",
-		"build": "npm run build:vault && vite build",
+		"dev": "npm run db:push && npm run build:vault && vite dev",
+		"build": "npm run db:push && npm run build:vault && vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"test": "vitest run",
-		"test:watch": "vitest"
+		"test:watch": "vitest",
+		"db:generate": "drizzle-kit generate",
+		"db:push": "drizzle-kit push",
+		"db:studio": "drizzle-kit studio"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^7.0.0",
 		"@sveltejs/kit": "^2.49.1",
 		"@sveltejs/vite-plugin-svelte": "^6.2.1",
+		"@types/better-sqlite3": "^7.6.13",
 		"@types/d3-selection": "^3.0.11",
 		"@types/d3-transition": "^3.0.9",
 		"@types/d3-zoom": "^3.0.8",
+		"drizzle-kit": "^0.31.8",
 		"svelte": "^5.45.6",
 		"svelte-check": "^4.3.4",
 		"typescript": "^5.9.3",
@@ -28,12 +33,16 @@
 		"vitest": "^4.0.17"
 	},
 	"dependencies": {
+		"@node-rs/argon2": "^2.0.2",
 		"@types/turndown": "^5.0.6",
 		"@vite-pwa/sveltekit": "^1.1.0",
+		"better-sqlite3": "^12.6.0",
 		"d3-selection": "^3.0.0",
 		"d3-zoom": "^3.0.0",
+		"drizzle-orm": "^0.45.1",
 		"gray-matter": "^4.0.3",
 		"marked": "^17.0.1",
+		"nanoid": "^5.1.6",
 		"turndown": "^7.2.2"
 	}
 }
