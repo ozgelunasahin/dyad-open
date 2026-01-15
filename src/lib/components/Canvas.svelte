@@ -18,6 +18,9 @@
 	let zoomBehavior: ZoomBehavior<SVGSVGElement, unknown>;
 	let zoomSpeed = 0.001;
 
+	// Animation cancellation flag (P2-007 fix: prevent memory leaks)
+	let animationCancelled = false;
+
 	/**
 	 * Find and focus the card under the viewport center.
 	 */
@@ -203,6 +206,8 @@
 		window.addEventListener('canvas-compute-paths', handleComputePaths);
 
 		return () => {
+			// P2-007 fix: Cancel any running animations on unmount
+			animationCancelled = true;
 			window.removeEventListener('canvas-focus', handleFocusAnimation);
 			window.removeEventListener('canvas-restore', handleRestorePosition);
 			window.removeEventListener('canvas-zoom-to-fit', handleZoomToFit);
@@ -251,9 +256,13 @@
 	 * Smoothly animate the view to position for reading.
 	 * Card top is placed near the top of viewport, horizontally centered.
 	 * Zoom level is always preserved - user controls their reading zoom.
+	 * P2-007 fix: Added cancellation check to prevent memory leaks.
 	 */
 	function animateToCenter(targetX: number, targetY: number) {
 		if (!svg) return;
+
+		// Reset cancellation flag for new animation
+		animationCancelled = false;
 
 		const selection = select(svg);
 		const width = svg.clientWidth;
@@ -272,6 +281,9 @@
 		const startTime = Date.now();
 
 		function animate() {
+			// Check cancellation at start of each frame
+			if (animationCancelled) return;
+
 			const elapsed = Date.now() - startTime;
 			const progress = Math.min(elapsed / duration, 1);
 
@@ -297,9 +309,13 @@
 
 	/**
 	 * Smoothly animate to a specific camera position (for restoring previous position).
+	 * P2-007 fix: Added cancellation check to prevent memory leaks.
 	 */
 	function animateToPosition(targetCamera: { x: number; y: number; zoom: number }) {
 		if (!svg) return;
+
+		// Reset cancellation flag for new animation
+		animationCancelled = false;
 
 		const selection = select(svg);
 
@@ -311,6 +327,9 @@
 		const startTime = Date.now();
 
 		function animate() {
+			// Check cancellation at start of each frame
+			if (animationCancelled) return;
+
 			const elapsed = Date.now() - startTime;
 			const progress = Math.min(elapsed / duration, 1);
 
@@ -382,11 +401,14 @@
 			failed: result.failed
 		});
 
-		console.log(
-			`[Pathfinding] ${connectionId}: ${result.method}`,
-			result.path.length, 'points',
-			result.failed ? '(FAILED)' : ''
-		);
+		// P2-016 fix: Gate debug logging behind debugMode
+		if (canvasStore.debugMode) {
+			console.log(
+				`[Pathfinding] ${connectionId}: ${result.method}`,
+				result.path.length, 'points',
+				result.failed ? '(FAILED)' : ''
+			);
+		}
 	}
 
 	function handleCanvasClick(event: MouseEvent) {
