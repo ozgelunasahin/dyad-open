@@ -13,6 +13,12 @@
 	import NoteCard from './NoteCard.svelte';
 	import ConnectionLine from './ConnectionLine.svelte';
 
+	interface Props {
+		readOnly?: boolean;
+	}
+
+	let { readOnly = false }: Props = $props();
+
 	let svg: SVGSVGElement;
 	let transform = $state({ x: 0, y: 0, k: 1 });
 	let zoomBehavior: ZoomBehavior<SVGSVGElement, unknown>;
@@ -595,7 +601,7 @@
 
 		<!-- Note cards -->
 		{#each canvasStore.cardList as card (card.id)}
-			<NoteCard {card} isActive={canvasStore.focusedCardId === card.id} onLinkClick={handleLinkClick} onCardClick={handleCardClick} />
+			<NoteCard {card} isActive={canvasStore.focusedCardId === card.id} onLinkClick={handleLinkClick} onCardClick={handleCardClick} {readOnly} />
 		{/each}
 	</g>
 </svg>

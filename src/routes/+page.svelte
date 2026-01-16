@@ -1,260 +1,212 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import type { Vault } from '$lib/types';
-	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import { themeStore } from '$lib/stores/theme.svelte';
-	import Canvas from '$lib/components/Canvas.svelte';
-
-	let loading = $state(true);
-	let error = $state<string | null>(null);
-
-	onMount(async () => {
-		try {
-			const response = await fetch('/vault/index.json');
-			if (!response.ok) {
-				throw new Error('Failed to load vault');
-			}
-			const vault: Vault = await response.json();
-			await canvasStore.initialize(vault);
-			loading = false;
-		} catch (e) {
-			error = e instanceof Error ? e.message : 'Unknown error';
-			loading = false;
-		}
-	});
-
-	function handleKeydown(event: KeyboardEvent) {
-		if (event.altKey && event.key === 'ArrowLeft') {
-			event.preventDefault();
-			canvasStore.goBack();
-		}
-		if (event.altKey && event.key === 'ArrowRight') {
-			event.preventDefault();
-			canvasStore.goForward();
-		}
-	}
 </script>
 
 <svelte:head>
-	<title>dyad</title>
+	<title>dyad.berlin - Spatial Reading for Connected Notes</title>
 	<meta name="description" content="A spatial reading environment for connected notes" />
 </svelte:head>
 
-<svelte:window onkeydown={handleKeydown} />
-
-<main class="app">
-	{#if loading}
-		<div class="loading">
-			<p>Loading...</p>
+<main class="landing">
+	<nav class="nav">
+		<span class="logo">dyad.berlin</span>
+		<div class="nav-links">
+			<a href="/login">Sign in</a>
+			<a href="/register" class="cta">Get Started</a>
 		</div>
-	{:else if error}
-		<div class="error">
-			<p>{error}</p>
-			<button onclick={() => window.location.reload()}>Retry</button>
+	</nav>
+
+	<section class="hero">
+		<h1>A spatial reading environment for connected notes</h1>
+		<p class="subtitle">
+			Navigate your knowledge graph on an infinite canvas. Click wikilinks to expand your reading
+			context while keeping everything in view.
+		</p>
+		<div class="cta-buttons">
+			<a href="/register" class="primary-btn">Create your canvas</a>
+			<a href="/login" class="secondary-btn">Sign in</a>
 		</div>
-	{:else}
-		<Canvas />
+	</section>
 
-		<!-- Minimal navigation -->
-		<nav class="controls" class:can-navigate={canvasStore.canGoBack || canvasStore.canGoForward}>
-			<button
-				class="nav-btn"
-				onclick={() => canvasStore.goBack()}
-				disabled={!canvasStore.canGoBack}
-				aria-label="Go back"
-			>
-				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-					<path d="M10 12L6 8L10 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-				</svg>
-			</button>
-			<button
-				class="nav-btn"
-				onclick={() => canvasStore.goForward()}
-				disabled={!canvasStore.canGoForward}
-				aria-label="Go forward"
-			>
-				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-					<path d="M6 4L10 8L6 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-				</svg>
-			</button>
-		</nav>
+	<section class="features">
+		<div class="feature">
+			<h3>Spatial Navigation</h3>
+			<p>Click links to spawn new cards that expand outward, preserving your reading context.</p>
+		</div>
+		<div class="feature">
+			<h3>Infinite Canvas</h3>
+			<p>Pan and zoom freely. Your notes exist in space, connected by lines that show relationships.</p>
+		</div>
+		<div class="feature">
+			<h3>Publish and Share</h3>
+			<p>Make your canvas public with a single click. Share read-only views with anyone.</p>
+		</div>
+	</section>
 
-		<!-- Debug controls -->
-		{#if canvasStore.debugMode}
-			<!-- Open All Links button (only in debug mode) -->
-			<button
-				class="debug-btn open-all-btn"
-				onclick={() => canvasStore.openAllLinks()}
-				aria-label="Open all links"
-				title="Open all links (BFS order)"
-			>
-				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-					<path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-					<circle cx="13" cy="4" r="1.5" fill="currentColor"/>
-					<circle cx="13" cy="8" r="1.5" fill="currentColor"/>
-					<circle cx="13" cy="12" r="1.5" fill="currentColor"/>
-				</svg>
-			</button>
-
-			<!-- Zoom to Fit button (only in debug mode) -->
-			<button
-				class="debug-btn zoom-fit-btn"
-				onclick={() => canvasStore.zoomToFit()}
-				aria-label="Zoom to fit"
-				title="Zoom to fit all cards"
-			>
-				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-					<rect x="2" y="2" width="12" height="12" stroke="currentColor" stroke-width="1.5" rx="1"/>
-					<path d="M5 5L8 8M11 5L8 8M5 11L8 8M11 11L8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-				</svg>
-			</button>
-
-			<!-- Reset button (only in debug mode) -->
-			<button
-				class="debug-btn reset-btn"
-				onclick={() => canvasStore.reset()}
-				aria-label="Reset canvas"
-				title="Reset canvas to entry note"
-			>
-				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-					<path d="M2 8a6 6 0 1 1 1.5 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-					<path d="M2 12V8h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-				</svg>
-			</button>
-		{/if}
-
-		<!-- Debug toggle -->
-		<button
-			class="debug-toggle"
-			class:active={canvasStore.debugMode}
-			onclick={() => canvasStore.toggleDebugMode()}
-			aria-label="Toggle debug mode"
-		>
-			<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-				{#if canvasStore.debugMode}
-					<!-- Grid icon filled -->
-					<rect x="1" y="1" width="6" height="6" fill="currentColor" rx="1"/>
-					<rect x="9" y="1" width="6" height="6" fill="currentColor" rx="1"/>
-					<rect x="1" y="9" width="6" height="6" fill="currentColor" rx="1"/>
-					<rect x="9" y="9" width="6" height="6" fill="currentColor" rx="1"/>
-				{:else}
-					<!-- Grid icon outline -->
-					<rect x="1" y="1" width="6" height="6" stroke="currentColor" stroke-width="1.5" rx="1"/>
-					<rect x="9" y="1" width="6" height="6" stroke="currentColor" stroke-width="1.5" rx="1"/>
-					<rect x="1" y="9" width="6" height="6" stroke="currentColor" stroke-width="1.5" rx="1"/>
-					<rect x="9" y="9" width="6" height="6" stroke="currentColor" stroke-width="1.5" rx="1"/>
-				{/if}
-			</svg>
-		</button>
-
-		<!-- Theme toggle -->
-		<button
-			class="theme-toggle"
-			onclick={() => themeStore.toggle()}
-			aria-label="Toggle theme"
-		>
+	<footer class="footer">
+		<button class="theme-toggle" onclick={() => themeStore.toggle()} aria-label="Toggle theme">
 			{#if themeStore.current === 'light'}
 				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-					<circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5"/>
-					<path d="M8 1V2.5M8 13.5V15M1 8H2.5M13.5 8H15M3.05 3.05L4.11 4.11M11.89 11.89L12.95 12.95M3.05 12.95L4.11 11.89M11.89 4.11L12.95 3.05" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+					<circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5" />
+					<path
+						d="M8 1V2.5M8 13.5V15M1 8H2.5M13.5 8H15M3.05 3.05L4.11 4.11M11.89 11.89L12.95 12.95M3.05 12.95L4.11 11.89M11.89 4.11L12.95 3.05"
+						stroke="currentColor"
+						stroke-width="1.5"
+						stroke-linecap="round"
+					/>
 				</svg>
 			{:else}
 				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-					<path d="M14 8.5A6 6 0 117.5 2a4.5 4.5 0 006.5 6.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+					<path
+						d="M14 8.5A6 6 0 117.5 2a4.5 4.5 0 006.5 6.5z"
+						stroke="currentColor"
+						stroke-width="1.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					/>
 				</svg>
 			{/if}
 		</button>
-	{/if}
+	</footer>
 </main>
 
 <style>
-	.app {
-		width: 100vw;
-		height: 100vh;
-		position: relative;
-		overflow: hidden;
+	.landing {
+		min-height: 100vh;
+		background: var(--bg-canvas);
+		padding: 0;
 	}
 
-	.loading,
-	.error {
+	.nav {
 		display: flex;
-		flex-direction: column;
+		justify-content: space-between;
 		align-items: center;
-		justify-content: center;
-		height: 100%;
-		gap: 16px;
-		color: var(--text-muted);
-		font-family: 'Georgia', serif;
+		padding: 1.5rem 2rem;
+		max-width: 1000px;
+		margin: 0 auto;
 	}
 
-	.error button {
-		padding: 8px 16px;
-		background: transparent;
+	.logo {
+		font-size: 1.25rem;
+		color: var(--text-primary);
+		font-weight: normal;
+	}
+
+	.nav-links {
+		display: flex;
+		gap: 1.5rem;
+		align-items: center;
+	}
+
+	.nav-links a {
+		color: var(--text-link);
+		text-decoration: none;
+		font-size: 0.95rem;
+		transition: color 0.2s;
+	}
+
+	.nav-links a:hover {
+		color: var(--text-link-hover);
+	}
+
+	.nav-links .cta {
+		padding: 0.5rem 1rem;
+		background: var(--text-primary);
+		color: var(--bg-canvas);
+		border-radius: 4px;
+	}
+
+	.nav-links .cta:hover {
+		opacity: 0.9;
+		color: var(--bg-canvas);
+	}
+
+	.hero {
+		max-width: 700px;
+		margin: 0 auto;
+		padding: 6rem 2rem 4rem;
+		text-align: center;
+	}
+
+	.hero h1 {
+		font-size: 2.5rem;
+		font-weight: normal;
+		line-height: 1.3;
+		margin: 0 0 1.5rem 0;
+		color: var(--text-primary);
+	}
+
+	.subtitle {
+		font-size: 1.15rem;
+		line-height: 1.6;
 		color: var(--text-muted);
+		margin: 0 0 2.5rem 0;
+	}
+
+	.cta-buttons {
+		display: flex;
+		gap: 1rem;
+		justify-content: center;
+	}
+
+	.primary-btn {
+		padding: 0.85rem 1.75rem;
+		background: var(--text-primary);
+		color: var(--bg-canvas);
+		text-decoration: none;
+		border-radius: 4px;
+		font-size: 1rem;
+		transition: opacity 0.2s;
+	}
+
+	.primary-btn:hover {
+		opacity: 0.9;
+	}
+
+	.secondary-btn {
+		padding: 0.85rem 1.75rem;
+		background: none;
 		border: 1px solid var(--border-link);
-		border-radius: 4px;
-		cursor: pointer;
-		font-family: inherit;
-		font-size: 13px;
-	}
-
-	.error button:hover {
-		border-color: var(--border-link-hover);
 		color: var(--text-secondary);
-	}
-
-	.controls {
-		position: fixed;
-		bottom: 24px;
-		left: 24px;
-		display: flex;
-		gap: 4px;
-		opacity: 0;
-		transition: opacity 0.3s ease;
-		z-index: 100;
-	}
-
-	.controls:hover,
-	.controls.can-navigate {
-		opacity: 1;
-	}
-
-	.app:hover .controls.can-navigate {
-		opacity: 0.6;
-	}
-
-	.app:hover .controls.can-navigate:hover {
-		opacity: 1;
-	}
-
-	.nav-btn {
-		width: 32px;
-		height: 32px;
-		border: none;
+		text-decoration: none;
 		border-radius: 4px;
-		background: var(--bg-control);
-		cursor: pointer;
-		color: var(--control-color);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		transition: all 0.2s ease;
+		font-size: 1rem;
+		transition: border-color 0.2s;
 	}
 
-	.nav-btn:hover:not(:disabled) {
-		background: var(--bg-control-hover);
-		color: var(--control-color-hover);
+	.secondary-btn:hover {
+		border-color: var(--border-link-hover);
 	}
 
-	.nav-btn:disabled {
-		opacity: 0.3;
-		cursor: not-allowed;
+	.features {
+		max-width: 900px;
+		margin: 0 auto;
+		padding: 4rem 2rem;
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+		gap: 3rem;
+	}
+
+	.feature h3 {
+		font-size: 1.1rem;
+		font-weight: normal;
+		margin: 0 0 0.75rem 0;
+		color: var(--text-primary);
+	}
+
+	.feature p {
+		margin: 0;
+		color: var(--text-muted);
+		line-height: 1.6;
+		font-size: 0.95rem;
+	}
+
+	.footer {
+		padding: 2rem;
+		text-align: center;
 	}
 
 	.theme-toggle {
-		position: fixed;
-		bottom: 24px;
-		right: 24px;
 		width: 32px;
 		height: 32px;
 		border: none;
@@ -262,12 +214,11 @@
 		background: var(--bg-control);
 		cursor: pointer;
 		color: var(--control-color);
-		display: flex;
+		display: inline-flex;
 		align-items: center;
 		justify-content: center;
 		transition: all 0.2s ease;
 		opacity: 0.4;
-		z-index: 100;
 	}
 
 	.theme-toggle:hover {
@@ -276,70 +227,17 @@
 		opacity: 1;
 	}
 
-	.debug-toggle {
-		position: fixed;
-		bottom: 24px;
-		right: 64px;
-		width: 32px;
-		height: 32px;
-		border: none;
-		border-radius: 4px;
-		background: var(--bg-control);
-		cursor: pointer;
-		color: var(--control-color);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		transition: all 0.2s ease;
-		opacity: 0.4;
-		z-index: 100;
-	}
+	@media (max-width: 600px) {
+		.hero h1 {
+			font-size: 1.75rem;
+		}
 
-	.debug-toggle:hover {
-		background: var(--bg-control-hover);
-		color: var(--control-color-hover);
-		opacity: 1;
-	}
+		.cta-buttons {
+			flex-direction: column;
+		}
 
-	.debug-toggle.active {
-		background: var(--bg-control-hover);
-		color: #4ade80;
-		opacity: 1;
-	}
-
-	/* Debug action buttons (only visible in debug mode) */
-	.debug-btn {
-		position: fixed;
-		bottom: 24px;
-		width: 32px;
-		height: 32px;
-		border: none;
-		border-radius: 4px;
-		background: var(--bg-control);
-		cursor: pointer;
-		color: #4ade80;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		transition: all 0.2s ease;
-		opacity: 0.8;
-		z-index: 100;
-	}
-
-	.debug-btn:hover {
-		background: var(--bg-control-hover);
-		opacity: 1;
-	}
-
-	.open-all-btn {
-		right: 144px;
-	}
-
-	.zoom-fit-btn {
-		right: 104px;
-	}
-
-	.reset-btn {
-		right: 184px;
+		.features {
+			grid-template-columns: 1fr;
+		}
 	}
 </style>

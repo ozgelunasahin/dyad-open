@@ -10,20 +10,16 @@
 		isActive: boolean;
 		onLinkClick: (noteId: string, fromCardId: string, linkPosition: Point) => void;
 		onCardClick: (cardId: string) => void;
+		readOnly?: boolean;
 	}
 
-	let { card, isActive, onLinkClick, onCardClick }: Props = $props();
+	let { card, isActive, onLinkClick, onCardClick, readOnly = false }: Props = $props();
 
 	// Edit state
 	let isEditing = $derived(canvasStore.editingCardId === card.id);
 	let saveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
-	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
-	let savedStatusTimer: ReturnType<typeof setTimeout> | undefined;
-	let wikilinkConversionTimer: ReturnType<typeof setTimeout> | undefined; // P2-008 fix
+	let debounceTimer: ReturnType<typeof setTimeout>;
 	let originalMarkdown = $state('');
-
-	// Generation counter to detect content changes during save (P1-003 fix)
-	let saveGeneration = 0;
 
 	// Rendered HTML for view mode
 	let html = $derived(parseMarkdown(card.note.content));
@@ -54,23 +50,41 @@
 		}
 	});
 
-	// Enter edit mode (P1-004 fix: claim edit mode BEFORE async operations)
-	function enterEditMode() {
-		// Exit any other card's edit mode first
+	// Enter edit mode
+	async function enterEditMode() {
+		// Don't allow editing in read-only mode
+		if (readOnly) return;
+
 		if (canvasStore.editingCardId && canvasStore.editingCardId !== card.id) {
 			canvasStore.exitEditMode();
 		}
 
-		// Claim edit mode immediately to prevent race conditions
-		// The $effect watching isEditing will handle loading originalMarkdown and focusing
+		// Load original markdown for frontmatter preservation
+		try {
+			const res = await fetch(`/api/notes/${card.note.id}`);
+			if (res.ok) {
+				const data = await res.json();
+				originalMarkdown = data.content;
+			} else {
+				originalMarkdown = `---\ntitle: "${card.note.title}"\n---\n\n${card.note.content}`;
+			}
+		} catch {
+			originalMarkdown = `---\ntitle: "${card.note.title}"\n---\n\n${card.note.content}`;
+		}
+
 		canvasStore.enterEditMode(card.id);
+
+		await tick();
+		contentEl?.focus();
 	}
 
-	// Exit edit mode (P1-002 fix: don't save here, let $effect handle it)
-	function exitEditMode() {
+	// Exit edit mode and save
+	async function exitEditMode() {
 		clearTimeout(debounceTimer);
+		if (saveStatus !== 'saving') {
+			await saveNow();
+		}
 		canvasStore.exitEditMode();
-		// Save is handled by the $effect watching isEditing transition
 	}
 
 	async function handleInteraction(target: HTMLElement) {
@@ -89,9 +103,11 @@
 			y: rect.bottom
 		};
 
-		// If link is broken (note doesn't exist), create it
+		// If link is broken (note doesn't exist), create it (unless read-only)
 		if (canvasStore.isLinkBroken(noteId)) {
-			await createNewNote(noteId, linkPosition, target);
+			if (!readOnly) {
+				await createNewNote(noteId, linkPosition, target);
+			}
 			return;
 		}
 
@@ -156,6 +172,14 @@
 	}
 
 	function handleViewKeyDown(event: KeyboardEvent) {
+		// 'e' key to enter edit mode (prevent typing 'e' into content)
+		if (event.key === 'e' && !readOnly) {
+			event.preventDefault();
+			event.stopPropagation();
+			enterEditMode();
+			return;
+		}
+
 		if (event.key === 'Enter' || event.key === ' ') {
 			const target = event.target as HTMLElement;
 			if (target.classList.contains('wikilink')) {
@@ -201,10 +225,8 @@
 	}
 
 	// Handle input changes (contenteditable)
-	// P2-008 fix: debounce wikilink conversion separately from save
 	function handleInput() {
-		clearTimeout(wikilinkConversionTimer);
-		wikilinkConversionTimer = setTimeout(convertWikilinks, 300);
+		convertWikilinks();
 		scheduleSave();
 	}
 
@@ -270,20 +292,14 @@
 	// Debounced save
 	function scheduleSave() {
 		clearTimeout(debounceTimer);
-		// Increment generation to indicate content changed (for P1-003 snapshot divergence fix)
-		saveGeneration++;
 		debounceTimer = setTimeout(saveNow, 1500);
 	}
 
-	// Convert HTML to markdown and save (P1-003 fix: track generation for snapshot divergence)
+	// Convert HTML to markdown and save
 	async function saveNow() {
 		if (!contentEl) return;
 
-		// Increment generation to track if content changes during save
-		const currentGeneration = ++saveGeneration;
-
 		saveStatus = 'saving';
-		clearTimeout(savedStatusTimer);
 
 		try {
 			// Convert contenteditable HTML back to markdown
@@ -302,18 +318,10 @@
 			});
 
 			if (res.ok) {
-				// Check if content changed during the save operation
-				if (saveGeneration === currentGeneration) {
-					// No new changes - safe to show "Saved"
-					saveStatus = 'saved';
-					savedStatusTimer = setTimeout(() => {
-						if (saveStatus === 'saved') saveStatus = 'idle';
-					}, 2000);
-				} else {
-					// Content changed during save - schedule another save
-					saveStatus = 'idle';
-					scheduleSave();
-				}
+				saveStatus = 'saved';
+				setTimeout(() => {
+					if (saveStatus === 'saved') saveStatus = 'idle';
+				}, 2000);
 			} else {
 				saveStatus = 'error';
 			}
@@ -339,61 +347,23 @@
 	});
 
 	// Auto-expand card height as content grows
-	// P2-011 fix: throttle with requestAnimationFrame to reduce GC pressure
 	$effect(() => {
 		if (!contentEl) return;
 
-		let rafId: number | null = null;
-		let lastHeight = card.dimensions.height;
-
 		const observer = new ResizeObserver((entries) => {
-			// Skip if we already have a pending rAF
-			if (rafId) return;
-			rafId = requestAnimationFrame(() => {
-				rafId = null;
-				const entry = entries[0];
+			for (const entry of entries) {
 				const newHeight = entry.contentRect.height + 16; // Add padding
-				// Only update if significant change (>5px) to reduce unnecessary updates
-				if (newHeight > lastHeight + 5) {
-					lastHeight = newHeight;
+				if (newHeight > card.dimensions.height) {
 					canvasStore.updateCardHeight(card.id, newHeight);
 				}
-			});
+			}
 		});
 
 		observer.observe(contentEl);
-		return () => {
-			if (rafId) cancelAnimationFrame(rafId);
-			observer.disconnect();
-		};
+		return () => observer.disconnect();
 	});
 
-	// Helper to generate fallback markdown with frontmatter
-	function getFallbackMarkdown(): string {
-		return `---\ntitle: "${card.note.title}"\n---\n\n${card.note.content}`;
-	}
-
-	// Load original markdown from server for frontmatter preservation
-	async function loadOriginalMarkdown(): Promise<void> {
-		try {
-			const res = await fetch(`/api/notes/${card.note.id}`);
-			if (res.ok) {
-				const data = await res.json();
-				if (typeof data.content === 'string') {
-					originalMarkdown = data.content;
-				} else {
-					originalMarkdown = getFallbackMarkdown();
-				}
-			} else {
-				originalMarkdown = getFallbackMarkdown();
-			}
-		} catch {
-			originalMarkdown = getFallbackMarkdown();
-		}
-	}
-
 	// Handle edit mode changes (entered via 'e' key or exited via click outside)
-	// P1-002 fix: single source of truth for save-on-exit
 	let wasEditing = $state(false);
 	$effect(() => {
 		if (!wasEditing && isEditing) {
@@ -403,20 +373,29 @@
 		} else if (wasEditing && !isEditing) {
 			// Just exited edit mode - save any pending changes
 			clearTimeout(debounceTimer);
-			// Only save if we're not already saving (prevents double-save)
-			if (saveStatus !== 'saving') {
-				saveNow();
-			}
+			saveNow();
 		}
 		wasEditing = isEditing;
 	});
+
+	async function loadOriginalMarkdown() {
+		try {
+			const res = await fetch(`/api/notes/${card.note.id}`);
+			if (res.ok) {
+				const data = await res.json();
+				originalMarkdown = data.content;
+			} else {
+				originalMarkdown = `---\ntitle: "${card.note.title}"\n---\n\n${card.note.content}`;
+			}
+		} catch {
+			originalMarkdown = `---\ntitle: "${card.note.title}"\n---\n\n${card.note.content}`;
+		}
+	}
 
 	// Cleanup on unmount
 	$effect(() => {
 		return () => {
 			clearTimeout(debounceTimer);
-			clearTimeout(savedStatusTimer);
-			clearTimeout(wikilinkConversionTimer); // P2-008 fix
 		};
 	});
 </script>
