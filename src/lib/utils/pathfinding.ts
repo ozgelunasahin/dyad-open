@@ -268,216 +268,55 @@ export function routeConnection(
 }
 
 /**
- * Find the best X position for the vertical segment of the path.
+ * Find the X position for the vertical segment of the path.
  *
- * Heuristics for reducing coaxial overlap:
- * 1. Base offset from source link Y position - links at different vertical positions
- *    get different channel offsets, spreading vertical segments spatially
- * 2. Search from the offset position outward to find clear channels
- * 3. Check both card obstacles and existing path crossings
+ * Deterministic offset based on source link Y position:
+ * - Links at TOP of card → riser further RIGHT
+ * - Links at BOTTOM of card → riser further LEFT
  *
- * @param sourceY - Y position of the source link (used for offset calculation)
+ * This naturally accommodates growing cards: as content is added at the bottom,
+ * new links get their risers placed to the left of existing higher links.
+ *
+ * @param sourceY - Y position of the source link (determines offset)
  */
 function findVerticalRoutingX(
 	exitX: number,
 	entryX: number,
-	minY: number,
-	maxY: number,
-	cards: Card[],
+	_minY: number,
+	_maxY: number,
+	_cards: Card[],
 	sourceCard: Card,
-	targetCard: Card,
-	existingPaths: Point[][],
+	_targetCard: Card,
+	_existingPaths: Point[][],
 	sourceY?: number
 ): number {
 	const gapWidth = entryX - exitX;
 	const midX = exitX + gapWidth / 2;
 
-	// Calculate base offset from source link Y position
-	// This spreads vertical segments based on where the link is on the card
-	// Links higher on the card -> channels more to the left
-	// Links lower on the card -> channels more to the right
-	let baseOffset = 0;
-	if (sourceY !== undefined && gapWidth > 60) {
-		const cardTop = sourceCard.position.y;
-		const cardBottom = cardTop + sourceCard.dimensions.height;
-		const cardHeight = cardBottom - cardTop;
-
-		// Normalize Y position within card to range [-1, 1]
-		const normalizedY = cardHeight > 0
-			? ((sourceY - cardTop) / cardHeight) * 2 - 1
-			: 0;
-
-		// Map to offset range (max ±30% of gap width, capped at ±40px)
-		const maxOffset = Math.min(gapWidth * 0.3, 40);
-		baseOffset = normalizedY * maxOffset;
+	if (sourceY === undefined || gapWidth < 40) {
+		return midX;
 	}
 
-	const preferredX = midX + baseOffset;
+	// Calculate offset based on source link position within the card
+	// Top of card (normalizedY ≈ 0) → positive offset (right)
+	// Bottom of card (normalizedY ≈ 1) → negative offset (left)
+	const cardTop = sourceCard.position.y;
+	const cardHeight = sourceCard.dimensions.height;
+	const normalizedY = cardHeight > 0
+		? (sourceY - cardTop) / cardHeight
+		: 0.5;
 
-	// Try preferred position first (if within bounds)
-	if (preferredX > exitX + 10 && preferredX < entryX - 10) {
-		if (isVerticalClear(preferredX, minY, maxY, cards, sourceCard, targetCard) &&
-			!hasCoaxialOverlap(preferredX, minY, maxY, existingPaths)) {
-			return preferredX;
-		}
-	}
+	// Use up to 40% of gap width for offset range
+	const maxOffset = gapWidth * 0.4;
+	// Flip: top (0) → +maxOffset/2, bottom (1) → -maxOffset/2
+	const offset = (0.5 - normalizedY) * maxOffset;
 
-	// Try middle if different from preferred
-	if (Math.abs(midX - preferredX) > 5) {
-		if (isVerticalClear(midX, minY, maxY, cards, sourceCard, targetCard) &&
-			!hasCoaxialOverlap(midX, minY, maxY, existingPaths)) {
-			return midX;
-		}
-	}
+	const routingX = midX + offset;
 
-	// Search outward from preferred position for clear channels
-	const searchOffsets: number[] = [];
-	for (let i = 10; i <= 60; i += 10) {
-		searchOffsets.push(i, -i);
-	}
-
-	for (const offset of searchOffsets) {
-		const x = preferredX + offset;
-		if (x > exitX + 5 && x < entryX - 5) {
-			if (isVerticalClear(x, minY, maxY, cards, sourceCard, targetCard) &&
-				!hasCoaxialOverlap(x, minY, maxY, existingPaths)) {
-				return x;
-			}
-		}
-	}
-
-	// Fallback to preferred position (may have some overlap)
-	if (preferredX > exitX + 5 && preferredX < entryX - 5) {
-		return preferredX;
-	}
-
-	return midX;
-}
-
-/**
- * Check if a vertical segment would overlap coaxially with existing paths.
- * Returns true if there's significant overlap (not just crossing).
- */
-function hasCoaxialOverlap(
-	x: number,
-	minY: number,
-	maxY: number,
-	existingPaths: Point[][]
-): boolean {
-	const tolerance = 15; // Pixels - segments within this distance are considered coaxial
-	const minOverlapLength = 30; // Minimum overlap to consider problematic
-
-	for (const path of existingPaths) {
-		for (let i = 0; i < path.length - 1; i++) {
-			const segStart = path[i];
-			const segEnd = path[i + 1];
-
-			// Check if this is a vertical segment
-			if (Math.abs(segEnd.x - segStart.x) < 1) {
-				// Check if same X (within tolerance)
-				if (Math.abs(segStart.x - x) < tolerance) {
-					// Check Y range overlap
-					const segMinY = Math.min(segStart.y, segEnd.y);
-					const segMaxY = Math.max(segStart.y, segEnd.y);
-
-					const overlapStart = Math.max(minY, segMinY);
-					const overlapEnd = Math.min(maxY, segMaxY);
-
-					if (overlapEnd - overlapStart > minOverlapLength) {
-						return true;
-					}
-				}
-			}
-		}
-	}
-
-	return false;
-}
-
-/**
- * Check if a vertical segment would cross any existing paths.
- */
-function verticalCrossesExistingPaths(
-	x: number,
-	minY: number,
-	maxY: number,
-	existingPaths: Point[][]
-): boolean {
-	const verticalSegmentStart = { x, y: minY };
-	const verticalSegmentEnd = { x, y: maxY };
-
-	for (const path of existingPaths) {
-		for (let i = 0; i < path.length - 1; i++) {
-			const segStart = path[i];
-			const segEnd = path[i + 1];
-
-			// Check if horizontal segment of existing path crosses our vertical
-			if (Math.abs(segStart.y - segEnd.y) < 1) {
-				// This is a horizontal segment
-				const segMinX = Math.min(segStart.x, segEnd.x);
-				const segMaxX = Math.max(segStart.x, segEnd.x);
-				const segY = segStart.y;
-
-				// Check if our vertical line crosses this horizontal segment
-				if (x > segMinX && x < segMaxX && segY > minY && segY < maxY) {
-					return true;
-				}
-			}
-		}
-	}
-
-	return false;
-}
-
-/**
- * Check if a vertical line at X from minY to maxY is clear of cards.
- */
-function isVerticalClear(
-	x: number,
-	minY: number,
-	maxY: number,
-	cards: Card[],
-	sourceCard: Card,
-	targetCard: Card
-): boolean {
-	const padding = 15;
-
-	for (const card of cards) {
-		if (card.id === sourceCard.id || card.id === targetCard.id) continue;
-
-		const cardLeft = card.position.x - padding;
-		const cardRight = card.position.x + card.dimensions.width + padding;
-		const cardTop = card.position.y - padding;
-		const cardBottom = card.position.y + card.dimensions.height + padding;
-
-		// Check if vertical line passes through card
-		if (x >= cardLeft && x <= cardRight) {
-			if (maxY >= cardTop && minY <= cardBottom) {
-				return false;
-			}
-		}
-	}
-
-	return true;
-}
-
-/**
- * Check if a path crosses any existing paths.
- */
-function checkPathCrossings(path: Point[], existingPaths: Point[][]): boolean {
-	for (const existing of existingPaths) {
-		for (let i = 0; i < path.length - 1; i++) {
-			for (let j = 0; j < existing.length - 1; j++) {
-				if (segmentsIntersect(path[i], path[i + 1], existing[j], existing[j + 1])) {
-					// Allow shared endpoints
-					if (!sharesEndpoint(path[i], path[i + 1], existing[j], existing[j + 1])) {
-						return true;
-					}
-				}
-			}
-		}
-	}
-	return false;
+	// Clamp to stay within gap bounds
+	const minBound = exitX + 15;
+	const maxBound = entryX - 15;
+	return Math.max(minBound, Math.min(maxBound, routingX));
 }
 
 function sharesEndpoint(p1: Point, p2: Point, p3: Point, p4: Point): boolean {
@@ -612,7 +451,7 @@ const HOP_RADIUS = 8;
 
 /**
  * Find crossing points between a path segment and existing paths.
- * Uses the same segmentsIntersect logic as checkPathCrossings for consistency.
+ * Uses the same segmentsIntersect logic as segmentsIntersect for consistency.
  */
 function findCrossingsOnSegment(
 	segStart: Point,
@@ -626,7 +465,7 @@ function findCrossingsOnSegment(
 			const otherStart = path[j];
 			const otherEnd = path[j + 1];
 
-			// Use same intersection check as checkPathCrossings
+			// Use same intersection check as segmentsIntersect
 			if (segmentsIntersect(segStart, segEnd, otherStart, otherEnd)) {
 				// Don't count shared endpoints as crossings
 				if (sharesEndpoint(segStart, segEnd, otherStart, otherEnd)) {
