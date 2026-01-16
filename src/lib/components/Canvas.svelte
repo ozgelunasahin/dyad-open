@@ -27,31 +27,8 @@
 	// Animation cancellation flag (P2-007 fix: prevent memory leaks)
 	let animationCancelled = false;
 
-	/**
-	 * Find and focus the card under the viewport center.
-	 */
-	function updateFocusFromViewportCenter() {
-		if (!svg) return;
-
-		// Calculate viewport center in canvas coordinates
-		const viewportCenterX = (svg.clientWidth / 2 - transform.x) / transform.k;
-		const viewportCenterY = (svg.clientHeight / 2 - transform.y) / transform.k;
-
-		// Find which card contains this point
-		for (const card of canvasStore.cardList) {
-			const inX = viewportCenterX >= card.position.x &&
-			            viewportCenterX <= card.position.x + card.dimensions.width;
-			const inY = viewportCenterY >= card.position.y &&
-			            viewportCenterY <= card.position.y + card.dimensions.height;
-
-			if (inX && inY) {
-				if (canvasStore.focusedCardId !== card.id) {
-					canvasStore.focusedCardId = card.id;
-				}
-				return;
-			}
-		}
-	}
+	// Pending link restoration to apply after animation completes
+	let pendingLinkRestoration: { linkTarget?: string; linkFocusActive: boolean } | null = null;
 
 	onMount(() => {
 		zoomBehavior = zoom<SVGSVGElement, unknown>()
@@ -88,7 +65,6 @@
 					y: event.transform.y,
 					zoom: event.transform.k
 				});
-				updateFocusFromViewportCenter();
 			});
 
 		const selection = select(svg);
@@ -150,15 +126,18 @@
 			selection.call(zoomBehavior.transform, initialTransform);
 		}
 
-		// Set initial focus based on viewport center
-		updateFocusFromViewportCenter();
-
 		// Compute paths for any restored connections (after state initialization)
 		setTimeout(() => computeMissingPaths(), 0);
 
 		// Listen for focus animation requests
 		const handleFocusAnimation = (event: Event) => {
-			const customEvent = event as CustomEvent<{ x: number; y: number; cardId: string }>;
+			const customEvent = event as CustomEvent<{
+				x: number;
+				y: number;
+				cardId: string;
+				linkRestoration?: { linkTarget?: string; linkFocusActive: boolean } | null;
+			}>;
+			pendingLinkRestoration = customEvent.detail.linkRestoration ?? null;
 			animateToCenter(customEvent.detail.x, customEvent.detail.y);
 		};
 
@@ -166,7 +145,11 @@
 
 		// Listen for restore position requests (returning to previous card)
 		const handleRestorePosition = (event: Event) => {
-			const customEvent = event as CustomEvent<{ camera: { x: number; y: number; zoom: number } }>;
+			const customEvent = event as CustomEvent<{
+				camera: { x: number; y: number; zoom: number };
+				linkRestoration?: { linkTarget?: string; linkFocusActive: boolean } | null;
+			}>;
+			pendingLinkRestoration = customEvent.detail.linkRestoration ?? null;
 			animateToPosition(customEvent.detail.camera);
 		};
 
@@ -178,22 +161,263 @@
 			if (canvasStore.editingCardId) return;
 			if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
 
+			const isMod = event.metaKey || event.ctrlKey;
+			const selection = select(svg);
+
+			// === ZOOM SHORTCUTS ===
+			if (isMod && (event.key === '+' || event.key === '=')) {
+				event.preventDefault();
+				const newK = Math.min(3, transform.k * 1.2);
+				const newTransform = zoomIdentity.translate(transform.x, transform.y).scale(newK);
+				selection.transition().duration(150).call(zoomBehavior.transform, newTransform);
+				return;
+			}
+
+			if (isMod && event.key === '-') {
+				event.preventDefault();
+				const newK = Math.max(0.1, transform.k / 1.2);
+				const newTransform = zoomIdentity.translate(transform.x, transform.y).scale(newK);
+				selection.transition().duration(150).call(zoomBehavior.transform, newTransform);
+				return;
+			}
+
+			if (isMod && event.key === '0') {
+				event.preventDefault();
+				const newTransform = zoomIdentity.translate(transform.x, transform.y).scale(1);
+				selection.transition().duration(150).call(zoomBehavior.transform, newTransform);
+				return;
+			}
+
+			// === PAN WITH SHIFT+ARROW ===
+			if (event.shiftKey && event.key.startsWith('Arrow')) {
+				event.preventDefault();
+				const panAmount = 100;
+				let dx = 0, dy = 0;
+
+				switch (event.key) {
+					case 'ArrowLeft': dx = panAmount; break;
+					case 'ArrowRight': dx = -panAmount; break;
+					case 'ArrowUp': dy = panAmount; break;
+					case 'ArrowDown': dy = -panAmount; break;
+				}
+
+				const newTransform = zoomIdentity
+					.translate(transform.x + dx, transform.y + dy)
+					.scale(transform.k);
+				selection.call(zoomBehavior.transform, newTransform);
+				return;
+			}
+
+			// === KEYBOARD NAVIGATION (Chain & Link Focus) ===
+
+			// Helper to get visible wikilinks in viewport for CURRENT focused card
+			// Uses canvasStore.focusedCardId directly to avoid stale closure after navigation
+			const getWikilinks = (): HTMLElement[] => {
+				const currentFocusedCard = canvasStore.focusedCardId;
+				const cardElement = currentFocusedCard
+					? document.querySelector(`[data-note-id="${currentFocusedCard}"]`)
+					: null;
+				if (!cardElement) return [];
+
+				const allLinks = Array.from(cardElement.querySelectorAll('.wikilink')) as HTMLElement[];
+				if (!svg) return allLinks;
+
+				// Filter to only links visible in viewport
+				const viewportRect = svg.getBoundingClientRect();
+				return allLinks.filter(link => {
+					const linkRect = link.getBoundingClientRect();
+					return (
+						linkRect.bottom > viewportRect.top &&
+						linkRect.top < viewportRect.bottom &&
+						linkRect.right > viewportRect.left &&
+						linkRect.left < viewportRect.right
+					);
+				});
+			};
+
+			// Helper to clear all link highlights
+			const clearLinkHighlights = () => {
+				document.querySelectorAll('.wikilink.link-focused').forEach(el => {
+					el.classList.remove('link-focused');
+				});
+			};
+
+			// Helper to highlight a specific link by index in given links array
+			const highlightLink = (links: HTMLElement[], index: number | null) => {
+				clearLinkHighlights();
+				if (index !== null && index < links.length) {
+					links[index]?.classList.add('link-focused');
+				}
+			};
+
+			// Helper to get the currently highlighted link element from DOM
+			// This is the source of truth for which link will be followed
+			const getHighlightedLink = (): HTMLElement | null => {
+				return document.querySelector('.wikilink.link-focused') as HTMLElement | null;
+			};
+
+			// Helper to enter or restore link focus mode with proper state
+			const enterOrRestoreLinkFocusMode = (links: HTMLElement[], savedTarget?: string) => {
+				if (links.length === 0) return;
+
+				canvasStore.enterLinkFocusMode();
+
+				// Try to restore to saved target if provided
+				if (savedTarget) {
+					const savedIndex = links.findIndex(link => link.dataset.target === savedTarget);
+					if (savedIndex >= 0) {
+						canvasStore.focusedLinkIndex = savedIndex;
+					}
+				}
+
+				highlightLink(links, canvasStore.focusedLinkIndex);
+			};
+
+			// Helper to save link state before leaving current card
+			const saveLinkStateBeforeLeaving = (linkFocusActive: boolean) => {
+				const highlightedLink = getHighlightedLink();
+				const linkTarget = highlightedLink?.dataset.target;
+				canvasStore.saveLinkState(linkTarget, linkFocusActive);
+			};
+			// Note: Link restoration after navigation is handled by restoreLinkFocusAfterAnimation()
+			// which runs after the camera animation completes
+
+			// Helper to follow the currently highlighted link
+			// Uses the DOM highlight as source of truth, not focusedLinkIndex
+			const followHighlightedLink = () => {
+				const currentFocusedCard = canvasStore.focusedCardId;
+				const highlightedLink = getHighlightedLink();
+
+				if (!highlightedLink || !currentFocusedCard) return;
+
+				const target = highlightedLink.dataset.target;
+				if (!target) return;
+
+				// Skip broken links
+				if (canvasStore.isLinkBroken(target)) return;
+
+				const rect = highlightedLink.getBoundingClientRect();
+				const svgRect = svg.getBoundingClientRect();
+				const canvasPosition: Point = {
+					x: (rect.left - svgRect.left - transform.x) / transform.k,
+					y: (rect.bottom - svgRect.top - transform.y) / transform.k
+				};
+
+				canvasStore.exitLinkFocusMode();
+				const noteAlreadyOpen = canvasStore.cards.has(target);
+				canvasStore.followLinkToRight(target, currentFocusedCard, canvasPosition);
+
+				// Compute and store path for new connection if card was created
+				if (!noteAlreadyOpen && canvasStore.cards.has(target)) {
+					computeAndStorePath(currentFocusedCard, target, canvasPosition);
+				}
+			};
+
+			// Get current visible links (fresh each keydown)
+			const visibleLinks = getWikilinks();
+			const linkCount = visibleLinks.length;
+
+			// === LINK FOCUS MODE ===
+			if (canvasStore.isLinkFocusMode) {
+				if (event.key === 'Escape') {
+					event.preventDefault();
+					saveLinkStateBeforeLeaving(false); // Explicitly exited, don't restore
+					canvasStore.exitLinkFocusMode();
+					clearLinkHighlights();
+					return;
+				}
+
+				if (event.key === 'Delete') {
+					event.preventDefault();
+					canvasStore.unopenCurrentCard();
+					clearLinkHighlights();
+					return;
+				}
+
+				// Tab/Shift+Tab: cycle through visible links
+				if (event.key === 'Tab' && !event.shiftKey) {
+					event.preventDefault();
+					canvasStore.focusNextLink(linkCount);
+					highlightLink(visibleLinks, canvasStore.focusedLinkIndex);
+					return;
+				}
+
+				if (event.key === 'Tab' && event.shiftKey) {
+					event.preventDefault();
+					canvasStore.focusPrevLink(linkCount);
+					highlightLink(visibleLinks, canvasStore.focusedLinkIndex);
+					return;
+				}
+
+				// ArrowRight, Enter, Space: follow the highlighted link
+				if (event.key === 'ArrowRight' || event.key === 'Enter' || event.key === ' ') {
+					event.preventDefault();
+					saveLinkStateBeforeLeaving(true); // Remember we were in link focus
+					followHighlightedLink();
+					clearLinkHighlights();
+					return;
+				}
+
+				// ArrowLeft: exit link focus, navigate left in chain
+				if (event.key === 'ArrowLeft') {
+					event.preventDefault();
+					saveLinkStateBeforeLeaving(true); // Remember we were in link focus
+					canvasStore.exitLinkFocusMode();
+					clearLinkHighlights();
+					canvasStore.navigateLeftInChain();
+					// Link restoration happens after animation in restoreLinkFocusAfterAnimation()
+					return;
+				}
+
+				// Let ArrowUp/Down fall through to vertical panning below
+			}
+
+			// === CARD FOCUS MODE ===
+			// Always suppress Tab to prevent browser focus shift
+			if (event.key === 'Tab') {
+				event.preventDefault();
+				if (linkCount > 0) {
+					const savedState = canvasStore.getSavedCardState();
+					enterOrRestoreLinkFocusMode(visibleLinks, savedState?.linkTarget);
+				}
+				return;
+			}
+
+			if (event.key === 'Delete') {
+				event.preventDefault();
+				canvasStore.unopenCurrentCard();
+				return;
+			}
+
+			// Vertical panning with ArrowUp/Down (works in both modes)
+			if ((event.key === 'ArrowUp' || event.key === 'ArrowDown') && !event.shiftKey) {
+				event.preventDefault();
+				const panAmount = 80;
+				const dy = event.key === 'ArrowUp' ? panAmount : -panAmount;
+				const newTransform = zoomIdentity
+					.translate(transform.x, transform.y + dy)
+					.scale(transform.k);
+				selection.call(zoomBehavior.transform, newTransform);
+				return;
+			}
+
+			// Chain navigation (link restoration happens after animation)
+			if (event.key === 'ArrowLeft' && !event.altKey && !event.shiftKey) {
+				event.preventDefault();
+				canvasStore.navigateLeftInChain();
+				return;
+			}
+
+			if (event.key === 'ArrowRight' && !event.altKey && !event.shiftKey) {
+				event.preventDefault();
+				canvasStore.navigateRightInChain();
+				return;
+			}
+
 			// 'e' key to enter edit mode on focused card
 			if (event.key === 'e' && canvasStore.focusedCardId) {
 				event.preventDefault();
 				canvasStore.enterEditMode(canvasStore.focusedCardId);
-			}
-
-			// Left arrow to return to parent card
-			if (event.key === 'ArrowLeft' && !event.altKey) {
-				event.preventDefault();
-				canvasStore.returnToParent();
-			}
-
-			// Right arrow to go forward to child (after going back)
-			if (event.key === 'ArrowRight' && !event.altKey) {
-				event.preventDefault();
-				canvasStore.goForwardToChild();
 			}
 		};
 
@@ -259,6 +483,50 @@
 	}
 
 	/**
+	 * Restore link focus after animation completes.
+	 * Uses ALL links in the card (not filtered by visibility) to find the target.
+	 */
+	function restoreLinkFocusAfterAnimation() {
+		if (!pendingLinkRestoration?.linkFocusActive) {
+			pendingLinkRestoration = null;
+			return;
+		}
+
+		const { linkTarget } = pendingLinkRestoration;
+		pendingLinkRestoration = null;
+
+		// Get ALL links in the focused card (not filtered by visibility)
+		const currentFocusedCard = canvasStore.focusedCardId;
+		const cardElement = currentFocusedCard
+			? document.querySelector(`[data-note-id="${currentFocusedCard}"]`)
+			: null;
+		if (!cardElement) return;
+
+		const allLinks = Array.from(cardElement.querySelectorAll('.wikilink')) as HTMLElement[];
+		if (allLinks.length === 0) return;
+
+		// Enter link focus mode
+		canvasStore.enterLinkFocusMode();
+
+		// Find the link with matching target
+		if (linkTarget) {
+			const targetIndex = allLinks.findIndex(link => link.dataset.target === linkTarget);
+			if (targetIndex >= 0) {
+				canvasStore.focusedLinkIndex = targetIndex;
+			}
+		}
+
+		// Clear any existing highlights and highlight the focused link
+		document.querySelectorAll('.wikilink.link-focused').forEach(el => {
+			el.classList.remove('link-focused');
+		});
+		const focusedIndex = canvasStore.focusedLinkIndex;
+		if (focusedIndex !== null && focusedIndex < allLinks.length) {
+			allLinks[focusedIndex]?.classList.add('link-focused');
+		}
+	}
+
+	/**
 	 * Smoothly animate the view to position for reading.
 	 * Card top is placed near the top of viewport, horizontally centered.
 	 * Zoom level is always preserved - user controls their reading zoom.
@@ -307,6 +575,7 @@
 				requestAnimationFrame(animate);
 			} else {
 				canvasStore.setAnimating(false);
+				restoreLinkFocusAfterAnimation();
 			}
 		}
 
@@ -354,6 +623,7 @@
 				requestAnimationFrame(animate);
 			} else {
 				canvasStore.setAnimating(false);
+				restoreLinkFocusAfterAnimation();
 			}
 		}
 
@@ -444,13 +714,26 @@
 			y: (screenPosition.y - svgRect.top - transform.y) / transform.k
 		};
 
+		// Save current card's reading state before navigating (same as keyboard nav)
+		canvasStore.saveLinkState(undefined, false);
+
+		// Clear any link highlights
+		document.querySelectorAll('.wikilink.link-focused').forEach(el => {
+			el.classList.remove('link-focused');
+		});
+
+		// Exit link focus mode if active
+		if (canvasStore.isLinkFocusMode) {
+			canvasStore.exitLinkFocusMode();
+		}
+
 		// Check if note is already open (will just refocus)
 		const noteAlreadyOpen = canvasStore.cards.has(noteId);
 
-		canvasStore.openNote(noteId, fromCardId, canvasPosition);
+		// Use followLinkToRight for consistent chain behavior with keyboard nav
+		canvasStore.followLinkToRight(noteId, fromCardId, canvasPosition);
 
 		// Compute and store path for new connection
-		// Only do this if a new card was actually created
 		if (!noteAlreadyOpen && canvasStore.cards.has(noteId)) {
 			computeAndStorePath(fromCardId, noteId, canvasPosition);
 		}
@@ -563,10 +846,10 @@
 			</g>
 		{/if}
 
-		<!-- Connection lines (rendered below cards) -->
-		{#each connectionPaths as conn (conn.fromCardId + '-' + conn.toCardId)}
+		<!-- Connection lines disabled - focusing on layout first -->
+		<!-- {#each connectionPaths as conn (conn.fromCardId + '-' + conn.toCardId)}
 			<ConnectionLine path={conn.path} pathFailed={conn.pathFailed} />
-		{/each}
+		{/each} -->
 
 		<!-- Debug: Show routing method labels -->
 		{#if canvasStore.debugMode}
