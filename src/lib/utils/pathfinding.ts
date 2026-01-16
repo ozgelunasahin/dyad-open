@@ -123,40 +123,34 @@ export function simulatePath(
 	routingX?: number
 ): Point[] {
 	const sourceRightEdge = sourceCard.position.x + sourceCard.dimensions.width;
-	const sourceLeftEdge = sourceCard.position.x;
 	const targetCenterX = targetPosition.x + targetDimensions.width / 2;
 	const sourceCenterX = sourceCard.position.x + sourceCard.dimensions.width / 2;
 	const exitRight = targetCenterX > sourceCenterX;
-
-	let exitX: number;
-	let entryX: number;
-	let entryY: number;
-	let verticalX: number;
+	const headingY = targetPosition.y + 20;
 
 	if (exitRight) {
-		// Right-going: Z-shape entering from left at heading level
-		const headingY = targetPosition.y + 20;
-		exitX = sourceRightEdge + 10;
-		entryX = targetPosition.x - 10;
-		entryY = headingY;
-		verticalX = routingX ?? (exitX + entryX) / 2;
-	} else {
-		// Left-going: route above, enter at top-left corner
-		const targetTop = targetPosition.y;
-		exitX = sourceLeftEdge - 10;
-		entryX = targetPosition.x - 10;
-		entryY = targetTop - 20; // Above the card
-		verticalX = routingX ?? (entryX + exitX) / 2;
-	}
+		// Right-going: Z-shape (horizontal → vertical → horizontal)
+		const exitX = sourceRightEdge + 10;
+		const entryX = targetPosition.x - 10;
+		const verticalX = routingX ?? (exitX + entryX) / 2;
 
-	return [
-		start,
-		{ x: exitX, y: start.y },
-		{ x: verticalX, y: start.y },
-		{ x: verticalX, y: entryY },
-		{ x: entryX, y: entryY },
-		{ x: entryX, y: entryY }
-	];
+		return [
+			start,
+			{ x: exitX, y: start.y },
+			{ x: verticalX, y: start.y },
+			{ x: verticalX, y: headingY },
+			{ x: entryX, y: headingY }
+		];
+	} else {
+		// Left-going: L-shape (horizontal → vertical)
+		const entryX = targetPosition.x - 10;
+
+		return [
+			start,
+			{ x: entryX, y: start.y },
+			{ x: entryX, y: headingY }
+		];
+	}
 }
 
 /**
@@ -236,34 +230,16 @@ export function routeConnection(
 			);
 		}
 	} else {
-		// Exit to the left, route ABOVE target card, enter at top-left corner
-		// This creates a cleaner visual for left-going connections
-		exitX = sourceLeftEdge - 10;
-		exitPoint = { x: exitX, y: start.y };
-
-		// Entry is at top-left corner of target, coming from above
-		const targetTop = targetCard.position.y;
+		// Exit to the left - simple L-shape: go LEFT then DOWN
+		// Target card should be positioned lower so the line drops down
 		entryX = targetLeftEdge - 10;
-		const entryY = targetTop - 20; // Approach from above
-		entryPoint = { x: entryX, y: entryY };
+		entryPoint = { x: entryX, y: headingY };
 
-		// Use preferred routing X if provided and valid, otherwise find one
-		// For left-exit, vertical segment goes from exitX down to entryX area
-		if (preferredRoutingX !== undefined && preferredRoutingX > entryX && preferredRoutingX < exitX) {
-			verticalX = preferredRoutingX;
-		} else {
-			verticalX = findVerticalRoutingX(
-				entryX,  // Swap order for left-exit routing
-				exitX,
-				Math.min(start.y, entryY),
-				Math.max(start.y, entryY),
-				cards,
-				sourceCard,
-				targetCard,
-				existingPaths,
-				start.y // Pass source link Y for offset calculation
-			);
-		}
+		// L-shape: horizontal to entry X, then vertical down to entry Y
+		// No separate exit point needed - go directly to entry X
+		exitX = entryX; // Vertical segment is at entry X
+		exitPoint = { x: exitX, y: start.y };
+		verticalX = entryX; // Vertical channel is at entry point X
 	}
 
 	// Build the path - start from link underline position
@@ -800,25 +776,12 @@ export function pathToSvgWithHops(points: Point[], existingPaths: Point[][]): st
 }
 
 /**
- * Calculate entry point on a card.
- * - Right-going connections (source left of target): enter from left edge at heading level
- * - Left-going connections (source right of target): enter at top-left corner from above
+ * Calculate entry point on a card - at left edge, heading level.
+ * Both left-going and right-going connections enter from the left edge.
  */
 export function getCardEntryPoint(card: Card, fromPoint: Point): Point {
-	const cardCenterX = card.position.x + card.dimensions.width / 2;
-	const enterFromLeft = fromPoint.x < cardCenterX;
-
-	if (enterFromLeft) {
-		// Right-going: enter from left edge at heading level
-		return {
-			x: card.position.x - 8,
-			y: card.position.y + 20
-		};
-	} else {
-		// Left-going: enter at top-left corner from above
-		return {
-			x: card.position.x - 8,
-			y: card.position.y - 8
-		};
-	}
+	return {
+		x: card.position.x - 8,
+		y: card.position.y + 20 // Heading level
+	};
 }

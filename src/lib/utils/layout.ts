@@ -156,8 +156,14 @@ function generateCandidates(
 		const usedChannels = findUsedVerticalChannels(existingPaths, gapStart, gapEnd);
 		const availableChannels = findAvailableChannels(gapStart, gapEnd, usedChannels);
 
+		// For left-side cards, position BELOW the link so line drops down (L-shape)
+		// For right-side cards, align heading with link position
+		const columnBaseY = isLeftSide
+			? linkPosition.y + 60  // Position card below link for downward L-shape
+			: baseY;               // Align heading with link
+
 		for (const yOffset of yOffsets) {
-			const candidateY = Math.max(0, baseY + yOffset);
+			const candidateY = Math.max(0, columnBaseY + yOffset);
 			const candidatePos = { x: targetX, y: candidateY };
 
 			// Skip if overlaps with existing cards
