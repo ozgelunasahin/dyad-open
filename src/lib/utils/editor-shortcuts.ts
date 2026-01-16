@@ -11,6 +11,7 @@ const BRACKET_PAIRS: Record<string, string> = {
 
 /**
  * Handle bracket key press - wraps selected text with matching brackets.
+ * For '[' key, wraps as [[text]] (wiki link format) since that's the common case.
  * If no text is selected, returns false to allow normal input.
  */
 export function handleBracketKey(event: KeyboardEvent, contentEl: HTMLElement): boolean {
@@ -34,12 +35,23 @@ export function handleBracketKey(event: KeyboardEvent, contentEl: HTMLElement): 
 	// Delete selected text
 	range.deleteContents();
 
-	// Insert wrapped text
-	const textNode = document.createTextNode(`${event.key}${selectedText}${closingBracket}`);
+	// For '[', wrap as [[text]] (wiki link format)
+	// For '(' and '{', wrap with single brackets
+	let wrappedText: string;
+	let cursorOffset: number;
+	if (event.key === '[') {
+		wrappedText = `[[${selectedText}]]`;
+		cursorOffset = 2 + selectedText.length; // After '[[' + text, before ']]'
+	} else {
+		wrappedText = `${event.key}${selectedText}${closingBracket}`;
+		cursorOffset = wrappedText.length; // After closing bracket
+	}
+
+	const textNode = document.createTextNode(wrappedText);
 	range.insertNode(textNode);
 
-	// Position cursor after closing bracket
-	range.setStartAfter(textNode);
+	// Position cursor
+	range.setStart(textNode, cursorOffset);
 	range.collapse(true);
 	selection.removeAllRanges();
 	selection.addRange(range);
