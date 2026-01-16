@@ -846,10 +846,10 @@
 			</g>
 		{/if}
 
-		<!-- Connection lines disabled - focusing on layout first -->
-		<!-- {#each connectionPaths as conn (conn.fromCardId + '-' + conn.toCardId)}
+		<!-- Connection lines -->
+		{#each connectionPaths as conn (conn.fromCardId + '-' + conn.toCardId)}
 			<ConnectionLine path={conn.path} pathFailed={conn.pathFailed} />
-		{/each} -->
+		{/each}
 
 		<!-- Debug: Show routing method labels -->
 		{#if canvasStore.debugMode}
