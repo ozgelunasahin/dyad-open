@@ -22,15 +22,16 @@ const CHANNEL_STEP = 15; // Spacing between routing channels
 
 // Scoring constants for layout algorithm
 const SCORING = {
-	COLUMN_PENALTY_PREFERRED: 0,
-	COLUMN_PENALTY_ADJACENT: 100,
-	COLUMN_PENALTY_OPPOSITE: 200,
-	COLUMN_PENALTY_FAR: 300,
+	// Column preferences - right side is always preferred
+	RIGHT_SIDE_BONUS: 0,        // No penalty for right side
+	LEFT_SIDE_PENALTY: 150,     // Penalty for left side (even if link is on left)
+	COLUMN_FAR_PENALTY: 100,    // Additional penalty per column distance > 1
 	Y_DISTANCE_WEIGHT: 0.5,
+	// Line routing penalties
 	CHANNEL_REUSE_PENALTY: 500,
-	COAXIAL_PENALTY_PER_SEGMENT: 1000,  // Heavy penalty for lines running alongside
-	COAXIAL_PENALTY_PER_PIXEL: 5,       // Scale with overlap length
-	CROSSING_PENALTY: 200,              // Penalize crossing lines
+	COAXIAL_PENALTY_PER_SEGMENT: 2000,  // Very heavy penalty for lines running alongside
+	COAXIAL_PENALTY_PER_PIXEL: 10,      // Scale strongly with overlap length
+	CROSSING_PENALTY: 200,
 	CARD_OVERLAP_PENALTY: 1000
 } as const;
 
@@ -245,9 +246,7 @@ function scoreCandidatePosition(
 ): number {
 	let score = 0;
 
-	// Determine preferred column based on link side
 	const parentColumn = Math.floor(parentCard.position.x / COLUMN_WIDTH);
-	const preferredColumn = linkSide === 'left' ? parentColumn - 1 : parentColumn + 1;
 
 	// 1. Simulate the path for this candidate
 	const simPath = simulatePath(
@@ -277,19 +276,22 @@ function scoreCandidatePosition(
 	const yDistance = Math.abs(candidate.position.y - idealY);
 	score += yDistance * SCORING.Y_DISTANCE_WEIGHT;
 
-	// 6. Column preference based on link side
-	if (candidate.column === preferredColumn) {
-		// Preferred column (based on linkSide)
-		score += SCORING.COLUMN_PENALTY_PREFERRED;
-	} else if (Math.abs(candidate.column - parentColumn) === 1) {
-		// Adjacent column but not preferred (opposite side from link)
-		score += SCORING.COLUMN_PENALTY_OPPOSITE;
-	} else if (Math.abs(candidate.column - parentColumn) === 2) {
-		// Second column out
-		score += SCORING.COLUMN_PENALTY_FAR;
+	// 6. Column preference - right side always preferred, left as fallback
+	const isRightSide = candidate.column > parentColumn;
+	const columnDistance = Math.abs(candidate.column - parentColumn);
+
+	if (isRightSide) {
+		// Right side: no base penalty, small penalty for distance
+		score += SCORING.RIGHT_SIDE_BONUS;
+		if (columnDistance > 1) {
+			score += (columnDistance - 1) * SCORING.COLUMN_FAR_PENALTY;
+		}
 	} else {
-		// Further columns
-		score += Math.abs(candidate.column - parentColumn) * 150;
+		// Left side: base penalty plus distance penalty
+		score += SCORING.LEFT_SIDE_PENALTY;
+		if (columnDistance > 1) {
+			score += (columnDistance - 1) * SCORING.COLUMN_FAR_PENALTY;
+		}
 	}
 
 	// 7. Prefer unused routing channels (bonus for unique channel)
