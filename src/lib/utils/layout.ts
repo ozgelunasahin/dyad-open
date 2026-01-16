@@ -27,10 +27,10 @@ const SCORING = {
 	COLUMN_PENALTY_OPPOSITE: 200,
 	COLUMN_PENALTY_FAR: 300,
 	Y_DISTANCE_WEIGHT: 0.5,
-	CHANNEL_REUSE_PENALTY: 300,
-	COAXIAL_PENALTY_PER_SEGMENT: 500,
-	COAXIAL_PENALTY_PER_PIXEL: 2,
-	CROSSING_PENALTY: 50,
+	CHANNEL_REUSE_PENALTY: 500,
+	COAXIAL_PENALTY_PER_SEGMENT: 1000,  // Heavy penalty for lines running alongside
+	COAXIAL_PENALTY_PER_PIXEL: 5,       // Scale with overlap length
+	CROSSING_PENALTY: 200,              // Penalize crossing lines
 	CARD_OVERLAP_PENALTY: 1000
 } as const;
 
@@ -127,13 +127,15 @@ function generateCandidates(
 		yOffsets.push(-offset, offset);
 	}
 
-	// Columns to try: N+1, N+2, N+3 (right), and N-1 (left)
+	// Columns to try: N+1, N+2, N+3 (right), and N-1, N-2 (left)
+	// Allow negative columns for left-side placement from root card
 	const columnsToTry = [
 		parentColumn + 1,
 		parentColumn + 2,
 		parentColumn - 1,  // Left side
+		parentColumn - 2,  // Further left
 		parentColumn + 3
-	].filter(col => col >= 0);
+	];
 
 	for (const targetColumn of columnsToTry) {
 		const targetX = targetColumn * COLUMN_WIDTH;
