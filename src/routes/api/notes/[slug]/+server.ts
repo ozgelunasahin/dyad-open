@@ -49,7 +49,11 @@ function isValidSlug(slug: string): boolean {
 	return /^[a-z0-9-]+$/.test(slug) && !slug.includes('..');
 }
 
-export const PUT: RequestHandler = async ({ params, request }) => {
+export const PUT: RequestHandler = async ({ locals, params, request }) => {
+	if (!locals.user) {
+		return json({ error: 'Unauthorized' }, { status: 401 });
+	}
+
 	const { slug } = params;
 
 	if (!isValidSlug(slug)) {
@@ -94,7 +98,11 @@ export const PUT: RequestHandler = async ({ params, request }) => {
 	}
 };
 
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ locals, params }) => {
+	if (!locals.user) {
+		return json({ error: 'Unauthorized' }, { status: 401 });
+	}
+
 	const { slug } = params;
 
 	if (!isValidSlug(slug)) {

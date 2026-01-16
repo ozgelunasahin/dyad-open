@@ -1,73 +1,57 @@
 ---
-status: complete
+status: pending
 priority: p3
 issue_id: "016"
-tags: [code-review, quality]
+tags: [code-review, code-quality]
 dependencies: []
 ---
 
-# Code Quality: Debug console.log in Production Code
+# Console Logging in Production Code
 
 ## Problem Statement
 
-Debug logging is left in Canvas.svelte pathfinding code. Should be removed or gated behind debug mode.
+13 instances of `console.error` and 1 instance of `console.log` exist in production code. Some log on every operation (e.g., path computation).
 
 ## Findings
 
-**Source:** Pattern Recognition Specialist
+### Pattern Recognition Agent
 
-**Evidence:**
-- `src/lib/components/Canvas.svelte` lines 385-389
-
-```typescript
-console.log(
-    `[Pathfinding] ${connectionId}: ${result.method}`,
-    result.path.length, 'points',
-    result.failed ? '(FAILED)' : ''
-);
-```
+**Locations**:
+- `src/lib/components/Canvas.svelte:354,391`
+- `src/hooks.server.ts:26`
+- `src/lib/components/NoteCard.svelte:137,151`
+- `src/routes/api/notes/[slug]/+server.ts:44`
+- `src/routes/register/+page.server.ts:66`
+- `src/lib/stores/canvas.svelte.ts:280`
+- `src/routes/api/canvases/[canvasId]/positions/+server.ts:70`
+- `src/routes/dashboard/+page.server.ts:50,72`
+- `src/routes/login/+page.server.ts:58`
+- `src/routes/canvas/[canvasId]/+page.svelte:57`
 
 ## Proposed Solutions
 
-### Option A: Gate behind debug mode (Recommended)
-- **Pros:** Useful for debugging, silent in production
-- **Cons:** Slight overhead
-- **Effort:** Trivial (5 minutes)
-- **Risk:** None
+### Option A: Use Logging Library
+- **Description**: Use pino or similar with log levels
+- **Pros**: Production-ready logging, configurable
+- **Cons**: Adds dependency
+- **Effort**: Medium
+- **Risk**: Low
 
-```typescript
-if (canvasStore.debugMode) {
-    console.log(...);
-}
-```
-
-### Option B: Remove entirely
-- **Pros:** Clean production code
-- **Cons:** Loses debugging capability
-- **Effort:** Trivial
-- **Risk:** None
-
-## Recommended Action
-
-<!-- To be filled during triage -->
-
-## Technical Details
-
-### Affected Files
-- `src/lib/components/Canvas.svelte`
+### Option B: Remove Debug Logs (Recommended for now)
+- **Description**: Remove unnecessary logs, keep error logs server-side only
+- **Pros**: No dependency, quick
+- **Cons**: Less visibility
+- **Effort**: Small
+- **Risk**: Low
 
 ## Acceptance Criteria
 
-- [ ] No console.log in production
-- [ ] Debug mode still shows pathfinding info if needed
+- [ ] No `console.log` in production code
+- [ ] Error logs only on server-side where appropriate
+- [ ] No logging in hot paths (path computation)
 
 ## Work Log
 
-| Date | Action | Notes |
-|------|--------|-------|
-| 2025-01-15 | Created | Identified by pattern-recognition-specialist agent |
-| 2026-01-15 | Fixed | Gated behind canvasStore.debugMode check |
-
-## Resources
-
-- Debug mode already exists in canvasStore
+| Date | Action | Learnings |
+|------|--------|-----------|
+| 2026-01-15 | Created | Identified by pattern-recognition-specialist agent |

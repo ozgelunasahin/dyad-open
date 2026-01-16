@@ -30,15 +30,16 @@ function vaultHotReload(): Plugin {
 
 			server.watcher.on('change', (path) => {
 				if (path.includes('content/notes') && path.endsWith('.md')) {
-					// Skip if this change was triggered by our own API write
-					if (wasRecentlyWrittenByApi()) {
-						console.log(`\n[vault] ${path} changed (API write, skipping reload)`);
-						return;
-					}
-					console.log(`\n[vault] ${path} changed, rebuilding...`);
+					// Check if this change was triggered by our own API write
+					const isApiWrite = wasRecentlyWrittenByApi();
+					console.log(`\n[vault] ${path} changed${isApiWrite ? ' (API write)' : ''}, rebuilding...`);
 					try {
 						execSync('npx tsx scripts/build-vault.ts', { stdio: 'inherit' });
-						server.ws.send({ type: 'full-reload' });
+						// Only trigger full-reload for external edits, not API writes
+						// (API writes preserve the current view, user navigates when ready)
+						if (!isApiWrite) {
+							server.ws.send({ type: 'full-reload' });
+						}
 					} catch (e) {
 						console.error('[vault] Build failed:', e);
 					}

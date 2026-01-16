@@ -1,5 +1,5 @@
 import { marked, type TokenizerExtension, type RendererExtension, type Tokens } from 'marked';
-import DOMPurify from 'dompurify';
+import DOMPurify from 'isomorphic-dompurify';
 
 interface WikilinkToken extends Tokens.Generic {
 	type: 'wikilink';
@@ -8,13 +8,14 @@ interface WikilinkToken extends Tokens.Generic {
 	alias: string;
 }
 
-// Escape HTML entities to prevent XSS in attributes
+// HTML-escape a string to prevent XSS in attribute values
 function escapeHtml(str: string): string {
 	return str
 		.replace(/&/g, '&amp;')
-		.replace(/"/g, '&quot;')
 		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;');
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#039;');
 }
 
 const wikilinkExtension: TokenizerExtension & RendererExtension = {
@@ -36,31 +37,19 @@ const wikilinkExtension: TokenizerExtension & RendererExtension = {
 	},
 	renderer(token) {
 		const t = token as WikilinkToken;
-		// Escape both target and alias to prevent XSS
+		// Escape attributes to prevent XSS via crafted wikilinks
 		return `<button type="button" class="wikilink" data-target="${escapeHtml(t.target)}">${escapeHtml(t.alias)}</button>`;
 	}
 };
 
 marked.use({ extensions: [wikilinkExtension] });
 
-// Configure DOMPurify to allow our wikilink buttons
-const ALLOWED_TAGS = [
-	'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-	'p', 'br', 'hr',
-	'ul', 'ol', 'li',
-	'blockquote', 'pre', 'code',
-	'strong', 'em', 'del', 's',
-	'a', 'button',
-	'table', 'thead', 'tbody', 'tr', 'th', 'td'
-];
-
-const ALLOWED_ATTR = ['class', 'data-target', 'type', 'href', 'title'];
-
 export function parseMarkdown(content: string): string {
-	const rawHtml = marked.parse(content, { async: false }) as string;
-	return DOMPurify.sanitize(rawHtml, {
-		ALLOWED_TAGS,
-		ALLOWED_ATTR
+	const html = marked.parse(content, { async: false }) as string;
+	// Sanitize HTML to prevent XSS attacks
+	return DOMPurify.sanitize(html, {
+		ADD_TAGS: ['button'],
+		ADD_ATTR: ['data-target']
 	});
 }
 

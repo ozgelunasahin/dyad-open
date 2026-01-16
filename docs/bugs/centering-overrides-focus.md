@@ -1,0 +1,1 @@
+Bringing a card to the center of the viewport overrides the current focus, which is intended behavior but leads to some strange behaqvior when you click on a card and it does not focus because another card is in the center of screen. need to work out how to make the focus more 'sticky' for selected cards and followed links. 

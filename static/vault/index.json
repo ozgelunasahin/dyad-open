@@ -1,6 +1,12 @@
 {
   "entryPoint": "slow-reading",
   "notes": {
+    "brand-new-note": {
+      "id": "brand-new-note",
+      "title": "Brand New Note",
+      "content": "# Brand New Note",
+      "wikilinks": []
+    },
     "isabelle-stengers": {
       "id": "isabelle-stengers",
       "title": "Isabelle Stengers",
@@ -25,13 +31,19 @@
     "macfarlane-landmarks": {
       "id": "macfarlane-landmarks",
       "title": "Landmarks",
-      "content": "# Landmarks\n\nRobert Macfarlane, *Landmarks* (London: Penguin Books, 2016), 10.\n\nA meditation on the language of landscape and the ways words shape our perception of the natural world.",
+      "content": "# Landmarks\n\nRobert Macfarlane, ***Landmarks*** (London: Penguin Books, 2016), 10.\n\nA meditation on the language of landscape and the ways words shape our perception of the natural world.",
       "wikilinks": []
     },
     "maturana-varela-autopoiesis": {
       "id": "maturana-varela-autopoiesis",
       "title": "Autopoiesis and Cognition",
       "content": "# Autopoiesis and Cognition\n\nHumberto Maturana and Francisco Varela, *Autopoiesis and Cognition: The Realization of the Living* (Dordrecht NL: D. Reidel Publishing, 1980).\n\nA foundational text on living systems and their self-organizing properties.",
+      "wikilinks": []
+    },
+    "must-not": {
+      "id": "must-not",
+      "title": "Must Not",
+      "content": "# Must Not",
       "wikilinks": []
     },
     "pauline-oliveros": {
@@ -73,6 +85,12 @@
         "solnit-mother-of-all-questions"
       ]
     },
+    "silently-or-aloud": {
+      "id": "silently-or-aloud",
+      "title": "Silently Or Aloud",
+      "content": "# Silently Or Aloud",
+      "wikilinks": []
+    },
     "slow-readers-group": {
       "id": "slow-readers-group",
       "title": "The Slow Readers",
@@ -92,13 +110,17 @@
     "slow-reading": {
       "id": "slow-reading",
       "title": "Slow Reading",
-      "content": "# Slow Reading\n\nWhether enacted collectively or alone, silently or aloud, slow reading allows time to pause, rewind, doubt and pursue what at first sight may be tangents. Analogous to gardening, it is a means of tending to and *being in attendance* with what is read. As the Belgian philosopher [[isabelle-stengers]] points out: \"speed demands and creates an insensitivity to everything that might slow things down: the frictions, the rubbing, the hesitations that make us feel we are not alone in the world.\" Urgency abounds, but we must not become desensitized under the pressure of its pace. [[stengers-deceleration|Stengers argues for deceleration]], noting: \"Slowing down means becoming capable of learning again, becoming acquainted with things again, reweaving the bounds of interdependency.\" Although counter-intuitive amid multiple crises, slow reading hits the pause button and summons, as if by séance, an incongruous temporality.\n\nWithin that parallel time zone, slow reading acclimates itself to subtle movements and listens closely to declarations of doubt. *Wait, I'm confused. There's just something I'm not getting.* Without hesitation, we recalibrate, adjusting to linger with the lost or even admit that we ourselves are lost too. There is solidarity as we have all been there. R-E-A-D-I-N-G, in this way, is a practice that consciously aligns itself with the seemingly negative associations of slowness—of not being clever, lacking efficiency, not getting things done and simply not knowing. Rather than a hindrance, these qualities are generative. They create an opening for exploring questions, giving attention to shimmering lights in the margins and accounting for things escaping words altogether. As the British nature writer [[robert-macfarlane]] observes:\n\n> There are experiences of landscape that will always resist articulation, and of which words offer only a remote echo—or to which silence is by far the best response. Nature does not name itself. Granite does not self-identify as igneous. Light has no grammar. Language is always late for its subject.\n\nIn reading, ever so slowly at a snail's pace, we listen to distant echoes. Continuously thumbing through pages and fumbling for words, we preserve placeholders for the unsaid and [[silence|silences]]. We nurture places for *what may have been* and the *yet-to-be*. Rather than championing the avant-garde, slow reading fosters falling behind, failing to comprehend, stopping and taking time to follow up. *Sorry to interrupt you, but can we go back and read that last part of the sentence again?* Yes, slow reading allows space for falling behind, failing to comprehend, stopping and taking time to follow up. Slow reading rejects hierarchy, cold, critical analysis, disavows any illusions of mastery and does not surrender to the linear. Without seeking definitive interpretations, it relishes in the [[slow-readers-methodology|methodology developed by the Slow Readers]].",
+      "content": "# Slow Reading\n\nWhether enacted collectively or alone, [[silently-or-aloud|silently or aloud]], slow reading allows time to pause, rewind, doubt and pursue what at first sight may be tangents. Analogous to gardening, it is a means of tending to and *being in attendance* with what is read. As the Belgian philosopher [[isabelle-stengers]] points out: \"speed demands and creates an insensitivity to everything that might slow [[things]] down: the frictions, the rubbing, the hesitations that make us feel we are not alone in the world.\" Urgency abounds, but we [[must-not|must not]] become desensitized under the pressure of its pace. [[stengers-deceleration|Stengers argues for deceleration]], noting: \"Slowing down means becoming capable of learning again, becoming acquainted with things again, reweaving the bounds of interdependency.\" Although counter-intuitive amid multiple crises, slow reading hits the pause button and summons, as if by séance, an incongruous temporality.\n\nWithin that parallel time zone, slow reading acclimates itself to subtle movements and listens closely to declarations of doubt. *Wait, I'm confused. There's just something I'm not getting.* Without hesitation, we recalibrate, adjusting to linger with the lost or even admit that we ourselves are lost too. There is solidarity as we have all been there. R-E-A-D-I-N-G, in this way, is a practice that consciously aligns itself with the seemingly negative associations of slowness—of not being clever, lacking efficiency, not getting things done and simply not knowing. Rather than a hindrance, these qualities are generative. They create an opening for exploring questions, giving attention to shimmering lights in the margins and accounting for things escaping words altogether. As the British nature writer [[robert-macfarlane]] observes:\n\n> There are experiences of landscape that will always resist articulation, and of which words offer only a remote echo—or to which silence is by far the best response. Nature does not name itself. Granite does not self-identify as igneous. Light has no grammar. Language is always late for its subject.\n\nIn reading, ever so slowly at a snail's pace, we listen to distant echoes. Continuously thumbing through pages and fumbling for words, we preserve placeholders for the unsaid and [[silence|silences]]. We nurture places for *what may have been* and the *yet-to-be*. Rather than championing the avant-garde, slow reading fosters falling behind, failing to comprehend, stopping and taking time to follow up. *Sorry to interrupt you, but can we go back and read that last part of the sentence again?* Yes, slow reading allows space for falling behind, failing to comprehend, stopping and taking time to follow up. Slow reading rejects hierarchy, cold, critical analysis, disavows any illusions of mastery and does not surrender to the linear. Without seeking definitive interpretations, it relishes in the [[slow-readers-methodology|methodology developed by the Slow Readers]]. See also [[brand-new-note]]",
       "wikilinks": [
+        "silently-or-aloud",
         "isabelle-stengers",
+        "things",
+        "must-not",
         "stengers-deceleration",
         "robert-macfarlane",
         "silence",
-        "slow-readers-methodology"
+        "slow-readers-methodology",
+        "brand-new-note"
       ]
     },
     "solnit-mother-of-all-questions": {
@@ -129,6 +151,12 @@
       "wikilinks": [
         "stengers-another-science"
       ]
+    },
+    "things": {
+      "id": "things",
+      "title": "Things",
+      "content": "# Things",
+      "wikilinks": []
     }
   }
 }
