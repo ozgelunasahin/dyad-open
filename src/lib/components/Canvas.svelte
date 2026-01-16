@@ -161,11 +161,11 @@
 		// Listen for restore position requests (returning to previous card)
 		const handleRestorePosition = (event: Event) => {
 			const customEvent = event as CustomEvent<{
-				camera: { x: number; y: number; zoom: number };
+				focusPoint: { x: number; y: number };
 				linkRestoration?: { linkTarget?: string; linkFocusActive: boolean } | null;
 			}>;
 			pendingLinkRestoration = customEvent.detail.linkRestoration ?? null;
-			animateToPosition(customEvent.detail.camera);
+			animateToFocusPoint(customEvent.detail.focusPoint);
 		};
 
 		window.addEventListener('canvas-restore', handleRestorePosition);
@@ -606,10 +606,11 @@
 	}
 
 	/**
-	 * Smoothly animate to a specific camera position (for restoring previous position).
+	 * Smoothly animate to show a focus point at viewport center.
+	 * ALWAYS preserves current zoom level - user controls their reading zoom.
 	 * P2-007 fix: Added cancellation check to prevent memory leaks.
 	 */
-	function animateToPosition(targetCamera: { x: number; y: number; zoom: number }) {
+	function animateToFocusPoint(focusPoint: { x: number; y: number }) {
 		if (!svg) return;
 
 		// Reset cancellation flag for new animation
@@ -617,9 +618,16 @@
 
 		const selection = select(svg);
 
+		const width = svg.clientWidth;
+		const height = svg.clientHeight;
+
+		// Compute target camera position to show focusPoint at viewport center
+		// Using CURRENT zoom level - never change zoom during navigation
+		const targetX = width / 2 - focusPoint.x * transform.k;
+		const targetY = height / 2 - focusPoint.y * transform.k;
+
 		const startX = transform.x;
 		const startY = transform.y;
-		const startZoom = transform.k;
 
 		const duration = 300; // Slightly faster for "going back"
 		const startTime = Date.now();
@@ -634,11 +642,11 @@
 			// Ease out quad
 			const eased = 1 - (1 - progress) * (1 - progress);
 
-			const currentX = startX + (targetCamera.x - startX) * eased;
-			const currentY = startY + (targetCamera.y - startY) * eased;
-			const currentZoom = startZoom + (targetCamera.zoom - startZoom) * eased;
+			const currentX = startX + (targetX - startX) * eased;
+			const currentY = startY + (targetY - startY) * eased;
 
-			const newTransform = zoomIdentity.translate(currentX, currentY).scale(currentZoom);
+			// Keep current zoom constant
+			const newTransform = zoomIdentity.translate(currentX, currentY).scale(transform.k);
 
 			selection.call(zoomBehavior.transform, newTransform);
 
@@ -722,11 +730,18 @@
 	}
 
 	/**
-	 * Handle clicking on a card - focus it and bring into reading view.
+	 * Handle clicking on a card.
+	 * First click: focus (highlight) the card without panning
+	 * Second click: pan to reading position
 	 */
 	function handleCardClick(cardId: string) {
-		// Focus the card and animate to reading position
-		canvasStore.focusCard(cardId);
+		if (canvasStore.focusedCardId === cardId) {
+			// Second click on already-focused card - pan to reading position
+			canvasStore.panToFocusedCard();
+		} else {
+			// First click - just focus without panning
+			canvasStore.focusCardWithoutAnimation(cardId);
+		}
 	}
 
 	function handleLinkClick(noteId: string, fromCardId: string, screenPosition: Point) {

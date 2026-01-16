@@ -94,10 +94,11 @@ class CanvasStore {
 	focusedLinkIndex = $state<number | null>(null);
 	isLinkFocusMode = $derived(this.focusedLinkIndex !== null);
 
-	// Per-card reading state (camera position, link focus, etc.)
+	// Per-card reading state (focus point in canvas coordinates, link focus, etc.)
 	// Saved when leaving a card, restored when returning
+	// Using canvas-space focusPoint instead of camera ensures zoom-independent restoration
 	private savedCardState = $state<Map<string, {
-		camera: Camera;
+		focusPoint: Point;  // Canvas-space point that was at viewport center
 		linkTarget?: string;
 		linkFocusActive?: boolean;
 	}>>(new Map());
@@ -442,10 +443,20 @@ class CanvasStore {
 				// Card panned out of view - clear saved state so it will re-focus for reading
 				this.clearSavedCardState(this.focusedCardId);
 			} else {
-				// Card still in reading zone - save current camera (preserves scroll position)
-				const existing = this.savedCardState.get(this.focusedCardId) || { camera: this.camera };
+				// Card still in reading zone - save focus point (canvas-space coordinates)
+				// This ensures reading position is zoom-independent
+				const focusX = this.viewportWidth > 0
+					? (this.viewportWidth / 2 - this.camera.x) / this.camera.zoom
+					: 0;
+				const focusY = this.viewportHeight > 0
+					? (this.viewportHeight / 2 - this.camera.y) / this.camera.zoom
+					: 0;
+				const existing = this.savedCardState.get(this.focusedCardId);
 				const newMap = new Map(this.savedCardState);
-				newMap.set(this.focusedCardId, { ...existing, camera: { ...this.camera } });
+				newMap.set(this.focusedCardId, {
+					...existing,
+					focusPoint: { x: focusX, y: focusY }
+				});
 				this.savedCardState = newMap;
 			}
 		}
@@ -464,11 +475,12 @@ class CanvasStore {
 				? { linkTarget: savedState.linkTarget, linkFocusActive: true }
 				: null;
 
-			if (savedState?.camera) {
-				// Returning to previously visited card - restore exact position
+			if (savedState?.focusPoint) {
+				// Returning to previously visited card - restore to saved focus point
+				// Canvas will compute camera position at current zoom level
 				window.dispatchEvent(
 					new CustomEvent('canvas-restore', {
-						detail: { camera: savedState.camera, linkRestoration }
+						detail: { focusPoint: savedState.focusPoint, linkRestoration }
 					})
 				);
 			} else {
@@ -480,6 +492,80 @@ class CanvasStore {
 							y: card.position.y, // Card top, not center
 							cardId: card.id,
 							linkRestoration
+						}
+					})
+				);
+			}
+		}
+	}
+
+	/**
+	 * Focus a card without animating to it (for first-click behavior).
+	 * Just sets the focused card and saves current card's state.
+	 * A second click will trigger pan to reading position.
+	 */
+	focusCardWithoutAnimation(cardId: string): void {
+		const card = this.cards.get(cardId);
+		if (!card) return;
+
+		// Save current card's state before switching
+		if (this.focusedCardId && this.focusedCardId !== cardId) {
+			const inReadingZone = this.viewportWidth > 0 && this.viewportHeight > 0
+				? this.isCardInReadingZone(this.viewportWidth, this.viewportHeight, 100)
+				: true;
+
+			if (!inReadingZone) {
+				this.clearSavedCardState(this.focusedCardId);
+			} else {
+				const focusX = this.viewportWidth > 0
+					? (this.viewportWidth / 2 - this.camera.x) / this.camera.zoom
+					: 0;
+				const focusY = this.viewportHeight > 0
+					? (this.viewportHeight / 2 - this.camera.y) / this.camera.zoom
+					: 0;
+				const existing = this.savedCardState.get(this.focusedCardId);
+				const newMap = new Map(this.savedCardState);
+				newMap.set(this.focusedCardId, {
+					...existing,
+					focusPoint: { x: focusX, y: focusY }
+				});
+				this.savedCardState = newMap;
+			}
+		}
+
+		// Just set focus, no animation
+		this.focusedCardId = cardId;
+	}
+
+	/**
+	 * Pan to reading position for the currently focused card.
+	 * Used on second click when card is already focused.
+	 */
+	panToFocusedCard(): void {
+		const card = this.focusedCardId ? this.cards.get(this.focusedCardId) : null;
+		if (!card) return;
+
+		const savedState = this.savedCardState.get(this.focusedCardId!);
+
+		if (typeof window !== 'undefined') {
+			this.isAnimating = true;
+
+			if (savedState?.focusPoint) {
+				// Restore to saved focus point
+				window.dispatchEvent(
+					new CustomEvent('canvas-restore', {
+						detail: { focusPoint: savedState.focusPoint, linkRestoration: null }
+					})
+				);
+			} else {
+				// New card - animate to reading position
+				window.dispatchEvent(
+					new CustomEvent('canvas-focus', {
+						detail: {
+							x: card.position.x + card.dimensions.width / 2,
+							y: card.position.y,
+							cardId: card.id,
+							linkRestoration: null
 						}
 					})
 				);
@@ -563,9 +649,14 @@ class CanvasStore {
 	// Save link focus state (target and mode) for current card before leaving
 	saveLinkState(linkTarget: string | undefined, linkFocusActive: boolean): void {
 		if (!this.focusedCardId) return;
-		const existing = this.savedCardState.get(this.focusedCardId) || { camera: this.camera };
+		// Compute current focus point if we don't have one
+		const existing = this.savedCardState.get(this.focusedCardId);
+		const focusPoint = existing?.focusPoint ?? {
+			x: this.viewportWidth > 0 ? (this.viewportWidth / 2 - this.camera.x) / this.camera.zoom : 0,
+			y: this.viewportHeight > 0 ? (this.viewportHeight / 2 - this.camera.y) / this.camera.zoom : 0
+		};
 		const newMap = new Map(this.savedCardState);
-		newMap.set(this.focusedCardId, { ...existing, linkTarget, linkFocusActive });
+		newMap.set(this.focusedCardId, { focusPoint, linkTarget, linkFocusActive });
 		this.savedCardState = newMap;
 	}
 
