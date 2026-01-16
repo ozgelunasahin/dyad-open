@@ -102,6 +102,10 @@ class CanvasStore {
 		linkFocusActive?: boolean;
 	}>>(new Map());
 
+	// Viewport dimensions for reading zone calculations
+	private viewportWidth = $state<number>(0);
+	private viewportHeight = $state<number>(0);
+
 	// Current canvas ID for per-canvas state persistence
 	private currentCanvasId: string | null = null;
 
@@ -428,13 +432,17 @@ class CanvasStore {
 		if (!card) return;
 
 		// Save current card's state before switching (camera is saved here, link state saved separately)
-		// BUT: If user has navigated far away, don't save the distant position - clear it instead
+		// BUT: If card has been panned out of the reading zone, don't save - clear it instead
 		if (this.focusedCardId && this.focusedCardId !== cardId) {
-			if (this.hasNavigatedAwayFromSavedPosition(150)) {
-				// User panned far away - clear saved state so card will re-focus for reading
+			const inReadingZone = this.viewportWidth > 0 && this.viewportHeight > 0
+				? this.isCardInReadingZone(this.viewportWidth, this.viewportHeight, 100)
+				: true; // If no viewport info, assume in zone
+
+			if (!inReadingZone) {
+				// Card panned out of view - clear saved state so it will re-focus for reading
 				this.clearSavedCardState(this.focusedCardId);
 			} else {
-				// User is still near reading position - save current camera
+				// Card still in reading zone - save current camera (preserves scroll position)
 				const existing = this.savedCardState.get(this.focusedCardId) || { camera: this.camera };
 				const newMap = new Map(this.savedCardState);
 				newMap.set(this.focusedCardId, { ...existing, camera: { ...this.camera } });
@@ -526,6 +534,11 @@ class CanvasStore {
 		this.persistState();
 	}
 
+	updateViewportDimensions(width: number, height: number): void {
+		this.viewportWidth = width;
+		this.viewportHeight = height;
+	}
+
 	setAnimating(animating: boolean): void {
 		this.isAnimating = animating;
 	}
@@ -571,24 +584,45 @@ class CanvasStore {
 		}
 	}
 
-	// Check if current camera position is far from saved position for focused card
-	// Returns true if position has diverged beyond threshold (user manually navigated away)
-	hasNavigatedAwayFromSavedPosition(threshold: number = 200): boolean {
-		if (!this.focusedCardId) return false;
-		const savedState = this.savedCardState.get(this.focusedCardId);
-		if (!savedState?.camera) return false;
+	// Check if the focused card is still within the viewport's reading zone
+	// The reading zone is the viewport minus margins on each side
+	// Vertical scrolling is allowed (reading), horizontal panning away is not
+	isCardInReadingZone(viewportWidth: number, viewportHeight: number, margin: number = 100): boolean {
+		if (!this.focusedCardId) return true;
+		const card = this.cards.get(this.focusedCardId);
+		if (!card) return true;
 
-		const dx = Math.abs(this.camera.x - savedState.camera.x);
-		const dy = Math.abs(this.camera.y - savedState.camera.y);
-		const distance = Math.sqrt(dx * dx + dy * dy);
+		// Convert viewport bounds to canvas coordinates
+		const zoom = this.camera.zoom;
+		const viewportLeft = -this.camera.x / zoom;
+		const viewportRight = (-this.camera.x + viewportWidth) / zoom;
+		const viewportTop = -this.camera.y / zoom;
+		const viewportBottom = (-this.camera.y + viewportHeight) / zoom;
 
-		return distance > threshold;
+		// Card bounds
+		const cardLeft = card.position.x;
+		const cardRight = card.position.x + card.dimensions.width;
+		const cardTop = card.position.y;
+		const cardBottom = card.position.y + card.dimensions.height;
+
+		// Reading zone (viewport with margins)
+		const zoneLeft = viewportLeft + margin / zoom;
+		const zoneRight = viewportRight - margin / zoom;
+		const zoneTop = viewportTop + margin / zoom;
+		const zoneBottom = viewportBottom - margin / zoom;
+
+		// Card is in reading zone if it overlaps horizontally with the zone
+		// and at least part of it is visible vertically
+		const horizontalOverlap = cardRight > zoneLeft && cardLeft < zoneRight;
+		const verticalVisible = cardBottom > viewportTop && cardTop < viewportBottom;
+
+		return horizontalOverlap && verticalVisible;
 	}
 
-	// Clear saved state for current card if user has navigated away
-	clearSavedStateIfNavigatedAway(threshold: number = 200): void {
+	// Clear saved state for current card if it's been panned out of the reading zone
+	clearSavedStateIfNotInReadingZone(viewportWidth: number, viewportHeight: number, margin: number = 100): void {
 		if (!this.focusedCardId) return;
-		if (this.hasNavigatedAwayFromSavedPosition(threshold)) {
+		if (!this.isCardInReadingZone(viewportWidth, viewportHeight, margin)) {
 			this.clearSavedCardState(this.focusedCardId);
 		}
 	}

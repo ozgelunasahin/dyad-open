@@ -66,9 +66,11 @@
 					zoom: event.transform.k
 				});
 
-				// Clear saved reading position if user manually navigates far from it
-				// This breaks persistence for intentional mouse navigation
-				canvasStore.clearSavedStateIfNavigatedAway(150);
+				// Clear saved reading position if card has been panned out of the reading zone
+				// Vertical scrolling (reading) is fine, but panning the card out of view clears it
+				if (svg) {
+					canvasStore.clearSavedStateIfNotInReadingZone(svg.clientWidth, svg.clientHeight, 100);
+				}
 			});
 
 		const selection = select(svg);
@@ -132,6 +134,15 @@
 
 		// Compute paths for any restored connections (after state initialization)
 		setTimeout(() => computeMissingPaths(), 0);
+
+		// Set initial viewport dimensions and update on resize
+		canvasStore.updateViewportDimensions(svg.clientWidth, svg.clientHeight);
+		const resizeObserver = new ResizeObserver((entries) => {
+			for (const entry of entries) {
+				canvasStore.updateViewportDimensions(entry.contentRect.width, entry.contentRect.height);
+			}
+		});
+		resizeObserver.observe(svg);
 
 		// Listen for focus animation requests
 		const handleFocusAnimation = (event: Event) => {
@@ -455,6 +466,7 @@
 			window.removeEventListener('canvas-compute-paths', handleComputePaths);
 			window.removeEventListener('keydown', handleKeyDown);
 			svg.removeEventListener('wheel', handleWheel);
+			resizeObserver.disconnect();
 		};
 	});
 
