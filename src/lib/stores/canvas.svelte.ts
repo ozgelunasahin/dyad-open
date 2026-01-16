@@ -94,11 +94,11 @@ class CanvasStore {
 	focusedLinkIndex = $state<number | null>(null);
 	isLinkFocusMode = $derived(this.focusedLinkIndex !== null);
 
-	// Per-card reading state (focus point in canvas coordinates, link focus, etc.)
+	// Per-card reading state (vertical scroll position, link focus, etc.)
 	// Saved when leaving a card, restored when returning
-	// Using canvas-space focusPoint instead of camera ensures zoom-independent restoration
+	// Only vertical position is saved - horizontal is restored to card center
 	private savedCardState = $state<Map<string, {
-		focusPoint: Point;  // Canvas-space point that was at viewport center
+		focusY: number;  // Canvas-space Y that was at viewport center (reading position)
 		linkTarget?: string;
 		linkFocusActive?: boolean;
 	}>>(new Map());
@@ -443,11 +443,8 @@ class CanvasStore {
 				// Card panned out of view - clear saved state so it will re-focus for reading
 				this.clearSavedCardState(this.focusedCardId);
 			} else {
-				// Card still in reading zone - save focus point (canvas-space coordinates)
-				// This ensures reading position is zoom-independent
-				const focusX = this.viewportWidth > 0
-					? (this.viewportWidth / 2 - this.camera.x) / this.camera.zoom
-					: 0;
+				// Card still in reading zone - save only vertical focus position
+				// Horizontal position is discarded; will restore to card center
 				const focusY = this.viewportHeight > 0
 					? (this.viewportHeight / 2 - this.camera.y) / this.camera.zoom
 					: 0;
@@ -455,7 +452,7 @@ class CanvasStore {
 				const newMap = new Map(this.savedCardState);
 				newMap.set(this.focusedCardId, {
 					...existing,
-					focusPoint: { x: focusX, y: focusY }
+					focusY
 				});
 				this.savedCardState = newMap;
 			}
@@ -475,12 +472,16 @@ class CanvasStore {
 				? { linkTarget: savedState.linkTarget, linkFocusActive: true }
 				: null;
 
-			if (savedState?.focusPoint) {
-				// Returning to previously visited card - restore to saved focus point
-				// Canvas will compute camera position at current zoom level
+			if (savedState?.focusY !== undefined) {
+				// Returning to previously visited card - restore vertical position
+				// Horizontal position restored to card center
 				window.dispatchEvent(
 					new CustomEvent('canvas-restore', {
-						detail: { focusPoint: savedState.focusPoint, linkRestoration }
+						detail: {
+							focusY: savedState.focusY,
+							cardId: card.id,  // Canvas uses this to compute centered X
+							linkRestoration
+						}
 					})
 				);
 			} else {
@@ -517,9 +518,6 @@ class CanvasStore {
 			if (!inReadingZone) {
 				this.clearSavedCardState(this.focusedCardId);
 			} else {
-				const focusX = this.viewportWidth > 0
-					? (this.viewportWidth / 2 - this.camera.x) / this.camera.zoom
-					: 0;
 				const focusY = this.viewportHeight > 0
 					? (this.viewportHeight / 2 - this.camera.y) / this.camera.zoom
 					: 0;
@@ -527,7 +525,7 @@ class CanvasStore {
 				const newMap = new Map(this.savedCardState);
 				newMap.set(this.focusedCardId, {
 					...existing,
-					focusPoint: { x: focusX, y: focusY }
+					focusY
 				});
 				this.savedCardState = newMap;
 			}
@@ -550,11 +548,15 @@ class CanvasStore {
 		if (typeof window !== 'undefined') {
 			this.isAnimating = true;
 
-			if (savedState?.focusPoint) {
-				// Restore to saved focus point
+			if (savedState?.focusY !== undefined) {
+				// Restore to saved vertical position, centered horizontally
 				window.dispatchEvent(
 					new CustomEvent('canvas-restore', {
-						detail: { focusPoint: savedState.focusPoint, linkRestoration: null }
+						detail: {
+							focusY: savedState.focusY,
+							cardId: card.id,
+							linkRestoration: null
+						}
 					})
 				);
 			} else {
@@ -649,14 +651,12 @@ class CanvasStore {
 	// Save link focus state (target and mode) for current card before leaving
 	saveLinkState(linkTarget: string | undefined, linkFocusActive: boolean): void {
 		if (!this.focusedCardId) return;
-		// Compute current focus point if we don't have one
+		// Compute current focus Y if we don't have one
 		const existing = this.savedCardState.get(this.focusedCardId);
-		const focusPoint = existing?.focusPoint ?? {
-			x: this.viewportWidth > 0 ? (this.viewportWidth / 2 - this.camera.x) / this.camera.zoom : 0,
-			y: this.viewportHeight > 0 ? (this.viewportHeight / 2 - this.camera.y) / this.camera.zoom : 0
-		};
+		const focusY = existing?.focusY ??
+			(this.viewportHeight > 0 ? (this.viewportHeight / 2 - this.camera.y) / this.camera.zoom : 0);
 		const newMap = new Map(this.savedCardState);
-		newMap.set(this.focusedCardId, { focusPoint, linkTarget, linkFocusActive });
+		newMap.set(this.focusedCardId, { focusY, linkTarget, linkFocusActive });
 		this.savedCardState = newMap;
 	}
 
