@@ -306,8 +306,8 @@ function findVerticalRoutingX(
 		? (sourceY - cardTop) / cardHeight
 		: 0.5;
 
-	// Use up to 40% of gap width for offset range
-	const maxOffset = gapWidth * 0.4;
+	// Use up to 80% of gap width for offset range
+	const maxOffset = gapWidth * 0.8;
 	// Flip: top (0) → +maxOffset/2, bottom (1) → -maxOffset/2
 	const offset = (0.5 - normalizedY) * maxOffset;
 
