@@ -59,6 +59,9 @@ export const MAX_CARDS = 50;
 export const GRID_CELL_SIZE = 10;
 export const OBSTACLE_PADDING = 20; // Keep small so paths can use gaps
 
+// Layout types
+export type LinkSide = 'left' | 'right';
+
 // Debug visualization types
 export type Direction = 'up' | 'down' | 'left' | 'right';
 

@@ -1,4 +1,4 @@
-import type { Card, Connection, Camera, Point, Vault, Dimensions, AStarExplorationFrame } from '$lib/types';
+import type { Card, Connection, Camera, Point, Vault, Dimensions, AStarExplorationFrame, LinkSide } from '$lib/types';
 import { MAX_CARDS, DEFAULT_CARD_WIDTH, MIN_CARD_WIDTH, MAX_CARD_WIDTH } from '$lib/types';
 import { calculateNewCardPosition } from '$lib/utils/layout';
 import { measureMarkdownContent, calculateOptimalWidth } from '$lib/utils/measure';
@@ -596,7 +596,8 @@ class CanvasStore {
 	followLinkToRight(
 		noteId: string,
 		fromCardId: string,
-		linkPosition: Point
+		linkPosition: Point,
+		linkSide?: LinkSide
 	): boolean {
 		// If note is already open, update chain and focus it
 		if (this.cards.has(noteId)) {
@@ -627,7 +628,8 @@ class CanvasStore {
 			existingCards,
 			linkPosition,
 			dimensions,
-			existingPathPoints
+			existingPathPoints,
+			linkSide
 		);
 
 		// Create new card

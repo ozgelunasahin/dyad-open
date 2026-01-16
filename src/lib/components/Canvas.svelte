@@ -3,7 +3,7 @@
 	import { zoom, zoomIdentity, type ZoomBehavior } from 'd3-zoom';
 	import { select } from 'd3-selection';
 	import 'd3-transition'; // Adds .transition() method to selections
-	import type { Point } from '$lib/types';
+	import type { Point, LinkSide } from '$lib/types';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import {
 		routeConnection,
@@ -303,9 +303,16 @@
 					y: (rect.bottom - svgRect.top - transform.y) / transform.k
 				};
 
+				// Calculate linkSide based on link position relative to card center
+				const fromCard = canvasStore.cards.get(currentFocusedCard);
+				const cardCenterX = fromCard
+					? fromCard.position.x + (fromCard.dimensions?.width ?? 400) / 2
+					: 0;
+				const linkSide: LinkSide = canvasPosition.x < cardCenterX ? 'left' : 'right';
+
 				canvasStore.exitLinkFocusMode();
 				const noteAlreadyOpen = canvasStore.cards.has(target);
-				canvasStore.followLinkToRight(target, currentFocusedCard, canvasPosition);
+				canvasStore.followLinkToRight(target, currentFocusedCard, canvasPosition, linkSide);
 
 				// Compute and store path for new connection if card was created
 				if (!noteAlreadyOpen && canvasStore.cards.has(target)) {
@@ -714,6 +721,13 @@
 			y: (screenPosition.y - svgRect.top - transform.y) / transform.k
 		};
 
+		// Calculate linkSide based on link position relative to card center
+		const fromCard = canvasStore.cards.get(fromCardId);
+		const cardCenterX = fromCard
+			? fromCard.position.x + (fromCard.dimensions?.width ?? 400) / 2
+			: 0;
+		const linkSide: LinkSide = canvasPosition.x < cardCenterX ? 'left' : 'right';
+
 		// Save current card's reading state before navigating (same as keyboard nav)
 		canvasStore.saveLinkState(undefined, false);
 
@@ -731,7 +745,7 @@
 		const noteAlreadyOpen = canvasStore.cards.has(noteId);
 
 		// Use followLinkToRight for consistent chain behavior with keyboard nav
-		canvasStore.followLinkToRight(noteId, fromCardId, canvasPosition);
+		canvasStore.followLinkToRight(noteId, fromCardId, canvasPosition, linkSide);
 
 		// Compute and store path for new connection
 		if (!noteAlreadyOpen && canvasStore.cards.has(noteId)) {

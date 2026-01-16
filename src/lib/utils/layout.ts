@@ -1,4 +1,4 @@
-import type { Card, Point, Dimensions } from '$lib/types';
+import type { Card, Point, Dimensions, LinkSide } from '$lib/types';
 import { CARD_SPACING, DEFAULT_CARD_WIDTH } from '$lib/types';
 import {
 	detectCoaxialOverlap,
@@ -20,6 +20,20 @@ const ROUTING_GAP = 80; // Horizontal gap between columns for routing vertical s
 const COLUMN_WIDTH = DEFAULT_CARD_WIDTH + CARD_SPACING + ROUTING_GAP;
 const CHANNEL_STEP = 15; // Spacing between routing channels
 
+// Scoring constants for layout algorithm
+const SCORING = {
+	COLUMN_PENALTY_PREFERRED: 0,
+	COLUMN_PENALTY_ADJACENT: 100,
+	COLUMN_PENALTY_OPPOSITE: 200,
+	COLUMN_PENALTY_FAR: 300,
+	Y_DISTANCE_WEIGHT: 0.5,
+	CHANNEL_REUSE_PENALTY: 300,
+	COAXIAL_PENALTY_PER_SEGMENT: 500,
+	COAXIAL_PENALTY_PER_PIXEL: 2,
+	CROSSING_PENALTY: 50,
+	CARD_OVERLAP_PENALTY: 1000
+} as const;
+
 /**
  * Layout candidate for scoring.
  */
@@ -38,7 +52,8 @@ export function calculateNewCardPosition(
 	existingCards: Card[],
 	linkPosition: Point | null,
 	newCardDimensions: Dimensions,
-	existingPaths: Point[][] = []
+	existingPaths: Point[][] = [],
+	linkSide?: LinkSide
 ): { position: Point; routingX?: number } {
 	if (!parentCard || !linkPosition) {
 		return { position: { x: 0, y: 0 } };
@@ -61,7 +76,8 @@ export function calculateNewCardPosition(
 			linkPosition,
 			newCardDimensions,
 			existingCards,
-			existingPaths
+			existingPaths,
+			linkSide
 		);
 	}
 
@@ -222,9 +238,14 @@ function scoreCandidatePosition(
 	linkPosition: Point,
 	newCardDimensions: Dimensions,
 	existingCards: Card[],
-	existingPaths: Point[][]
+	existingPaths: Point[][],
+	linkSide?: LinkSide
 ): number {
 	let score = 0;
+
+	// Determine preferred column based on link side
+	const parentColumn = Math.floor(parentCard.position.x / COLUMN_WIDTH);
+	const preferredColumn = linkSide === 'left' ? parentColumn - 1 : parentColumn + 1;
 
 	// 1. Simulate the path for this candidate
 	const simPath = simulatePath(
@@ -237,39 +258,36 @@ function scoreCandidatePosition(
 
 	// 2. Coaxial overlap penalty (most important)
 	const coaxial = detectCoaxialOverlap(simPath, existingPaths);
-	score += coaxial.count * 500;        // Heavy penalty per coaxial segment
-	score += coaxial.totalLength * 2;    // Penalty per pixel of overlap
+	score += coaxial.count * SCORING.COAXIAL_PENALTY_PER_SEGMENT;
+	score += coaxial.totalLength * SCORING.COAXIAL_PENALTY_PER_PIXEL;
 
 	// 3. Path crossing penalty (perpendicular crossings are ok but not ideal)
 	const crossings = countPathCrossings(simPath, existingPaths);
-	score += crossings * 50;
+	score += crossings * SCORING.CROSSING_PENALTY;
 
 	// 4. Path crosses card penalty
 	if (pathCrossesCards(simPath, existingCards, parentCard)) {
-		score += 1000;
+		score += SCORING.CARD_OVERLAP_PENALTY;
 	}
 
 	// 5. Distance from ideal Y position (prefer close to link)
 	const idealY = linkPosition.y - 20;
 	const yDistance = Math.abs(candidate.position.y - idealY);
-	score += yDistance * 0.5;
+	score += yDistance * SCORING.Y_DISTANCE_WEIGHT;
 
-	// 6. Column preference
-	const parentColumn = Math.floor(parentCard.position.x / COLUMN_WIDTH);
-	const columnDelta = candidate.column - parentColumn;
-
-	if (columnDelta === 1) {
-		// Preferred: immediate next column
-		score += 0;
-	} else if (columnDelta === 2) {
-		// Second column - slight penalty
-		score += 100;
-	} else if (columnDelta === -1) {
-		// Left side - moderate penalty (only use when needed)
-		score += 200;
+	// 6. Column preference based on link side
+	if (candidate.column === preferredColumn) {
+		// Preferred column (based on linkSide)
+		score += SCORING.COLUMN_PENALTY_PREFERRED;
+	} else if (Math.abs(candidate.column - parentColumn) === 1) {
+		// Adjacent column but not preferred (opposite side from link)
+		score += SCORING.COLUMN_PENALTY_OPPOSITE;
+	} else if (Math.abs(candidate.column - parentColumn) === 2) {
+		// Second column out
+		score += SCORING.COLUMN_PENALTY_FAR;
 	} else {
-		// Further columns - higher penalty
-		score += Math.abs(columnDelta) * 150;
+		// Further columns
+		score += Math.abs(candidate.column - parentColumn) * 150;
 	}
 
 	// 7. Prefer unused routing channels (bonus for unique channel)
@@ -280,7 +298,7 @@ function scoreCandidatePosition(
 	);
 	const channelUsed = usedChannels.some(c => Math.abs(c - candidate.routingX) < CHANNEL_STEP);
 	if (channelUsed) {
-		score += 300;
+		score += SCORING.CHANNEL_REUSE_PENALTY;
 	}
 
 	return score;
