@@ -3,7 +3,7 @@
 	import { zoom, zoomIdentity, type ZoomBehavior } from 'd3-zoom';
 	import { select } from 'd3-selection';
 	import 'd3-transition'; // Adds .transition() method to selections
-	import type { Point, LinkSide } from '$lib/types';
+	import type { Point, LinkSide, SourceBounds } from '$lib/types';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import {
 		routeConnection,
@@ -321,25 +321,27 @@
 
 				const rect = highlightedLink.getBoundingClientRect();
 				const svgRect = svg.getBoundingClientRect();
-				const canvasPosition: Point = {
-					x: (rect.left - svgRect.left - transform.x) / transform.k,
+				const canvasBounds: SourceBounds = {
+					left: (rect.left - svgRect.left - transform.x) / transform.k,
+					right: (rect.right - svgRect.left - transform.x) / transform.k,
 					y: (rect.bottom - svgRect.top - transform.y) / transform.k
 				};
 
-				// Calculate linkSide based on link position relative to card center
+				// Calculate linkSide based on link center relative to card center
+				const linkCenterX = (canvasBounds.left + canvasBounds.right) / 2;
 				const fromCard = canvasStore.cards.get(currentFocusedCard);
 				const cardCenterX = fromCard
 					? fromCard.position.x + (fromCard.dimensions?.width ?? 400) / 2
 					: 0;
-				const linkSide: LinkSide = canvasPosition.x < cardCenterX ? 'left' : 'right';
+				const linkSide: LinkSide = linkCenterX < cardCenterX ? 'left' : 'right';
 
 				canvasStore.exitLinkFocusMode();
 				const noteAlreadyOpen = canvasStore.cards.has(target);
-				canvasStore.followLinkToRight(target, currentFocusedCard, canvasPosition, linkSide);
+				canvasStore.followLinkToRight(target, currentFocusedCard, canvasBounds, linkSide);
 
 				// Compute and store path for new connection if card was created
 				if (!noteAlreadyOpen && canvasStore.cards.has(target)) {
-					computeAndStorePath(currentFocusedCard, target, canvasPosition);
+					computeAndStorePath(currentFocusedCard, target, canvasBounds);
 				}
 			};
 
@@ -678,9 +680,10 @@
 	/**
 	 * Compute and store a path for a new connection.
 	 * Uses simple geometric routing (L-shape, Z-shape, around) without A*.
+	 * @param sourceBounds - Link underline bounds (left, right, y) for determining start point
 	 * @param routingX - Optional pre-assigned routing channel X from layout
 	 */
-	function computeAndStorePath(fromCardId: string, toCardId: string, sourcePoint: Point, routingX?: number): void {
+	function computeAndStorePath(fromCardId: string, toCardId: string, sourceBounds: SourceBounds, routingX?: number): void {
 		const fromCard = canvasStore.cards.get(fromCardId);
 		const toCard = canvasStore.cards.get(toCardId);
 
@@ -689,14 +692,26 @@
 			return;
 		}
 
+		// Determine exit direction based on actual target card position
+		const sourceCenterX = fromCard.position.x + fromCard.dimensions.width / 2;
+		const targetCenterX = toCard.position.x + toCard.dimensions.width / 2;
+		const exitRight = targetCenterX > sourceCenterX;
+
+		// Choose start X based on actual exit direction
+		// Right-exiting → start from RIGHT edge of link underline
+		// Left-exiting → start from LEFT edge of link underline
+		const startPoint: Point = {
+			x: exitRight ? sourceBounds.right : sourceBounds.left,
+			y: sourceBounds.y
+		};
+
 		// Get all cards as array for obstacle checking
 		const allCards = canvasStore.cardList;
 
 		// Get existing paths for crossing detection
 		const existingPaths = canvasStore.getExistingPathPoints();
 
-		// Calculate start and end points
-		const startPoint = sourcePoint;
+		// Calculate end point
 		const endPoint = getCardEntryPoint(toCard, startPoint);
 
 		// Route the connection with optional pre-assigned routing channel
@@ -758,33 +773,28 @@
 		}
 	}
 
-	interface LinkBounds {
+	interface ScreenLinkBounds {
 		left: number;
 		right: number;
 		bottom: number;
 	}
 
-	function handleLinkClick(noteId: string, fromCardId: string, screenBounds: LinkBounds) {
+	function handleLinkClick(noteId: string, fromCardId: string, screenBounds: ScreenLinkBounds) {
 		// Convert screen bounds to canvas coordinates
 		const svgRect = svg.getBoundingClientRect();
-		const canvasLeft = (screenBounds.left - svgRect.left - transform.x) / transform.k;
-		const canvasRight = (screenBounds.right - svgRect.left - transform.x) / transform.k;
-		const canvasY = (screenBounds.bottom - svgRect.top - transform.y) / transform.k;
+		const canvasBounds: SourceBounds = {
+			left: (screenBounds.left - svgRect.left - transform.x) / transform.k,
+			right: (screenBounds.right - svgRect.left - transform.x) / transform.k,
+			y: (screenBounds.bottom - svgRect.top - transform.y) / transform.k
+		};
 
 		// Calculate linkSide based on link center relative to card center
-		const linkCenterX = (canvasLeft + canvasRight) / 2;
+		const linkCenterX = (canvasBounds.left + canvasBounds.right) / 2;
 		const fromCard = canvasStore.cards.get(fromCardId);
 		const cardCenterX = fromCard
 			? fromCard.position.x + (fromCard.dimensions?.width ?? 400) / 2
 			: 0;
 		const linkSide: LinkSide = linkCenterX < cardCenterX ? 'left' : 'right';
-
-		// Line starts from the edge that continues the underline in the exit direction
-		// Right-exiting → start from RIGHT edge, Left-exiting → start from LEFT edge
-		const canvasPosition: Point = {
-			x: linkSide === 'left' ? canvasLeft : canvasRight,
-			y: canvasY
-		};
 
 		// Save current card's reading state before navigating (same as keyboard nav)
 		canvasStore.saveLinkState(undefined, false);
@@ -803,11 +813,11 @@
 		const noteAlreadyOpen = canvasStore.cards.has(noteId);
 
 		// Use followLinkToRight for consistent chain behavior with keyboard nav
-		canvasStore.followLinkToRight(noteId, fromCardId, canvasPosition, linkSide);
+		canvasStore.followLinkToRight(noteId, fromCardId, canvasBounds, linkSide);
 
 		// Compute and store path for new connection
 		if (!noteAlreadyOpen && canvasStore.cards.has(noteId)) {
-			computeAndStorePath(fromCardId, noteId, canvasPosition);
+			computeAndStorePath(fromCardId, noteId, canvasBounds);
 		}
 	}
 
@@ -819,7 +829,7 @@
 		for (const conn of canvasStore.connections) {
 			const existingPath = canvasStore.getStoredPath(conn.fromCardId, conn.toCardId);
 			if (!existingPath) {
-				computeAndStorePath(conn.fromCardId, conn.toCardId, conn.sourcePoint, conn.routingX);
+				computeAndStorePath(conn.fromCardId, conn.toCardId, conn.sourceBounds, conn.routingX);
 			}
 		}
 
@@ -860,7 +870,7 @@
 		const results: Array<{
 			fromCardId: string;
 			toCardId: string;
-			sourcePoint: Point;
+			sourceBounds: SourceBounds;
 			path: string;
 			pathFailed: boolean;
 			method?: string;
@@ -931,7 +941,7 @@
 				{#if conn.method}
 					{@const fromCard = canvasStore.cards.get(conn.fromCardId)}
 					{#if fromCard}
-						<g class="debug-method-label" transform="translate({conn.sourcePoint.x + 15}, {conn.sourcePoint.y - 5})">
+						<g class="debug-method-label" transform="translate({conn.sourceBounds.right + 15}, {conn.sourceBounds.y - 5})">
 							<rect
 								x="-2"
 								y="-10"

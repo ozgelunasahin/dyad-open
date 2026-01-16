@@ -24,10 +24,16 @@ export interface Card {
 	sourceLink: Point | null;
 }
 
+export interface SourceBounds {
+	left: number;
+	right: number;
+	y: number;
+}
+
 export interface Connection {
 	fromCardId: string;
 	toCardId: string;
-	sourcePoint: Point;
+	sourceBounds: SourceBounds;
 	routingX?: number; // Pre-assigned routing channel X position
 }
 

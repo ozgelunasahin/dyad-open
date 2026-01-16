@@ -1,4 +1,4 @@
-import type { Card, Connection, Camera, Point, Vault, Dimensions, AStarExplorationFrame, LinkSide } from '$lib/types';
+import type { Card, Connection, Camera, Point, Vault, Dimensions, AStarExplorationFrame, LinkSide, SourceBounds } from '$lib/types';
 import { MAX_CARDS, DEFAULT_CARD_WIDTH, MIN_CARD_WIDTH, MAX_CARD_WIDTH } from '$lib/types';
 import { calculateNewCardPosition } from '$lib/utils/layout';
 import { measureMarkdownContent, calculateOptimalWidth } from '$lib/utils/measure';
@@ -192,10 +192,12 @@ class CanvasStore {
 				// Rebuild connections from parent relationships
 				for (const card of restoredCards.values()) {
 					if (card.parentId && restoredCards.has(card.parentId)) {
+						// Convert legacy sourceLink Point to SourceBounds
+						const legacyPoint = card.sourceLink || { x: card.position.x, y: card.position.y };
 						this.connections.push({
 							fromCardId: card.parentId,
 							toCardId: card.id,
-							sourcePoint: card.sourceLink || { x: card.position.x, y: card.position.y }
+							sourceBounds: { left: legacyPoint.x, right: legacyPoint.x, y: legacyPoint.y }
 						});
 					}
 				}
@@ -321,7 +323,7 @@ class CanvasStore {
 		};
 	}
 
-	openNote(noteId: string, fromCardId: string | null, linkPosition: Point | null): boolean {
+	openNote(noteId: string, fromCardId: string | null, sourceBounds: SourceBounds | null): boolean {
 		if (!this.vault) return false;
 
 		const note = this.vault.notes[noteId];
@@ -350,13 +352,18 @@ class CanvasStore {
 		const parentCard = fromCardId ? this.cards.get(fromCardId) ?? null : null;
 		const existingCards = Array.from(this.cards.values());
 
+		// Use center of link bounds for placement calculations
+		const linkCenter: Point | null = sourceBounds
+			? { x: (sourceBounds.left + sourceBounds.right) / 2, y: sourceBounds.y }
+			: null;
+
 		// Calculate position using priority-based algorithm with crossing prevention
 		// Pass existing path points (not connections) for collision detection
 		const existingPathPoints = this.getExistingPathPoints();
 		const { position, routingX } = calculateNewCardPosition(
 			parentCard,
 			existingCards,
-			linkPosition,
+			linkCenter,
 			dimensions,
 			existingPathPoints
 		);
@@ -368,7 +375,7 @@ class CanvasStore {
 			position,
 			dimensions,
 			parentId: fromCardId,
-			sourceLink: linkPosition
+			sourceLink: linkCenter
 		};
 
 		// Update state
@@ -377,13 +384,13 @@ class CanvasStore {
 		this.cards = newCards;
 
 		// Add connection if has parent
-		if (fromCardId && linkPosition) {
+		if (fromCardId && sourceBounds) {
 			this.connections = [
 				...this.connections,
 				{
 					fromCardId,
 					toCardId: noteId,
-					sourcePoint: linkPosition,
+					sourceBounds,
 					routingX // Include pre-assigned routing channel
 				}
 			];
@@ -762,7 +769,7 @@ class CanvasStore {
 	followLinkToRight(
 		noteId: string,
 		fromCardId: string,
-		linkPosition: Point,
+		sourceBounds: SourceBounds,
 		linkSide?: LinkSide
 	): boolean {
 		// If note is already open, update chain and focus it
@@ -783,6 +790,9 @@ class CanvasStore {
 		if (!note) return false;
 		if (this.cards.size >= MAX_CARDS) return false;
 
+		// Use center of link bounds for placement calculations
+		const linkCenter: Point = { x: (sourceBounds.left + sourceBounds.right) / 2, y: sourceBounds.y };
+
 		// Calculate dimensions and position
 		const dimensions = this.calculateCardDimensions(note.content);
 		const parentCard = this.cards.get(fromCardId) ?? null;
@@ -792,7 +802,7 @@ class CanvasStore {
 		const { position } = calculateNewCardPosition(
 			parentCard,
 			existingCards,
-			linkPosition,
+			linkCenter,
 			dimensions,
 			existingPathPoints,
 			linkSide
@@ -805,19 +815,19 @@ class CanvasStore {
 			position,
 			dimensions,
 			parentId: fromCardId,
-			sourceLink: linkPosition
+			sourceLink: linkCenter
 		};
 		const newCards = new Map(this.cards);
 		newCards.set(noteId, newCard);
 		this.cards = newCards;
 
-		// Add connection
+		// Add connection with full bounds for line start calculation
 		this.connections = [
 			...this.connections,
 			{
 				fromCardId,
 				toCardId: noteId,
-				sourcePoint: linkPosition
+				sourceBounds
 			}
 		];
 
@@ -1166,14 +1176,17 @@ class CanvasStore {
 					if (this.cards.has(linkTarget)) continue;
 					if (this.cards.size >= MAX_CARDS) break;
 
-					// Simulate clicking the link - find link position in card
-					// Use a position relative to the card
-					const linkPosition: Point = {
-						x: card.position.x + 50,
-						y: card.position.y + 50 + (links.indexOf(linkTarget) * 20)
+					// Simulate clicking the link - use synthetic bounds
+					// For programmatic opening, left=right since we don't have actual link width
+					const syntheticX = card.position.x + 50;
+					const syntheticY = card.position.y + 50 + (links.indexOf(linkTarget) * 20);
+					const sourceBounds: SourceBounds = {
+						left: syntheticX,
+						right: syntheticX,
+						y: syntheticY
 					};
 
-					this.openNote(linkTarget, cardId, linkPosition);
+					this.openNote(linkTarget, cardId, sourceBounds);
 					nextLevel.push(linkTarget);
 
 					// Small delay to allow rendering
