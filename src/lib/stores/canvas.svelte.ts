@@ -428,11 +428,18 @@ class CanvasStore {
 		if (!card) return;
 
 		// Save current card's state before switching (camera is saved here, link state saved separately)
+		// BUT: If user has navigated far away, don't save the distant position - clear it instead
 		if (this.focusedCardId && this.focusedCardId !== cardId) {
-			const existing = this.savedCardState.get(this.focusedCardId) || { camera: this.camera };
-			const newMap = new Map(this.savedCardState);
-			newMap.set(this.focusedCardId, { ...existing, camera: { ...this.camera } });
-			this.savedCardState = newMap;
+			if (this.hasNavigatedAwayFromSavedPosition(150)) {
+				// User panned far away - clear saved state so card will re-focus for reading
+				this.clearSavedCardState(this.focusedCardId);
+			} else {
+				// User is still near reading position - save current camera
+				const existing = this.savedCardState.get(this.focusedCardId) || { camera: this.camera };
+				const newMap = new Map(this.savedCardState);
+				newMap.set(this.focusedCardId, { ...existing, camera: { ...this.camera } });
+				this.savedCardState = newMap;
+			}
 		}
 
 		// Check if we have saved state for the target card
