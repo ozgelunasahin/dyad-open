@@ -113,6 +113,7 @@ export function findUsedVerticalChannels(
 
 /**
  * Simulate a path without storing it - for candidate scoring.
+ * Matches the routing logic in routeConnection.
  */
 export function simulatePath(
 	start: Point,
@@ -127,19 +128,24 @@ export function simulatePath(
 	const sourceCenterX = sourceCard.position.x + sourceCard.dimensions.width / 2;
 	const exitRight = targetCenterX > sourceCenterX;
 
-	const headingY = targetPosition.y + 20;
-
 	let exitX: number;
 	let entryX: number;
+	let entryY: number;
 	let verticalX: number;
 
 	if (exitRight) {
+		// Right-going: Z-shape entering from left at heading level
+		const headingY = targetPosition.y + 20;
 		exitX = sourceRightEdge + 10;
 		entryX = targetPosition.x - 10;
+		entryY = headingY;
 		verticalX = routingX ?? (exitX + entryX) / 2;
 	} else {
+		// Left-going: route above, enter at top-left corner
+		const targetTop = targetPosition.y;
 		exitX = sourceLeftEdge - 10;
-		entryX = targetPosition.x + targetDimensions.width + 10;
+		entryX = targetPosition.x - 10;
+		entryY = targetTop - 20; // Above the card
 		verticalX = routingX ?? (entryX + exitX) / 2;
 	}
 
@@ -147,9 +153,9 @@ export function simulatePath(
 		start,
 		{ x: exitX, y: start.y },
 		{ x: verticalX, y: start.y },
-		{ x: verticalX, y: headingY },
-		{ x: entryX, y: headingY },
-		{ x: entryX, y: headingY }
+		{ x: verticalX, y: entryY },
+		{ x: entryX, y: entryY },
+		{ x: entryX, y: entryY }
 	];
 }
 
@@ -225,41 +231,53 @@ export function routeConnection(
 				cards,
 				sourceCard,
 				targetCard,
-				existingPaths
+				existingPaths,
+				start.y // Pass source link Y for offset calculation
 			);
 		}
 	} else {
-		// Exit to the left, enter from the right (reverse case)
+		// Exit to the left, route ABOVE target card, enter at top-left corner
+		// This creates a cleaner visual for left-going connections
 		exitX = sourceLeftEdge - 10;
 		exitPoint = { x: exitX, y: start.y };
-		entryX = targetRightEdge + 10;
-		entryPoint = { x: entryX, y: headingY };
+
+		// Entry is at top-left corner of target, coming from above
+		const targetTop = targetCard.position.y;
+		entryX = targetLeftEdge - 10;
+		const entryY = targetTop - 20; // Approach from above
+		entryPoint = { x: entryX, y: entryY };
 
 		// Use preferred routing X if provided and valid, otherwise find one
+		// For left-exit, vertical segment goes from exitX down to entryX area
 		if (preferredRoutingX !== undefined && preferredRoutingX > entryX && preferredRoutingX < exitX) {
 			verticalX = preferredRoutingX;
 		} else {
 			verticalX = findVerticalRoutingX(
 				entryX,  // Swap order for left-exit routing
 				exitX,
-				Math.min(start.y, headingY),
-				Math.max(start.y, headingY),
+				Math.min(start.y, entryY),
+				Math.max(start.y, entryY),
 				cards,
 				sourceCard,
 				targetCard,
-				existingPaths
+				existingPaths,
+				start.y // Pass source link Y for offset calculation
 			);
 		}
 	}
 
 	// Build the path - start from link underline position
 	// The line extends from the link text itself, blending with the underline
+	// For right-exit: Z-shape entering from left at heading level
+	// For left-exit: route above, enter at top-left corner
+	const verticalEndY = exitRight ? headingY : entryPoint.y;
+
 	const path: Point[] = [
 		start,                              // Start at the link underline position
 		exitPoint,                          // Go horizontally to exit the card
 		{ x: verticalX, y: start.y },       // Move to vertical routing channel
-		{ x: verticalX, y: headingY },      // Go vertical to target row
-		entryPoint,                         // Approach target
+		{ x: verticalX, y: verticalEndY },  // Go vertical to target row/above
+		entryPoint,                         // Approach target (horizontal for right, from above for left)
 		end                                 // Entry point on target
 	];
 
@@ -275,8 +293,14 @@ export function routeConnection(
 
 /**
  * Find the best X position for the vertical segment of the path.
- * Tries the middle of the gap first, then searches for alternatives.
- * Checks both card obstacles and existing path crossings.
+ *
+ * Heuristics for reducing coaxial overlap:
+ * 1. Base offset from source link Y position - links at different vertical positions
+ *    get different channel offsets, spreading vertical segments spatially
+ * 2. Search from the offset position outward to find clear channels
+ * 3. Check both card obstacles and existing path crossings
+ *
+ * @param sourceY - Y position of the source link (used for offset calculation)
  */
 function findVerticalRoutingX(
 	exitX: number,
@@ -286,35 +310,112 @@ function findVerticalRoutingX(
 	cards: Card[],
 	sourceCard: Card,
 	targetCard: Card,
-	existingPaths: Point[][]
+	existingPaths: Point[][],
+	sourceY?: number
 ): number {
 	const gapWidth = entryX - exitX;
 	const midX = exitX + gapWidth / 2;
 
-	// Try middle first
-	if (isVerticalClear(midX, minY, maxY, cards, sourceCard, targetCard) &&
-		!verticalCrossesExistingPaths(midX, minY, maxY, existingPaths)) {
-		return midX;
+	// Calculate base offset from source link Y position
+	// This spreads vertical segments based on where the link is on the card
+	// Links higher on the card -> channels more to the left
+	// Links lower on the card -> channels more to the right
+	let baseOffset = 0;
+	if (sourceY !== undefined && gapWidth > 60) {
+		const cardTop = sourceCard.position.y;
+		const cardBottom = cardTop + sourceCard.dimensions.height;
+		const cardHeight = cardBottom - cardTop;
+
+		// Normalize Y position within card to range [-1, 1]
+		const normalizedY = cardHeight > 0
+			? ((sourceY - cardTop) / cardHeight) * 2 - 1
+			: 0;
+
+		// Map to offset range (max ±30% of gap width, capped at ±40px)
+		const maxOffset = Math.min(gapWidth * 0.3, 40);
+		baseOffset = normalizedY * maxOffset;
 	}
 
-	// Try positions from middle outward with finer granularity
-	const offsets: number[] = [];
-	for (let i = 5; i <= 50; i += 5) {
-		offsets.push(i, -i);
+	const preferredX = midX + baseOffset;
+
+	// Try preferred position first (if within bounds)
+	if (preferredX > exitX + 10 && preferredX < entryX - 10) {
+		if (isVerticalClear(preferredX, minY, maxY, cards, sourceCard, targetCard) &&
+			!hasCoaxialOverlap(preferredX, minY, maxY, existingPaths)) {
+			return preferredX;
+		}
 	}
 
-	for (const offset of offsets) {
-		const x = midX + offset;
+	// Try middle if different from preferred
+	if (Math.abs(midX - preferredX) > 5) {
+		if (isVerticalClear(midX, minY, maxY, cards, sourceCard, targetCard) &&
+			!hasCoaxialOverlap(midX, minY, maxY, existingPaths)) {
+			return midX;
+		}
+	}
+
+	// Search outward from preferred position for clear channels
+	const searchOffsets: number[] = [];
+	for (let i = 10; i <= 60; i += 10) {
+		searchOffsets.push(i, -i);
+	}
+
+	for (const offset of searchOffsets) {
+		const x = preferredX + offset;
 		if (x > exitX + 5 && x < entryX - 5) {
 			if (isVerticalClear(x, minY, maxY, cards, sourceCard, targetCard) &&
-				!verticalCrossesExistingPaths(x, minY, maxY, existingPaths)) {
+				!hasCoaxialOverlap(x, minY, maxY, existingPaths)) {
 				return x;
 			}
 		}
 	}
 
-	// Fallback to middle (may have crossings)
+	// Fallback to preferred position (may have some overlap)
+	if (preferredX > exitX + 5 && preferredX < entryX - 5) {
+		return preferredX;
+	}
+
 	return midX;
+}
+
+/**
+ * Check if a vertical segment would overlap coaxially with existing paths.
+ * Returns true if there's significant overlap (not just crossing).
+ */
+function hasCoaxialOverlap(
+	x: number,
+	minY: number,
+	maxY: number,
+	existingPaths: Point[][]
+): boolean {
+	const tolerance = 15; // Pixels - segments within this distance are considered coaxial
+	const minOverlapLength = 30; // Minimum overlap to consider problematic
+
+	for (const path of existingPaths) {
+		for (let i = 0; i < path.length - 1; i++) {
+			const segStart = path[i];
+			const segEnd = path[i + 1];
+
+			// Check if this is a vertical segment
+			if (Math.abs(segEnd.x - segStart.x) < 1) {
+				// Check if same X (within tolerance)
+				if (Math.abs(segStart.x - x) < tolerance) {
+					// Check Y range overlap
+					const segMinY = Math.min(segStart.y, segEnd.y);
+					const segMaxY = Math.max(segStart.y, segEnd.y);
+
+					const overlapStart = Math.max(minY, segMinY);
+					const overlapEnd = Math.min(maxY, segMaxY);
+
+					if (overlapEnd - overlapStart > minOverlapLength) {
+						return true;
+					}
+				}
+			}
+		}
+	}
+
+	return false;
 }
 
 /**
@@ -699,15 +800,25 @@ export function pathToSvgWithHops(points: Point[], existingPaths: Point[][]): st
 }
 
 /**
- * Calculate entry point on a card - just outside the edge at heading level.
- * Entry side depends on where the connection is coming from.
+ * Calculate entry point on a card.
+ * - Right-going connections (source left of target): enter from left edge at heading level
+ * - Left-going connections (source right of target): enter at top-left corner from above
  */
 export function getCardEntryPoint(card: Card, fromPoint: Point): Point {
 	const cardCenterX = card.position.x + card.dimensions.width / 2;
 	const enterFromLeft = fromPoint.x < cardCenterX;
 
-	return {
-		x: enterFromLeft ? card.position.x - 8 : card.position.x + card.dimensions.width + 8,
-		y: card.position.y + 20
-	};
+	if (enterFromLeft) {
+		// Right-going: enter from left edge at heading level
+		return {
+			x: card.position.x - 8,
+			y: card.position.y + 20
+		};
+	} else {
+		// Left-going: enter at top-left corner from above
+		return {
+			x: card.position.x - 8,
+			y: card.position.y - 8
+		};
+	}
 }
