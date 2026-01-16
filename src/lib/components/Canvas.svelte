@@ -449,6 +449,12 @@
 				event.preventDefault();
 				canvasStore.enterEditMode(canvasStore.focusedCardId);
 			}
+
+			// 'l' key to toggle connection line visibility
+			if (event.key === 'l') {
+				event.preventDefault();
+				canvasStore.toggleLines();
+			}
 		};
 
 		window.addEventListener('keydown', handleKeyDown);
@@ -912,10 +918,12 @@
 			</g>
 		{/if}
 
-		<!-- Connection lines -->
-		{#each connectionPaths as conn (conn.fromCardId + '-' + conn.toCardId)}
-			<ConnectionLine path={conn.path} pathFailed={conn.pathFailed} />
-		{/each}
+		<!-- Connection lines (toggle with 'l' key) -->
+		{#if canvasStore.showLines}
+			{#each connectionPaths as conn (conn.fromCardId + '-' + conn.toCardId)}
+				<ConnectionLine path={conn.path} pathFailed={conn.pathFailed} />
+			{/each}
+		{/if}
 
 		<!-- Debug: Show routing method labels -->
 		{#if canvasStore.debugMode}

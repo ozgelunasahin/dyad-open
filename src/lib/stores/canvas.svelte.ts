@@ -87,6 +87,9 @@ class CanvasStore {
 	debugExploration = $state<AStarExplorationFrame[]>([]);
 	debugCurrentFrame = $state<number>(0);
 
+	// Connection line visibility
+	showLines = $state<boolean>(true);
+
 	// Edit mode state
 	editingCardId = $state<string | null>(null);
 
@@ -920,6 +923,10 @@ class CanvasStore {
 			this.debugExploration = [];
 			this.debugCurrentFrame = 0;
 		}
+	}
+
+	toggleLines(): void {
+		this.showLines = !this.showLines;
 	}
 
 	setDebugExploration(frames: AStarExplorationFrame[]): void {
