@@ -555,6 +555,37 @@ class CanvasStore {
 		return this.savedCardState.get(this.focusedCardId) ?? null;
 	}
 
+	// Clear saved state for a card (used when deleting card or navigating far away)
+	clearSavedCardState(cardId: string): void {
+		if (this.savedCardState.has(cardId)) {
+			const newMap = new Map(this.savedCardState);
+			newMap.delete(cardId);
+			this.savedCardState = newMap;
+		}
+	}
+
+	// Check if current camera position is far from saved position for focused card
+	// Returns true if position has diverged beyond threshold (user manually navigated away)
+	hasNavigatedAwayFromSavedPosition(threshold: number = 200): boolean {
+		if (!this.focusedCardId) return false;
+		const savedState = this.savedCardState.get(this.focusedCardId);
+		if (!savedState?.camera) return false;
+
+		const dx = Math.abs(this.camera.x - savedState.camera.x);
+		const dy = Math.abs(this.camera.y - savedState.camera.y);
+		const distance = Math.sqrt(dx * dx + dy * dy);
+
+		return distance > threshold;
+	}
+
+	// Clear saved state for current card if user has navigated away
+	clearSavedStateIfNavigatedAway(threshold: number = 200): void {
+		if (!this.focusedCardId) return;
+		if (this.hasNavigatedAwayFromSavedPosition(threshold)) {
+			this.clearSavedCardState(this.focusedCardId);
+		}
+	}
+
 	focusNextLink(linkCount: number): void {
 		if (this.focusedLinkIndex === null || linkCount === 0) return;
 		this.focusedLinkIndex = (this.focusedLinkIndex + 1) % linkCount;
@@ -713,6 +744,9 @@ class CanvasStore {
 			}
 			this.storedPaths = newPaths;
 		}
+
+		// Clean up saved reading state for this card
+		this.clearSavedCardState(cardToUnopen);
 
 		// Remove from active chain
 		this.activeChain = this.activeChain.filter(id => id !== cardToUnopen);
