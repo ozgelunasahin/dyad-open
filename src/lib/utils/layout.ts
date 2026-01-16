@@ -263,19 +263,19 @@ function scoreCandidatePosition(
 		candidate.routingX
 	);
 
-	// 2. Coaxial overlap penalty (most important)
+	// 2. Early termination: path crosses card is a deal-breaker
+	if (pathCrossesCards(simPath, existingCards, parentCard)) {
+		return SCORING.CARD_OVERLAP_PENALTY;
+	}
+
+	// 3. Coaxial overlap penalty (most important)
 	const coaxial = detectCoaxialOverlap(simPath, existingPaths);
 	score += coaxial.count * SCORING.COAXIAL_PENALTY_PER_SEGMENT;
 	score += coaxial.totalLength * SCORING.COAXIAL_PENALTY_PER_PIXEL;
 
-	// 3. Path crossing penalty (perpendicular crossings are ok but not ideal)
+	// 4. Path crossing penalty (perpendicular crossings are ok but not ideal)
 	const crossings = countPathCrossings(simPath, existingPaths);
 	score += crossings * SCORING.CROSSING_PENALTY;
-
-	// 4. Path crosses card penalty
-	if (pathCrossesCards(simPath, existingCards, parentCard)) {
-		score += SCORING.CARD_OVERLAP_PENALTY;
-	}
 
 	// 5. Distance from ideal Y position (prefer close to link)
 	const idealY = linkPosition.y - 20;

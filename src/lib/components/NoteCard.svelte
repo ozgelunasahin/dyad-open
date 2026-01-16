@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import type { Card, Point } from '$lib/types';
+	import { isHTMLElement } from '$lib/utils/type-guards';
 	import { parseMarkdown } from '$lib/utils/markdown';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import TurndownService from 'turndown';
@@ -160,12 +161,12 @@
 	}
 
 	function handleClick(event: MouseEvent) {
-		const target = event.target as HTMLElement;
+		if (!isHTMLElement(event.target)) return;
 
 		// Handle wikilink clicks (only in view mode)
 		// Use closest() to find wikilink even if click was on child element
-		const wikilinkTarget = target.closest('.wikilink') as HTMLElement | null;
-		if (wikilinkTarget && !isEditing) {
+		const wikilinkTarget = event.target.closest('.wikilink');
+		if (wikilinkTarget && isHTMLElement(wikilinkTarget) && !isEditing) {
 			event.preventDefault();
 			event.stopPropagation();
 			handleInteraction(wikilinkTarget);
@@ -188,10 +189,10 @@
 		}
 
 		if (event.key === 'Enter' || event.key === ' ') {
-			const target = event.target as HTMLElement;
-			if (target.classList.contains('wikilink')) {
+			if (!isHTMLElement(event.target)) return;
+			if (event.target.classList.contains('wikilink')) {
 				event.preventDefault();
-				handleInteraction(target);
+				handleInteraction(event.target);
 			}
 		}
 	}

@@ -4,6 +4,7 @@
 	import { select } from 'd3-selection';
 	import 'd3-transition'; // Adds .transition() method to selections
 	import type { Point, LinkSide, SourceBounds } from '$lib/types';
+	import { isHTMLElement } from '$lib/utils/type-guards';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import {
 		routeConnection,
@@ -41,8 +42,8 @@
 			.filter((event) => {
 				// Don't capture events when editing (let text selection work)
 				if (canvasStore.editingCardId) {
-					const target = event.target as Element;
-					const inForeignObject = target.closest('foreignObject') !== null;
+					if (!isHTMLElement(event.target)) return true;
+					const inForeignObject = event.target.closest('foreignObject') !== null;
 					if (inForeignObject && (event.type === 'mousedown' || event.type === 'touchstart')) {
 						return false;
 					}
@@ -242,7 +243,7 @@
 					: null;
 				if (!cardElement) return [];
 
-				const allLinks = Array.from(cardElement.querySelectorAll('.wikilink')) as HTMLElement[];
+				const allLinks = Array.from(cardElement.querySelectorAll('.wikilink')).filter(isHTMLElement);
 				if (!svg) return allLinks;
 
 				// Filter to only links visible in viewport
@@ -541,7 +542,7 @@
 			: null;
 		if (!cardElement) return;
 
-		const allLinks = Array.from(cardElement.querySelectorAll('.wikilink')) as HTMLElement[];
+		const allLinks = Array.from(cardElement.querySelectorAll('.wikilink')).filter(isHTMLElement);
 		if (allLinks.length === 0) return;
 
 		// Enter link focus mode
@@ -750,8 +751,8 @@
 	function handleCanvasClick(event: MouseEvent) {
 		// Exit edit mode if clicking outside card content
 		if (canvasStore.editingCardId) {
-			const target = event.target as Element;
-			const inForeignObject = target.closest('foreignObject') !== null;
+			if (!isHTMLElement(event.target)) return;
+			const inForeignObject = event.target.closest('foreignObject') !== null;
 			if (!inForeignObject) {
 				canvasStore.exitEditMode();
 			}

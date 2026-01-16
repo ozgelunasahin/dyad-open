@@ -1,4 +1,4 @@
-import type { Card, Connection, Camera, Point, Vault, Dimensions, AStarExplorationFrame, LinkSide, SourceBounds } from '$lib/types';
+import type { Card, Connection, Camera, Point, Vault, Dimensions, LinkSide, SourceBounds } from '$lib/types';
 import { MAX_CARDS, DEFAULT_CARD_WIDTH, MIN_CARD_WIDTH, MAX_CARD_WIDTH } from '$lib/types';
 import { calculateNewCardPosition } from '$lib/utils/layout';
 import { measureMarkdownContent, calculateOptimalWidth } from '$lib/utils/measure';
@@ -81,11 +81,6 @@ class CanvasStore {
 	// Focus state for smooth centering
 	focusedCardId = $state<string | null>(null);
 	isAnimating = $state<boolean>(false);
-
-	// Debug visualization state
-	debugMode = $state<boolean>(false);
-	debugExploration = $state<AStarExplorationFrame[]>([]);
-	debugCurrentFrame = $state<number>(0);
 
 	// Connection line visibility
 	showLines = $state<boolean>(true);
@@ -926,30 +921,8 @@ class CanvasStore {
 		this.schedulePersist();
 	}
 
-	toggleDebugMode(): void {
-		this.debugMode = !this.debugMode;
-		if (!this.debugMode) {
-			// Clear debug state when disabling
-			this.debugExploration = [];
-			this.debugCurrentFrame = 0;
-		}
-	}
-
 	toggleLines(): void {
 		this.showLines = !this.showLines;
-	}
-
-	setDebugExploration(frames: AStarExplorationFrame[]): void {
-		this.debugExploration = frames;
-		this.debugCurrentFrame = 0;
-	}
-
-	advanceDebugFrame(): boolean {
-		if (this.debugCurrentFrame < this.debugExploration.length - 1) {
-			this.debugCurrentFrame++;
-			return true;
-		}
-		return false;
 	}
 
 	isInActiveChain(cardId: string): boolean {
