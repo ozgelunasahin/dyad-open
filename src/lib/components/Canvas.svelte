@@ -65,6 +65,10 @@
 					y: event.transform.y,
 					zoom: event.transform.k
 				});
+
+				// Clear saved reading position if user manually navigates far from it
+				// This breaks persistence for intentional mouse navigation
+				canvasStore.clearSavedStateIfNavigatedAway(150);
 			});
 
 		const selection = select(svg);
