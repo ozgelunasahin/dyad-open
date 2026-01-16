@@ -27,6 +27,9 @@
 	// Animation cancellation flag (P2-007 fix: prevent memory leaks)
 	let animationCancelled = false;
 
+	// Pending link restoration to apply after animation completes
+	let pendingLinkRestoration: { linkTarget?: string; linkFocusActive: boolean } | null = null;
+
 	onMount(() => {
 		zoomBehavior = zoom<SVGSVGElement, unknown>()
 			.scaleExtent([0.1, 3])
@@ -128,7 +131,13 @@
 
 		// Listen for focus animation requests
 		const handleFocusAnimation = (event: Event) => {
-			const customEvent = event as CustomEvent<{ x: number; y: number; cardId: string }>;
+			const customEvent = event as CustomEvent<{
+				x: number;
+				y: number;
+				cardId: string;
+				linkRestoration?: { linkTarget?: string; linkFocusActive: boolean } | null;
+			}>;
+			pendingLinkRestoration = customEvent.detail.linkRestoration ?? null;
 			animateToCenter(customEvent.detail.x, customEvent.detail.y);
 		};
 
@@ -136,7 +145,11 @@
 
 		// Listen for restore position requests (returning to previous card)
 		const handleRestorePosition = (event: Event) => {
-			const customEvent = event as CustomEvent<{ camera: { x: number; y: number; zoom: number } }>;
+			const customEvent = event as CustomEvent<{
+				camera: { x: number; y: number; zoom: number };
+				linkRestoration?: { linkTarget?: string; linkFocusActive: boolean } | null;
+			}>;
+			pendingLinkRestoration = customEvent.detail.linkRestoration ?? null;
 			animateToPosition(customEvent.detail.camera);
 		};
 
@@ -266,15 +279,8 @@
 				const linkTarget = highlightedLink?.dataset.target;
 				canvasStore.saveLinkState(linkTarget, linkFocusActive);
 			};
-
-			// Helper to restore link focus mode after navigation if the card had it active
-			const restoreLinkFocusModeIfNeeded = () => {
-				const savedState = canvasStore.getSavedCardState();
-				if (savedState?.linkFocusActive) {
-					const newLinks = getWikilinks();
-					enterOrRestoreLinkFocusMode(newLinks, savedState.linkTarget);
-				}
-			};
+			// Note: Link restoration after navigation is handled by restoreLinkFocusAfterAnimation()
+			// which runs after the camera animation completes
 
 			// Helper to follow the currently highlighted link
 			// Uses the DOM highlight as source of truth, not focusedLinkIndex
@@ -359,7 +365,7 @@
 					canvasStore.exitLinkFocusMode();
 					clearLinkHighlights();
 					canvasStore.navigateLeftInChain();
-					restoreLinkFocusModeIfNeeded();
+					// Link restoration happens after animation in restoreLinkFocusAfterAnimation()
 					return;
 				}
 
@@ -395,18 +401,16 @@
 				return;
 			}
 
-			// Chain navigation (restore link focus mode if the target card had it active)
+			// Chain navigation (link restoration happens after animation)
 			if (event.key === 'ArrowLeft' && !event.altKey && !event.shiftKey) {
 				event.preventDefault();
 				canvasStore.navigateLeftInChain();
-				restoreLinkFocusModeIfNeeded();
 				return;
 			}
 
 			if (event.key === 'ArrowRight' && !event.altKey && !event.shiftKey) {
 				event.preventDefault();
 				canvasStore.navigateRightInChain();
-				restoreLinkFocusModeIfNeeded();
 				return;
 			}
 
@@ -479,6 +483,50 @@
 	}
 
 	/**
+	 * Restore link focus after animation completes.
+	 * Uses ALL links in the card (not filtered by visibility) to find the target.
+	 */
+	function restoreLinkFocusAfterAnimation() {
+		if (!pendingLinkRestoration?.linkFocusActive) {
+			pendingLinkRestoration = null;
+			return;
+		}
+
+		const { linkTarget } = pendingLinkRestoration;
+		pendingLinkRestoration = null;
+
+		// Get ALL links in the focused card (not filtered by visibility)
+		const currentFocusedCard = canvasStore.focusedCardId;
+		const cardElement = currentFocusedCard
+			? document.querySelector(`[data-note-id="${currentFocusedCard}"]`)
+			: null;
+		if (!cardElement) return;
+
+		const allLinks = Array.from(cardElement.querySelectorAll('.wikilink')) as HTMLElement[];
+		if (allLinks.length === 0) return;
+
+		// Enter link focus mode
+		canvasStore.enterLinkFocusMode();
+
+		// Find the link with matching target
+		if (linkTarget) {
+			const targetIndex = allLinks.findIndex(link => link.dataset.target === linkTarget);
+			if (targetIndex >= 0) {
+				canvasStore.focusedLinkIndex = targetIndex;
+			}
+		}
+
+		// Clear any existing highlights and highlight the focused link
+		document.querySelectorAll('.wikilink.link-focused').forEach(el => {
+			el.classList.remove('link-focused');
+		});
+		const focusedIndex = canvasStore.focusedLinkIndex;
+		if (focusedIndex !== null && focusedIndex < allLinks.length) {
+			allLinks[focusedIndex]?.classList.add('link-focused');
+		}
+	}
+
+	/**
 	 * Smoothly animate the view to position for reading.
 	 * Card top is placed near the top of viewport, horizontally centered.
 	 * Zoom level is always preserved - user controls their reading zoom.
@@ -527,6 +575,7 @@
 				requestAnimationFrame(animate);
 			} else {
 				canvasStore.setAnimating(false);
+				restoreLinkFocusAfterAnimation();
 			}
 		}
 
@@ -574,6 +623,7 @@
 				requestAnimationFrame(animate);
 			} else {
 				canvasStore.setAnimating(false);
+				restoreLinkFocusAfterAnimation();
 			}
 		}
 
@@ -664,13 +714,26 @@
 			y: (screenPosition.y - svgRect.top - transform.y) / transform.k
 		};
 
+		// Save current card's reading state before navigating (same as keyboard nav)
+		canvasStore.saveLinkState(undefined, false);
+
+		// Clear any link highlights
+		document.querySelectorAll('.wikilink.link-focused').forEach(el => {
+			el.classList.remove('link-focused');
+		});
+
+		// Exit link focus mode if active
+		if (canvasStore.isLinkFocusMode) {
+			canvasStore.exitLinkFocusMode();
+		}
+
 		// Check if note is already open (will just refocus)
 		const noteAlreadyOpen = canvasStore.cards.has(noteId);
 
-		canvasStore.openNote(noteId, fromCardId, canvasPosition);
+		// Use followLinkToRight for consistent chain behavior with keyboard nav
+		canvasStore.followLinkToRight(noteId, fromCardId, canvasPosition);
 
 		// Compute and store path for new connection
-		// Only do this if a new card was actually created
 		if (!noteAlreadyOpen && canvasStore.cards.has(noteId)) {
 			computeAndStorePath(fromCardId, noteId, canvasPosition);
 		}
