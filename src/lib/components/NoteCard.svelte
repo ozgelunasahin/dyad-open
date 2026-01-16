@@ -5,6 +5,13 @@
 	import { parseMarkdown } from '$lib/utils/markdown';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import TurndownService from 'turndown';
+	import {
+		handleBracketKey,
+		shouldInsertWikiLink,
+		insertWikiLinkBrackets,
+		toggleBold,
+		toggleItalic
+	} from '$lib/utils/editor-shortcuts';
 
 	interface LinkBounds {
 		left: number;
@@ -26,6 +33,7 @@
 	let isEditing = $derived(canvasStore.editingCardId === card.id);
 	let saveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
 	let debounceTimer: ReturnType<typeof setTimeout>;
+	let wikilinkDebounceTimer: ReturnType<typeof setTimeout>;
 	let originalMarkdown = $state('');
 
 	// Rendered HTML for view mode
@@ -199,20 +207,23 @@
 
 	// Handle keyboard shortcuts in edit mode
 	function handleEditKeyDown(event: KeyboardEvent) {
+		// Ignore during IME composition
+		if (event.isComposing) return;
+
 		const isMod = event.metaKey || event.ctrlKey;
 
-		// Cmd+B = Bold
+		// Cmd+B = Bold (using Selection API instead of deprecated execCommand)
 		if (isMod && event.key === 'b') {
 			event.preventDefault();
-			document.execCommand('bold');
+			toggleBold(contentEl);
 			scheduleSave();
 			return;
 		}
 
-		// Cmd+I = Italic
+		// Cmd+I = Italic (using Selection API instead of deprecated execCommand)
 		if (isMod && event.key === 'i') {
 			event.preventDefault();
-			document.execCommand('italic');
+			toggleItalic(contentEl);
 			scheduleSave();
 			return;
 		}
@@ -230,11 +241,27 @@
 			exitEditMode();
 			return;
 		}
+
+		// Wiki link quick-insert: typing [[ inserts [[]] with cursor between
+		if (shouldInsertWikiLink(event, contentEl)) {
+			event.preventDefault();
+			insertWikiLinkBrackets(contentEl);
+			scheduleSave();
+			return;
+		}
+
+		// Bracket wrapping: select text and press [ ( { to wrap
+		if (handleBracketKey(event, contentEl)) {
+			scheduleSave();
+			return;
+		}
 	}
 
 	// Handle input changes (contenteditable)
 	function handleInput() {
-		convertWikilinks();
+		// Debounce wikilink conversion to avoid DOM traversal on every keystroke
+		clearTimeout(wikilinkDebounceTimer);
+		wikilinkDebounceTimer = setTimeout(convertWikilinks, 300);
 		scheduleSave();
 	}
 
@@ -381,6 +408,7 @@
 		} else if (wasEditing && !isEditing) {
 			// Just exited edit mode - save any pending changes
 			clearTimeout(debounceTimer);
+			clearTimeout(wikilinkDebounceTimer);
 			saveNow();
 		}
 		wasEditing = isEditing;
@@ -404,6 +432,7 @@
 	$effect(() => {
 		return () => {
 			clearTimeout(debounceTimer);
+			clearTimeout(wikilinkDebounceTimer);
 		};
 	});
 </script>
