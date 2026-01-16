@@ -85,6 +85,9 @@ class CanvasStore {
 	// Connection line visibility
 	showLines = $state<boolean>(true);
 
+	// Debug mode
+	debugMode = $state<boolean>(false);
+
 	// Edit mode state
 	editingCardId = $state<string | null>(null);
 
@@ -931,6 +934,10 @@ class CanvasStore {
 
 	toggleLines(): void {
 		this.showLines = !this.showLines;
+	}
+
+	toggleDebugMode(): void {
+		this.debugMode = !this.debugMode;
 	}
 
 	isInActiveChain(cardId: string): boolean {
