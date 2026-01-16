@@ -421,6 +421,7 @@ class CanvasStore {
 	/**
 	 * Focus on a card and position for reading (top of card near top of viewport).
 	 * Saves reading state for current card, restores for target card if previously visited.
+	 * Link focus restoration is included in the event for the Canvas to handle after animation.
 	 */
 	focusCard(cardId: string): void {
 		const card = this.cards.get(cardId);
@@ -440,14 +441,19 @@ class CanvasStore {
 		this.focusedCardId = cardId;
 
 		// Dispatch event for Canvas to animate
+		// Include link restoration info so Canvas can restore AFTER animation completes
 		if (typeof window !== 'undefined') {
 			this.isAnimating = true;
+
+			const linkRestoration = savedState?.linkFocusActive
+				? { linkTarget: savedState.linkTarget, linkFocusActive: true }
+				: null;
 
 			if (savedState?.camera) {
 				// Returning to previously visited card - restore exact position
 				window.dispatchEvent(
 					new CustomEvent('canvas-restore', {
-						detail: { camera: savedState.camera }
+						detail: { camera: savedState.camera, linkRestoration }
 					})
 				);
 			} else {
@@ -457,7 +463,8 @@ class CanvasStore {
 						detail: {
 							x: card.position.x + card.dimensions.width / 2,
 							y: card.position.y, // Card top, not center
-							cardId: card.id
+							cardId: card.id,
+							linkRestoration
 						}
 					})
 				);
