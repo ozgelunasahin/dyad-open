@@ -1,4 +1,4 @@
-import type { Card, Point, Dimensions } from '$lib/types';
+import type { Card, Point, Dimensions, LinkSide } from '$lib/types';
 import { CARD_SPACING, DEFAULT_CARD_WIDTH } from '$lib/types';
 import {
 	detectCoaxialOverlap,
@@ -20,6 +20,21 @@ const ROUTING_GAP = 80; // Horizontal gap between columns for routing vertical s
 const COLUMN_WIDTH = DEFAULT_CARD_WIDTH + CARD_SPACING + ROUTING_GAP;
 const CHANNEL_STEP = 15; // Spacing between routing channels
 
+// Scoring constants for layout algorithm
+const SCORING = {
+	// Column preferences - right side is always preferred
+	RIGHT_SIDE_BONUS: 0,        // No penalty for right side
+	LEFT_SIDE_PENALTY: 150,     // Penalty for left side (even if link is on left)
+	COLUMN_FAR_PENALTY: 100,    // Additional penalty per column distance > 1
+	Y_DISTANCE_WEIGHT: 0.5,
+	// Line routing penalties
+	CHANNEL_REUSE_PENALTY: 500,
+	COAXIAL_PENALTY_PER_SEGMENT: 2000,  // Very heavy penalty for lines running alongside
+	COAXIAL_PENALTY_PER_PIXEL: 10,      // Scale strongly with overlap length
+	CROSSING_PENALTY: 200,
+	CARD_OVERLAP_PENALTY: 1000
+} as const;
+
 /**
  * Layout candidate for scoring.
  */
@@ -38,7 +53,8 @@ export function calculateNewCardPosition(
 	existingCards: Card[],
 	linkPosition: Point | null,
 	newCardDimensions: Dimensions,
-	existingPaths: Point[][] = []
+	existingPaths: Point[][] = [],
+	linkSide?: LinkSide
 ): { position: Point; routingX?: number } {
 	if (!parentCard || !linkPosition) {
 		return { position: { x: 0, y: 0 } };
@@ -61,7 +77,8 @@ export function calculateNewCardPosition(
 			linkPosition,
 			newCardDimensions,
 			existingCards,
-			existingPaths
+			existingPaths,
+			linkSide
 		);
 	}
 
@@ -111,13 +128,15 @@ function generateCandidates(
 		yOffsets.push(-offset, offset);
 	}
 
-	// Columns to try: N+1, N+2, N+3 (right), and N-1 (left)
+	// Columns to try: N+1, N+2, N+3 (right), and N-1, N-2 (left)
+	// Allow negative columns for left-side placement from root card
 	const columnsToTry = [
 		parentColumn + 1,
 		parentColumn + 2,
 		parentColumn - 1,  // Left side
+		parentColumn - 2,  // Further left
 		parentColumn + 3
-	].filter(col => col >= 0);
+	];
 
 	for (const targetColumn of columnsToTry) {
 		const targetX = targetColumn * COLUMN_WIDTH;
@@ -137,8 +156,14 @@ function generateCandidates(
 		const usedChannels = findUsedVerticalChannels(existingPaths, gapStart, gapEnd);
 		const availableChannels = findAvailableChannels(gapStart, gapEnd, usedChannels);
 
+		// For left-side cards, position BELOW the link so line drops down (L-shape)
+		// For right-side cards, align heading with link position
+		const columnBaseY = isLeftSide
+			? linkPosition.y + 60  // Position card below link for downward L-shape
+			: baseY;               // Align heading with link
+
 		for (const yOffset of yOffsets) {
-			const candidateY = Math.max(0, baseY + yOffset);
+			const candidateY = Math.max(0, columnBaseY + yOffset);
 			const candidatePos = { x: targetX, y: candidateY };
 
 			// Skip if overlaps with existing cards
@@ -222,9 +247,12 @@ function scoreCandidatePosition(
 	linkPosition: Point,
 	newCardDimensions: Dimensions,
 	existingCards: Card[],
-	existingPaths: Point[][]
+	existingPaths: Point[][],
+	linkSide?: LinkSide
 ): number {
 	let score = 0;
+
+	const parentColumn = Math.floor(parentCard.position.x / COLUMN_WIDTH);
 
 	// 1. Simulate the path for this candidate
 	const simPath = simulatePath(
@@ -235,41 +263,41 @@ function scoreCandidatePosition(
 		candidate.routingX
 	);
 
-	// 2. Coaxial overlap penalty (most important)
-	const coaxial = detectCoaxialOverlap(simPath, existingPaths);
-	score += coaxial.count * 500;        // Heavy penalty per coaxial segment
-	score += coaxial.totalLength * 2;    // Penalty per pixel of overlap
-
-	// 3. Path crossing penalty (perpendicular crossings are ok but not ideal)
-	const crossings = countPathCrossings(simPath, existingPaths);
-	score += crossings * 50;
-
-	// 4. Path crosses card penalty
+	// 2. Early termination: path crosses card is a deal-breaker
 	if (pathCrossesCards(simPath, existingCards, parentCard)) {
-		score += 1000;
+		return SCORING.CARD_OVERLAP_PENALTY;
 	}
+
+	// 3. Coaxial overlap penalty (most important)
+	const coaxial = detectCoaxialOverlap(simPath, existingPaths);
+	score += coaxial.count * SCORING.COAXIAL_PENALTY_PER_SEGMENT;
+	score += coaxial.totalLength * SCORING.COAXIAL_PENALTY_PER_PIXEL;
+
+	// 4. Path crossing penalty (perpendicular crossings are ok but not ideal)
+	const crossings = countPathCrossings(simPath, existingPaths);
+	score += crossings * SCORING.CROSSING_PENALTY;
 
 	// 5. Distance from ideal Y position (prefer close to link)
 	const idealY = linkPosition.y - 20;
 	const yDistance = Math.abs(candidate.position.y - idealY);
-	score += yDistance * 0.5;
+	score += yDistance * SCORING.Y_DISTANCE_WEIGHT;
 
-	// 6. Column preference
-	const parentColumn = Math.floor(parentCard.position.x / COLUMN_WIDTH);
-	const columnDelta = candidate.column - parentColumn;
+	// 6. Column preference - right side always preferred, left as fallback
+	const isRightSide = candidate.column > parentColumn;
+	const columnDistance = Math.abs(candidate.column - parentColumn);
 
-	if (columnDelta === 1) {
-		// Preferred: immediate next column
-		score += 0;
-	} else if (columnDelta === 2) {
-		// Second column - slight penalty
-		score += 100;
-	} else if (columnDelta === -1) {
-		// Left side - moderate penalty (only use when needed)
-		score += 200;
+	if (isRightSide) {
+		// Right side: no base penalty, small penalty for distance
+		score += SCORING.RIGHT_SIDE_BONUS;
+		if (columnDistance > 1) {
+			score += (columnDistance - 1) * SCORING.COLUMN_FAR_PENALTY;
+		}
 	} else {
-		// Further columns - higher penalty
-		score += Math.abs(columnDelta) * 150;
+		// Left side: base penalty plus distance penalty
+		score += SCORING.LEFT_SIDE_PENALTY;
+		if (columnDistance > 1) {
+			score += (columnDistance - 1) * SCORING.COLUMN_FAR_PENALTY;
+		}
 	}
 
 	// 7. Prefer unused routing channels (bonus for unique channel)
@@ -280,7 +308,7 @@ function scoreCandidatePosition(
 	);
 	const channelUsed = usedChannels.some(c => Math.abs(c - candidate.routingX) < CHANNEL_STEP);
 	if (channelUsed) {
-		score += 300;
+		score += SCORING.CHANNEL_REUSE_PENALTY;
 	}
 
 	return score;

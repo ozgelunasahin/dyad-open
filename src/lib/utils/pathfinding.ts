@@ -113,6 +113,7 @@ export function findUsedVerticalChannels(
 
 /**
  * Simulate a path without storing it - for candidate scoring.
+ * Matches the routing logic in routeConnection.
  */
 export function simulatePath(
 	start: Point,
@@ -122,35 +123,34 @@ export function simulatePath(
 	routingX?: number
 ): Point[] {
 	const sourceRightEdge = sourceCard.position.x + sourceCard.dimensions.width;
-	const sourceLeftEdge = sourceCard.position.x;
 	const targetCenterX = targetPosition.x + targetDimensions.width / 2;
 	const sourceCenterX = sourceCard.position.x + sourceCard.dimensions.width / 2;
 	const exitRight = targetCenterX > sourceCenterX;
-
 	const headingY = targetPosition.y + 20;
 
-	let exitX: number;
-	let entryX: number;
-	let verticalX: number;
-
 	if (exitRight) {
-		exitX = sourceRightEdge + 10;
-		entryX = targetPosition.x - 10;
-		verticalX = routingX ?? (exitX + entryX) / 2;
-	} else {
-		exitX = sourceLeftEdge - 10;
-		entryX = targetPosition.x + targetDimensions.width + 10;
-		verticalX = routingX ?? (entryX + exitX) / 2;
-	}
+		// Right-going: Z-shape (horizontal → vertical → horizontal)
+		const exitX = sourceRightEdge + 10;
+		const entryX = targetPosition.x - 10;
+		const verticalX = routingX ?? (exitX + entryX) / 2;
 
-	return [
-		start,
-		{ x: exitX, y: start.y },
-		{ x: verticalX, y: start.y },
-		{ x: verticalX, y: headingY },
-		{ x: entryX, y: headingY },
-		{ x: entryX, y: headingY }
-	];
+		return [
+			start,
+			{ x: exitX, y: start.y },
+			{ x: verticalX, y: start.y },
+			{ x: verticalX, y: headingY },
+			{ x: entryX, y: headingY }
+		];
+	} else {
+		// Left-going: L-shape (horizontal → vertical)
+		const entryX = targetPosition.x - 10;
+
+		return [
+			start,
+			{ x: entryX, y: start.y },
+			{ x: entryX, y: headingY }
+		];
+	}
 }
 
 /**
@@ -225,41 +225,35 @@ export function routeConnection(
 				cards,
 				sourceCard,
 				targetCard,
-				existingPaths
+				existingPaths,
+				start.y // Pass source link Y for offset calculation
 			);
 		}
 	} else {
-		// Exit to the left, enter from the right (reverse case)
-		exitX = sourceLeftEdge - 10;
-		exitPoint = { x: exitX, y: start.y };
-		entryX = targetRightEdge + 10;
+		// Exit to the left - simple L-shape: go LEFT then DOWN
+		// Target card should be positioned lower so the line drops down
+		entryX = targetLeftEdge - 10;
 		entryPoint = { x: entryX, y: headingY };
 
-		// Use preferred routing X if provided and valid, otherwise find one
-		if (preferredRoutingX !== undefined && preferredRoutingX > entryX && preferredRoutingX < exitX) {
-			verticalX = preferredRoutingX;
-		} else {
-			verticalX = findVerticalRoutingX(
-				entryX,  // Swap order for left-exit routing
-				exitX,
-				Math.min(start.y, headingY),
-				Math.max(start.y, headingY),
-				cards,
-				sourceCard,
-				targetCard,
-				existingPaths
-			);
-		}
+		// L-shape: horizontal to entry X, then vertical down to entry Y
+		// No separate exit point needed - go directly to entry X
+		exitX = entryX; // Vertical segment is at entry X
+		exitPoint = { x: exitX, y: start.y };
+		verticalX = entryX; // Vertical channel is at entry point X
 	}
 
 	// Build the path - start from link underline position
 	// The line extends from the link text itself, blending with the underline
+	// For right-exit: Z-shape entering from left at heading level
+	// For left-exit: route above, enter at top-left corner
+	const verticalEndY = exitRight ? headingY : entryPoint.y;
+
 	const path: Point[] = [
 		start,                              // Start at the link underline position
 		exitPoint,                          // Go horizontally to exit the card
 		{ x: verticalX, y: start.y },       // Move to vertical routing channel
-		{ x: verticalX, y: headingY },      // Go vertical to target row
-		entryPoint,                         // Approach target
+		{ x: verticalX, y: verticalEndY },  // Go vertical to target row/above
+		entryPoint,                         // Approach target (horizontal for right, from above for left)
 		end                                 // Entry point on target
 	];
 
@@ -274,133 +268,55 @@ export function routeConnection(
 }
 
 /**
- * Find the best X position for the vertical segment of the path.
- * Tries the middle of the gap first, then searches for alternatives.
- * Checks both card obstacles and existing path crossings.
+ * Find the X position for the vertical segment of the path.
+ *
+ * Deterministic offset based on source link Y position:
+ * - Links at TOP of card → riser further RIGHT
+ * - Links at BOTTOM of card → riser further LEFT
+ *
+ * This naturally accommodates growing cards: as content is added at the bottom,
+ * new links get their risers placed to the left of existing higher links.
+ *
+ * @param sourceY - Y position of the source link (determines offset)
  */
 function findVerticalRoutingX(
 	exitX: number,
 	entryX: number,
-	minY: number,
-	maxY: number,
-	cards: Card[],
+	_minY: number,
+	_maxY: number,
+	_cards: Card[],
 	sourceCard: Card,
-	targetCard: Card,
-	existingPaths: Point[][]
+	_targetCard: Card,
+	_existingPaths: Point[][],
+	sourceY?: number
 ): number {
 	const gapWidth = entryX - exitX;
 	const midX = exitX + gapWidth / 2;
 
-	// Try middle first
-	if (isVerticalClear(midX, minY, maxY, cards, sourceCard, targetCard) &&
-		!verticalCrossesExistingPaths(midX, minY, maxY, existingPaths)) {
+	if (sourceY === undefined || gapWidth < 40) {
 		return midX;
 	}
 
-	// Try positions from middle outward with finer granularity
-	const offsets: number[] = [];
-	for (let i = 5; i <= 50; i += 5) {
-		offsets.push(i, -i);
-	}
+	// Calculate offset based on source link position within the card
+	// Top of card (normalizedY ≈ 0) → positive offset (right)
+	// Bottom of card (normalizedY ≈ 1) → negative offset (left)
+	const cardTop = sourceCard.position.y;
+	const cardHeight = sourceCard.dimensions.height;
+	const normalizedY = cardHeight > 0
+		? (sourceY - cardTop) / cardHeight
+		: 0.5;
 
-	for (const offset of offsets) {
-		const x = midX + offset;
-		if (x > exitX + 5 && x < entryX - 5) {
-			if (isVerticalClear(x, minY, maxY, cards, sourceCard, targetCard) &&
-				!verticalCrossesExistingPaths(x, minY, maxY, existingPaths)) {
-				return x;
-			}
-		}
-	}
+	// Use up to 80% of gap width for offset range
+	const maxOffset = gapWidth * 0.8;
+	// Flip: top (0) → +maxOffset/2, bottom (1) → -maxOffset/2
+	const offset = (0.5 - normalizedY) * maxOffset;
 
-	// Fallback to middle (may have crossings)
-	return midX;
-}
+	const routingX = midX + offset;
 
-/**
- * Check if a vertical segment would cross any existing paths.
- */
-function verticalCrossesExistingPaths(
-	x: number,
-	minY: number,
-	maxY: number,
-	existingPaths: Point[][]
-): boolean {
-	const verticalSegmentStart = { x, y: minY };
-	const verticalSegmentEnd = { x, y: maxY };
-
-	for (const path of existingPaths) {
-		for (let i = 0; i < path.length - 1; i++) {
-			const segStart = path[i];
-			const segEnd = path[i + 1];
-
-			// Check if horizontal segment of existing path crosses our vertical
-			if (Math.abs(segStart.y - segEnd.y) < 1) {
-				// This is a horizontal segment
-				const segMinX = Math.min(segStart.x, segEnd.x);
-				const segMaxX = Math.max(segStart.x, segEnd.x);
-				const segY = segStart.y;
-
-				// Check if our vertical line crosses this horizontal segment
-				if (x > segMinX && x < segMaxX && segY > minY && segY < maxY) {
-					return true;
-				}
-			}
-		}
-	}
-
-	return false;
-}
-
-/**
- * Check if a vertical line at X from minY to maxY is clear of cards.
- */
-function isVerticalClear(
-	x: number,
-	minY: number,
-	maxY: number,
-	cards: Card[],
-	sourceCard: Card,
-	targetCard: Card
-): boolean {
-	const padding = 15;
-
-	for (const card of cards) {
-		if (card.id === sourceCard.id || card.id === targetCard.id) continue;
-
-		const cardLeft = card.position.x - padding;
-		const cardRight = card.position.x + card.dimensions.width + padding;
-		const cardTop = card.position.y - padding;
-		const cardBottom = card.position.y + card.dimensions.height + padding;
-
-		// Check if vertical line passes through card
-		if (x >= cardLeft && x <= cardRight) {
-			if (maxY >= cardTop && minY <= cardBottom) {
-				return false;
-			}
-		}
-	}
-
-	return true;
-}
-
-/**
- * Check if a path crosses any existing paths.
- */
-function checkPathCrossings(path: Point[], existingPaths: Point[][]): boolean {
-	for (const existing of existingPaths) {
-		for (let i = 0; i < path.length - 1; i++) {
-			for (let j = 0; j < existing.length - 1; j++) {
-				if (segmentsIntersect(path[i], path[i + 1], existing[j], existing[j + 1])) {
-					// Allow shared endpoints
-					if (!sharesEndpoint(path[i], path[i + 1], existing[j], existing[j + 1])) {
-						return true;
-					}
-				}
-			}
-		}
-	}
-	return false;
+	// Clamp to stay within gap bounds
+	const minBound = exitX + 15;
+	const maxBound = entryX - 15;
+	return Math.max(minBound, Math.min(maxBound, routingX));
 }
 
 function sharesEndpoint(p1: Point, p2: Point, p3: Point, p4: Point): boolean {
@@ -535,7 +451,7 @@ const HOP_RADIUS = 8;
 
 /**
  * Find crossing points between a path segment and existing paths.
- * Uses the same segmentsIntersect logic as checkPathCrossings for consistency.
+ * Uses the same segmentsIntersect logic as segmentsIntersect for consistency.
  */
 function findCrossingsOnSegment(
 	segStart: Point,
@@ -549,7 +465,7 @@ function findCrossingsOnSegment(
 			const otherStart = path[j];
 			const otherEnd = path[j + 1];
 
-			// Use same intersection check as checkPathCrossings
+			// Use same intersection check as segmentsIntersect
 			if (segmentsIntersect(segStart, segEnd, otherStart, otherEnd)) {
 				// Don't count shared endpoints as crossings
 				if (sharesEndpoint(segStart, segEnd, otherStart, otherEnd)) {
@@ -699,15 +615,12 @@ export function pathToSvgWithHops(points: Point[], existingPaths: Point[][]): st
 }
 
 /**
- * Calculate entry point on a card - just outside the edge at heading level.
- * Entry side depends on where the connection is coming from.
+ * Calculate entry point on a card - at left edge, heading level.
+ * Both left-going and right-going connections enter from the left edge.
  */
 export function getCardEntryPoint(card: Card, fromPoint: Point): Point {
-	const cardCenterX = card.position.x + card.dimensions.width / 2;
-	const enterFromLeft = fromPoint.x < cardCenterX;
-
 	return {
-		x: enterFromLeft ? card.position.x - 8 : card.position.x + card.dimensions.width + 8,
-		y: card.position.y + 20
+		x: card.position.x - 8,
+		y: card.position.y + 20 // Heading level
 	};
 }
