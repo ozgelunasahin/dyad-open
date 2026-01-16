@@ -1,14 +1,21 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import type { Card, Point } from '$lib/types';
+	import { isHTMLElement } from '$lib/utils/type-guards';
 	import { parseMarkdown } from '$lib/utils/markdown';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import TurndownService from 'turndown';
 
+	interface LinkBounds {
+		left: number;
+		right: number;
+		bottom: number;
+	}
+
 	interface Props {
 		card: Card;
 		isActive: boolean;
-		onLinkClick: (noteId: string, fromCardId: string, linkPosition: Point) => void;
+		onLinkClick: (noteId: string, fromCardId: string, linkBounds: LinkBounds) => void;
 		onCardClick: (cardId: string) => void;
 		readOnly?: boolean;
 	}
@@ -98,24 +105,25 @@
 		}
 
 		const rect = target.getBoundingClientRect();
-		const linkPosition: Point = {
-			x: rect.left,
-			y: rect.bottom
+		const linkBounds: LinkBounds = {
+			left: rect.left,
+			right: rect.right,
+			bottom: rect.bottom
 		};
 
 		// If link is broken (note doesn't exist), create it (unless read-only)
 		if (canvasStore.isLinkBroken(noteId)) {
 			if (!readOnly) {
-				await createNewNote(noteId, linkPosition, target);
+				await createNewNote(noteId, linkBounds, target);
 			}
 			return;
 		}
 
-		onLinkClick(noteId, card.id, linkPosition);
+		onLinkClick(noteId, card.id, linkBounds);
 		target.classList.add('has-connection');
 	}
 
-	async function createNewNote(noteId: string, linkPosition: Point, target: HTMLElement) {
+	async function createNewNote(noteId: string, linkBounds: LinkBounds, target: HTMLElement) {
 		// Create title from noteId (convert hyphens to spaces, title case)
 		const title = noteId
 			.split('-')
@@ -142,7 +150,7 @@
 			canvasStore.addNoteToVault(noteId, title);
 
 			// Use normal link click flow for proper coordinate conversion and path computation
-			onLinkClick(noteId, card.id, linkPosition);
+			onLinkClick(noteId, card.id, linkBounds);
 			target.classList.add('has-connection');
 
 			// Enter edit mode on the new card after a brief delay
@@ -153,12 +161,12 @@
 	}
 
 	function handleClick(event: MouseEvent) {
-		const target = event.target as HTMLElement;
+		if (!isHTMLElement(event.target)) return;
 
 		// Handle wikilink clicks (only in view mode)
 		// Use closest() to find wikilink even if click was on child element
-		const wikilinkTarget = target.closest('.wikilink') as HTMLElement | null;
-		if (wikilinkTarget && !isEditing) {
+		const wikilinkTarget = event.target.closest('.wikilink');
+		if (wikilinkTarget && isHTMLElement(wikilinkTarget) && !isEditing) {
 			event.preventDefault();
 			event.stopPropagation();
 			handleInteraction(wikilinkTarget);
@@ -181,10 +189,10 @@
 		}
 
 		if (event.key === 'Enter' || event.key === ' ') {
-			const target = event.target as HTMLElement;
-			if (target.classList.contains('wikilink')) {
+			if (!isHTMLElement(event.target)) return;
+			if (event.target.classList.contains('wikilink')) {
 				event.preventDefault();
-				handleInteraction(target);
+				handleInteraction(event.target);
 			}
 		}
 	}
@@ -552,6 +560,7 @@
 	.text-block :global(.wikilink) {
 		background: none;
 		border: none;
+		outline: none;
 		color: var(--text-link);
 		text-decoration: none;
 		border-bottom: 1px solid var(--border-link);
@@ -559,6 +568,10 @@
 		padding: 0;
 		font: inherit;
 		transition: all 0.15s ease;
+	}
+
+	.text-block :global(.wikilink:focus-visible) {
+		outline: none;
 	}
 
 	.text-block :global(.wikilink:hover) {

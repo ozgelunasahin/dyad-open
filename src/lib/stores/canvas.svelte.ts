@@ -1,4 +1,4 @@
-import type { Card, Connection, Camera, Point, Vault, Dimensions, AStarExplorationFrame } from '$lib/types';
+import type { Card, Connection, Camera, Point, Vault, Dimensions, LinkSide, SourceBounds } from '$lib/types';
 import { MAX_CARDS, DEFAULT_CARD_WIDTH, MIN_CARD_WIDTH, MAX_CARD_WIDTH } from '$lib/types';
 import { calculateNewCardPosition } from '$lib/utils/layout';
 import { measureMarkdownContent, calculateOptimalWidth } from '$lib/utils/measure';
@@ -82,10 +82,8 @@ class CanvasStore {
 	focusedCardId = $state<string | null>(null);
 	isAnimating = $state<boolean>(false);
 
-	// Debug visualization state
-	debugMode = $state<boolean>(false);
-	debugExploration = $state<AStarExplorationFrame[]>([]);
-	debugCurrentFrame = $state<number>(0);
+	// Connection line visibility
+	showLines = $state<boolean>(true);
 
 	// Edit mode state
 	editingCardId = $state<string | null>(null);
@@ -94,13 +92,18 @@ class CanvasStore {
 	focusedLinkIndex = $state<number | null>(null);
 	isLinkFocusMode = $derived(this.focusedLinkIndex !== null);
 
-	// Per-card reading state (camera position, link focus, etc.)
+	// Per-card reading state (vertical scroll position, link focus, etc.)
 	// Saved when leaving a card, restored when returning
+	// Only vertical position is saved - horizontal is restored to card center
 	private savedCardState = $state<Map<string, {
-		camera: Camera;
+		focusY: number;  // Canvas-space Y that was at viewport center (reading position)
 		linkTarget?: string;
 		linkFocusActive?: boolean;
 	}>>(new Map());
+
+	// Viewport dimensions for reading zone calculations
+	private viewportWidth = $state<number>(0);
+	private viewportHeight = $state<number>(0);
 
 	// Current canvas ID for per-canvas state persistence
 	private currentCanvasId: string | null = null;
@@ -184,10 +187,12 @@ class CanvasStore {
 				// Rebuild connections from parent relationships
 				for (const card of restoredCards.values()) {
 					if (card.parentId && restoredCards.has(card.parentId)) {
+						// Convert legacy sourceLink Point to SourceBounds
+						const legacyPoint = card.sourceLink || { x: card.position.x, y: card.position.y };
 						this.connections.push({
 							fromCardId: card.parentId,
 							toCardId: card.id,
-							sourcePoint: card.sourceLink || { x: card.position.x, y: card.position.y }
+							sourceBounds: { left: legacyPoint.x, right: legacyPoint.x, y: legacyPoint.y }
 						});
 					}
 				}
@@ -313,7 +318,7 @@ class CanvasStore {
 		};
 	}
 
-	openNote(noteId: string, fromCardId: string | null, linkPosition: Point | null): boolean {
+	openNote(noteId: string, fromCardId: string | null, sourceBounds: SourceBounds | null): boolean {
 		if (!this.vault) return false;
 
 		const note = this.vault.notes[noteId];
@@ -342,13 +347,18 @@ class CanvasStore {
 		const parentCard = fromCardId ? this.cards.get(fromCardId) ?? null : null;
 		const existingCards = Array.from(this.cards.values());
 
+		// Use center of link bounds for placement calculations
+		const linkCenter: Point | null = sourceBounds
+			? { x: (sourceBounds.left + sourceBounds.right) / 2, y: sourceBounds.y }
+			: null;
+
 		// Calculate position using priority-based algorithm with crossing prevention
 		// Pass existing path points (not connections) for collision detection
 		const existingPathPoints = this.getExistingPathPoints();
 		const { position, routingX } = calculateNewCardPosition(
 			parentCard,
 			existingCards,
-			linkPosition,
+			linkCenter,
 			dimensions,
 			existingPathPoints
 		);
@@ -360,7 +370,7 @@ class CanvasStore {
 			position,
 			dimensions,
 			parentId: fromCardId,
-			sourceLink: linkPosition
+			sourceLink: linkCenter
 		};
 
 		// Update state
@@ -369,13 +379,13 @@ class CanvasStore {
 		this.cards = newCards;
 
 		// Add connection if has parent
-		if (fromCardId && linkPosition) {
+		if (fromCardId && sourceBounds) {
 			this.connections = [
 				...this.connections,
 				{
 					fromCardId,
 					toCardId: noteId,
-					sourcePoint: linkPosition,
+					sourceBounds,
 					routingX // Include pre-assigned routing channel
 				}
 			];
@@ -428,11 +438,29 @@ class CanvasStore {
 		if (!card) return;
 
 		// Save current card's state before switching (camera is saved here, link state saved separately)
+		// BUT: If card has been panned out of the reading zone, don't save - clear it instead
 		if (this.focusedCardId && this.focusedCardId !== cardId) {
-			const existing = this.savedCardState.get(this.focusedCardId) || { camera: this.camera };
-			const newMap = new Map(this.savedCardState);
-			newMap.set(this.focusedCardId, { ...existing, camera: { ...this.camera } });
-			this.savedCardState = newMap;
+			const inReadingZone = this.viewportWidth > 0 && this.viewportHeight > 0
+				? this.isCardInReadingZone(this.viewportWidth, this.viewportHeight, 100)
+				: true; // If no viewport info, assume in zone
+
+			if (!inReadingZone) {
+				// Card panned out of view - clear saved state so it will re-focus for reading
+				this.clearSavedCardState(this.focusedCardId);
+			} else {
+				// Card still in reading zone - save only vertical focus position
+				// Horizontal position is discarded; will restore to card center
+				const focusY = this.viewportHeight > 0
+					? (this.viewportHeight / 2 - this.camera.y) / this.camera.zoom
+					: 0;
+				const existing = this.savedCardState.get(this.focusedCardId);
+				const newMap = new Map(this.savedCardState);
+				newMap.set(this.focusedCardId, {
+					...existing,
+					focusY
+				});
+				this.savedCardState = newMap;
+			}
 		}
 
 		// Check if we have saved state for the target card
@@ -449,11 +477,16 @@ class CanvasStore {
 				? { linkTarget: savedState.linkTarget, linkFocusActive: true }
 				: null;
 
-			if (savedState?.camera) {
-				// Returning to previously visited card - restore exact position
+			if (savedState?.focusY !== undefined) {
+				// Returning to previously visited card - restore vertical position
+				// Horizontal position restored to card center
 				window.dispatchEvent(
 					new CustomEvent('canvas-restore', {
-						detail: { camera: savedState.camera, linkRestoration }
+						detail: {
+							focusY: savedState.focusY,
+							cardId: card.id,  // Canvas uses this to compute centered X
+							linkRestoration
+						}
 					})
 				);
 			} else {
@@ -465,6 +498,81 @@ class CanvasStore {
 							y: card.position.y, // Card top, not center
 							cardId: card.id,
 							linkRestoration
+						}
+					})
+				);
+			}
+		}
+	}
+
+	/**
+	 * Focus a card without animating to it (for first-click behavior).
+	 * Just sets the focused card and saves current card's state.
+	 * A second click will trigger pan to reading position.
+	 */
+	focusCardWithoutAnimation(cardId: string): void {
+		const card = this.cards.get(cardId);
+		if (!card) return;
+
+		// Save current card's state before switching
+		if (this.focusedCardId && this.focusedCardId !== cardId) {
+			const inReadingZone = this.viewportWidth > 0 && this.viewportHeight > 0
+				? this.isCardInReadingZone(this.viewportWidth, this.viewportHeight, 100)
+				: true;
+
+			if (!inReadingZone) {
+				this.clearSavedCardState(this.focusedCardId);
+			} else {
+				const focusY = this.viewportHeight > 0
+					? (this.viewportHeight / 2 - this.camera.y) / this.camera.zoom
+					: 0;
+				const existing = this.savedCardState.get(this.focusedCardId);
+				const newMap = new Map(this.savedCardState);
+				newMap.set(this.focusedCardId, {
+					...existing,
+					focusY
+				});
+				this.savedCardState = newMap;
+			}
+		}
+
+		// Just set focus, no animation
+		this.focusedCardId = cardId;
+	}
+
+	/**
+	 * Pan to reading position for the currently focused card.
+	 * Used on second click when card is already focused.
+	 */
+	panToFocusedCard(): void {
+		const card = this.focusedCardId ? this.cards.get(this.focusedCardId) : null;
+		if (!card) return;
+
+		const savedState = this.savedCardState.get(this.focusedCardId!);
+
+		if (typeof window !== 'undefined') {
+			this.isAnimating = true;
+
+			if (savedState?.focusY !== undefined) {
+				// Restore to saved vertical position, centered horizontally
+				window.dispatchEvent(
+					new CustomEvent('canvas-restore', {
+						detail: {
+							focusY: savedState.focusY,
+							cardId: card.id,
+							linkRestoration: null
+						}
+					})
+				);
+			} else {
+				// New card - animate to reading position
+				window.dispatchEvent(
+					new CustomEvent('canvas-focus', {
+						detail: {
+							x: card.position.x + card.dimensions.width / 2,
+							y: card.position.y,
+							cardId: card.id,
+							linkRestoration: null
 						}
 					})
 				);
@@ -519,6 +627,11 @@ class CanvasStore {
 		this.persistState();
 	}
 
+	updateViewportDimensions(width: number, height: number): void {
+		this.viewportWidth = width;
+		this.viewportHeight = height;
+	}
+
 	setAnimating(animating: boolean): void {
 		this.isAnimating = animating;
 	}
@@ -543,9 +656,12 @@ class CanvasStore {
 	// Save link focus state (target and mode) for current card before leaving
 	saveLinkState(linkTarget: string | undefined, linkFocusActive: boolean): void {
 		if (!this.focusedCardId) return;
-		const existing = this.savedCardState.get(this.focusedCardId) || { camera: this.camera };
+		// Compute current focus Y if we don't have one
+		const existing = this.savedCardState.get(this.focusedCardId);
+		const focusY = existing?.focusY ??
+			(this.viewportHeight > 0 ? (this.viewportHeight / 2 - this.camera.y) / this.camera.zoom : 0);
 		const newMap = new Map(this.savedCardState);
-		newMap.set(this.focusedCardId, { ...existing, linkTarget, linkFocusActive });
+		newMap.set(this.focusedCardId, { focusY, linkTarget, linkFocusActive });
 		this.savedCardState = newMap;
 	}
 
@@ -553,6 +669,58 @@ class CanvasStore {
 	getSavedCardState(): { linkTarget?: string; linkFocusActive?: boolean } | null {
 		if (!this.focusedCardId) return null;
 		return this.savedCardState.get(this.focusedCardId) ?? null;
+	}
+
+	// Clear saved state for a card (used when deleting card or navigating far away)
+	clearSavedCardState(cardId: string): void {
+		if (this.savedCardState.has(cardId)) {
+			const newMap = new Map(this.savedCardState);
+			newMap.delete(cardId);
+			this.savedCardState = newMap;
+		}
+	}
+
+	// Check if the focused card is still within the viewport's reading zone
+	// The reading zone is the viewport minus margins on each side
+	// Vertical scrolling is allowed (reading), horizontal panning away is not
+	isCardInReadingZone(viewportWidth: number, viewportHeight: number, margin: number = 100): boolean {
+		if (!this.focusedCardId) return true;
+		const card = this.cards.get(this.focusedCardId);
+		if (!card) return true;
+
+		// Convert viewport bounds to canvas coordinates
+		const zoom = this.camera.zoom;
+		const viewportLeft = -this.camera.x / zoom;
+		const viewportRight = (-this.camera.x + viewportWidth) / zoom;
+		const viewportTop = -this.camera.y / zoom;
+		const viewportBottom = (-this.camera.y + viewportHeight) / zoom;
+
+		// Card bounds
+		const cardLeft = card.position.x;
+		const cardRight = card.position.x + card.dimensions.width;
+		const cardTop = card.position.y;
+		const cardBottom = card.position.y + card.dimensions.height;
+
+		// Reading zone (viewport with margins)
+		const zoneLeft = viewportLeft + margin / zoom;
+		const zoneRight = viewportRight - margin / zoom;
+		const zoneTop = viewportTop + margin / zoom;
+		const zoneBottom = viewportBottom - margin / zoom;
+
+		// Card is in reading zone if it overlaps horizontally with the zone
+		// and at least part of it is visible vertically
+		const horizontalOverlap = cardRight > zoneLeft && cardLeft < zoneRight;
+		const verticalVisible = cardBottom > viewportTop && cardTop < viewportBottom;
+
+		return horizontalOverlap && verticalVisible;
+	}
+
+	// Clear saved state for current card if it's been panned out of the reading zone
+	clearSavedStateIfNotInReadingZone(viewportWidth: number, viewportHeight: number, margin: number = 100): void {
+		if (!this.focusedCardId) return;
+		if (!this.isCardInReadingZone(viewportWidth, viewportHeight, margin)) {
+			this.clearSavedCardState(this.focusedCardId);
+		}
 	}
 
 	focusNextLink(linkCount: number): void {
@@ -596,7 +764,8 @@ class CanvasStore {
 	followLinkToRight(
 		noteId: string,
 		fromCardId: string,
-		linkPosition: Point
+		sourceBounds: SourceBounds,
+		linkSide?: LinkSide
 	): boolean {
 		// If note is already open, update chain and focus it
 		if (this.cards.has(noteId)) {
@@ -616,6 +785,9 @@ class CanvasStore {
 		if (!note) return false;
 		if (this.cards.size >= MAX_CARDS) return false;
 
+		// Use center of link bounds for placement calculations
+		const linkCenter: Point = { x: (sourceBounds.left + sourceBounds.right) / 2, y: sourceBounds.y };
+
 		// Calculate dimensions and position
 		const dimensions = this.calculateCardDimensions(note.content);
 		const parentCard = this.cards.get(fromCardId) ?? null;
@@ -625,9 +797,10 @@ class CanvasStore {
 		const { position } = calculateNewCardPosition(
 			parentCard,
 			existingCards,
-			linkPosition,
+			linkCenter,
 			dimensions,
-			existingPathPoints
+			existingPathPoints,
+			linkSide
 		);
 
 		// Create new card
@@ -637,19 +810,19 @@ class CanvasStore {
 			position,
 			dimensions,
 			parentId: fromCardId,
-			sourceLink: linkPosition
+			sourceLink: linkCenter
 		};
 		const newCards = new Map(this.cards);
 		newCards.set(noteId, newCard);
 		this.cards = newCards;
 
-		// Add connection
+		// Add connection with full bounds for line start calculation
 		this.connections = [
 			...this.connections,
 			{
 				fromCardId,
 				toCardId: noteId,
-				sourcePoint: linkPosition
+				sourceBounds
 			}
 		];
 
@@ -712,6 +885,9 @@ class CanvasStore {
 			this.storedPaths = newPaths;
 		}
 
+		// Clean up saved reading state for this card
+		this.clearSavedCardState(cardToUnopen);
+
 		// Remove from active chain
 		this.activeChain = this.activeChain.filter(id => id !== cardToUnopen);
 
@@ -745,26 +921,8 @@ class CanvasStore {
 		this.schedulePersist();
 	}
 
-	toggleDebugMode(): void {
-		this.debugMode = !this.debugMode;
-		if (!this.debugMode) {
-			// Clear debug state when disabling
-			this.debugExploration = [];
-			this.debugCurrentFrame = 0;
-		}
-	}
-
-	setDebugExploration(frames: AStarExplorationFrame[]): void {
-		this.debugExploration = frames;
-		this.debugCurrentFrame = 0;
-	}
-
-	advanceDebugFrame(): boolean {
-		if (this.debugCurrentFrame < this.debugExploration.length - 1) {
-			this.debugCurrentFrame++;
-			return true;
-		}
-		return false;
+	toggleLines(): void {
+		this.showLines = !this.showLines;
 	}
 
 	isInActiveChain(cardId: string): boolean {
@@ -991,14 +1149,17 @@ class CanvasStore {
 					if (this.cards.has(linkTarget)) continue;
 					if (this.cards.size >= MAX_CARDS) break;
 
-					// Simulate clicking the link - find link position in card
-					// Use a position relative to the card
-					const linkPosition: Point = {
-						x: card.position.x + 50,
-						y: card.position.y + 50 + (links.indexOf(linkTarget) * 20)
+					// Simulate clicking the link - use synthetic bounds
+					// For programmatic opening, left=right since we don't have actual link width
+					const syntheticX = card.position.x + 50;
+					const syntheticY = card.position.y + 50 + (links.indexOf(linkTarget) * 20);
+					const sourceBounds: SourceBounds = {
+						left: syntheticX,
+						right: syntheticX,
+						y: syntheticY
 					};
 
-					this.openNote(linkTarget, cardId, linkPosition);
+					this.openNote(linkTarget, cardId, sourceBounds);
 					nextLevel.push(linkTarget);
 
 					// Small delay to allow rendering

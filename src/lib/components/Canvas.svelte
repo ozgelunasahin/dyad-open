@@ -3,7 +3,8 @@
 	import { zoom, zoomIdentity, type ZoomBehavior } from 'd3-zoom';
 	import { select } from 'd3-selection';
 	import 'd3-transition'; // Adds .transition() method to selections
-	import type { Point } from '$lib/types';
+	import type { Point, LinkSide, SourceBounds } from '$lib/types';
+	import { isHTMLElement } from '$lib/utils/type-guards';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import {
 		routeConnection,
@@ -41,8 +42,8 @@
 			.filter((event) => {
 				// Don't capture events when editing (let text selection work)
 				if (canvasStore.editingCardId) {
-					const target = event.target as Element;
-					const inForeignObject = target.closest('foreignObject') !== null;
+					if (!isHTMLElement(event.target)) return true;
+					const inForeignObject = event.target.closest('foreignObject') !== null;
 					if (inForeignObject && (event.type === 'mousedown' || event.type === 'touchstart')) {
 						return false;
 					}
@@ -65,6 +66,12 @@
 					y: event.transform.y,
 					zoom: event.transform.k
 				});
+
+				// Clear saved reading position if card has been panned out of the reading zone
+				// Vertical scrolling (reading) is fine, but panning the card out of view clears it
+				if (svg) {
+					canvasStore.clearSavedStateIfNotInReadingZone(svg.clientWidth, svg.clientHeight, 100);
+				}
 			});
 
 		const selection = select(svg);
@@ -129,6 +136,15 @@
 		// Compute paths for any restored connections (after state initialization)
 		setTimeout(() => computeMissingPaths(), 0);
 
+		// Set initial viewport dimensions and update on resize
+		canvasStore.updateViewportDimensions(svg.clientWidth, svg.clientHeight);
+		const resizeObserver = new ResizeObserver((entries) => {
+			for (const entry of entries) {
+				canvasStore.updateViewportDimensions(entry.contentRect.width, entry.contentRect.height);
+			}
+		});
+		resizeObserver.observe(svg);
+
 		// Listen for focus animation requests
 		const handleFocusAnimation = (event: Event) => {
 			const customEvent = event as CustomEvent<{
@@ -146,11 +162,19 @@
 		// Listen for restore position requests (returning to previous card)
 		const handleRestorePosition = (event: Event) => {
 			const customEvent = event as CustomEvent<{
-				camera: { x: number; y: number; zoom: number };
+				focusY: number;
+				cardId: string;
 				linkRestoration?: { linkTarget?: string; linkFocusActive: boolean } | null;
 			}>;
 			pendingLinkRestoration = customEvent.detail.linkRestoration ?? null;
-			animateToPosition(customEvent.detail.camera);
+
+			// Compute centered X from the card
+			const card = canvasStore.cards.get(customEvent.detail.cardId);
+			const focusX = card
+				? card.position.x + card.dimensions.width / 2
+				: 0;
+
+			animateToFocusPoint({ x: focusX, y: customEvent.detail.focusY });
 		};
 
 		window.addEventListener('canvas-restore', handleRestorePosition);
@@ -219,7 +243,7 @@
 					: null;
 				if (!cardElement) return [];
 
-				const allLinks = Array.from(cardElement.querySelectorAll('.wikilink')) as HTMLElement[];
+				const allLinks = Array.from(cardElement.querySelectorAll('.wikilink')).filter(isHTMLElement);
 				if (!svg) return allLinks;
 
 				// Filter to only links visible in viewport
@@ -298,18 +322,27 @@
 
 				const rect = highlightedLink.getBoundingClientRect();
 				const svgRect = svg.getBoundingClientRect();
-				const canvasPosition: Point = {
-					x: (rect.left - svgRect.left - transform.x) / transform.k,
+				const canvasBounds: SourceBounds = {
+					left: (rect.left - svgRect.left - transform.x) / transform.k,
+					right: (rect.right - svgRect.left - transform.x) / transform.k,
 					y: (rect.bottom - svgRect.top - transform.y) / transform.k
 				};
 
+				// Calculate linkSide based on link center relative to card center
+				const linkCenterX = (canvasBounds.left + canvasBounds.right) / 2;
+				const fromCard = canvasStore.cards.get(currentFocusedCard);
+				const cardCenterX = fromCard
+					? fromCard.position.x + (fromCard.dimensions?.width ?? 400) / 2
+					: 0;
+				const linkSide: LinkSide = linkCenterX < cardCenterX ? 'left' : 'right';
+
 				canvasStore.exitLinkFocusMode();
 				const noteAlreadyOpen = canvasStore.cards.has(target);
-				canvasStore.followLinkToRight(target, currentFocusedCard, canvasPosition);
+				canvasStore.followLinkToRight(target, currentFocusedCard, canvasBounds, linkSide);
 
 				// Compute and store path for new connection if card was created
 				if (!noteAlreadyOpen && canvasStore.cards.has(target)) {
-					computeAndStorePath(currentFocusedCard, target, canvasPosition);
+					computeAndStorePath(currentFocusedCard, target, canvasBounds);
 				}
 			};
 
@@ -419,6 +452,12 @@
 				event.preventDefault();
 				canvasStore.enterEditMode(canvasStore.focusedCardId);
 			}
+
+			// 'l' key to toggle connection line visibility
+			if (event.key === 'l') {
+				event.preventDefault();
+				canvasStore.toggleLines();
+			}
 		};
 
 		window.addEventListener('keydown', handleKeyDown);
@@ -444,6 +483,7 @@
 			window.removeEventListener('canvas-compute-paths', handleComputePaths);
 			window.removeEventListener('keydown', handleKeyDown);
 			svg.removeEventListener('wheel', handleWheel);
+			resizeObserver.disconnect();
 		};
 	});
 
@@ -502,7 +542,7 @@
 			: null;
 		if (!cardElement) return;
 
-		const allLinks = Array.from(cardElement.querySelectorAll('.wikilink')) as HTMLElement[];
+		const allLinks = Array.from(cardElement.querySelectorAll('.wikilink')).filter(isHTMLElement);
 		if (allLinks.length === 0) return;
 
 		// Enter link focus mode
@@ -583,10 +623,11 @@
 	}
 
 	/**
-	 * Smoothly animate to a specific camera position (for restoring previous position).
+	 * Smoothly animate to show a focus point at viewport center.
+	 * ALWAYS preserves current zoom level - user controls their reading zoom.
 	 * P2-007 fix: Added cancellation check to prevent memory leaks.
 	 */
-	function animateToPosition(targetCamera: { x: number; y: number; zoom: number }) {
+	function animateToFocusPoint(focusPoint: { x: number; y: number }) {
 		if (!svg) return;
 
 		// Reset cancellation flag for new animation
@@ -594,9 +635,16 @@
 
 		const selection = select(svg);
 
+		const width = svg.clientWidth;
+		const height = svg.clientHeight;
+
+		// Compute target camera position to show focusPoint at viewport center
+		// Using CURRENT zoom level - never change zoom during navigation
+		const targetX = width / 2 - focusPoint.x * transform.k;
+		const targetY = height / 2 - focusPoint.y * transform.k;
+
 		const startX = transform.x;
 		const startY = transform.y;
-		const startZoom = transform.k;
 
 		const duration = 300; // Slightly faster for "going back"
 		const startTime = Date.now();
@@ -611,11 +659,11 @@
 			// Ease out quad
 			const eased = 1 - (1 - progress) * (1 - progress);
 
-			const currentX = startX + (targetCamera.x - startX) * eased;
-			const currentY = startY + (targetCamera.y - startY) * eased;
-			const currentZoom = startZoom + (targetCamera.zoom - startZoom) * eased;
+			const currentX = startX + (targetX - startX) * eased;
+			const currentY = startY + (targetY - startY) * eased;
 
-			const newTransform = zoomIdentity.translate(currentX, currentY).scale(currentZoom);
+			// Keep current zoom constant
+			const newTransform = zoomIdentity.translate(currentX, currentY).scale(transform.k);
 
 			selection.call(zoomBehavior.transform, newTransform);
 
@@ -633,9 +681,10 @@
 	/**
 	 * Compute and store a path for a new connection.
 	 * Uses simple geometric routing (L-shape, Z-shape, around) without A*.
+	 * @param sourceBounds - Link underline bounds (left, right, y) for determining start point
 	 * @param routingX - Optional pre-assigned routing channel X from layout
 	 */
-	function computeAndStorePath(fromCardId: string, toCardId: string, sourcePoint: Point, routingX?: number): void {
+	function computeAndStorePath(fromCardId: string, toCardId: string, sourceBounds: SourceBounds, routingX?: number): void {
 		const fromCard = canvasStore.cards.get(fromCardId);
 		const toCard = canvasStore.cards.get(toCardId);
 
@@ -644,14 +693,26 @@
 			return;
 		}
 
+		// Determine exit direction based on actual target card position
+		const sourceCenterX = fromCard.position.x + fromCard.dimensions.width / 2;
+		const targetCenterX = toCard.position.x + toCard.dimensions.width / 2;
+		const exitRight = targetCenterX > sourceCenterX;
+
+		// Choose start X based on actual exit direction
+		// Right-exiting → start from RIGHT edge of link underline
+		// Left-exiting → start from LEFT edge of link underline
+		const startPoint: Point = {
+			x: exitRight ? sourceBounds.right : sourceBounds.left,
+			y: sourceBounds.y
+		};
+
 		// Get all cards as array for obstacle checking
 		const allCards = canvasStore.cardList;
 
 		// Get existing paths for crossing detection
 		const existingPaths = canvasStore.getExistingPathPoints();
 
-		// Calculate start and end points
-		const startPoint = sourcePoint;
+		// Calculate end point
 		const endPoint = getCardEntryPoint(toCard, startPoint);
 
 		// Route the connection with optional pre-assigned routing channel
@@ -690,8 +751,8 @@
 	function handleCanvasClick(event: MouseEvent) {
 		// Exit edit mode if clicking outside card content
 		if (canvasStore.editingCardId) {
-			const target = event.target as Element;
-			const inForeignObject = target.closest('foreignObject') !== null;
+			if (!isHTMLElement(event.target)) return;
+			const inForeignObject = event.target.closest('foreignObject') !== null;
 			if (!inForeignObject) {
 				canvasStore.exitEditMode();
 			}
@@ -699,20 +760,42 @@
 	}
 
 	/**
-	 * Handle clicking on a card - focus it and bring into reading view.
+	 * Handle clicking on a card.
+	 * First click: focus (highlight) the card without panning
+	 * Second click: pan to reading position
 	 */
 	function handleCardClick(cardId: string) {
-		// Focus the card and animate to reading position
-		canvasStore.focusCard(cardId);
+		if (canvasStore.focusedCardId === cardId) {
+			// Second click on already-focused card - pan to reading position
+			canvasStore.panToFocusedCard();
+		} else {
+			// First click - just focus without panning
+			canvasStore.focusCardWithoutAnimation(cardId);
+		}
 	}
 
-	function handleLinkClick(noteId: string, fromCardId: string, screenPosition: Point) {
-		// Convert screen position to canvas coordinates
+	interface ScreenLinkBounds {
+		left: number;
+		right: number;
+		bottom: number;
+	}
+
+	function handleLinkClick(noteId: string, fromCardId: string, screenBounds: ScreenLinkBounds) {
+		// Convert screen bounds to canvas coordinates
 		const svgRect = svg.getBoundingClientRect();
-		const canvasPosition: Point = {
-			x: (screenPosition.x - svgRect.left - transform.x) / transform.k,
-			y: (screenPosition.y - svgRect.top - transform.y) / transform.k
+		const canvasBounds: SourceBounds = {
+			left: (screenBounds.left - svgRect.left - transform.x) / transform.k,
+			right: (screenBounds.right - svgRect.left - transform.x) / transform.k,
+			y: (screenBounds.bottom - svgRect.top - transform.y) / transform.k
 		};
+
+		// Calculate linkSide based on link center relative to card center
+		const linkCenterX = (canvasBounds.left + canvasBounds.right) / 2;
+		const fromCard = canvasStore.cards.get(fromCardId);
+		const cardCenterX = fromCard
+			? fromCard.position.x + (fromCard.dimensions?.width ?? 400) / 2
+			: 0;
+		const linkSide: LinkSide = linkCenterX < cardCenterX ? 'left' : 'right';
 
 		// Save current card's reading state before navigating (same as keyboard nav)
 		canvasStore.saveLinkState(undefined, false);
@@ -731,11 +814,11 @@
 		const noteAlreadyOpen = canvasStore.cards.has(noteId);
 
 		// Use followLinkToRight for consistent chain behavior with keyboard nav
-		canvasStore.followLinkToRight(noteId, fromCardId, canvasPosition);
+		canvasStore.followLinkToRight(noteId, fromCardId, canvasBounds, linkSide);
 
 		// Compute and store path for new connection
 		if (!noteAlreadyOpen && canvasStore.cards.has(noteId)) {
-			computeAndStorePath(fromCardId, noteId, canvasPosition);
+			computeAndStorePath(fromCardId, noteId, canvasBounds);
 		}
 	}
 
@@ -747,7 +830,7 @@
 		for (const conn of canvasStore.connections) {
 			const existingPath = canvasStore.getStoredPath(conn.fromCardId, conn.toCardId);
 			if (!existingPath) {
-				computeAndStorePath(conn.fromCardId, conn.toCardId, conn.sourcePoint, conn.routingX);
+				computeAndStorePath(conn.fromCardId, conn.toCardId, conn.sourceBounds, conn.routingX);
 			}
 		}
 
@@ -788,7 +871,7 @@
 		const results: Array<{
 			fromCardId: string;
 			toCardId: string;
-			sourcePoint: Point;
+			sourceBounds: SourceBounds;
 			path: string;
 			pathFailed: boolean;
 			method?: string;
@@ -846,10 +929,12 @@
 			</g>
 		{/if}
 
-		<!-- Connection lines disabled - focusing on layout first -->
-		<!-- {#each connectionPaths as conn (conn.fromCardId + '-' + conn.toCardId)}
-			<ConnectionLine path={conn.path} pathFailed={conn.pathFailed} />
-		{/each} -->
+		<!-- Connection lines (toggle with 'l' key) -->
+		{#if canvasStore.showLines}
+			{#each connectionPaths as conn (conn.fromCardId + '-' + conn.toCardId)}
+				<ConnectionLine path={conn.path} pathFailed={conn.pathFailed} />
+			{/each}
+		{/if}
 
 		<!-- Debug: Show routing method labels -->
 		{#if canvasStore.debugMode}
@@ -857,7 +942,7 @@
 				{#if conn.method}
 					{@const fromCard = canvasStore.cards.get(conn.fromCardId)}
 					{#if fromCard}
-						<g class="debug-method-label" transform="translate({conn.sourcePoint.x + 15}, {conn.sourcePoint.y - 5})">
+						<g class="debug-method-label" transform="translate({conn.sourceBounds.right + 15}, {conn.sourceBounds.y - 5})">
 							<rect
 								x="-2"
 								y="-10"
