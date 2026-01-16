@@ -994,14 +994,41 @@ class CanvasStore {
 		});
 	}
 
-	reset(): void {
+	/**
+	 * Hard reset: clears all canvas state including database positions and localStorage.
+	 * Reopens only the entry point note.
+	 */
+	async hardReset(): Promise<void> {
+		if (!this.currentCanvasId) return;
+
+		// 1. Clear database positions
+		try {
+			await fetch(`/api/canvases/${this.currentCanvasId}/positions`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ positions: [] })
+			});
+		} catch (err) {
+			console.error('Failed to clear database positions:', err);
+		}
+
+		// 2. Clear localStorage
+		const storageKey = `spatial-reader-state-${this.currentCanvasId}`;
+		localStorage.removeItem(storageKey);
+
+		// 3. Reset all in-memory state
 		this.cards = new Map();
 		this.connections = [];
 		this.storedPaths = new Map();
 		this.activeChain = [];
 		this.history = { back: [], forward: [] };
 		this.focusedCardId = null;
+		this.editingCardId = null;
+		this.focusedLinkIndex = null;
+		this.savedCardState = new Map();
+		this.camera = { x: 0, y: 0, zoom: 1 };
 
+		// 4. Reopen entry point
 		if (this.vault) {
 			const entry = this.vault.notes[this.vault.entryPoint];
 			if (entry) {

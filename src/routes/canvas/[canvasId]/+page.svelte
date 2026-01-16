@@ -343,9 +343,13 @@
 
 			<button
 				class="debug-btn reset-btn"
-				onclick={() => canvasStore.reset()}
-				aria-label="Reset canvas"
-				title="Reset canvas to entry note"
+				onclick={() => {
+					if (confirm('Reset canvas? This will clear all cards and start fresh with only the entry point.')) {
+						canvasStore.hardReset();
+					}
+				}}
+				aria-label="Hard reset canvas"
+				title="Hard reset - clear all cards and positions"
 			>
 				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
 					<path
