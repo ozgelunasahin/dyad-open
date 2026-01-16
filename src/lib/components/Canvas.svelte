@@ -27,32 +27,6 @@
 	// Animation cancellation flag (P2-007 fix: prevent memory leaks)
 	let animationCancelled = false;
 
-	/**
-	 * Find and focus the card under the viewport center.
-	 */
-	function updateFocusFromViewportCenter() {
-		if (!svg) return;
-
-		// Calculate viewport center in canvas coordinates
-		const viewportCenterX = (svg.clientWidth / 2 - transform.x) / transform.k;
-		const viewportCenterY = (svg.clientHeight / 2 - transform.y) / transform.k;
-
-		// Find which card contains this point
-		for (const card of canvasStore.cardList) {
-			const inX = viewportCenterX >= card.position.x &&
-			            viewportCenterX <= card.position.x + card.dimensions.width;
-			const inY = viewportCenterY >= card.position.y &&
-			            viewportCenterY <= card.position.y + card.dimensions.height;
-
-			if (inX && inY) {
-				if (canvasStore.focusedCardId !== card.id) {
-					canvasStore.focusedCardId = card.id;
-				}
-				return;
-			}
-		}
-	}
-
 	onMount(() => {
 		zoomBehavior = zoom<SVGSVGElement, unknown>()
 			.scaleExtent([0.1, 3])
@@ -88,7 +62,6 @@
 					y: event.transform.y,
 					zoom: event.transform.k
 				});
-				updateFocusFromViewportCenter();
 			});
 
 		const selection = select(svg);
@@ -150,9 +123,6 @@
 			selection.call(zoomBehavior.transform, initialTransform);
 		}
 
-		// Set initial focus based on viewport center
-		updateFocusFromViewportCenter();
-
 		// Compute paths for any restored connections (after state initialization)
 		setTimeout(() => computeMissingPaths(), 0);
 
@@ -178,22 +148,226 @@
 			if (canvasStore.editingCardId) return;
 			if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
 
+			const isMod = event.metaKey || event.ctrlKey;
+			const selection = select(svg);
+
+			// === ZOOM SHORTCUTS ===
+			if (isMod && (event.key === '+' || event.key === '=')) {
+				event.preventDefault();
+				const newK = Math.min(3, transform.k * 1.2);
+				const newTransform = zoomIdentity.translate(transform.x, transform.y).scale(newK);
+				selection.transition().duration(150).call(zoomBehavior.transform, newTransform);
+				return;
+			}
+
+			if (isMod && event.key === '-') {
+				event.preventDefault();
+				const newK = Math.max(0.1, transform.k / 1.2);
+				const newTransform = zoomIdentity.translate(transform.x, transform.y).scale(newK);
+				selection.transition().duration(150).call(zoomBehavior.transform, newTransform);
+				return;
+			}
+
+			if (isMod && event.key === '0') {
+				event.preventDefault();
+				const newTransform = zoomIdentity.translate(transform.x, transform.y).scale(1);
+				selection.transition().duration(150).call(zoomBehavior.transform, newTransform);
+				return;
+			}
+
+			// === PAN WITH SHIFT+ARROW ===
+			if (event.shiftKey && event.key.startsWith('Arrow')) {
+				event.preventDefault();
+				const panAmount = 100;
+				let dx = 0, dy = 0;
+
+				switch (event.key) {
+					case 'ArrowLeft': dx = panAmount; break;
+					case 'ArrowRight': dx = -panAmount; break;
+					case 'ArrowUp': dy = panAmount; break;
+					case 'ArrowDown': dy = -panAmount; break;
+				}
+
+				const newTransform = zoomIdentity
+					.translate(transform.x + dx, transform.y + dy)
+					.scale(transform.k);
+				selection.call(zoomBehavior.transform, newTransform);
+				return;
+			}
+
+			// === KEYBOARD NAVIGATION (Chain & Link Focus) ===
+
+			const focusedCard = canvasStore.focusedCardId;
+
+			// Helper to get visible wikilinks in viewport (avoid stale closure)
+			const getWikilinks = (): HTMLElement[] => {
+				const cardElement = focusedCard
+					? document.querySelector(`[data-note-id="${focusedCard}"]`)
+					: null;
+				if (!cardElement) return [];
+
+				const allLinks = Array.from(cardElement.querySelectorAll('.wikilink')) as HTMLElement[];
+				if (!svg) return allLinks;
+
+				// Filter to only links visible in viewport
+				const viewportRect = svg.getBoundingClientRect();
+				return allLinks.filter(link => {
+					const linkRect = link.getBoundingClientRect();
+					// Check if link intersects viewport
+					return (
+						linkRect.bottom > viewportRect.top &&
+						linkRect.top < viewportRect.bottom &&
+						linkRect.right > viewportRect.left &&
+						linkRect.left < viewportRect.right
+					);
+				});
+			};
+
+			// Helper to update link focus highlighting directly on DOM
+			const updateLinkHighlight = (visibleLinks: HTMLElement[], index: number | null) => {
+				// Clear all link-focused classes first
+				document.querySelectorAll('.wikilink.link-focused').forEach(el => {
+					el.classList.remove('link-focused');
+				});
+				// Add to current focused link
+				if (index !== null && index < visibleLinks.length) {
+					visibleLinks[index]?.classList.add('link-focused');
+				}
+			};
+
+			// Helper to follow focused link
+			const followFocusedLink = () => {
+				const wikilinks = getWikilinks();
+				const linkIndex = canvasStore.focusedLinkIndex;
+				if (linkIndex === null || linkIndex >= wikilinks.length) return;
+
+				const focusedLink = wikilinks[linkIndex];
+				if (!focusedLink || !focusedCard) return;
+
+				const target = focusedLink.dataset.target;
+				if (!target) return;
+
+				// Skip broken links
+				if (canvasStore.isLinkBroken(target)) return;
+
+				const rect = focusedLink.getBoundingClientRect();
+				// Convert screen position to canvas coordinates
+				const svgRect = svg.getBoundingClientRect();
+				const canvasPosition: Point = {
+					x: (rect.left - svgRect.left - transform.x) / transform.k,
+					y: (rect.bottom - svgRect.top - transform.y) / transform.k
+				};
+
+				canvasStore.exitLinkFocusMode();
+				const noteAlreadyOpen = canvasStore.cards.has(target);
+				canvasStore.followLinkToRight(target, focusedCard, canvasPosition);
+
+				// Compute and store path for new connection if card was created
+				if (!noteAlreadyOpen && canvasStore.cards.has(target)) {
+					computeAndStorePath(focusedCard, target, canvasPosition);
+				}
+			};
+
+			const visibleLinks = getWikilinks();
+			const linkCount = visibleLinks.length;
+
+			// === LINK FOCUS MODE ===
+			if (canvasStore.isLinkFocusMode) {
+				if (event.key === 'Escape') {
+					event.preventDefault();
+					canvasStore.exitLinkFocusMode();
+					updateLinkHighlight(visibleLinks, null);
+					return;
+				}
+
+				if (event.key === 'Delete') {
+					event.preventDefault();
+					canvasStore.unopenCurrentCard();
+					updateLinkHighlight(visibleLinks, null);
+					return;
+				}
+
+				// Tab/Shift+Tab: cycle through visible links
+				if (event.key === 'Tab' && !event.shiftKey) {
+					event.preventDefault();
+					canvasStore.focusNextLink(linkCount);
+					updateLinkHighlight(visibleLinks, canvasStore.focusedLinkIndex);
+					return;
+				}
+
+				if (event.key === 'Tab' && event.shiftKey) {
+					event.preventDefault();
+					canvasStore.focusPrevLink(linkCount);
+					updateLinkHighlight(visibleLinks, canvasStore.focusedLinkIndex);
+					return;
+				}
+
+				// ArrowRight, Enter, Space: follow link (rightward)
+				if (event.key === 'ArrowRight' || event.key === 'Enter' || event.key === ' ') {
+					event.preventDefault();
+					followFocusedLink();
+					updateLinkHighlight(visibleLinks, null);
+					return;
+				}
+
+				// ArrowLeft: exit link focus, navigate left in chain
+				if (event.key === 'ArrowLeft') {
+					event.preventDefault();
+					canvasStore.exitLinkFocusMode();
+					canvasStore.navigateLeftInChain();
+					updateLinkHighlight(visibleLinks, null);
+					return;
+				}
+
+				// Let ArrowUp/Down fall through to vertical panning below
+			}
+
+			// === CARD FOCUS MODE ===
+			// Always suppress Tab to prevent browser focus shift
+			if (event.key === 'Tab') {
+				event.preventDefault();
+				if (linkCount > 0) {
+					canvasStore.enterLinkFocusMode();
+					updateLinkHighlight(visibleLinks, canvasStore.focusedLinkIndex);
+				}
+				return;
+			}
+
+			if (event.key === 'Delete') {
+				event.preventDefault();
+				canvasStore.unopenCurrentCard();
+				return;
+			}
+
+			// Vertical panning with ArrowUp/Down (works in both modes)
+			if ((event.key === 'ArrowUp' || event.key === 'ArrowDown') && !event.shiftKey) {
+				event.preventDefault();
+				const panAmount = 80;
+				const dy = event.key === 'ArrowUp' ? panAmount : -panAmount;
+				const newTransform = zoomIdentity
+					.translate(transform.x, transform.y + dy)
+					.scale(transform.k);
+				selection.call(zoomBehavior.transform, newTransform);
+				return;
+			}
+
+			// Chain navigation
+			if (event.key === 'ArrowLeft' && !event.altKey && !event.shiftKey) {
+				event.preventDefault();
+				canvasStore.navigateLeftInChain();
+				return;
+			}
+
+			if (event.key === 'ArrowRight' && !event.altKey && !event.shiftKey) {
+				event.preventDefault();
+				canvasStore.navigateRightInChain();
+				return;
+			}
+
 			// 'e' key to enter edit mode on focused card
 			if (event.key === 'e' && canvasStore.focusedCardId) {
 				event.preventDefault();
 				canvasStore.enterEditMode(canvasStore.focusedCardId);
-			}
-
-			// Left arrow to return to parent card
-			if (event.key === 'ArrowLeft' && !event.altKey) {
-				event.preventDefault();
-				canvasStore.returnToParent();
-			}
-
-			// Right arrow to go forward to child (after going back)
-			if (event.key === 'ArrowRight' && !event.altKey) {
-				event.preventDefault();
-				canvasStore.goForwardToChild();
 			}
 		};
 

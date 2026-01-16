@@ -90,6 +90,10 @@ class CanvasStore {
 	// Edit mode state
 	editingCardId = $state<string | null>(null);
 
+	// Link focus state for keyboard navigation
+	focusedLinkIndex = $state<number | null>(null);
+	isLinkFocusMode = $derived(this.focusedLinkIndex !== null);
+
 	// Current canvas ID for per-canvas state persistence
 	private currentCanvasId: string | null = null;
 
@@ -587,6 +591,192 @@ class CanvasStore {
 
 	exitEditMode(): void {
 		this.editingCardId = null;
+	}
+
+	// Link focus methods for keyboard navigation
+	enterLinkFocusMode(): void {
+		this.focusedLinkIndex = 0;
+	}
+
+	exitLinkFocusMode(): void {
+		this.focusedLinkIndex = null;
+	}
+
+	focusNextLink(linkCount: number): void {
+		if (this.focusedLinkIndex === null || linkCount === 0) return;
+		this.focusedLinkIndex = (this.focusedLinkIndex + 1) % linkCount;
+	}
+
+	focusPrevLink(linkCount: number): void {
+		if (this.focusedLinkIndex === null || linkCount === 0) return;
+		this.focusedLinkIndex = (this.focusedLinkIndex - 1 + linkCount) % linkCount;
+	}
+
+	// Chain navigation: move left in chain
+	navigateLeftInChain(): boolean {
+		if (!this.focusedCardId) return false;
+
+		const currentIndex = this.activeChain.indexOf(this.focusedCardId);
+		if (currentIndex <= 0) return false;
+
+		const targetCardId = this.activeChain[currentIndex - 1];
+		this.focusCard(targetCardId);
+		return true;
+	}
+
+	// Chain navigation: move right in chain
+	navigateRightInChain(): boolean {
+		if (!this.focusedCardId) return false;
+
+		const currentIndex = this.activeChain.indexOf(this.focusedCardId);
+		if (currentIndex < 0 || currentIndex >= this.activeChain.length - 1) {
+			return false;
+		}
+
+		const targetCardId = this.activeChain[currentIndex + 1];
+		this.focusCard(targetCardId);
+		return true;
+	}
+
+	// Follow link and extend chain rightward
+	// Does NOT call openNote to avoid chain manipulation conflicts
+	followLinkToRight(
+		noteId: string,
+		fromCardId: string,
+		linkPosition: Point
+	): boolean {
+		// If note is already open, update chain and focus it
+		if (this.cards.has(noteId)) {
+			// Update chain to reflect navigation to this card
+			const currentIndex = this.activeChain.indexOf(fromCardId);
+			if (currentIndex >= 0) {
+				// Truncate chain after current position, append target
+				this.activeChain = [...this.activeChain.slice(0, currentIndex + 1), noteId];
+			}
+			this.focusCard(noteId);
+			return true;
+		}
+
+		// Card doesn't exist - create it
+		if (!this.vault) return false;
+		const note = this.vault.notes[noteId];
+		if (!note) return false;
+		if (this.cards.size >= MAX_CARDS) return false;
+
+		// Calculate dimensions and position
+		const dimensions = this.calculateCardDimensions(note.content);
+		const parentCard = this.cards.get(fromCardId) ?? null;
+		const existingCards = Array.from(this.cards.values());
+		const existingPathPoints = this.getExistingPathPoints();
+
+		const { position } = calculateNewCardPosition(
+			parentCard,
+			existingCards,
+			linkPosition,
+			dimensions,
+			existingPathPoints
+		);
+
+		// Create new card
+		const newCard: Card = {
+			id: noteId,
+			note,
+			position,
+			dimensions,
+			parentId: fromCardId,
+			sourceLink: linkPosition
+		};
+		const newCards = new Map(this.cards);
+		newCards.set(noteId, newCard);
+		this.cards = newCards;
+
+		// Add connection
+		this.connections = [
+			...this.connections,
+			{
+				fromCardId,
+				toCardId: noteId,
+				sourcePoint: linkPosition
+			}
+		];
+
+		// Update chain: truncate after current, append new
+		const currentIndex = this.activeChain.indexOf(fromCardId);
+		if (currentIndex >= 0) {
+			this.activeChain = [...this.activeChain.slice(0, currentIndex + 1), noteId];
+		} else {
+			this.activeChain = [...this.activeChain, noteId];
+		}
+
+		// Update history
+		this.history.back.push([...this.activeChain]);
+		this.history.forward = [];
+
+		this.focusCard(noteId);
+		this.persistState();
+		this.schedulePersist();
+		return true;
+	}
+
+	// Unopen current card (remove from view, NOT delete data)
+	// NOTE: Entry point has privileged position - design decision pending review
+	unopenCurrentCard(): boolean {
+		if (!this.focusedCardId) return false;
+
+		// Don't allow unopening the entry point (prevents soft lock)
+		if (this.vault && this.focusedCardId === this.vault.entryPoint) return false;
+
+		const cardToUnopen = this.focusedCardId;
+		const currentIndex = this.activeChain.indexOf(cardToUnopen);
+
+		// Find adjacent card (prefer left/parent in chain)
+		const parentCardId = currentIndex > 0
+			? this.activeChain[currentIndex - 1]
+			: (this.activeChain.length > 1 ? this.activeChain[1] : null);
+
+		// Remove card from canvas (NOT from database)
+		const newCards = new Map(this.cards);
+		newCards.delete(cardToUnopen);
+		this.cards = newCards;
+
+		// Clean up connections referencing this card
+		this.connections = this.connections.filter(
+			conn => conn.fromCardId !== cardToUnopen && conn.toCardId !== cardToUnopen
+		);
+
+		// Clean up stored paths
+		const keysToDelete: string[] = [];
+		for (const [key] of this.storedPaths) {
+			if (key.includes(cardToUnopen)) {
+				keysToDelete.push(key);
+			}
+		}
+		if (keysToDelete.length > 0) {
+			const newPaths = new Map(this.storedPaths);
+			for (const key of keysToDelete) {
+				newPaths.delete(key);
+			}
+			this.storedPaths = newPaths;
+		}
+
+		// Remove from active chain
+		this.activeChain = this.activeChain.filter(id => id !== cardToUnopen);
+
+		// Exit link focus mode
+		this.exitLinkFocusMode();
+
+		// Navigate to parent in chain or first remaining card
+		if (parentCardId && this.cards.has(parentCardId)) {
+			this.focusCard(parentCardId);
+		} else if (this.activeChain.length > 0) {
+			this.focusCard(this.activeChain[0]);
+		} else {
+			this.focusedCardId = null;
+		}
+
+		this.persistState();
+		this.schedulePersist();
+		return true;
 	}
 
 	updateCardHeight(cardId: string, height: number): void {

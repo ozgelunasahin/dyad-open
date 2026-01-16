@@ -401,6 +401,7 @@
 </script>
 
 <foreignObject
+	data-note-id={card.id}
 	x={card.position.x}
 	y={card.position.y}
 	width={card.dimensions.width}
@@ -412,6 +413,7 @@
 		xmlns="http://www.w3.org/1999/xhtml"
 		class="text-block"
 		class:dimmed={!isActive && !isEditing}
+		class:focused={isActive && !isEditing}
 		class:editing={isEditing}
 		contenteditable={isEditing}
 		onclick={handleClick}
@@ -448,6 +450,8 @@
 	.text-block.dimmed {
 		opacity: var(--dimmed-opacity);
 	}
+
+	/* Card focus: no visual indicator in reading mode (design constraint) */
 
 	.text-block.editing {
 		outline: 2px solid var(--text-link);
@@ -576,6 +580,11 @@
 
 	.text-block :global(.wikilink.has-connection) {
 		border-bottom-color: transparent;
+	}
+
+	.text-block :global(.wikilink.link-focused) {
+		background: color-mix(in srgb, var(--text-link) 12%, transparent);
+		border-radius: 2px;
 	}
 
 	.text-block::-webkit-scrollbar {
