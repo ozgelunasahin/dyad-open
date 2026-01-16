@@ -246,12 +246,17 @@
 		if (shouldInsertWikiLink(event, contentEl)) {
 			event.preventDefault();
 			insertWikiLinkBrackets(contentEl);
-			scheduleSave();
+			handleInput(); // Trigger debounced wikilink conversion
 			return;
 		}
 
 		// Bracket wrapping: select text and press [ ( { to wrap
+		// For '[', this creates [[text]] which needs conversion
 		if (handleBracketKey(event, contentEl)) {
+			if (event.key === '[') {
+				// Immediately convert since we just created a complete [[text]]
+				convertWikilinks();
+			}
 			scheduleSave();
 			return;
 		}
