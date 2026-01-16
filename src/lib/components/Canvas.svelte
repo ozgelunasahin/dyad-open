@@ -161,11 +161,19 @@
 		// Listen for restore position requests (returning to previous card)
 		const handleRestorePosition = (event: Event) => {
 			const customEvent = event as CustomEvent<{
-				focusPoint: { x: number; y: number };
+				focusY: number;
+				cardId: string;
 				linkRestoration?: { linkTarget?: string; linkFocusActive: boolean } | null;
 			}>;
 			pendingLinkRestoration = customEvent.detail.linkRestoration ?? null;
-			animateToFocusPoint(customEvent.detail.focusPoint);
+
+			// Compute centered X from the card
+			const card = canvasStore.cards.get(customEvent.detail.cardId);
+			const focusX = card
+				? card.position.x + card.dimensions.width / 2
+				: 0;
+
+			animateToFocusPoint({ x: focusX, y: customEvent.detail.focusY });
 		};
 
 		window.addEventListener('canvas-restore', handleRestorePosition);
