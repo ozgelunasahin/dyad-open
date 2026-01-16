@@ -90,13 +90,20 @@ class CanvasStore {
 	// Edit mode state
 	editingCardId = $state<string | null>(null);
 
+	// Link focus state for keyboard navigation
+	focusedLinkIndex = $state<number | null>(null);
+	isLinkFocusMode = $derived(this.focusedLinkIndex !== null);
+
+	// Per-card reading state (camera position, link focus, etc.)
+	// Saved when leaving a card, restored when returning
+	private savedCardState = $state<Map<string, {
+		camera: Camera;
+		linkTarget?: string;
+		linkFocusActive?: boolean;
+	}>>(new Map());
+
 	// Current canvas ID for per-canvas state persistence
 	private currentCanvasId: string | null = null;
-
-	// Track position when leaving a card (for restoring on return)
-	private previousCardState = $state<{ cardId: string; camera: Camera } | null>(null);
-	// Track forward navigation (child we came from when going back)
-	private forwardCardState = $state<{ cardId: string; camera: Camera } | null>(null);
 
 	private history = $state<{ back: string[][]; forward: string[][] }>({
 		back: [],
@@ -123,8 +130,6 @@ class CanvasStore {
 		this.storedPaths = new Map();
 		this.focusedCardId = null;
 		this.editingCardId = null;
-		this.previousCardState = null;
-		this.forwardCardState = null;
 		this.history = { back: [], forward: [] };
 
 		// Pre-compute broken links
@@ -415,35 +420,40 @@ class CanvasStore {
 
 	/**
 	 * Focus on a card and position for reading (top of card near top of viewport).
-	 * If returning to the card we just came from, restore the previous scroll position.
+	 * Saves reading state for current card, restores for target card if previously visited.
+	 * Link focus restoration is included in the event for the Canvas to handle after animation.
 	 */
 	focusCard(cardId: string): void {
 		const card = this.cards.get(cardId);
 		if (!card) return;
 
-		// Check if we're returning to the previous card
-		const isReturning = this.previousCardState?.cardId === cardId;
-		const restoreCamera = isReturning && this.previousCardState ? this.previousCardState.camera : null;
-
-		// Save current card's position before switching (if we have a focused card)
+		// Save current card's state before switching (camera is saved here, link state saved separately)
 		if (this.focusedCardId && this.focusedCardId !== cardId) {
-			this.previousCardState = {
-				cardId: this.focusedCardId,
-				camera: { ...this.camera }
-			};
+			const existing = this.savedCardState.get(this.focusedCardId) || { camera: this.camera };
+			const newMap = new Map(this.savedCardState);
+			newMap.set(this.focusedCardId, { ...existing, camera: { ...this.camera } });
+			this.savedCardState = newMap;
 		}
+
+		// Check if we have saved state for the target card
+		const savedState = this.savedCardState.get(cardId);
 
 		this.focusedCardId = cardId;
 
 		// Dispatch event for Canvas to animate
+		// Include link restoration info so Canvas can restore AFTER animation completes
 		if (typeof window !== 'undefined') {
 			this.isAnimating = true;
 
-			if (restoreCamera) {
-				// Returning to previous card - restore exact position
+			const linkRestoration = savedState?.linkFocusActive
+				? { linkTarget: savedState.linkTarget, linkFocusActive: true }
+				: null;
+
+			if (savedState?.camera) {
+				// Returning to previously visited card - restore exact position
 				window.dispatchEvent(
 					new CustomEvent('canvas-restore', {
-						detail: { camera: restoreCamera }
+						detail: { camera: savedState.camera, linkRestoration }
 					})
 				);
 			} else {
@@ -453,81 +463,13 @@ class CanvasStore {
 						detail: {
 							x: card.position.x + card.dimensions.width / 2,
 							y: card.position.y, // Card top, not center
-							cardId: card.id
+							cardId: card.id,
+							linkRestoration
 						}
 					})
 				);
 			}
 		}
-	}
-
-	/**
-	 * Get the parent card of the currently focused card.
-	 */
-	getParentCardId(): string | null {
-		if (!this.focusedCardId) return null;
-		const card = this.cards.get(this.focusedCardId);
-		return card?.parentId || null;
-	}
-
-	/**
-	 * Return to the parent card of the currently focused card.
-	 * Saves current card as forward target for right arrow navigation.
-	 */
-	returnToParent(): boolean {
-		const parentId = this.getParentCardId();
-		if (!parentId || !this.focusedCardId) return false;
-
-		// Save current card as forward target (so right arrow can return here)
-		this.forwardCardState = {
-			cardId: this.focusedCardId,
-			camera: { ...this.camera }
-		};
-
-		this.focusCard(parentId);
-		return true;
-	}
-
-	/**
-	 * Check if we can go forward (have a forward target).
-	 */
-	canGoForwardToChild(): boolean {
-		return this.forwardCardState !== null;
-	}
-
-	/**
-	 * Go forward to the child card we came from (after going back).
-	 */
-	goForwardToChild(): boolean {
-		if (!this.forwardCardState) return false;
-
-		const targetCardId = this.forwardCardState.cardId;
-		const targetCamera = this.forwardCardState.camera;
-
-		// Clear forward state (we're going there now)
-		this.forwardCardState = null;
-
-		// Save current position for going back again
-		if (this.focusedCardId) {
-			this.previousCardState = {
-				cardId: this.focusedCardId,
-				camera: { ...this.camera }
-			};
-		}
-
-		this.focusedCardId = targetCardId;
-
-		// Restore the saved camera position
-		if (typeof window !== 'undefined') {
-			this.isAnimating = true;
-			window.dispatchEvent(
-				new CustomEvent('canvas-restore', {
-					detail: { camera: targetCamera }
-				})
-			);
-		}
-
-		return true;
 	}
 
 	goBack(): void {
@@ -587,6 +529,207 @@ class CanvasStore {
 
 	exitEditMode(): void {
 		this.editingCardId = null;
+	}
+
+	// Link focus methods for keyboard navigation
+	enterLinkFocusMode(): void {
+		this.focusedLinkIndex = 0;
+	}
+
+	exitLinkFocusMode(): void {
+		this.focusedLinkIndex = null;
+	}
+
+	// Save link focus state (target and mode) for current card before leaving
+	saveLinkState(linkTarget: string | undefined, linkFocusActive: boolean): void {
+		if (!this.focusedCardId) return;
+		const existing = this.savedCardState.get(this.focusedCardId) || { camera: this.camera };
+		const newMap = new Map(this.savedCardState);
+		newMap.set(this.focusedCardId, { ...existing, linkTarget, linkFocusActive });
+		this.savedCardState = newMap;
+	}
+
+	// Get saved card state for restoration
+	getSavedCardState(): { linkTarget?: string; linkFocusActive?: boolean } | null {
+		if (!this.focusedCardId) return null;
+		return this.savedCardState.get(this.focusedCardId) ?? null;
+	}
+
+	focusNextLink(linkCount: number): void {
+		if (this.focusedLinkIndex === null || linkCount === 0) return;
+		this.focusedLinkIndex = (this.focusedLinkIndex + 1) % linkCount;
+	}
+
+	focusPrevLink(linkCount: number): void {
+		if (this.focusedLinkIndex === null || linkCount === 0) return;
+		this.focusedLinkIndex = (this.focusedLinkIndex - 1 + linkCount) % linkCount;
+	}
+
+	// Chain navigation: move left in chain
+	navigateLeftInChain(): boolean {
+		if (!this.focusedCardId) return false;
+
+		const currentIndex = this.activeChain.indexOf(this.focusedCardId);
+		if (currentIndex <= 0) return false;
+
+		const targetCardId = this.activeChain[currentIndex - 1];
+		this.focusCard(targetCardId);
+		return true;
+	}
+
+	// Chain navigation: move right in chain
+	navigateRightInChain(): boolean {
+		if (!this.focusedCardId) return false;
+
+		const currentIndex = this.activeChain.indexOf(this.focusedCardId);
+		if (currentIndex < 0 || currentIndex >= this.activeChain.length - 1) {
+			return false;
+		}
+
+		const targetCardId = this.activeChain[currentIndex + 1];
+		this.focusCard(targetCardId);
+		return true;
+	}
+
+	// Follow link and extend chain rightward
+	// Does NOT call openNote to avoid chain manipulation conflicts
+	followLinkToRight(
+		noteId: string,
+		fromCardId: string,
+		linkPosition: Point
+	): boolean {
+		// If note is already open, update chain and focus it
+		if (this.cards.has(noteId)) {
+			// Update chain to reflect navigation to this card
+			const currentIndex = this.activeChain.indexOf(fromCardId);
+			if (currentIndex >= 0) {
+				// Truncate chain after current position, append target
+				this.activeChain = [...this.activeChain.slice(0, currentIndex + 1), noteId];
+			}
+			this.focusCard(noteId);
+			return true;
+		}
+
+		// Card doesn't exist - create it
+		if (!this.vault) return false;
+		const note = this.vault.notes[noteId];
+		if (!note) return false;
+		if (this.cards.size >= MAX_CARDS) return false;
+
+		// Calculate dimensions and position
+		const dimensions = this.calculateCardDimensions(note.content);
+		const parentCard = this.cards.get(fromCardId) ?? null;
+		const existingCards = Array.from(this.cards.values());
+		const existingPathPoints = this.getExistingPathPoints();
+
+		const { position } = calculateNewCardPosition(
+			parentCard,
+			existingCards,
+			linkPosition,
+			dimensions,
+			existingPathPoints
+		);
+
+		// Create new card
+		const newCard: Card = {
+			id: noteId,
+			note,
+			position,
+			dimensions,
+			parentId: fromCardId,
+			sourceLink: linkPosition
+		};
+		const newCards = new Map(this.cards);
+		newCards.set(noteId, newCard);
+		this.cards = newCards;
+
+		// Add connection
+		this.connections = [
+			...this.connections,
+			{
+				fromCardId,
+				toCardId: noteId,
+				sourcePoint: linkPosition
+			}
+		];
+
+		// Update chain: truncate after current, append new
+		const currentIndex = this.activeChain.indexOf(fromCardId);
+		if (currentIndex >= 0) {
+			this.activeChain = [...this.activeChain.slice(0, currentIndex + 1), noteId];
+		} else {
+			this.activeChain = [...this.activeChain, noteId];
+		}
+
+		// Update history
+		this.history.back.push([...this.activeChain]);
+		this.history.forward = [];
+
+		this.focusCard(noteId);
+		this.persistState();
+		this.schedulePersist();
+		return true;
+	}
+
+	// Unopen current card (remove from view, NOT delete data)
+	// NOTE: Entry point has privileged position - design decision pending review
+	unopenCurrentCard(): boolean {
+		if (!this.focusedCardId) return false;
+
+		// Don't allow unopening the entry point (prevents soft lock)
+		if (this.vault && this.focusedCardId === this.vault.entryPoint) return false;
+
+		const cardToUnopen = this.focusedCardId;
+		const currentIndex = this.activeChain.indexOf(cardToUnopen);
+
+		// Find adjacent card (prefer left/parent in chain)
+		const parentCardId = currentIndex > 0
+			? this.activeChain[currentIndex - 1]
+			: (this.activeChain.length > 1 ? this.activeChain[1] : null);
+
+		// Remove card from canvas (NOT from database)
+		const newCards = new Map(this.cards);
+		newCards.delete(cardToUnopen);
+		this.cards = newCards;
+
+		// Clean up connections referencing this card
+		this.connections = this.connections.filter(
+			conn => conn.fromCardId !== cardToUnopen && conn.toCardId !== cardToUnopen
+		);
+
+		// Clean up stored paths
+		const keysToDelete: string[] = [];
+		for (const [key] of this.storedPaths) {
+			if (key.includes(cardToUnopen)) {
+				keysToDelete.push(key);
+			}
+		}
+		if (keysToDelete.length > 0) {
+			const newPaths = new Map(this.storedPaths);
+			for (const key of keysToDelete) {
+				newPaths.delete(key);
+			}
+			this.storedPaths = newPaths;
+		}
+
+		// Remove from active chain
+		this.activeChain = this.activeChain.filter(id => id !== cardToUnopen);
+
+		// Exit link focus mode
+		this.exitLinkFocusMode();
+
+		// Navigate to parent in chain or first remaining card
+		if (parentCardId && this.cards.has(parentCardId)) {
+			this.focusCard(parentCardId);
+		} else if (this.activeChain.length > 0) {
+			this.focusCard(this.activeChain[0]);
+		} else {
+			this.focusedCardId = null;
+		}
+
+		this.persistState();
+		this.schedulePersist();
+		return true;
 	}
 
 	updateCardHeight(cardId: string, height: number): void {
