@@ -197,12 +197,12 @@
 
 			// === KEYBOARD NAVIGATION (Chain & Link Focus) ===
 
-			const focusedCard = canvasStore.focusedCardId;
-
-			// Helper to get visible wikilinks in viewport (avoid stale closure)
+			// Helper to get visible wikilinks in viewport for CURRENT focused card
+			// Uses canvasStore.focusedCardId directly to avoid stale closure after navigation
 			const getWikilinks = (): HTMLElement[] => {
-				const cardElement = focusedCard
-					? document.querySelector(`[data-note-id="${focusedCard}"]`)
+				const currentFocusedCard = canvasStore.focusedCardId;
+				const cardElement = currentFocusedCard
+					? document.querySelector(`[data-note-id="${currentFocusedCard}"]`)
 					: null;
 				if (!cardElement) return [];
 
@@ -213,7 +213,6 @@
 				const viewportRect = svg.getBoundingClientRect();
 				return allLinks.filter(link => {
 					const linkRect = link.getBoundingClientRect();
-					// Check if link intersects viewport
 					return (
 						linkRect.bottom > viewportRect.top &&
 						linkRect.top < viewportRect.bottom &&
@@ -223,35 +222,75 @@
 				});
 			};
 
-			// Helper to update link focus highlighting directly on DOM
-			const updateLinkHighlight = (visibleLinks: HTMLElement[], index: number | null) => {
-				// Clear all link-focused classes first
+			// Helper to clear all link highlights
+			const clearLinkHighlights = () => {
 				document.querySelectorAll('.wikilink.link-focused').forEach(el => {
 					el.classList.remove('link-focused');
 				});
-				// Add to current focused link
-				if (index !== null && index < visibleLinks.length) {
-					visibleLinks[index]?.classList.add('link-focused');
+			};
+
+			// Helper to highlight a specific link by index in given links array
+			const highlightLink = (links: HTMLElement[], index: number | null) => {
+				clearLinkHighlights();
+				if (index !== null && index < links.length) {
+					links[index]?.classList.add('link-focused');
 				}
 			};
 
-			// Helper to follow focused link
-			const followFocusedLink = () => {
-				const wikilinks = getWikilinks();
-				const linkIndex = canvasStore.focusedLinkIndex;
-				if (linkIndex === null || linkIndex >= wikilinks.length) return;
+			// Helper to get the currently highlighted link element from DOM
+			// This is the source of truth for which link will be followed
+			const getHighlightedLink = (): HTMLElement | null => {
+				return document.querySelector('.wikilink.link-focused') as HTMLElement | null;
+			};
 
-				const focusedLink = wikilinks[linkIndex];
-				if (!focusedLink || !focusedCard) return;
+			// Helper to enter or restore link focus mode with proper state
+			const enterOrRestoreLinkFocusMode = (links: HTMLElement[], savedTarget?: string) => {
+				if (links.length === 0) return;
 
-				const target = focusedLink.dataset.target;
+				canvasStore.enterLinkFocusMode();
+
+				// Try to restore to saved target if provided
+				if (savedTarget) {
+					const savedIndex = links.findIndex(link => link.dataset.target === savedTarget);
+					if (savedIndex >= 0) {
+						canvasStore.focusedLinkIndex = savedIndex;
+					}
+				}
+
+				highlightLink(links, canvasStore.focusedLinkIndex);
+			};
+
+			// Helper to save link state before leaving current card
+			const saveLinkStateBeforeLeaving = (linkFocusActive: boolean) => {
+				const highlightedLink = getHighlightedLink();
+				const linkTarget = highlightedLink?.dataset.target;
+				canvasStore.saveLinkState(linkTarget, linkFocusActive);
+			};
+
+			// Helper to restore link focus mode after navigation if the card had it active
+			const restoreLinkFocusModeIfNeeded = () => {
+				const savedState = canvasStore.getSavedCardState();
+				if (savedState?.linkFocusActive) {
+					const newLinks = getWikilinks();
+					enterOrRestoreLinkFocusMode(newLinks, savedState.linkTarget);
+				}
+			};
+
+			// Helper to follow the currently highlighted link
+			// Uses the DOM highlight as source of truth, not focusedLinkIndex
+			const followHighlightedLink = () => {
+				const currentFocusedCard = canvasStore.focusedCardId;
+				const highlightedLink = getHighlightedLink();
+
+				if (!highlightedLink || !currentFocusedCard) return;
+
+				const target = highlightedLink.dataset.target;
 				if (!target) return;
 
 				// Skip broken links
 				if (canvasStore.isLinkBroken(target)) return;
 
-				const rect = focusedLink.getBoundingClientRect();
-				// Convert screen position to canvas coordinates
+				const rect = highlightedLink.getBoundingClientRect();
 				const svgRect = svg.getBoundingClientRect();
 				const canvasPosition: Point = {
 					x: (rect.left - svgRect.left - transform.x) / transform.k,
@@ -260,14 +299,15 @@
 
 				canvasStore.exitLinkFocusMode();
 				const noteAlreadyOpen = canvasStore.cards.has(target);
-				canvasStore.followLinkToRight(target, focusedCard, canvasPosition);
+				canvasStore.followLinkToRight(target, currentFocusedCard, canvasPosition);
 
 				// Compute and store path for new connection if card was created
 				if (!noteAlreadyOpen && canvasStore.cards.has(target)) {
-					computeAndStorePath(focusedCard, target, canvasPosition);
+					computeAndStorePath(currentFocusedCard, target, canvasPosition);
 				}
 			};
 
+			// Get current visible links (fresh each keydown)
 			const visibleLinks = getWikilinks();
 			const linkCount = visibleLinks.length;
 
@@ -275,15 +315,16 @@
 			if (canvasStore.isLinkFocusMode) {
 				if (event.key === 'Escape') {
 					event.preventDefault();
+					saveLinkStateBeforeLeaving(false); // Explicitly exited, don't restore
 					canvasStore.exitLinkFocusMode();
-					updateLinkHighlight(visibleLinks, null);
+					clearLinkHighlights();
 					return;
 				}
 
 				if (event.key === 'Delete') {
 					event.preventDefault();
 					canvasStore.unopenCurrentCard();
-					updateLinkHighlight(visibleLinks, null);
+					clearLinkHighlights();
 					return;
 				}
 
@@ -291,31 +332,34 @@
 				if (event.key === 'Tab' && !event.shiftKey) {
 					event.preventDefault();
 					canvasStore.focusNextLink(linkCount);
-					updateLinkHighlight(visibleLinks, canvasStore.focusedLinkIndex);
+					highlightLink(visibleLinks, canvasStore.focusedLinkIndex);
 					return;
 				}
 
 				if (event.key === 'Tab' && event.shiftKey) {
 					event.preventDefault();
 					canvasStore.focusPrevLink(linkCount);
-					updateLinkHighlight(visibleLinks, canvasStore.focusedLinkIndex);
+					highlightLink(visibleLinks, canvasStore.focusedLinkIndex);
 					return;
 				}
 
-				// ArrowRight, Enter, Space: follow link (rightward)
+				// ArrowRight, Enter, Space: follow the highlighted link
 				if (event.key === 'ArrowRight' || event.key === 'Enter' || event.key === ' ') {
 					event.preventDefault();
-					followFocusedLink();
-					updateLinkHighlight(visibleLinks, null);
+					saveLinkStateBeforeLeaving(true); // Remember we were in link focus
+					followHighlightedLink();
+					clearLinkHighlights();
 					return;
 				}
 
 				// ArrowLeft: exit link focus, navigate left in chain
 				if (event.key === 'ArrowLeft') {
 					event.preventDefault();
+					saveLinkStateBeforeLeaving(true); // Remember we were in link focus
 					canvasStore.exitLinkFocusMode();
+					clearLinkHighlights();
 					canvasStore.navigateLeftInChain();
-					updateLinkHighlight(visibleLinks, null);
+					restoreLinkFocusModeIfNeeded();
 					return;
 				}
 
@@ -327,8 +371,8 @@
 			if (event.key === 'Tab') {
 				event.preventDefault();
 				if (linkCount > 0) {
-					canvasStore.enterLinkFocusMode();
-					updateLinkHighlight(visibleLinks, canvasStore.focusedLinkIndex);
+					const savedState = canvasStore.getSavedCardState();
+					enterOrRestoreLinkFocusMode(visibleLinks, savedState?.linkTarget);
 				}
 				return;
 			}
@@ -351,16 +395,18 @@
 				return;
 			}
 
-			// Chain navigation
+			// Chain navigation (restore link focus mode if the target card had it active)
 			if (event.key === 'ArrowLeft' && !event.altKey && !event.shiftKey) {
 				event.preventDefault();
 				canvasStore.navigateLeftInChain();
+				restoreLinkFocusModeIfNeeded();
 				return;
 			}
 
 			if (event.key === 'ArrowRight' && !event.altKey && !event.shiftKey) {
 				event.preventDefault();
 				canvasStore.navigateRightInChain();
+				restoreLinkFocusModeIfNeeded();
 				return;
 			}
 
@@ -737,10 +783,10 @@
 			</g>
 		{/if}
 
-		<!-- Connection lines (rendered below cards) -->
-		{#each connectionPaths as conn (conn.fromCardId + '-' + conn.toCardId)}
+		<!-- Connection lines disabled - focusing on layout first -->
+		<!-- {#each connectionPaths as conn (conn.fromCardId + '-' + conn.toCardId)}
 			<ConnectionLine path={conn.path} pathFailed={conn.pathFailed} />
-		{/each}
+		{/each} -->
 
 		<!-- Debug: Show routing method labels -->
 		{#if canvasStore.debugMode}
