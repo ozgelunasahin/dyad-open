@@ -752,20 +752,33 @@
 		}
 	}
 
-	function handleLinkClick(noteId: string, fromCardId: string, screenPosition: Point) {
-		// Convert screen position to canvas coordinates
-		const svgRect = svg.getBoundingClientRect();
-		const canvasPosition: Point = {
-			x: (screenPosition.x - svgRect.left - transform.x) / transform.k,
-			y: (screenPosition.y - svgRect.top - transform.y) / transform.k
-		};
+	interface LinkBounds {
+		left: number;
+		right: number;
+		bottom: number;
+	}
 
-		// Calculate linkSide based on link position relative to card center
+	function handleLinkClick(noteId: string, fromCardId: string, screenBounds: LinkBounds) {
+		// Convert screen bounds to canvas coordinates
+		const svgRect = svg.getBoundingClientRect();
+		const canvasLeft = (screenBounds.left - svgRect.left - transform.x) / transform.k;
+		const canvasRight = (screenBounds.right - svgRect.left - transform.x) / transform.k;
+		const canvasY = (screenBounds.bottom - svgRect.top - transform.y) / transform.k;
+
+		// Calculate linkSide based on link center relative to card center
+		const linkCenterX = (canvasLeft + canvasRight) / 2;
 		const fromCard = canvasStore.cards.get(fromCardId);
 		const cardCenterX = fromCard
 			? fromCard.position.x + (fromCard.dimensions?.width ?? 400) / 2
 			: 0;
-		const linkSide: LinkSide = canvasPosition.x < cardCenterX ? 'left' : 'right';
+		const linkSide: LinkSide = linkCenterX < cardCenterX ? 'left' : 'right';
+
+		// For left-exiting lines, start from RIGHT edge of underline
+		// For right-exiting lines, start from LEFT edge of underline
+		const canvasPosition: Point = {
+			x: linkSide === 'left' ? canvasRight : canvasLeft,
+			y: canvasY
+		};
 
 		// Save current card's reading state before navigating (same as keyboard nav)
 		canvasStore.saveLinkState(undefined, false);

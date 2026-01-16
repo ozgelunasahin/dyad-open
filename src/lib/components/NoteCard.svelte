@@ -5,10 +5,16 @@
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import TurndownService from 'turndown';
 
+	interface LinkBounds {
+		left: number;
+		right: number;
+		bottom: number;
+	}
+
 	interface Props {
 		card: Card;
 		isActive: boolean;
-		onLinkClick: (noteId: string, fromCardId: string, linkPosition: Point) => void;
+		onLinkClick: (noteId: string, fromCardId: string, linkBounds: LinkBounds) => void;
 		onCardClick: (cardId: string) => void;
 		readOnly?: boolean;
 	}
@@ -98,24 +104,25 @@
 		}
 
 		const rect = target.getBoundingClientRect();
-		const linkPosition: Point = {
-			x: rect.left,
-			y: rect.bottom
+		const linkBounds: LinkBounds = {
+			left: rect.left,
+			right: rect.right,
+			bottom: rect.bottom
 		};
 
 		// If link is broken (note doesn't exist), create it (unless read-only)
 		if (canvasStore.isLinkBroken(noteId)) {
 			if (!readOnly) {
-				await createNewNote(noteId, linkPosition, target);
+				await createNewNote(noteId, linkBounds, target);
 			}
 			return;
 		}
 
-		onLinkClick(noteId, card.id, linkPosition);
+		onLinkClick(noteId, card.id, linkBounds);
 		target.classList.add('has-connection');
 	}
 
-	async function createNewNote(noteId: string, linkPosition: Point, target: HTMLElement) {
+	async function createNewNote(noteId: string, linkBounds: LinkBounds, target: HTMLElement) {
 		// Create title from noteId (convert hyphens to spaces, title case)
 		const title = noteId
 			.split('-')
@@ -142,7 +149,7 @@
 			canvasStore.addNoteToVault(noteId, title);
 
 			// Use normal link click flow for proper coordinate conversion and path computation
-			onLinkClick(noteId, card.id, linkPosition);
+			onLinkClick(noteId, card.id, linkBounds);
 			target.classList.add('has-connection');
 
 			// Enter edit mode on the new card after a brief delay
