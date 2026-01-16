@@ -552,6 +552,7 @@
 	.text-block :global(.wikilink) {
 		background: none;
 		border: none;
+		outline: none;
 		color: var(--text-link);
 		text-decoration: none;
 		border-bottom: 1px solid var(--border-link);
@@ -559,6 +560,10 @@
 		padding: 0;
 		font: inherit;
 		transition: all 0.15s ease;
+	}
+
+	.text-block :global(.wikilink:focus-visible) {
+		outline: none;
 	}
 
 	.text-block :global(.wikilink:hover) {
