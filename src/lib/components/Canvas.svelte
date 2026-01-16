@@ -779,10 +779,10 @@
 			: 0;
 		const linkSide: LinkSide = linkCenterX < cardCenterX ? 'left' : 'right';
 
-		// For left-exiting lines, start from RIGHT edge of underline
-		// For right-exiting lines, start from LEFT edge of underline
+		// Line starts from the edge that continues the underline in the exit direction
+		// Right-exiting → start from RIGHT edge, Left-exiting → start from LEFT edge
 		const canvasPosition: Point = {
-			x: linkSide === 'left' ? canvasRight : canvasLeft,
+			x: linkSide === 'left' ? canvasLeft : canvasRight,
 			y: canvasY
 		};
 
