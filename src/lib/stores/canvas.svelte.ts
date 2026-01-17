@@ -429,6 +429,14 @@ class CanvasStore {
 	}
 
 	/**
+	 * Open a note from the introduction panel (no parent connection).
+	 * Used when clicking wikilinks in the WebsiteContainer intro text.
+	 */
+	openNoteFromIntro(noteId: string): boolean {
+		return this.openNote(noteId, null, null);
+	}
+
+	/**
 	 * Focus on a card and position for reading (top of card near top of viewport).
 	 * Saves reading state for current card, restores for target card if previously visited.
 	 * Link focus restoration is included in the event for the Canvas to handle after animation.
