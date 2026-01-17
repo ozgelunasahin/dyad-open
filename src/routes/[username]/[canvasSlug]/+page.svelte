@@ -1,25 +1,15 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
 	import type { Vault } from '$lib/types';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import Canvas from '$lib/components/Canvas.svelte';
-	import WebsiteContainer from '$lib/components/WebsiteContainer.svelte';
 
 	let { data }: { data: PageData } = $props();
 
 	let loading = $state(true);
 	let error = $state<string | null>(null);
-	let vault = $state<Vault | null>(null);
-
-	// Get entry note content for introduction
-	let entryNoteContent = $derived.by(() => {
-		if (!vault || !data.canvas.entryPointNoteId) return '';
-		const entryNote = vault.notes[data.canvas.entryPointNoteId];
-		return entryNote?.content || '';
-	});
 
 	onMount(async () => {
 		try {
@@ -27,7 +17,7 @@
 			if (!response.ok) {
 				throw new Error('Failed to load vault');
 			}
-			vault = await response.json();
+			const vault: Vault = await response.json();
 
 			// If canvas has an entry point, use it
 			if (data.canvas.entryPointNoteId) {
@@ -37,23 +27,6 @@
 			// Pass canvasId and saved positions for per-canvas state persistence
 			await canvasStore.initialize(vault, data.canvas.id, data.cardPositions);
 			loading = false;
-
-			// Listen for intro wikilink clicks (from introduction panel)
-			const handleIntroWikilinkClick = (event: Event) => {
-				const customEvent = event as CustomEvent<{ target: string }>;
-				const target = customEvent.detail.target;
-
-				// Check if note exists in vault
-				if (vault && vault.notes[target]) {
-					// Open the note in the canvas
-					canvasStore.openNoteFromIntro(target);
-				}
-			};
-			window.addEventListener('intro-wikilink-click', handleIntroWikilinkClick);
-
-			return () => {
-				window.removeEventListener('intro-wikilink-click', handleIntroWikilinkClick);
-			};
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Unknown error';
 			loading = false;
@@ -70,11 +43,6 @@
 			canvasStore.goForward();
 		}
 	}
-
-	function handlePageLink(path: string) {
-		// Navigate to another published canvas
-		goto(path);
-	}
 </script>
 
 <svelte:head>
@@ -86,95 +54,93 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-{#if loading}
-	<main class="app">
+<main class="app">
+	{#if loading}
 		<div class="loading">
 			<p>Loading...</p>
 		</div>
-	</main>
-{:else if error}
-	<main class="app">
+	{:else if error}
 		<div class="error">
 			<p>{error}</p>
 			<button onclick={() => window.location.reload()}>Retry</button>
 		</div>
-	</main>
-{:else}
-	<WebsiteContainer
-		title={data.canvas.name}
-		author={data.author.username}
-		introduction={entryNoteContent}
-		onPageLink={handlePageLink}
-	>
-		<div class="canvas-wrapper">
-			<Canvas readOnly={true} />
+	{:else}
+		<Canvas readOnly={true} />
 
-			<!-- Minimal navigation -->
-			<nav class="controls" class:can-navigate={canvasStore.canGoBack || canvasStore.canGoForward}>
-				<button
-					class="nav-btn"
-					onclick={() => canvasStore.goBack()}
-					disabled={!canvasStore.canGoBack}
-					aria-label="Go back"
-				>
-					<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-						<path
-							d="M10 12L6 8L10 4"
-							stroke="currentColor"
-							stroke-width="1.5"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						/>
-					</svg>
-				</button>
-				<button
-					class="nav-btn"
-					onclick={() => canvasStore.goForward()}
-					disabled={!canvasStore.canGoForward}
-					aria-label="Go forward"
-				>
-					<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-						<path
-							d="M6 4L10 8L6 12"
-							stroke="currentColor"
-							stroke-width="1.5"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						/>
-					</svg>
-				</button>
-			</nav>
+		<!-- Header with canvas info -->
+		<header class="canvas-header">
+			<div class="canvas-info">
+				<h1>{data.canvas.name}</h1>
+				<span class="author">by <a href="/{data.author.username}">@{data.author.username}</a></span>
+			</div>
+			<span class="read-only-badge">Read-only</span>
+		</header>
 
-			<!-- Theme toggle -->
-			<button class="theme-toggle" onclick={() => themeStore.toggle()} aria-label="Toggle theme">
-				{#if themeStore.current === 'light'}
-					<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-						<circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5" />
-						<path
-							d="M8 1V2.5M8 13.5V15M1 8H2.5M13.5 8H15M3.05 3.05L4.11 4.11M11.89 11.89L12.95 12.95M3.05 12.95L4.11 11.89M11.89 4.11L12.95 3.05"
-							stroke="currentColor"
-							stroke-width="1.5"
-							stroke-linecap="round"
-						/>
-					</svg>
-				{:else}
-					<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-						<path
-							d="M14 8.5A6 6 0 117.5 2a4.5 4.5 0 006.5 6.5z"
-							stroke="currentColor"
-							stroke-width="1.5"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						/>
-					</svg>
-				{/if}
+		<!-- Minimal navigation -->
+		<nav class="controls" class:can-navigate={canvasStore.canGoBack || canvasStore.canGoForward}>
+			<button
+				class="nav-btn"
+				onclick={() => canvasStore.goBack()}
+				disabled={!canvasStore.canGoBack}
+				aria-label="Go back"
+			>
+				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+					<path
+						d="M10 12L6 8L10 4"
+						stroke="currentColor"
+						stroke-width="1.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					/>
+				</svg>
 			</button>
+			<button
+				class="nav-btn"
+				onclick={() => canvasStore.goForward()}
+				disabled={!canvasStore.canGoForward}
+				aria-label="Go forward"
+			>
+				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+					<path
+						d="M6 4L10 8L6 12"
+						stroke="currentColor"
+						stroke-width="1.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					/>
+				</svg>
+			</button>
+		</nav>
 
-			<!-- CTA for non-logged-in users -->
-			<a href="/register" class="cta-link">Create your own canvas</a>
-		</div>
-	</WebsiteContainer>
-{/if}
+		<!-- Theme toggle -->
+		<button class="theme-toggle" onclick={() => themeStore.toggle()} aria-label="Toggle theme">
+			{#if themeStore.current === 'light'}
+				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+					<circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5" />
+					<path
+						d="M8 1V2.5M8 13.5V15M1 8H2.5M13.5 8H15M3.05 3.05L4.11 4.11M11.89 11.89L12.95 12.95M3.05 12.95L4.11 11.89M11.89 4.11L12.95 3.05"
+						stroke="currentColor"
+						stroke-width="1.5"
+						stroke-linecap="round"
+					/>
+				</svg>
+			{:else}
+				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+					<path
+						d="M14 8.5A6 6 0 117.5 2a4.5 4.5 0 006.5 6.5z"
+						stroke="currentColor"
+						stroke-width="1.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					/>
+				</svg>
+			{/if}
+		</button>
+
+		<!-- CTA for non-logged-in users -->
+		<a href="/register" class="cta-link">Create your own canvas</a>
+	{/if}
+</main>
 
 <style>
 	.app {
@@ -212,16 +178,65 @@
 		color: var(--text-secondary);
 	}
 
-	/* Canvas wrapper fills the canvas area */
-	.canvas-wrapper {
-		width: 100%;
-		height: 100%;
-		position: relative;
+	/* Canvas header */
+	.canvas-header {
+		position: fixed;
+		top: 16px;
+		left: 16px;
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		z-index: 100;
+		background: var(--bg-canvas);
+		padding: 10px 14px;
+		border-radius: 6px;
+		border: 1px solid var(--border-link);
+		opacity: 0.9;
+		transition: opacity 0.2s;
+	}
+
+	.canvas-header:hover {
+		opacity: 1;
+	}
+
+	.canvas-info {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+
+	.canvas-header h1 {
+		margin: 0;
+		font-size: 1rem;
+		font-weight: normal;
+		color: var(--text-primary);
+	}
+
+	.author {
+		font-size: 0.8rem;
+		color: var(--text-muted);
+	}
+
+	.author a {
+		color: var(--text-link);
+		text-decoration: none;
+	}
+
+	.author a:hover {
+		color: var(--text-link-hover);
+	}
+
+	.read-only-badge {
+		background: var(--bg-control);
+		color: var(--text-muted);
+		padding: 4px 8px;
+		border-radius: 4px;
+		font-size: 0.75rem;
 	}
 
 	/* Navigation controls */
 	.controls {
-		position: absolute;
+		position: fixed;
 		bottom: 24px;
 		left: 24px;
 		display: flex;
@@ -236,11 +251,11 @@
 		opacity: 1;
 	}
 
-	.canvas-wrapper:hover .controls.can-navigate {
+	.app:hover .controls.can-navigate {
 		opacity: 0.6;
 	}
 
-	.canvas-wrapper:hover .controls.can-navigate:hover {
+	.app:hover .controls.can-navigate:hover {
 		opacity: 1;
 	}
 
@@ -269,7 +284,7 @@
 	}
 
 	.theme-toggle {
-		position: absolute;
+		position: fixed;
 		bottom: 24px;
 		right: 24px;
 		width: 32px;
@@ -294,7 +309,7 @@
 	}
 
 	.cta-link {
-		position: absolute;
+		position: fixed;
 		bottom: 24px;
 		right: 70px;
 		padding: 8px 14px;
