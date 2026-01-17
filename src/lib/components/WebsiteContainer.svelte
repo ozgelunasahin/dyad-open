@@ -62,7 +62,7 @@
 
 <div class="website-container">
 	<!-- Introduction panel -->
-	{#if showIntro && (introduction || graphicUrl)}
+	{#if showIntro}
 		<aside class="intro-panel" class:collapsed={!introExpanded}>
 			<button class="intro-toggle" onclick={toggleIntro} aria-label={introExpanded ? 'Collapse introduction' : 'Expand introduction'}>
 				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">

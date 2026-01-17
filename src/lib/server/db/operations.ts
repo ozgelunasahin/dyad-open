@@ -200,6 +200,30 @@ export async function getPublishedCanvas(
 	};
 }
 
+export async function getPublishedCanvasesByUsername(
+	username: string
+): Promise<(Canvas & { user: User })[]> {
+	const result = await db
+		.select({
+			canvas: canvases,
+			user: users
+		})
+		.from(canvases)
+		.innerJoin(users, eq(canvases.userId, users.id))
+		.where(
+			and(
+				eq(users.username, username.toLowerCase()),
+				eq(canvases.isPublished, true)
+			)
+		)
+		.orderBy(desc(canvases.updatedAt));
+
+	return result.map((r) => ({
+		...r.canvas,
+		user: r.user
+	}));
+}
+
 // ============ Card Position Operations ============
 
 export function saveCardPositions(
