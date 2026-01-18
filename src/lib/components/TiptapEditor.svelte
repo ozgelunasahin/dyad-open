@@ -141,9 +141,11 @@
 		if (editor) {
 			editor.setEditable(editable);
 
-			// Auto-focus when becoming editable
+			// Auto-focus when becoming editable, blur when leaving
 			if (editable && !wasEditable) {
 				editor.commands.focus('end');
+			} else if (!editable && wasEditable) {
+				editor.commands.blur();
 			}
 			wasEditable = editable;
 		}
