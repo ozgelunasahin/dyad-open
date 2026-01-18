@@ -1,7 +1,8 @@
 import type { Card, Connection, Camera, Point, Vault, Dimensions, LinkSide, SourceBounds } from '$lib/types';
 import type { JSONContent } from '@tiptap/core';
-import { MAX_CARDS } from '$lib/types';
+import { MAX_CARDS, MIN_CARD_WIDTH, MAX_CARD_WIDTH } from '$lib/types';
 import { calculateNewCardPosition } from '$lib/utils/layout';
+import { calculateOptimalWidthFromJson, estimateContentHeight } from '$lib/utils/json-content';
 
 // Stored path with metadata
 export interface StoredPath {
@@ -313,10 +314,11 @@ class CanvasStore {
 	 * Calculate dimensions for a note's content.
 	 */
 	private calculateCardDimensions(content: JSONContent): Dimensions {
-		// Temporarily use defaults to debug
+		const width = calculateOptimalWidthFromJson(content, MIN_CARD_WIDTH, MAX_CARD_WIDTH);
+		const height = estimateContentHeight(content, width);
 		return {
-			width: 320,
-			height: 200
+			width,
+			height: Math.max(100, height)
 		};
 	}
 
