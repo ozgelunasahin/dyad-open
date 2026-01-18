@@ -3,6 +3,7 @@
 	import type { Card } from '$lib/types';
 	import type { JSONContent } from '@tiptap/core';
 	import { isHTMLElement } from '$lib/utils/type-guards';
+	import { sanitizeSlug } from '$lib/utils/slug';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import TiptapEditor from './TiptapEditor.svelte';
 
@@ -105,7 +106,14 @@
 	}
 
 	async function createNewNote(noteId: string, linkBounds: LinkBounds) {
-		const title = noteId
+		// Sanitize noteId in case it came from old/pasted content with special chars
+		const safeNoteId = sanitizeSlug(noteId);
+		if (!safeNoteId) {
+			console.error('Cannot create note with empty slug from:', noteId);
+			return;
+		}
+
+		const title = safeNoteId
 			.split('-')
 			.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
 			.join(' ');
@@ -126,20 +134,20 @@
 		};
 
 		try {
-			const res = await fetch(`/api/notes/${noteId}`, {
+			const res = await fetch(`/api/notes/${safeNoteId}`, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ title, content })
 			});
 
 			if (!res.ok) {
-				console.error('Failed to create note:', noteId);
+				console.error('Failed to create note:', safeNoteId);
 				return;
 			}
 
-			canvasStore.addNoteToVault(noteId, title, content);
-			onLinkClick(noteId, card.id, linkBounds);
-			setTimeout(() => canvasStore.enterEditMode(noteId), 100);
+			canvasStore.addNoteToVault(safeNoteId, title, content);
+			onLinkClick(safeNoteId, card.id, linkBounds);
+			setTimeout(() => canvasStore.enterEditMode(safeNoteId), 100);
 		} catch (err) {
 			console.error('Failed to create note:', err);
 		}

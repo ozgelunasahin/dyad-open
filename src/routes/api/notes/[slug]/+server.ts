@@ -101,6 +101,15 @@ function validateJSONContent(node: unknown, depth = 0): string | null {
 			if (!ALLOWED_MARK_TYPES.has(mark.type)) {
 				return `Invalid mark type: "${mark.type}"`;
 			}
+			// Link marks are allowed to have href attr
+			if (mark.type === 'link' && mark.attrs) {
+				const allowedLinkAttrs = ['href', 'target', 'rel', 'class'];
+				for (const key of Object.keys(mark.attrs as object)) {
+					if (!allowedLinkAttrs.includes(key)) {
+						return `Invalid link mark attribute: "${key}"`;
+					}
+				}
+			}
 		}
 	}
 
@@ -190,13 +199,17 @@ function isValidSlug(slug: string): boolean {
 }
 
 export const PUT: RequestHandler = async ({ locals, params, request }) => {
+	console.log('[API PUT] Request received for:', params.slug);
+
 	if (!locals.user) {
+		console.log('[API PUT] Unauthorized - no user');
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
 	const { slug } = params;
 
 	if (!isValidSlug(slug)) {
+		console.log('[API PUT] Invalid slug:', slug);
 		return json({ error: 'Invalid slug' } satisfies ApiErrorResponse, { status: 400 });
 	}
 
@@ -204,12 +217,15 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
 	let body: unknown;
 	try {
 		body = await request.json();
-	} catch {
+		console.log('[API PUT] Body parsed, content type:', typeof (body as Record<string, unknown>)?.content);
+	} catch (e) {
+		console.log('[API PUT] JSON parse error:', e);
 		return json({ error: 'Invalid JSON body' } satisfies ApiErrorResponse, { status: 400 });
 	}
 
 	// Validate body structure
 	if (!isValidPutBody(body)) {
+		console.log('[API PUT] Invalid body structure:', Object.keys(body as object));
 		return json(
 			{ error: 'Request body must have "title" string and "content" object fields' } satisfies ApiErrorResponse,
 			{ status: 400 }
@@ -221,6 +237,8 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
 	// Validate JSONContent structure to prevent XSS
 	const contentError = validateJSONContent(content);
 	if (contentError) {
+		console.error(`[API] Content validation failed for ${slug}:`, contentError);
+		console.error(`[API] Content was:`, JSON.stringify(content).slice(0, 500));
 		return json(
 			{ error: `Invalid content: ${contentError}` } satisfies ApiErrorResponse,
 			{ status: 400 }
