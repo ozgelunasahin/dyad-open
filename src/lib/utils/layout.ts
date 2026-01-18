@@ -22,15 +22,17 @@ const CHANNEL_STEP = 15; // Spacing between routing channels
 
 // Scoring constants for layout algorithm
 const SCORING = {
-	// Column preferences - right-only layout
-	COLUMN_FAR_PENALTY: 100,    // Penalty per column distance > 1
-	Y_DISTANCE_WEIGHT: 0.5,
+	// Column preferences - spread horizontally over stacking vertically
+	COLUMN_FAR_PENALTY: 30,     // Low: farther columns are acceptable
+	COLUMN_CROWDING_PENALTY: 150, // Penalty per existing card in the target column
+	Y_DISTANCE_WEIGHT: 1.0,     // Penalize Y offsets
+	Y_THRESHOLD: 200,           // Y offset threshold before extra penalty applies
+	Y_THRESHOLD_PENALTY: 250,   // Extra penalty when Y offset exceeds threshold
 	// Line routing penalties
 	CHANNEL_REUSE_PENALTY: 500,
 	COAXIAL_PENALTY_PER_SEGMENT: 2000,  // Very heavy penalty for lines running alongside
 	COAXIAL_PENALTY_PER_PIXEL: 10,      // Scale strongly with overlap length
-	CROSSING_PENALTY: 200,
-	CARD_OVERLAP_PENALTY: 1000
+	CROSSING_PENALTY: 200
 } as const;
 
 /**
@@ -250,8 +252,9 @@ function scoreCandidatePosition(
 	);
 
 	// 2. Early termination: path crosses card is a deal-breaker
+	// Return Infinity to completely disqualify this candidate
 	if (pathCrossesCards(simPath, existingCards, parentCard)) {
-		return SCORING.CARD_OVERLAP_PENALTY;
+		return Infinity;
 	}
 
 	// 3. Coaxial overlap penalty (most important)
@@ -264,9 +267,13 @@ function scoreCandidatePosition(
 	score += crossings * SCORING.CROSSING_PENALTY;
 
 	// 5. Distance from ideal Y position (prefer close to link)
+	// Apply extra penalty when Y offset exceeds threshold to encourage horizontal spread
 	const idealY = linkPosition.y - 20;
 	const yDistance = Math.abs(candidate.position.y - idealY);
 	score += yDistance * SCORING.Y_DISTANCE_WEIGHT;
+	if (yDistance > SCORING.Y_THRESHOLD) {
+		score += SCORING.Y_THRESHOLD_PENALTY;
+	}
 
 	// 6. Column distance penalty (prefer closer columns)
 	const columnDistance = Math.abs(candidate.column - parentColumn);
@@ -274,7 +281,14 @@ function scoreCandidatePosition(
 		score += (columnDistance - 1) * SCORING.COLUMN_FAR_PENALTY;
 	}
 
-	// 7. Prefer unused routing channels (bonus for unique channel)
+	// 7. Column crowding penalty - discourage stacking many cards in the same column
+	const cardsInTargetColumn = existingCards.filter(card => {
+		const cardColumn = Math.floor(card.position.x / COLUMN_WIDTH);
+		return cardColumn === candidate.column;
+	}).length;
+	score += cardsInTargetColumn * SCORING.COLUMN_CROWDING_PENALTY;
+
+	// 8. Prefer unused routing channels (bonus for unique channel)
 	const usedChannels = findUsedVerticalChannels(
 		existingPaths,
 		Math.min(parentCard.position.x, candidate.position.x),
