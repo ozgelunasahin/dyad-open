@@ -54,7 +54,8 @@ const ALLOWED_NODE_TYPES = new Set([
 	'codeBlock',
 	'code',
 	'hardBreak',
-	'horizontalRule'
+	'horizontalRule',
+	'image'
 ]);
 
 // Whitelist of allowed mark types
@@ -118,11 +119,28 @@ function validateJSONContent(node: unknown, depth = 0): string | null {
 		if (typeof n.attrs !== 'object' || n.attrs === null) {
 			return 'Node attrs must be an object';
 		}
-		// Block dangerous attribute names
-		const dangerousAttrs = ['onclick', 'onerror', 'onload', 'onmouseover', 'href', 'src'];
-		for (const key of Object.keys(n.attrs as object)) {
-			if (dangerousAttrs.includes(key.toLowerCase())) {
-				return `Forbidden attribute: "${key}"`;
+
+		const attrs = n.attrs as Record<string, unknown>;
+
+		if (n.type === 'image') {
+			// Allow only safe attributes for images
+			const allowedImageAttrs = ['src', 'alt', 'title'];
+			for (const key of Object.keys(attrs)) {
+				if (!allowedImageAttrs.includes(key)) {
+					return `Invalid image attribute: "${key}"`;
+				}
+			}
+			// Validate src is a local upload path
+			if (typeof attrs.src === 'string' && !attrs.src.startsWith('/uploads/')) {
+				return 'Image src must be a local upload path';
+			}
+		} else {
+			// Block dangerous attribute names on non-image nodes
+			const dangerousAttrs = ['onclick', 'onerror', 'onload', 'onmouseover', 'href', 'src'];
+			for (const key of Object.keys(attrs)) {
+				if (dangerousAttrs.includes(key.toLowerCase())) {
+					return `Forbidden attribute: "${key}"`;
+				}
 			}
 		}
 	}

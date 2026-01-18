@@ -2,6 +2,8 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { Editor, type JSONContent } from '@tiptap/core';
 	import StarterKit from '@tiptap/starter-kit';
+	import Image from '@tiptap/extension-image';
+	import type { EditorView } from '@tiptap/pm/view';
 	import { Wikilink } from '$lib/tiptap/wikilink';
 
 	interface Props {
@@ -55,7 +57,8 @@
 					onWikilinkClick,
 					onWikilinkDelete,
 					isLinkBroken
-				})
+				}),
+				Image
 			],
 			content: safeContent,
 			editable,
@@ -82,6 +85,37 @@
 						}
 					}
 					return false;
+				},
+				handlePaste(view: EditorView, event: ClipboardEvent): boolean {
+					if (!view.editable) return false;
+
+					const files = event.clipboardData?.files;
+					if (!files?.length) return false;
+
+					const imageFile = Array.from(files).find(
+						(f) => f.type === 'image/jpeg' || f.type === 'image/png'
+					);
+					if (!imageFile) return false;
+
+					event.preventDefault();
+
+					const formData = new FormData();
+					formData.append('file', imageFile);
+
+					fetch('/api/upload', { method: 'POST', body: formData })
+						.then((r) => r.json())
+						.then((data) => {
+							if (data.url) {
+								const { state, dispatch } = view;
+								const node = state.schema.nodes.image.create({ src: data.url });
+								dispatch(state.tr.replaceSelectionWith(node));
+							} else if (data.error) {
+								console.error('Upload failed:', data.error);
+							}
+						})
+						.catch(console.error);
+
+					return true;
 				}
 			},
 			onUpdate: ({ editor }) => {
@@ -280,5 +314,13 @@
 		padding: 1px 3px;
 		margin: -1px -3px;
 		border-bottom-color: var(--text-link);
+	}
+
+	/* Images */
+	.tiptap-editor :global(img) {
+		max-width: 100%;
+		height: auto;
+		border-radius: 4px;
+		margin: 0.5em 0;
 	}
 </style>
