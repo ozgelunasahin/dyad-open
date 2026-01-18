@@ -85,6 +85,7 @@ class CanvasStore {
 	// Focus state for smooth centering
 	focusedCardId = $state<string | null>(null);
 	isAnimating = $state<boolean>(false);
+	private lastAnimationEndTime = 0; // Timestamp when last animation ended
 
 	// Connection line visibility
 	showLines = $state<boolean>(true);
@@ -694,13 +695,12 @@ class CanvasStore {
 	}
 
 	/**
-	 * Pan to reading position for the currently focused card.
-	 * Used on second click when card is already focused.
+	 * Pan focused card into view if needed.
+	 * Called on click when card is already focused.
 	 *
-	 * Conservative behavior:
-	 * - Fully visible: do nothing - current position is the reading position
+	 * - Fully visible: do nothing - current position is reading position
 	 * - Partially visible: minimal pan to show card fully
-	 * - Off-screen: full pan to reading position
+	 * - Off-screen: pan to saved reading position (or card top if none)
 	 */
 	panToFocusedCard(): void {
 		const card = this.focusedCardId ? this.cards.get(this.focusedCardId) : null;
@@ -725,14 +725,13 @@ class CanvasStore {
 			return;
 		}
 
-		// Off-screen: full pan to reading position
+		// Off-screen: pan to saved reading position or card top
 		const savedState = this.savedCardState.get(this.focusedCardId!);
 
 		if (typeof window !== 'undefined') {
 			this.isAnimating = true;
 
 			if (savedState?.focusY !== undefined) {
-				// Restore to saved vertical position, centered horizontally
 				window.dispatchEvent(
 					new CustomEvent('canvas-restore', {
 						detail: {
@@ -743,7 +742,6 @@ class CanvasStore {
 					})
 				);
 			} else {
-				// New card - animate to reading position
 				window.dispatchEvent(
 					new CustomEvent('canvas-focus', {
 						detail: {
@@ -812,6 +810,10 @@ class CanvasStore {
 
 	setAnimating(animating: boolean): void {
 		this.isAnimating = animating;
+		if (!animating) {
+			// Record when animation ended to prevent immediate reading position saves
+			this.lastAnimationEndTime = Date.now();
+		}
 	}
 
 	enterEditMode(cardId: string): void {
@@ -840,6 +842,33 @@ class CanvasStore {
 			(this.viewportHeight > 0 ? (this.viewportHeight / 2 - this.camera.y) / this.camera.zoom : 0);
 		const newMap = new Map(this.savedCardState);
 		newMap.set(this.focusedCardId, { focusY, linkTarget, linkFocusActive });
+		this.savedCardState = newMap;
+	}
+
+	/**
+	 * Update reading position for the focused card continuously as user scrolls/pans.
+	 * Called from Canvas component on camera changes when card is visible.
+	 */
+	updateReadingPosition(): void {
+		if (!this.focusedCardId) return;
+		if (this.viewportHeight === 0) return;
+
+		// Don't save reading position right after an animation ends
+		// This prevents the animation's end position from overwriting the user's actual reading position
+		const timeSinceAnimation = Date.now() - this.lastAnimationEndTime;
+		if (timeSinceAnimation < 200) return;
+
+		// Only update if focused card is visible
+		const visibility = this.getCardVisibility(this.focusedCardId);
+		if (visibility === 'off-screen') return;
+
+		// Calculate current reading position (viewport center in canvas coordinates)
+		const focusY = (this.viewportHeight / 2 - this.camera.y) / this.camera.zoom;
+
+		// Update saved state, preserving link state
+		const existing = this.savedCardState.get(this.focusedCardId);
+		const newMap = new Map(this.savedCardState);
+		newMap.set(this.focusedCardId, { ...existing, focusY });
 		this.savedCardState = newMap;
 	}
 

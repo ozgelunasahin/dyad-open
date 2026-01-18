@@ -67,6 +67,12 @@
 					zoom: event.transform.k
 				});
 
+				// Update reading position continuously while user scrolls/pans (not during animations)
+				// This ensures clicking a focused card toggles to the actual last reading position
+				if (!canvasStore.isAnimating) {
+					canvasStore.updateReadingPosition();
+				}
+
 				// Clear saved reading position if card has been panned out of the reading zone
 				// Vertical scrolling (reading) is fine, but panning the card out of view clears it
 				if (svg) {
