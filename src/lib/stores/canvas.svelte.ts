@@ -585,10 +585,22 @@ class CanvasStore {
 
 		// Check visibility for conservative panning
 		const visibility = this.getCardVisibility(cardId);
+		const savedState = this.savedCardState.get(cardId);
+
+		// Prepare link restoration info (needed for all paths)
+		const linkRestoration = savedState?.linkFocusActive
+			? { linkTarget: savedState.linkTarget, linkFocusActive: true }
+			: null;
 
 		// Fully visible: just update focus, no pan needed
+		// But still dispatch event for link restoration if needed
 		if (!forceAnimation && visibility === 'fully-visible') {
 			this.focusedCardId = cardId;
+			if (linkRestoration && typeof window !== 'undefined') {
+				window.dispatchEvent(new CustomEvent('canvas-focus-instant', {
+					detail: { cardId, linkRestoration }
+				}));
+			}
 			return;
 		}
 
@@ -600,7 +612,7 @@ class CanvasStore {
 				if (typeof window !== 'undefined') {
 					this.isAnimating = true;
 					window.dispatchEvent(new CustomEvent('canvas-minimal-pan', {
-						detail: { cardId, dx: minPan.dx, dy: minPan.dy }
+						detail: { cardId, dx: minPan.dx, dy: minPan.dy, linkRestoration }
 					}));
 				}
 				return;
@@ -608,7 +620,6 @@ class CanvasStore {
 		}
 
 		// Off-screen or forceAnimation: full pan to reading position (existing behavior)
-		const savedState = this.savedCardState.get(cardId);
 
 		this.focusedCardId = cardId;
 
@@ -616,10 +627,6 @@ class CanvasStore {
 		// Include link restoration info so Canvas can restore AFTER animation completes
 		if (typeof window !== 'undefined') {
 			this.isAnimating = true;
-
-			const linkRestoration = savedState?.linkFocusActive
-				? { linkTarget: savedState.linkTarget, linkFocusActive: true }
-				: null;
 
 			if (savedState?.focusY !== undefined) {
 				// Returning to previously visited card - restore vertical position

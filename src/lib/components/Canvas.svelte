@@ -188,11 +188,26 @@
 				cardId: string;
 				dx: number;
 				dy: number;
+				linkRestoration?: { linkTarget?: string; linkFocusActive: boolean } | null;
 			}>;
+			pendingLinkRestoration = customEvent.detail.linkRestoration ?? null;
 			animateMinimalPan(customEvent.detail.dx, customEvent.detail.dy);
 		};
 
 		window.addEventListener('canvas-minimal-pan', handleMinimalPan);
+
+		// Listen for instant focus (fully visible cards, no animation needed)
+		const handleFocusInstant = (event: Event) => {
+			const customEvent = event as CustomEvent<{
+				cardId: string;
+				linkRestoration?: { linkTarget?: string; linkFocusActive: boolean } | null;
+			}>;
+			// No animation needed, just restore link focus immediately
+			pendingLinkRestoration = customEvent.detail.linkRestoration ?? null;
+			restoreLinkFocusAfterAnimation();
+		};
+
+		window.addEventListener('canvas-focus-instant', handleFocusInstant);
 
 		// Keyboard shortcuts for canvas navigation
 		const handleKeyDown = (event: KeyboardEvent) => {
@@ -508,6 +523,7 @@
 			window.removeEventListener('canvas-focus', handleFocusAnimation);
 			window.removeEventListener('canvas-restore', handleRestorePosition);
 			window.removeEventListener('canvas-minimal-pan', handleMinimalPan);
+			window.removeEventListener('canvas-focus-instant', handleFocusInstant);
 			window.removeEventListener('canvas-zoom-to-fit', handleZoomToFit);
 			window.removeEventListener('canvas-compute-paths', handleComputePaths);
 			window.removeEventListener('keydown', handleKeyDown);
@@ -757,6 +773,7 @@
 				requestAnimationFrame(animate);
 			} else {
 				canvasStore.setAnimating(false);
+				restoreLinkFocusAfterAnimation();
 			}
 		}
 
