@@ -134,9 +134,18 @@
 		editor?.destroy();
 	});
 
+	// Track previous editable state to detect transitions
+	let wasEditable = false;
+
 	$effect(() => {
 		if (editor) {
 			editor.setEditable(editable);
+
+			// Auto-focus when becoming editable
+			if (editable && !wasEditable) {
+				editor.commands.focus('end');
+			}
+			wasEditable = editable;
 		}
 	});
 
