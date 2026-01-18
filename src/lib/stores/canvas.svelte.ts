@@ -697,28 +697,35 @@ class CanvasStore {
 	 * Pan to reading position for the currently focused card.
 	 * Used on second click when card is already focused.
 	 *
-	 * Conservative panning: Skips pan if card is already at or near reading position.
+	 * Conservative behavior:
+	 * - Fully visible: do nothing - current position is the reading position
+	 * - Partially visible: minimal pan to show card fully
+	 * - Off-screen: full pan to reading position
 	 */
 	panToFocusedCard(): void {
 		const card = this.focusedCardId ? this.cards.get(this.focusedCardId) : null;
 		if (!card) return;
 
-		// Check if card is already visible and near reading position
 		const visibility = this.getCardVisibility(this.focusedCardId!);
 
+		// Fully visible: do nothing - current view is the reading position
 		if (visibility === 'fully-visible') {
-			// Check if card is already near the ideal reading position
-			const zoom = this.camera.zoom;
-			const screenTop = card.position.y * zoom + this.camera.y;
-			const idealTop = this.viewportHeight * 0.15;
-
-			// If within 100px of ideal reading position, don't pan
-			if (Math.abs(screenTop - idealTop) < 100) {
-				return; // Already at reading position, no pan needed
-			}
+			return;
 		}
 
-		// Card is not at reading position - pan to it
+		// Partially visible: minimal pan to show card fully
+		if (visibility === 'partially-visible') {
+			const minPan = this.calculateMinimalPan(this.focusedCardId!);
+			if (minPan && typeof window !== 'undefined') {
+				this.isAnimating = true;
+				window.dispatchEvent(new CustomEvent('canvas-minimal-pan', {
+					detail: { cardId: this.focusedCardId, dx: minPan.dx, dy: minPan.dy, linkRestoration: null }
+				}));
+			}
+			return;
+		}
+
+		// Off-screen: full pan to reading position
 		const savedState = this.savedCardState.get(this.focusedCardId!);
 
 		if (typeof window !== 'undefined') {
