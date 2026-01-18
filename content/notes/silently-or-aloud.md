@@ -4,4 +4,4 @@ title: "Silently Or Aloud"
 
 # Silently Or Aloud
 
-hmm
+hmm I need to click to get a cursor [[i don't like that]]
