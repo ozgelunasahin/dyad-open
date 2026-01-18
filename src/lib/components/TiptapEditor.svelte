@@ -269,4 +269,13 @@
 		color: var(--text-muted);
 		border-bottom-color: var(--border-code);
 	}
+
+	/* Link focus mode (Tab navigation) */
+	.tiptap-editor :global(.wikilink.link-focused) {
+		background: color-mix(in srgb, var(--text-link) 15%, transparent);
+		border-radius: 2px;
+		padding: 1px 3px;
+		margin: -1px -3px;
+		border-bottom-color: var(--text-link);
+	}
 </style>
