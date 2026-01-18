@@ -318,9 +318,10 @@
 
 	/* Images */
 	.tiptap-editor :global(img) {
+		display: block;
 		max-width: 100%;
 		height: auto;
 		border-radius: 4px;
-		margin: 0.5em 0;
+		margin: 0.5em auto;
 	}
 </style>
