@@ -3,6 +3,7 @@
  * Renders [[target]] or [[target|display]] as clickable inline nodes.
  */
 import { Node, mergeAttributes, InputRule } from '@tiptap/core';
+import { sanitizeSlug } from '$lib/utils/slug';
 
 export interface WikilinkOptions {
 	HTMLAttributes: Record<string, unknown>;
@@ -85,7 +86,7 @@ export const Wikilink = Node.create<WikilinkOptions>({
 			setWikilink:
 				(attributes) =>
 				({ commands }) => {
-					const target = attributes.target.toLowerCase().replace(/\s+/g, '-');
+					const target = sanitizeSlug(attributes.target);
 					return commands.insertContent({
 						type: this.name,
 						attrs: {
@@ -105,7 +106,7 @@ export const Wikilink = Node.create<WikilinkOptions>({
 			new InputRule({
 				find: wikilinkRegex,
 				handler: ({ range, match, chain }) => {
-					const target = match[1].trim().toLowerCase().replace(/\s+/g, '-');
+					const target = sanitizeSlug(match[1]);
 					const display = (match[2] || match[1]).trim();
 
 					chain()
