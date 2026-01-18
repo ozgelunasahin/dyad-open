@@ -3,7 +3,6 @@ import type { JSONContent } from '@tiptap/core';
 import { MAX_CARDS, MIN_CARD_WIDTH, MAX_CARD_WIDTH } from '$lib/types';
 import { calculateNewCardPosition } from '$lib/utils/layout';
 import { calculateOptimalWidthFromJson, estimateContentHeight } from '$lib/utils/json-content';
-import { computeTreeLayout, getCachedPosition, type PositionCache, type PrecomputedPosition } from '$lib/utils/tree-layout';
 
 // Stored path with metadata
 export interface StoredPath {
@@ -96,11 +95,6 @@ class CanvasStore {
 	// Dimension cache - pre-computed at vault load for O(1) lookup
 	private dimensionCache = $state<Map<string, Dimensions>>(new Map());
 
-	// Tree layout cache - pre-computed positions for wikilink subtrees
-	// Key format: "rootId" -> PositionCache (which contains "rootId:noteId" -> PrecomputedPosition)
-	private treeLayoutCache = $state<Map<string, PositionCache>>(new Map());
-	private currentTreeRoot = $state<string | null>(null);
-
 	// Link focus state for keyboard navigation
 	focusedLinkIndex = $state<number | null>(null);
 	isLinkFocusMode = $derived(this.focusedLinkIndex !== null);
@@ -153,8 +147,6 @@ class CanvasStore {
 		this.focusedCardId = null;
 		this.editingCardId = null;
 		this.history = { back: [], forward: [] };
-		this.treeLayoutCache = new Map();
-		this.currentTreeRoot = null;
 		this.hiddenChains = new Map();
 
 		// Pre-compute broken links
@@ -350,44 +342,6 @@ class CanvasStore {
 			return true;
 		}
 		return this.brokenLinks.has(target);
-	}
-
-	/**
-	 * Compute and cache tree layout for a root note.
-	 * Uses d3-flextree for intelligent sibling-aware positioning.
-	 */
-	private computeAndCacheTreeLayout(rootId: string): PositionCache | null {
-		if (!this.vault) return null;
-
-		// Check if already cached
-		if (this.treeLayoutCache.has(rootId)) {
-			return this.treeLayoutCache.get(rootId)!;
-		}
-
-		// Compute tree layout with depth 4 (root + 3 levels of children)
-		const cache = computeTreeLayout(this.vault, rootId, 4);
-
-		// Store in cache
-		const newTreeCache = new Map(this.treeLayoutCache);
-		newTreeCache.set(rootId, cache);
-		this.treeLayoutCache = newTreeCache;
-
-		console.log(`[TreeLayout] Computed layout for root ${rootId}: ${cache.size} positions cached`);
-
-		return cache;
-	}
-
-	/**
-	 * Get pre-computed position for a note in the current tree.
-	 * Returns null if not found (note not in tree or tree not computed).
-	 */
-	private getPrecomputedPosition(noteId: string): PrecomputedPosition | null {
-		if (!this.currentTreeRoot) return null;
-
-		const cache = this.treeLayoutCache.get(this.currentTreeRoot);
-		if (!cache) return null;
-
-		return getCachedPosition(cache, this.currentTreeRoot, noteId);
 	}
 
 	/**
@@ -1137,10 +1091,10 @@ class CanvasStore {
 			conn => conn.fromCardId !== cardId && conn.toCardId !== cardId
 		);
 
-		// Clean up stored paths
+		// Clean up stored paths (use exact matching to avoid partial ID collisions)
 		const keysToDelete: string[] = [];
 		for (const [key] of this.storedPaths) {
-			if (key.includes(cardId)) {
+			if (this.pathKeyInvolvesCard(key, cardId)) {
 				keysToDelete.push(key);
 			}
 		}
@@ -1155,10 +1109,11 @@ class CanvasStore {
 		// Clean up saved reading state
 		this.clearSavedCardState(cardId);
 
-		// Clean up hidden chains that reference this card
+		// Clean up hidden chains that reference this card (use exact matching)
 		const chainKeysToDelete: string[] = [];
 		for (const [key, chain] of this.hiddenChains) {
-			if (key.includes(cardId) || chain.includes(cardId)) {
+			// Key format is "parentCardId-childCardId", use same matching pattern
+			if (this.pathKeyInvolvesCard(key, cardId) || chain.includes(cardId)) {
 				chainKeysToDelete.push(key);
 			}
 		}
@@ -1219,10 +1174,10 @@ class CanvasStore {
 			conn => conn.fromCardId !== cardToUnopen && conn.toCardId !== cardToUnopen
 		);
 
-		// Clean up stored paths
+		// Clean up stored paths (use exact matching to avoid partial ID collisions)
 		const keysToDelete: string[] = [];
 		for (const [key] of this.storedPaths) {
-			if (key.includes(cardToUnopen)) {
+			if (this.pathKeyInvolvesCard(key, cardToUnopen)) {
 				keysToDelete.push(key);
 			}
 		}
@@ -1296,6 +1251,18 @@ class CanvasStore {
 		const fromIndex = this.activeChain.indexOf(conn.fromCardId);
 		const toIndex = this.activeChain.indexOf(conn.toCardId);
 		return fromIndex !== -1 && toIndex !== -1 && Math.abs(fromIndex - toIndex) === 1;
+	}
+
+	/**
+	 * Check if a path key involves a specific card ID.
+	 * Keys are formatted as "fromCardId-toCardId" with exact matches required.
+	 */
+	private pathKeyInvolvesCard(key: string, cardId: string): boolean {
+		// Check if key starts with "cardId-" (card is source)
+		if (key.startsWith(`${cardId}-`)) return true;
+		// Check if key ends with "-cardId" (card is target)
+		if (key.endsWith(`-${cardId}`)) return true;
+		return false;
 	}
 
 	/**
@@ -1374,8 +1341,6 @@ class CanvasStore {
 		this.activeChain = [];
 		this.history = { back: [], forward: [] };
 		this.focusedCardId = null;
-		this.treeLayoutCache = new Map();
-		this.currentTreeRoot = null;
 		this.editingCardId = null;
 		this.focusedLinkIndex = null;
 		this.savedCardState = new Map();
