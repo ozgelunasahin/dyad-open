@@ -4,6 +4,9 @@ import { MAX_CARDS, MIN_CARD_WIDTH, MAX_CARD_WIDTH } from '$lib/types';
 import { calculateNewCardPosition } from '$lib/utils/layout';
 import { calculateOptimalWidthFromJson, estimateContentHeight } from '$lib/utils/json-content';
 
+// Visibility state for conservative panning
+export type VisibilityState = 'fully-visible' | 'partially-visible' | 'off-screen';
+
 // Stored path with metadata
 export interface StoredPath {
 	points: Point[];
@@ -544,8 +547,13 @@ class CanvasStore {
 	 * Focus on a card and position for reading (top of card near top of viewport).
 	 * Saves reading state for current card, restores for target card if previously visited.
 	 * Link focus restoration is included in the event for the Canvas to handle after animation.
+	 *
+	 * Conservative panning: Only pans when necessary.
+	 * - Fully visible cards: Just update focus, no pan
+	 * - Partially visible cards: Minimal pan to show card fully
+	 * - Off-screen cards: Full pan to reading position
 	 */
-	focusCard(cardId: string): void {
+	focusCard(cardId: string, forceAnimation: boolean = false): void {
 		const card = this.cards.get(cardId);
 		if (!card) return;
 
@@ -575,7 +583,31 @@ class CanvasStore {
 			}
 		}
 
-		// Check if we have saved state for the target card
+		// Check visibility for conservative panning
+		const visibility = this.getCardVisibility(cardId);
+
+		// Fully visible: just update focus, no pan needed
+		if (!forceAnimation && visibility === 'fully-visible') {
+			this.focusedCardId = cardId;
+			return;
+		}
+
+		// Partially visible: minimal pan to show card fully
+		if (!forceAnimation && visibility === 'partially-visible') {
+			const minPan = this.calculateMinimalPan(cardId);
+			if (minPan) {
+				this.focusedCardId = cardId;
+				if (typeof window !== 'undefined') {
+					this.isAnimating = true;
+					window.dispatchEvent(new CustomEvent('canvas-minimal-pan', {
+						detail: { cardId, dx: minPan.dx, dy: minPan.dy }
+					}));
+				}
+				return;
+			}
+		}
+
+		// Off-screen or forceAnimation: full pan to reading position (existing behavior)
 		const savedState = this.savedCardState.get(cardId);
 
 		this.focusedCardId = cardId;
@@ -655,11 +687,29 @@ class CanvasStore {
 	/**
 	 * Pan to reading position for the currently focused card.
 	 * Used on second click when card is already focused.
+	 *
+	 * Conservative panning: Skips pan if card is already at or near reading position.
 	 */
 	panToFocusedCard(): void {
 		const card = this.focusedCardId ? this.cards.get(this.focusedCardId) : null;
 		if (!card) return;
 
+		// Check if card is already visible and near reading position
+		const visibility = this.getCardVisibility(this.focusedCardId!);
+
+		if (visibility === 'fully-visible') {
+			// Check if card is already near the ideal reading position
+			const zoom = this.camera.zoom;
+			const screenTop = card.position.y * zoom + this.camera.y;
+			const idealTop = this.viewportHeight * 0.15;
+
+			// If within 100px of ideal reading position, don't pan
+			if (Math.abs(screenTop - idealTop) < 100) {
+				return; // Already at reading position, no pan needed
+			}
+		}
+
+		// Card is not at reading position - pan to it
 		const savedState = this.savedCardState.get(this.focusedCardId!);
 
 		if (typeof window !== 'undefined') {
@@ -833,6 +883,95 @@ class CanvasStore {
 		if (!this.isCardInReadingZone(viewportWidth, viewportHeight, margin)) {
 			this.clearSavedCardState(this.focusedCardId);
 		}
+	}
+
+	/**
+	 * Determine card visibility state relative to viewport.
+	 * Used for conservative panning - only pan when necessary.
+	 *
+	 * Returns:
+	 * - 'fully-visible': Card is entirely within viewport (with margin) - no pan needed
+	 * - 'partially-visible': Card overlaps viewport but not fully visible - minimal pan
+	 * - 'off-screen': Card has no overlap with viewport - full pan to center
+	 */
+	getCardVisibility(cardId: string): VisibilityState {
+		const card = this.cards.get(cardId);
+		if (!card) return 'off-screen';
+		if (this.viewportWidth === 0 || this.viewportHeight === 0) return 'off-screen';
+
+		const margin = 50;
+		const zoom = this.camera.zoom;
+
+		// Convert card bounds to screen coordinates
+		const screenLeft = card.position.x * zoom + this.camera.x;
+		const screenTop = card.position.y * zoom + this.camera.y;
+		const screenRight = screenLeft + card.dimensions.width * zoom;
+		const screenBottom = screenTop + card.dimensions.height * zoom;
+
+		// Viewport bounds with margin for "fully visible" check
+		const viewLeft = margin;
+		const viewTop = margin;
+		const viewRight = this.viewportWidth - margin;
+		const viewBottom = this.viewportHeight - margin;
+
+		// Check if fully within viewport (with margin)
+		const fullyVisible = (
+			screenLeft >= viewLeft &&
+			screenTop >= viewTop &&
+			screenRight <= viewRight &&
+			screenBottom <= viewBottom
+		);
+
+		if (fullyVisible) return 'fully-visible';
+
+		// Check if any overlap with viewport (no margin for this check)
+		const anyOverlap = (
+			screenRight > 0 &&
+			screenLeft < this.viewportWidth &&
+			screenBottom > 0 &&
+			screenTop < this.viewportHeight
+		);
+
+		return anyOverlap ? 'partially-visible' : 'off-screen';
+	}
+
+	/**
+	 * Calculate the smallest camera translation to make card fully visible.
+	 * Returns null if card is already fully visible.
+	 * Used for minimal panning when card is partially visible.
+	 */
+	calculateMinimalPan(cardId: string): { dx: number; dy: number } | null {
+		const card = this.cards.get(cardId);
+		if (!card) return null;
+		if (this.viewportWidth === 0 || this.viewportHeight === 0) return null;
+
+		const margin = 50;
+		const zoom = this.camera.zoom;
+
+		// Convert card bounds to screen coordinates
+		const screenLeft = card.position.x * zoom + this.camera.x;
+		const screenTop = card.position.y * zoom + this.camera.y;
+		const screenRight = screenLeft + card.dimensions.width * zoom;
+		const screenBottom = screenTop + card.dimensions.height * zoom;
+
+		let dx = 0;
+		let dy = 0;
+
+		// Calculate horizontal adjustment
+		if (screenLeft < margin) {
+			dx = margin - screenLeft;  // Pan right to show left edge
+		} else if (screenRight > this.viewportWidth - margin) {
+			dx = (this.viewportWidth - margin) - screenRight;  // Pan left to show right edge
+		}
+
+		// Calculate vertical adjustment
+		if (screenTop < margin) {
+			dy = margin - screenTop;  // Pan down to show top edge
+		} else if (screenBottom > this.viewportHeight - margin) {
+			dy = (this.viewportHeight - margin) - screenBottom;  // Pan up to show bottom edge
+		}
+
+		return (dx === 0 && dy === 0) ? null : { dx, dy };
 	}
 
 	focusNextLink(linkCount: number): void {
