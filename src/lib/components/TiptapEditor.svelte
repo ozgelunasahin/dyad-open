@@ -10,7 +10,6 @@
 		onWikilinkClick?: (target: string) => void;
 		isLinkBroken?: (target: string) => boolean;
 		editable?: boolean;
-		class?: string;
 	}
 
 	let {
@@ -18,12 +17,14 @@
 		onUpdate,
 		onWikilinkClick,
 		isLinkBroken,
-		editable = true,
-		class: className = ''
+		editable = true
 	}: Props = $props();
 
 	let element: HTMLDivElement;
 	let editor: Editor | null = $state(null);
+
+	// Guard to prevent onUpdate firing during programmatic content sync
+	let isExternalUpdate = false;
 
 	onMount(() => {
 		// Ensure content is valid JSONContent, fallback to empty doc if string or invalid
@@ -81,7 +82,10 @@
 				}
 			},
 			onUpdate: ({ editor }) => {
-				onUpdate?.(editor.getJSON());
+				// Don't fire onUpdate during programmatic content sync
+				if (!isExternalUpdate) {
+					onUpdate?.(editor.getJSON());
+				}
 			}
 		});
 		} catch (err) {
@@ -99,6 +103,24 @@
 		}
 	});
 
+	// Sync content prop changes to editor (e.g., when switching edit modes or external updates)
+	// Only sync when editor is NOT focused to avoid overwriting user's active edits
+	$effect(() => {
+		if (editor && content) {
+			// Skip if user is actively editing
+			if (editor.isFocused) return;
+
+			// Compare content to avoid unnecessary updates
+			const currentJSON = JSON.stringify(editor.getJSON());
+			const newJSON = JSON.stringify(content);
+			if (currentJSON !== newJSON) {
+				isExternalUpdate = true;
+				editor.commands.setContent(content);
+				isExternalUpdate = false;
+			}
+		}
+	});
+
 	export function getEditor(): Editor | null {
 		return editor;
 	}
@@ -112,7 +134,7 @@
 	}
 </script>
 
-<div bind:this={element} class="tiptap-editor {className}"></div>
+<div bind:this={element} class="tiptap-editor"></div>
 
 <style>
 	.tiptap-editor {

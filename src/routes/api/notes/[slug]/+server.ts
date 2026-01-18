@@ -40,6 +40,97 @@ function isValidPutBody(body: unknown): body is PutNoteBody {
 	);
 }
 
+// Whitelist of allowed ProseMirror node types to prevent injection attacks
+const ALLOWED_NODE_TYPES = new Set([
+	'doc',
+	'paragraph',
+	'heading',
+	'text',
+	'wikilink',
+	'bulletList',
+	'orderedList',
+	'listItem',
+	'blockquote',
+	'codeBlock',
+	'code',
+	'hardBreak'
+]);
+
+// Whitelist of allowed mark types
+const ALLOWED_MARK_TYPES = new Set(['bold', 'italic', 'code', 'link', 'strike']);
+
+/**
+ * Validate JSONContent structure to prevent XSS via malicious node injection.
+ * Returns null if valid, or an error message string if invalid.
+ */
+function validateJSONContent(node: unknown, depth = 0): string | null {
+	// Prevent stack overflow from deeply nested content
+	if (depth > 50) {
+		return 'Content nesting too deep (max 50 levels)';
+	}
+
+	if (typeof node !== 'object' || node === null) {
+		return 'Content must be an object';
+	}
+
+	const n = node as Record<string, unknown>;
+
+	// Root must be type: 'doc'
+	if (depth === 0 && n.type !== 'doc') {
+		return 'Content must have type "doc" at root';
+	}
+
+	// Validate node type
+	if (typeof n.type !== 'string') {
+		return 'Node missing required "type" field';
+	}
+	if (!ALLOWED_NODE_TYPES.has(n.type)) {
+		return `Invalid node type: "${n.type}"`;
+	}
+
+	// Validate marks if present
+	if (n.marks !== undefined) {
+		if (!Array.isArray(n.marks)) {
+			return 'Node marks must be an array';
+		}
+		for (const mark of n.marks) {
+			if (typeof mark !== 'object' || mark === null || typeof mark.type !== 'string') {
+				return 'Invalid mark structure';
+			}
+			if (!ALLOWED_MARK_TYPES.has(mark.type)) {
+				return `Invalid mark type: "${mark.type}"`;
+			}
+		}
+	}
+
+	// Validate attrs if present (only allow safe attribute names)
+	if (n.attrs !== undefined) {
+		if (typeof n.attrs !== 'object' || n.attrs === null) {
+			return 'Node attrs must be an object';
+		}
+		// Block dangerous attribute names
+		const dangerousAttrs = ['onclick', 'onerror', 'onload', 'onmouseover', 'href', 'src'];
+		for (const key of Object.keys(n.attrs as object)) {
+			if (dangerousAttrs.includes(key.toLowerCase())) {
+				return `Forbidden attribute: "${key}"`;
+			}
+		}
+	}
+
+	// Recursively validate children
+	if (n.content !== undefined) {
+		if (!Array.isArray(n.content)) {
+			return 'Node content must be an array';
+		}
+		for (const child of n.content) {
+			const childError = validateJSONContent(child, depth + 1);
+			if (childError) return childError;
+		}
+	}
+
+	return null; // Valid
+}
+
 interface Vault {
 	entryPoint: string;
 	notes: Record<
@@ -125,6 +216,15 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
 	}
 
 	const { title, content } = body;
+
+	// Validate JSONContent structure to prevent XSS
+	const contentError = validateJSONContent(content);
+	if (contentError) {
+		return json(
+			{ error: `Invalid content: ${contentError}` } satisfies ApiErrorResponse,
+			{ status: 400 }
+		);
+	}
 
 	// Check content size limit (rough estimate)
 	const contentSize = JSON.stringify(content).length;

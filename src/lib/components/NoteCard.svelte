@@ -26,7 +26,12 @@
 	let isEditing = $derived(canvasStore.editingCardId === card.id);
 	let saveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
 	let debounceTimer: ReturnType<typeof setTimeout>;
+	let savedStatusTimer: ReturnType<typeof setTimeout>;
 	let currentContent = $state<JSONContent | null>(null);
+
+	// Guards for async operations
+	let isEnteringEditMode = false;
+	let saveAbortController: AbortController | null = null;
 
 	// TiptapEditor reference
 	let editorComponent: TiptapEditor;
@@ -35,15 +40,23 @@
 	async function enterEditMode() {
 		if (readOnly) return;
 
-		if (canvasStore.editingCardId && canvasStore.editingCardId !== card.id) {
-			canvasStore.exitEditMode();
+		// Guard against double-click race condition
+		if (isEnteringEditMode) return;
+		isEnteringEditMode = true;
+
+		try {
+			if (canvasStore.editingCardId && canvasStore.editingCardId !== card.id) {
+				canvasStore.exitEditMode();
+			}
+
+			currentContent = card.note.content;
+			canvasStore.enterEditMode(card.id);
+
+			await tick();
+			editorComponent?.focus();
+		} finally {
+			isEnteringEditMode = false;
 		}
-
-		currentContent = card.note.content;
-		canvasStore.enterEditMode(card.id);
-
-		await tick();
-		editorComponent?.focus();
 	}
 
 	// Exit edit mode and save
@@ -196,26 +209,36 @@
 	async function saveNow() {
 		if (!currentContent) return;
 
+		// Cancel any in-flight save request
+		saveAbortController?.abort();
+		saveAbortController = new AbortController();
+
 		saveStatus = 'saving';
 
 		try {
 			const res = await fetch(`/api/notes/${card.note.id}`, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ title: card.note.title, content: currentContent })
+				body: JSON.stringify({ title: card.note.title, content: currentContent }),
+				signal: saveAbortController.signal
 			});
 
 			if (res.ok) {
 				// Sync store after successful save (not on every keystroke)
 				canvasStore.updateNoteContent(card.note.id, currentContent);
 				saveStatus = 'saved';
-				setTimeout(() => {
+
+				// Clear existing timer to prevent race condition
+				clearTimeout(savedStatusTimer);
+				savedStatusTimer = setTimeout(() => {
 					if (saveStatus === 'saved') saveStatus = 'idle';
 				}, 2000);
 			} else {
 				saveStatus = 'error';
 			}
-		} catch {
+		} catch (err) {
+			// Ignore abort errors (expected when cancelling in-flight saves)
+			if (err instanceof Error && err.name === 'AbortError') return;
 			saveStatus = 'error';
 		}
 	}
@@ -229,6 +252,8 @@
 	$effect(() => {
 		return () => {
 			clearTimeout(debounceTimer);
+			clearTimeout(savedStatusTimer);
+			saveAbortController?.abort();
 		};
 	});
 </script>

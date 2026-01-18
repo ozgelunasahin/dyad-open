@@ -115,31 +115,8 @@ export const Wikilink = Node.create<WikilinkOptions>({
 				}
 			})
 		];
-	},
-
-	addKeyboardShortcuts() {
-		return {
-			// When user presses Backspace at the start after a wikilink, delete the wikilink
-			Backspace: () =>
-				this.editor.commands.command(({ tr, state }) => {
-					let isWikilink = false;
-					const { selection } = state;
-					const { empty, anchor } = selection;
-
-					if (!empty) {
-						return false;
-					}
-
-					state.doc.nodesBetween(anchor - 1, anchor, (node) => {
-						if (node.type.name === this.name) {
-							isWikilink = true;
-						}
-					});
-
-					return isWikilink;
-				})
-		};
 	}
+	// Note: No custom keyboard shortcuts needed - atom nodes have proper default backspace behavior
 });
 
 export default Wikilink;
