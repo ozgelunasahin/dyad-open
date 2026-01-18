@@ -77,6 +77,9 @@
 		const selection = select(svg);
 		selection.call(zoomBehavior);
 
+		// Disable double-click zoom (prevents accidental zoom when clicking on cards)
+		selection.on('dblclick.zoom', null);
+
 		// Handle regular scroll for vertical panning within focused card
 		function handleWheel(event: WheelEvent) {
 			// Skip if Ctrl is held (let d3-zoom handle it for zooming)
