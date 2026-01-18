@@ -28,6 +28,11 @@
 	// Animation cancellation flag (P2-007 fix: prevent memory leaks)
 	let animationCancelled = false;
 
+	// Click vs drag detection for non-focused cards
+	let dragStartPos: { x: number; y: number } | null = null;
+	let dragStartTarget: HTMLElement | null = null;
+	const CLICK_THRESHOLD = 5; // pixels - movement below this is a click, above is a drag
+
 	// Pending link restoration to apply after animation completes
 	let pendingLinkRestoration: { linkTarget?: string; linkFocusActive: boolean } | null = null;
 
@@ -38,21 +43,29 @@
 			.wheelDelta((event) => {
 				return -event.deltaY * zoomSpeed;
 			})
-			// Only allow zoom on Ctrl+wheel, allow drag panning on canvas background only
+			// Only allow zoom on Ctrl+wheel, allow drag panning
 			.filter((event) => {
-				// Don't capture events when editing (let text selection work)
-				if (canvasStore.editingCardId) {
-					if (!isHTMLElement(event.target)) return true;
-					const inForeignObject = event.target.closest('foreignObject') !== null;
-					if (inForeignObject && (event.type === 'mousedown' || event.type === 'touchstart')) {
-						return false;
-					}
-				}
 				// For wheel events, only zoom if Ctrl is held
 				if (event.type === 'wheel') {
 					return event.ctrlKey;
 				}
-				// Allow drag/pan and other events
+				// For mousedown/touchstart, handle focused vs non-focused cards differently
+				if (event.type === 'mousedown' || event.type === 'touchstart') {
+					if (!isHTMLElement(event.target)) return true;
+					const foreignObject = event.target.closest('foreignObject');
+					if (foreignObject) {
+						const noteId = foreignObject.getAttribute('data-note-id');
+						// Focused card: don't capture (allow normal clicks)
+						if (noteId === canvasStore.focusedCardId) {
+							return false;
+						}
+						// Non-focused card: capture for panning, but track for click detection
+						dragStartPos = { x: event.clientX, y: event.clientY };
+						dragStartTarget = event.target;
+						return true;
+					}
+				}
+				// Allow drag/pan and other events on canvas background
 				return true;
 			})
 			.on('zoom', (event) => {
@@ -126,6 +139,57 @@
 		}
 
 		svg.addEventListener('wheel', handleWheel, { passive: false });
+
+		// Click-vs-drag detection: mouseup handler to detect if drag was actually a click
+		function handleMouseUp(event: MouseEvent) {
+			if (!dragStartPos || !dragStartTarget) {
+				return;
+			}
+
+			const dx = event.clientX - dragStartPos.x;
+			const dy = event.clientY - dragStartPos.y;
+			const distance = Math.sqrt(dx * dx + dy * dy);
+
+			// Reset state before potentially triggering handlers
+			const targetElement = dragStartTarget;
+			const wasForeignObject = targetElement.closest('foreignObject');
+			dragStartPos = null;
+			dragStartTarget = null;
+
+			// If moved more than threshold, it was a drag - d3-zoom handled it
+			if (distance > CLICK_THRESHOLD) {
+				return;
+			}
+
+			// It was a click (not a drag) - trigger the appropriate handler
+			if (wasForeignObject) {
+				// Check if click was on a wikilink
+				const wikilinkEl = targetElement.closest('.wikilink');
+				if (wikilinkEl) {
+					const target = (wikilinkEl as HTMLElement).dataset.target;
+					const noteId = wasForeignObject.getAttribute('data-note-id');
+					if (target && noteId) {
+						// Trigger wikilink click
+						const rect = wikilinkEl.getBoundingClientRect();
+						handleLinkClick(target, noteId, {
+							left: rect.left,
+							right: rect.right,
+							bottom: rect.bottom
+						});
+					}
+					return;
+				}
+
+				// Click on card content - focus the card
+				const noteId = wasForeignObject.getAttribute('data-note-id');
+				if (noteId) {
+					handleCardClick(noteId);
+				}
+			}
+		}
+
+		// Listen on document to catch mouseup even if mouse moves off the card
+		document.addEventListener('mouseup', handleMouseUp);
 
 		// Restore camera position from store
 		const storedCamera = canvasStore.camera;
@@ -533,6 +597,7 @@
 			window.removeEventListener('canvas-zoom-to-fit', handleZoomToFit);
 			window.removeEventListener('canvas-compute-paths', handleComputePaths);
 			window.removeEventListener('keydown', handleKeyDown);
+			document.removeEventListener('mouseup', handleMouseUp);
 			svg.removeEventListener('wheel', handleWheel);
 			resizeObserver.disconnect();
 		};

@@ -566,6 +566,7 @@ class CanvasStore {
 		const previousCardId = this.focusedCardId;
 		const visibility = this.getCardVisibility(cardId);
 		const savedState = this.savedCardState.get(cardId);
+		console.log('[ReadingPos] focusCard:', cardId, 'visibility:', visibility, 'savedState:', savedState ? { focusY: savedState.focusY } : null);
 
 		// Prepare link restoration info (needed for all paths)
 		const linkRestoration = savedState?.linkFocusActive
@@ -619,6 +620,7 @@ class CanvasStore {
 
 			if (!inReadingZone) {
 				// Card panned out of view - clear saved state
+				console.log('[ReadingPos] focusCard: clearing state for', previousCardId, '(out of reading zone)');
 				this.clearSavedCardState(previousCardId);
 			} else {
 				// Card still in reading zone - save vertical focus position
@@ -629,6 +631,7 @@ class CanvasStore {
 				const newMap = new Map(this.savedCardState);
 				newMap.set(previousCardId, { ...existing, focusY });
 				this.savedCardState = newMap;
+				console.log('[ReadingPos] focusCard: saved state for', previousCardId, 'focusY:', Math.round(focusY), 'willPan:', willPan, 'panType:', panType);
 			}
 		}
 
@@ -656,6 +659,7 @@ class CanvasStore {
 				}));
 			} else if (hasSavedReadingPosition) {
 				// Restore to saved position (we panned away, now pan back)
+				console.log('[ReadingPos] focusCard: RESTORING saved position for', cardId, 'focusY:', savedState!.focusY);
 				window.dispatchEvent(new CustomEvent('canvas-restore', {
 					detail: {
 						focusY: savedState!.focusY,
@@ -698,60 +702,41 @@ class CanvasStore {
 	 * Pan focused card into view if needed.
 	 * Called on click when card is already focused.
 	 *
-	 * - Fully visible: do nothing - current position is reading position
-	 * - Partially visible: minimal pan to show card fully
-	 * - Off-screen: pan to saved reading position (or card top if none)
+	 * - Fully visible (including large cards in reading zone): do nothing
+	 * - Partially visible (edges cut off): pan to saved reading position or minimal pan
+	 * - Off-screen: pan to saved reading position or card top
 	 */
 	panToFocusedCard(): void {
 		const card = this.focusedCardId ? this.cards.get(this.focusedCardId) : null;
 		if (!card) return;
 
 		const visibility = this.getCardVisibility(this.focusedCardId!);
+		const savedState = this.savedCardState.get(this.focusedCardId!);
 
-		// Fully visible: do nothing - current view is the reading position
+		// Fully visible: do nothing
 		if (visibility === 'fully-visible') {
 			return;
 		}
 
-		// Partially visible: minimal pan to show card fully
-		if (visibility === 'partially-visible') {
-			const minPan = this.calculateMinimalPan(this.focusedCardId!);
-			if (minPan && typeof window !== 'undefined') {
-				this.isAnimating = true;
-				window.dispatchEvent(new CustomEvent('canvas-minimal-pan', {
-					detail: { cardId: this.focusedCardId, dx: minPan.dx, dy: minPan.dy, linkRestoration: null }
-				}));
-			}
-			return;
-		}
-
-		// Off-screen: pan to saved reading position or card top
-		const savedState = this.savedCardState.get(this.focusedCardId!);
-
+		// Card is partially visible or off-screen - pan to reading position
 		if (typeof window !== 'undefined') {
 			this.isAnimating = true;
 
 			if (savedState?.focusY !== undefined) {
-				window.dispatchEvent(
-					new CustomEvent('canvas-restore', {
-						detail: {
-							focusY: savedState.focusY,
-							cardId: card.id,
-							linkRestoration: null
-						}
-					})
-				);
+				// Restore to saved reading position
+				window.dispatchEvent(new CustomEvent('canvas-restore', {
+					detail: { focusY: savedState.focusY, cardId: card.id, linkRestoration: null }
+				}));
 			} else {
-				window.dispatchEvent(
-					new CustomEvent('canvas-focus', {
-						detail: {
-							x: card.position.x + card.dimensions.width / 2,
-							y: card.position.y,
-							cardId: card.id,
-							linkRestoration: null
-						}
-					})
-				);
+				// No saved position - pan to card top
+				window.dispatchEvent(new CustomEvent('canvas-focus', {
+					detail: {
+						x: card.position.x + card.dimensions.width / 2,
+						y: card.position.y,
+						cardId: card.id,
+						linkRestoration: null
+					}
+				}));
 			}
 		}
 	}
@@ -870,6 +855,8 @@ class CanvasStore {
 		const newMap = new Map(this.savedCardState);
 		newMap.set(this.focusedCardId, { ...existing, focusY });
 		this.savedCardState = newMap;
+
+		// Debug logging removed - generates too much noise during panning
 	}
 
 	// Get saved card state for restoration
@@ -935,9 +922,10 @@ class CanvasStore {
 	 * Used for conservative panning - only pan when necessary.
 	 *
 	 * Returns:
-	 * - 'fully-visible': Card is entirely within viewport (with margin) - no pan needed
-	 * - 'partially-visible': Card overlaps viewport but not fully visible - minimal pan
-	 * - 'off-screen': Card has no overlap with viewport - full pan to center
+	 * - 'fully-visible': Card is in reading position (top visible, horizontally in view)
+	 *   This includes large cards that extend beyond viewport - they're "in view" for reading
+	 * - 'partially-visible': Card overlaps viewport but top/sides are cut off - needs panning
+	 * - 'off-screen': Card has no overlap with viewport - full pan needed
 	 */
 	getCardVisibility(cardId: string): VisibilityState {
 		const card = this.cards.get(cardId);
@@ -953,23 +941,7 @@ class CanvasStore {
 		const screenRight = screenLeft + card.dimensions.width * zoom;
 		const screenBottom = screenTop + card.dimensions.height * zoom;
 
-		// Viewport bounds with margin for "fully visible" check
-		const viewLeft = margin;
-		const viewTop = margin;
-		const viewRight = this.viewportWidth - margin;
-		const viewBottom = this.viewportHeight - margin;
-
-		// Check if fully within viewport (with margin)
-		const fullyVisible = (
-			screenLeft >= viewLeft &&
-			screenTop >= viewTop &&
-			screenRight <= viewRight &&
-			screenBottom <= viewBottom
-		);
-
-		if (fullyVisible) return 'fully-visible';
-
-		// Check if any overlap with viewport (no margin for this check)
+		// Check if any overlap with viewport first
 		const anyOverlap = (
 			screenRight > 0 &&
 			screenLeft < this.viewportWidth &&
@@ -977,7 +949,37 @@ class CanvasStore {
 			screenTop < this.viewportHeight
 		);
 
-		return anyOverlap ? 'partially-visible' : 'off-screen';
+		if (!anyOverlap) return 'off-screen';
+
+		// Card overlaps viewport - check if it's in a good reading position
+		// "Fully visible" means card is in a readable state - we don't need to pan
+		const horizontallyFits = screenLeft >= margin && screenRight <= this.viewportWidth - margin;
+
+		if (!horizontallyFits) {
+			// Sides cut off - needs horizontal panning
+			return 'partially-visible';
+		}
+
+		// Horizontally fits - now check vertical positioning
+		// A card is "fully visible" if:
+		// 1. Top is in reading position (not cut off at top), OR
+		// 2. User has scrolled down in a tall card (top is above viewport, but content is on screen)
+		const topCutOff = screenTop < margin;
+		const topBelowViewport = screenTop >= this.viewportHeight - margin;
+
+		if (topBelowViewport) {
+			// Top hasn't even entered viewport yet - card is barely visible at bottom
+			return 'partially-visible';
+		}
+
+		if (topCutOff) {
+			// Top is above viewport (user scrolled down in tall card)
+			// This is fine - user is actively reading. Consider it "fully visible"
+			return 'fully-visible';
+		}
+
+		// Top is in view and horizontally fits - fully visible
+		return 'fully-visible';
 	}
 
 	/**

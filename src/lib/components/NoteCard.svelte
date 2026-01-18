@@ -358,6 +358,8 @@
 
 	.text-block.dimmed {
 		opacity: var(--dimmed-opacity);
+		user-select: none;
+		cursor: default;
 	}
 
 	.text-block.editing {
