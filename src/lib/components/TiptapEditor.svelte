@@ -8,6 +8,7 @@
 		content: JSONContent;
 		onUpdate?: (json: JSONContent) => void;
 		onWikilinkClick?: (target: string) => void;
+		onWikilinkDelete?: (target: string) => void;
 		isLinkBroken?: (target: string) => boolean;
 		editable?: boolean;
 	}
@@ -16,6 +17,7 @@
 		content,
 		onUpdate,
 		onWikilinkClick,
+		onWikilinkDelete,
 		isLinkBroken,
 		editable = true
 	}: Props = $props();
@@ -51,6 +53,7 @@
 				}),
 				Wikilink.configure({
 					onWikilinkClick,
+					onWikilinkDelete,
 					isLinkBroken
 				})
 			],

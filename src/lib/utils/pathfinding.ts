@@ -1,4 +1,7 @@
 import type { Card, Point } from '$lib/types';
+import { pointsClose, sharesEndpoint, direction, segmentsIntersect } from './geometry';
+// Re-export segmentsIntersect for existing callers
+export { segmentsIntersect } from './geometry';
 
 /**
  * Coaxial overlap detection result.
@@ -270,119 +273,139 @@ export function routeConnection(
 /**
  * Find the X position for the vertical segment of the path.
  *
- * Deterministic offset based on source link Y position:
- * - Links at TOP of card → riser further RIGHT
- * - Links at BOTTOM of card → riser further LEFT
+ * Routes vertical segments ONLY through gaps between card columns,
+ * never through a column where they could cross card bodies.
  *
- * This naturally accommodates growing cards: as content is added at the bottom,
- * new links get their risers placed to the left of existing higher links.
- *
- * @param sourceY - Y position of the source link (determines offset)
+ * @param sourceY - Y position of the source link (determines offset within gap)
  */
 function findVerticalRoutingX(
 	exitX: number,
 	entryX: number,
-	_minY: number,
-	_maxY: number,
-	_cards: Card[],
+	minY: number,
+	maxY: number,
+	cards: Card[],
 	sourceCard: Card,
-	_targetCard: Card,
+	targetCard: Card,
 	_existingPaths: Point[][],
 	sourceY?: number
 ): number {
-	const gapWidth = entryX - exitX;
-	const midX = exitX + gapWidth / 2;
+	// Find all gaps between card columns in the routing region
+	const gaps = findColumnGaps(exitX, entryX, minY, maxY, cards, sourceCard, targetCard);
+
+	if (gaps.length === 0) {
+		// No clear gaps found, use midpoint as fallback
+		return (exitX + entryX) / 2;
+	}
+
+	// Find the best gap (widest, or closest to midpoint)
+	const midX = (exitX + entryX) / 2;
+	let bestGap = gaps[0];
+	let bestScore = -Infinity;
+
+	for (const gap of gaps) {
+		const gapMid = (gap.left + gap.right) / 2;
+		const gapWidth = gap.right - gap.left;
+		// Score based on width and proximity to midpoint
+		const distanceFromMid = Math.abs(gapMid - midX);
+		const score = gapWidth - distanceFromMid * 0.5;
+		if (score > bestScore) {
+			bestScore = score;
+			bestGap = gap;
+		}
+	}
+
+	// Position within the gap based on source link Y position
+	const gapWidth = bestGap.right - bestGap.left;
+	const gapMid = bestGap.left + gapWidth / 2;
 
 	if (sourceY === undefined || gapWidth < 40) {
-		return midX;
+		return gapMid;
 	}
 
 	// Calculate offset based on source link position within the card
-	// Top of card (normalizedY ≈ 0) → positive offset (right)
-	// Bottom of card (normalizedY ≈ 1) → negative offset (left)
 	const cardTop = sourceCard.position.y;
 	const cardHeight = sourceCard.dimensions.height;
 	const normalizedY = cardHeight > 0
 		? (sourceY - cardTop) / cardHeight
 		: 0.5;
 
-	// Use up to 80% of gap width for offset range
-	const maxOffset = gapWidth * 0.8;
-	// Flip: top (0) → +maxOffset/2, bottom (1) → -maxOffset/2
+	// Use up to 60% of gap width for offset range
+	const maxOffset = gapWidth * 0.6;
 	const offset = (0.5 - normalizedY) * maxOffset;
+	const routingX = gapMid + offset;
 
-	const routingX = midX + offset;
-
-	// Clamp to stay within gap bounds
-	const minBound = exitX + 15;
-	const maxBound = entryX - 15;
+	// Clamp to stay within gap bounds with padding
+	const minBound = bestGap.left + 10;
+	const maxBound = bestGap.right - 10;
 	return Math.max(minBound, Math.min(maxBound, routingX));
 }
 
-function sharesEndpoint(p1: Point, p2: Point, p3: Point, p4: Point): boolean {
-	return (
-		pointsClose(p1, p3) || pointsClose(p1, p4) ||
-		pointsClose(p2, p3) || pointsClose(p2, p4)
-	);
-}
+/**
+ * Find gaps between card columns in a horizontal region.
+ * Returns array of {left, right} representing clear vertical channels.
+ */
+function findColumnGaps(
+	minX: number,
+	maxX: number,
+	minY: number,
+	maxY: number,
+	cards: Card[],
+	sourceCard: Card,
+	targetCard: Card
+): Array<{ left: number; right: number }> {
+	// Collect all card horizontal extents that overlap with the Y range
+	const cardExtents: Array<{ left: number; right: number }> = [];
+	const padding = 15; // Padding around cards
 
-function pointsClose(a: Point, b: Point): boolean {
-	return Math.abs(a.x - b.x) < 3 && Math.abs(a.y - b.y) < 3;
-}
+	for (const card of cards) {
+		// Skip source and target cards
+		if (card.id === sourceCard.id || card.id === targetCard.id) continue;
 
-export function segmentsIntersect(p1: Point, p2: Point, p3: Point, p4: Point): boolean {
-	// Check for orthogonal segment intersection (vertical vs horizontal)
-	// This handles cases the cross-product method misses (when segments touch at boundaries)
-	const seg1Vertical = Math.abs(p2.x - p1.x) < 1;
-	const seg1Horizontal = Math.abs(p2.y - p1.y) < 1;
-	const seg2Vertical = Math.abs(p4.x - p3.x) < 1;
-	const seg2Horizontal = Math.abs(p4.y - p3.y) < 1;
+		// Check if card overlaps vertically with our routing range
+		const cardTop = card.position.y;
+		const cardBottom = card.position.y + card.dimensions.height;
 
-	if (seg1Vertical && seg2Horizontal) {
-		// Segment 1 is vertical, segment 2 is horizontal
-		const vx = p1.x;
-		const minY = Math.min(p1.y, p2.y);
-		const maxY = Math.max(p1.y, p2.y);
-		const hy = p3.y;
-		const minX = Math.min(p3.x, p4.x);
-		const maxX = Math.max(p3.x, p4.x);
-
-		// Strictly inside (not touching at boundaries)
-		if (vx > minX && vx < maxX && hy > minY && hy < maxY) {
-			return true;
+		if (cardBottom < minY - padding || cardTop > maxY + padding) {
+			continue; // Card doesn't overlap vertically
 		}
-	} else if (seg1Horizontal && seg2Vertical) {
-		// Segment 1 is horizontal, segment 2 is vertical
-		const hy = p1.y;
-		const minX = Math.min(p1.x, p2.x);
-		const maxX = Math.max(p1.x, p2.x);
-		const vx = p3.x;
-		const minY = Math.min(p3.y, p4.y);
-		const maxY = Math.max(p3.y, p4.y);
 
-		// Strictly inside (not touching at boundaries)
-		if (vx > minX && vx < maxX && hy > minY && hy < maxY) {
-			return true;
+		// Card overlaps - add its horizontal extent
+		const cardLeft = card.position.x - padding;
+		const cardRight = card.position.x + card.dimensions.width + padding;
+
+		// Only consider cards that are in our horizontal range
+		if (cardRight < minX || cardLeft > maxX) {
+			continue;
 		}
+
+		cardExtents.push({ left: cardLeft, right: cardRight });
 	}
 
-	// Fall back to cross-product method for non-orthogonal segments
-	const d1 = direction(p3, p4, p1);
-	const d2 = direction(p3, p4, p2);
-	const d3 = direction(p1, p2, p3);
-	const d4 = direction(p1, p2, p4);
+	// Sort extents by left edge
+	cardExtents.sort((a, b) => a.left - b.left);
 
-	if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
-		((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
-		return true;
+	// Find gaps between card extents
+	const gaps: Array<{ left: number; right: number }> = [];
+	let currentX = minX;
+
+	for (const extent of cardExtents) {
+		if (extent.left > currentX) {
+			// There's a gap before this card
+			gaps.push({ left: currentX, right: extent.left });
+		}
+		currentX = Math.max(currentX, extent.right);
 	}
 
-	return false;
+	// Add final gap if there's space after last card
+	if (currentX < maxX) {
+		gaps.push({ left: currentX, right: maxX });
+	}
+
+	// Filter out gaps that are too narrow
+	const minGapWidth = 25;
+	return gaps.filter(g => g.right - g.left >= minGapWidth);
 }
 
-function direction(p1: Point, p2: Point, p3: Point): number {
-	return (p3.x - p1.x) * (p2.y - p1.y) - (p2.x - p1.x) * (p3.y - p1.y);
-}
 
 /**
  * Remove intermediate points on straight lines and duplicate points.
