@@ -1,17 +1,10 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import type { Card, Point } from '$lib/types';
+	import type { Card } from '$lib/types';
+	import type { JSONContent } from '@tiptap/core';
 	import { isHTMLElement } from '$lib/utils/type-guards';
-	import { parseMarkdown } from '$lib/utils/markdown';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
-	import TurndownService from 'turndown';
-	import {
-		handleBracketKey,
-		shouldInsertWikiLink,
-		insertWikiLinkBrackets,
-		toggleBold,
-		toggleItalic
-	} from '$lib/utils/editor-shortcuts';
+	import TiptapEditor from './TiptapEditor.svelte';
 
 	interface LinkBounds {
 		left: number;
@@ -33,120 +26,97 @@
 	let isEditing = $derived(canvasStore.editingCardId === card.id);
 	let saveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
 	let debounceTimer: ReturnType<typeof setTimeout>;
-	let wikilinkDebounceTimer: ReturnType<typeof setTimeout>;
-	let originalMarkdown = $state('');
+	let currentContent = $state<JSONContent | null>(null);
 
-	// Rendered HTML for view mode
-	let html = $derived(parseMarkdown(card.note.content));
-
-	// Content element reference
-	let contentEl: HTMLDivElement;
-
-	// Setup turndown with wikilink handling
-	const turndown = new TurndownService({
-		headingStyle: 'atx',
-		bulletListMarker: '-',
-		emDelimiter: '*'
-	});
-
-	// Custom rule for wikilinks - convert back to [[target|display]] syntax
-	turndown.addRule('wikilink', {
-		filter: (node) => {
-			return node.nodeName === 'BUTTON' && node.classList.contains('wikilink');
-		},
-		replacement: (content, node) => {
-			const target = (node as HTMLElement).dataset.target || '';
-			const display = content.trim();
-			// If display matches target, use short form
-			if (display === target) {
-				return `[[${target}]]`;
-			}
-			return `[[${target}|${display}]]`;
-		}
-	});
+	// TiptapEditor reference
+	let editorComponent: TiptapEditor;
 
 	// Enter edit mode
 	async function enterEditMode() {
-		// Don't allow editing in read-only mode
 		if (readOnly) return;
 
 		if (canvasStore.editingCardId && canvasStore.editingCardId !== card.id) {
 			canvasStore.exitEditMode();
 		}
 
-		// Load original markdown for frontmatter preservation
-		try {
-			const res = await fetch(`/api/notes/${card.note.id}`);
-			if (res.ok) {
-				const data = await res.json();
-				originalMarkdown = data.content;
-			} else {
-				originalMarkdown = `---\ntitle: "${card.note.title}"\n---\n\n${card.note.content}`;
-			}
-		} catch {
-			originalMarkdown = `---\ntitle: "${card.note.title}"\n---\n\n${card.note.content}`;
-		}
-
+		currentContent = card.note.content;
 		canvasStore.enterEditMode(card.id);
 
 		await tick();
-		contentEl?.focus();
+		editorComponent?.focus();
 	}
 
 	// Exit edit mode and save
 	async function exitEditMode() {
 		clearTimeout(debounceTimer);
-		if (saveStatus !== 'saving') {
+		if (currentContent && saveStatus !== 'saving') {
 			await saveNow();
 		}
 		canvasStore.exitEditMode();
 	}
 
-	async function handleInteraction(target: HTMLElement) {
-		if (!target.classList.contains('wikilink')) return;
+	// Handle wikilink click
+	function handleWikilinkClick(target: string) {
+		const wikilinkEl = document.querySelector(
+			`[data-note-id="${card.id}"] .wikilink[data-target="${target}"]`
+		);
 
-		const noteId = target.dataset.target;
-		if (!noteId) return;
-
-		if (isEditing) {
-			await exitEditMode();
+		let linkBounds: LinkBounds;
+		if (wikilinkEl) {
+			const rect = wikilinkEl.getBoundingClientRect();
+			linkBounds = {
+				left: rect.left,
+				right: rect.right,
+				bottom: rect.bottom
+			};
+		} else {
+			linkBounds = {
+				left: card.position.x + card.dimensions.width / 2,
+				right: card.position.x + card.dimensions.width / 2,
+				bottom: card.position.y + card.dimensions.height / 2
+			};
 		}
 
-		const rect = target.getBoundingClientRect();
-		const linkBounds: LinkBounds = {
-			left: rect.left,
-			right: rect.right,
-			bottom: rect.bottom
-		};
+		if (isEditing) {
+			exitEditMode();
+		}
 
-		// If link is broken (note doesn't exist), create it (unless read-only)
-		if (canvasStore.isLinkBroken(noteId)) {
+		if (canvasStore.isLinkBroken(target)) {
 			if (!readOnly) {
-				await createNewNote(noteId, linkBounds, target);
+				createNewNote(target, linkBounds);
 			}
 			return;
 		}
 
-		onLinkClick(noteId, card.id, linkBounds);
-		target.classList.add('has-connection');
+		onLinkClick(target, card.id, linkBounds);
 	}
 
-	async function createNewNote(noteId: string, linkBounds: LinkBounds, target: HTMLElement) {
-		// Create title from noteId (convert hyphens to spaces, title case)
+	async function createNewNote(noteId: string, linkBounds: LinkBounds) {
 		const title = noteId
 			.split('-')
-			.map(word => word.charAt(0).toUpperCase() + word.slice(1))
+			.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
 			.join(' ');
 
-		// Create initial content
-		const content = `---\ntitle: "${title}"\n---\n\n# ${title}\n\n`;
+		// Create initial content as ProseMirror JSON
+		const content: JSONContent = {
+			type: 'doc',
+			content: [
+				{
+					type: 'heading',
+					attrs: { level: 1 },
+					content: [{ type: 'text', text: title }]
+				},
+				{
+					type: 'paragraph'
+				}
+			]
+		};
 
 		try {
-			// Save the new note file
 			const res = await fetch(`/api/notes/${noteId}`, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ content })
+				body: JSON.stringify({ title, content })
 			});
 
 			if (!res.ok) {
@@ -154,179 +124,66 @@
 				return;
 			}
 
-			// Add note to vault (so it's no longer "broken")
-			canvasStore.addNoteToVault(noteId, title);
-
-			// Use normal link click flow for proper coordinate conversion and path computation
+			canvasStore.addNoteToVault(noteId, title, content);
 			onLinkClick(noteId, card.id, linkBounds);
-			target.classList.add('has-connection');
-
-			// Enter edit mode on the new card after a brief delay
 			setTimeout(() => canvasStore.enterEditMode(noteId), 100);
 		} catch (err) {
 			console.error('Failed to create note:', err);
 		}
 	}
 
+	// Handle click on card container
 	function handleClick(event: MouseEvent) {
 		if (!isHTMLElement(event.target)) return;
 
-		// Handle wikilink clicks (only in view mode)
-		// Use closest() to find wikilink even if click was on child element
 		const wikilinkTarget = event.target.closest('.wikilink');
-		if (wikilinkTarget && isHTMLElement(wikilinkTarget) && !isEditing) {
-			event.preventDefault();
-			event.stopPropagation();
-			handleInteraction(wikilinkTarget);
+		if (wikilinkTarget) {
 			return;
 		}
 
-		// Clicking on card content focuses the card (unless already editing)
 		if (!isEditing) {
 			onCardClick(card.id);
 		}
 	}
 
+	// Handle keyboard in view mode
 	function handleViewKeyDown(event: KeyboardEvent) {
-		// 'e' key to enter edit mode (prevent typing 'e' into content)
 		if (event.key === 'e' && !readOnly) {
 			event.preventDefault();
 			event.stopPropagation();
 			enterEditMode();
 			return;
 		}
-
-		if (event.key === 'Enter' || event.key === ' ') {
-			if (!isHTMLElement(event.target)) return;
-			if (event.target.classList.contains('wikilink')) {
-				event.preventDefault();
-				handleInteraction(event.target);
-			}
-		}
 	}
 
-	// Handle keyboard shortcuts in edit mode
+	// Handle keyboard in edit mode
 	function handleEditKeyDown(event: KeyboardEvent) {
-		// Ignore during IME composition
-		if (event.isComposing) return;
-
 		const isMod = event.metaKey || event.ctrlKey;
 
-		// Cmd+B = Bold (using Selection API instead of deprecated execCommand)
-		if (isMod && event.key === 'b') {
-			event.preventDefault();
-			toggleBold(contentEl);
-			scheduleSave();
-			return;
-		}
-
-		// Cmd+I = Italic (using Selection API instead of deprecated execCommand)
-		if (isMod && event.key === 'i') {
-			event.preventDefault();
-			toggleItalic(contentEl);
-			scheduleSave();
-			return;
-		}
-
-		// Cmd+S = Force save
 		if (isMod && event.key === 's') {
 			event.preventDefault();
 			saveNow();
 			return;
 		}
 
-		// Escape = Exit edit mode
 		if (event.key === 'Escape') {
 			event.preventDefault();
 			exitEditMode();
 			return;
 		}
-
-		// Wiki link quick-insert: typing [[ inserts [[]] with cursor between
-		if (shouldInsertWikiLink(event, contentEl)) {
-			event.preventDefault();
-			insertWikiLinkBrackets(contentEl);
-			handleInput(); // Trigger debounced wikilink conversion
-			return;
-		}
-
-		// Bracket wrapping: select text and press [ ( { to wrap
-		// For '[', this creates [[text]] which needs conversion
-		if (handleBracketKey(event, contentEl)) {
-			if (event.key === '[') {
-				// Immediately convert since we just created a complete [[text]]
-				convertWikilinks();
-			}
-			scheduleSave();
-			return;
-		}
 	}
 
-	// Handle input changes (contenteditable)
-	function handleInput() {
-		// Debounce wikilink conversion to avoid DOM traversal on every keystroke
-		clearTimeout(wikilinkDebounceTimer);
-		wikilinkDebounceTimer = setTimeout(convertWikilinks, 300);
+	// Handle content updates from TiptapEditor
+	function handleEditorUpdate(json: JSONContent) {
+		currentContent = json;
+		// TODO: REVISIT THIS - We previously called canvasStore.updateNoteContent() here
+		// for "instant view sync", but this caused an infinite reactive loop:
+		// updateNoteContent() recreates the cards Map → cardList recomputes →
+		// card prop changes → component re-renders → TiptapEditor fires onUpdate →
+		// repeat. The exact mechanism isn't fully understood. For now, we only
+		// update the store when saving. This may affect real-time sync if multiple
+		// views of the same note exist.
 		scheduleSave();
-	}
-
-	// Convert [[text]] patterns to wikilink elements
-	function convertWikilinks() {
-		if (!contentEl) return;
-
-		const walker = document.createTreeWalker(contentEl, NodeFilter.SHOW_TEXT);
-		const nodesToProcess: { node: Text; match: RegExpExecArray }[] = [];
-
-		// Find all [[...]] patterns in text nodes
-		const pattern = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
-		let textNode: Text | null;
-		while ((textNode = walker.nextNode() as Text | null)) {
-			pattern.lastIndex = 0;
-			let match: RegExpExecArray | null;
-			while ((match = pattern.exec(textNode.textContent || '')) !== null) {
-				nodesToProcess.push({ node: textNode, match });
-				break; // Process one match per node at a time
-			}
-		}
-
-		// Process matches (in reverse to not invalidate positions)
-		for (const { node, match } of nodesToProcess.reverse()) {
-			const target = match[1].trim();
-			const display = (match[2] || match[1]).trim();
-			const startIdx = match.index;
-			const endIdx = startIdx + match[0].length;
-
-			// Create wikilink button
-			const link = document.createElement('button');
-			link.className = 'wikilink';
-			link.dataset.target = target.toLowerCase().replace(/\s+/g, '-');
-			link.textContent = display;
-
-			// Split text node and insert link
-			const before = node.textContent?.slice(0, startIdx) || '';
-			const after = node.textContent?.slice(endIdx) || '';
-
-			const parent = node.parentNode;
-			if (!parent) continue;
-
-			const beforeNode = document.createTextNode(before);
-			const afterNode = document.createTextNode(after);
-
-			parent.insertBefore(beforeNode, node);
-			parent.insertBefore(link, node);
-			parent.insertBefore(afterNode, node);
-			parent.removeChild(node);
-
-			// Place cursor after the link
-			const sel = window.getSelection();
-			if (sel) {
-				const range = document.createRange();
-				range.setStartAfter(link);
-				range.collapse(true);
-				sel.removeAllRanges();
-				sel.addRange(range);
-			}
-		}
 	}
 
 	// Debounced save
@@ -335,29 +192,22 @@
 		debounceTimer = setTimeout(saveNow, 1500);
 	}
 
-	// Convert HTML to markdown and save
+	// Save content to server
 	async function saveNow() {
-		if (!contentEl) return;
+		if (!currentContent) return;
 
 		saveStatus = 'saving';
 
 		try {
-			// Convert contenteditable HTML back to markdown
-			const htmlContent = contentEl.innerHTML;
-			const markdown = turndown.turndown(htmlContent);
-
-			// Extract frontmatter from original and prepend
-			const frontmatterMatch = originalMarkdown.match(/^---\n[\s\S]*?\n---\n*/);
-			const frontmatter = frontmatterMatch ? frontmatterMatch[0] : `---\ntitle: "${card.note.title}"\n---\n\n`;
-			const fullContent = frontmatter + markdown;
-
 			const res = await fetch(`/api/notes/${card.note.id}`, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ content: fullContent })
+				body: JSON.stringify({ title: card.note.title, content: currentContent })
 			});
 
 			if (res.ok) {
+				// Sync store after successful save (not on every keystroke)
+				canvasStore.updateNoteContent(card.note.id, currentContent);
 				saveStatus = 'saved';
 				setTimeout(() => {
 					if (saveStatus === 'saved') saveStatus = 'idle';
@@ -370,74 +220,15 @@
 		}
 	}
 
-	function processBrokenLinks(container: HTMLElement) {
-		const wikilinks = container.querySelectorAll('.wikilink');
-		wikilinks.forEach((link) => {
-			const target = (link as HTMLElement).dataset.target;
-			if (target && canvasStore.isLinkBroken(target)) {
-				link.classList.add('broken');
-			}
-		});
-	}
-
-	$effect(() => {
-		if (contentEl && html) {
-			processBrokenLinks(contentEl);
-		}
-	});
-
-	// Auto-expand card height as content grows
-	$effect(() => {
-		if (!contentEl) return;
-
-		const observer = new ResizeObserver((entries) => {
-			for (const entry of entries) {
-				const newHeight = entry.contentRect.height + 16; // Add padding
-				if (newHeight > card.dimensions.height) {
-					canvasStore.updateCardHeight(card.id, newHeight);
-				}
-			}
-		});
-
-		observer.observe(contentEl);
-		return () => observer.disconnect();
-	});
-
-	// Handle edit mode changes (entered via 'e' key or exited via click outside)
-	let wasEditing = $state(false);
-	$effect(() => {
-		if (!wasEditing && isEditing) {
-			// Just entered edit mode - load original markdown and focus
-			loadOriginalMarkdown();
-			tick().then(() => contentEl?.focus());
-		} else if (wasEditing && !isEditing) {
-			// Just exited edit mode - save any pending changes
-			clearTimeout(debounceTimer);
-			clearTimeout(wikilinkDebounceTimer);
-			saveNow();
-		}
-		wasEditing = isEditing;
-	});
-
-	async function loadOriginalMarkdown() {
-		try {
-			const res = await fetch(`/api/notes/${card.note.id}`);
-			if (res.ok) {
-				const data = await res.json();
-				originalMarkdown = data.content;
-			} else {
-				originalMarkdown = `---\ntitle: "${card.note.title}"\n---\n\n${card.note.content}`;
-			}
-		} catch {
-			originalMarkdown = `---\ntitle: "${card.note.title}"\n---\n\n${card.note.content}`;
-		}
+	// Check if link is broken (for TiptapEditor)
+	function isLinkBroken(target: string): boolean {
+		return canvasStore.isLinkBroken(target);
 	}
 
 	// Cleanup on unmount
 	$effect(() => {
 		return () => {
 			clearTimeout(debounceTimer);
-			clearTimeout(wikilinkDebounceTimer);
 		};
 	});
 </script>
@@ -457,16 +248,26 @@
 		class:dimmed={!isActive && !isEditing}
 		class:focused={isActive && !isEditing}
 		class:editing={isEditing}
-		contenteditable={isEditing}
+		data-editing={isEditing ? 'true' : undefined}
 		onclick={handleClick}
 		onkeydown={isEditing ? handleEditKeyDown : handleViewKeyDown}
-		oninput={handleInput}
-		bind:this={contentEl}
 	>
-		{@html html}
+		<TiptapEditor
+			bind:this={editorComponent}
+			content={isEditing ? (currentContent ?? card.note.content) : card.note.content}
+			onUpdate={handleEditorUpdate}
+			onWikilinkClick={handleWikilinkClick}
+			{isLinkBroken}
+			editable={isEditing}
+		/>
 	</div>
 	{#if isEditing && saveStatus !== 'idle'}
-		<div xmlns="http://www.w3.org/1999/xhtml" class="save-indicator" class:saving={saveStatus === 'saving'} class:error={saveStatus === 'error'}>
+		<div
+			xmlns="http://www.w3.org/1999/xhtml"
+			class="save-indicator"
+			class:saving={saveStatus === 'saving'}
+			class:error={saveStatus === 'error'}
+		>
 			{saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved' : 'Error'}
 		</div>
 	{/if}
@@ -493,11 +294,8 @@
 		opacity: var(--dimmed-opacity);
 	}
 
-	/* Card focus: no visual indicator in reading mode (design constraint) */
-
 	.text-block.editing {
-		outline: 2px solid var(--text-link);
-		outline-offset: 6px;
+		background: color-mix(in srgb, var(--text-link) 4%, transparent);
 	}
 
 	.save-indicator {
@@ -519,119 +317,6 @@
 	.save-indicator.error {
 		background: #fee2e2;
 		color: #dc2626;
-	}
-
-	.text-block :global(h1) {
-		font-size: 18px;
-		font-weight: 600;
-		margin: 0 0 16px 0;
-		color: var(--text-primary);
-		letter-spacing: -0.01em;
-	}
-
-	.text-block :global(h2) {
-		font-size: 15px;
-		font-weight: 600;
-		margin: 20px 0 10px 0;
-		color: var(--text-primary);
-	}
-
-	.text-block :global(h3) {
-		font-size: 14px;
-		font-weight: 600;
-		margin: 16px 0 8px 0;
-		color: var(--text-secondary);
-	}
-
-	.text-block :global(p) {
-		margin: 0 0 14px 0;
-		text-align: justify;
-		hyphens: auto;
-	}
-
-	.text-block :global(ul),
-	.text-block :global(ol) {
-		margin: 0 0 14px 0;
-		padding-left: 18px;
-	}
-
-	.text-block :global(li) {
-		margin-bottom: 6px;
-	}
-
-	.text-block :global(code) {
-		background: var(--bg-code);
-		padding: 2px 5px;
-		border-radius: 3px;
-		font-size: 12px;
-		font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
-		color: var(--text-muted);
-	}
-
-	.text-block :global(pre) {
-		background: var(--bg-code-block);
-		padding: 12px;
-		border-radius: 4px;
-		overflow-x: auto;
-		margin: 0 0 14px 0;
-		border-left: 2px solid var(--border-code);
-	}
-
-	.text-block :global(pre code) {
-		background: none;
-		padding: 0;
-	}
-
-	.text-block :global(strong) {
-		font-weight: 600;
-		color: var(--text-primary);
-	}
-
-	.text-block :global(em) {
-		font-style: italic;
-	}
-
-	.text-block :global(.wikilink) {
-		background: none;
-		border: none;
-		outline: none;
-		color: var(--text-link);
-		text-decoration: none;
-		border-bottom: 1px solid var(--border-link);
-		cursor: pointer;
-		padding: 0;
-		font: inherit;
-		transition: all 0.15s ease;
-	}
-
-	.text-block :global(.wikilink:focus-visible) {
-		outline: none;
-	}
-
-	.text-block :global(.wikilink:hover) {
-		color: var(--text-link-hover);
-		border-bottom-color: var(--border-link-hover);
-	}
-
-	.text-block :global(.wikilink.broken) {
-		color: var(--text-muted);
-		border-bottom-color: var(--border-code);
-		cursor: not-allowed;
-		opacity: 0.5;
-	}
-
-	.text-block :global(.wikilink.broken:hover) {
-		color: var(--text-muted);
-		border-bottom-color: var(--border-code);
-	}
-
-	.text-block :global(.wikilink.has-connection) {
-		border-bottom-color: transparent;
-	}
-
-	.text-block :global(.wikilink.link-focused) {
-		background: color-mix(in srgb, var(--text-link) 12%, transparent);
-		border-radius: 2px;
 	}
 
 	.text-block::-webkit-scrollbar {
