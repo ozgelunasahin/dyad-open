@@ -53,7 +53,8 @@ const ALLOWED_NODE_TYPES = new Set([
 	'blockquote',
 	'codeBlock',
 	'code',
-	'hardBreak'
+	'hardBreak',
+	'horizontalRule'
 ]);
 
 // Whitelist of allowed mark types
