@@ -1,10 +1,11 @@
-import type { Card, Point, Dimensions, LinkSide } from '$lib/types';
+import type { Card, Point, Dimensions } from '$lib/types';
 import { CARD_SPACING, DEFAULT_CARD_WIDTH } from '$lib/types';
 import {
 	detectCoaxialOverlap,
 	findUsedVerticalChannels,
 	simulatePath
 } from './pathfinding';
+import { segmentsIntersect, sharesEndpoint } from './geometry';
 
 /**
  * Card placement with multi-candidate scoring to avoid coaxial line overlap.
@@ -22,12 +23,10 @@ const CHANNEL_STEP = 15; // Spacing between routing channels
 
 // Scoring constants for layout algorithm
 const SCORING = {
-	// Column preferences - spread horizontally over stacking vertically
-	COLUMN_FAR_PENALTY: 30,     // Low: farther columns are acceptable
-	COLUMN_CROWDING_PENALTY: 150, // Penalty per existing card in the target column
-	Y_DISTANCE_WEIGHT: 1.0,     // Penalize Y offsets
-	Y_THRESHOLD: 200,           // Y offset threshold before extra penalty applies
-	Y_THRESHOLD_PENALTY: 250,   // Extra penalty when Y offset exceeds threshold
+	// Column preferences
+	COLUMN_FAR_PENALTY: 100,    // Prefer closer columns (restored to meaningful value)
+	// Note: Column crowding removed - overlap check and Y-offsets handle sibling stacking
+	Y_DISTANCE_WEIGHT: 0.5,     // Penalize Y offsets (lowered - Y stacking is fine)
 	// Line routing penalties
 	CHANNEL_REUSE_PENALTY: 500,
 	COAXIAL_PENALTY_PER_SEGMENT: 2000,  // Very heavy penalty for lines running alongside
@@ -53,8 +52,7 @@ export function calculateNewCardPosition(
 	existingCards: Card[],
 	linkPosition: Point | null,
 	newCardDimensions: Dimensions,
-	existingPaths: Point[][] = [],
-	linkSide?: LinkSide
+	existingPaths: Point[][] = []
 ): { position: Point; routingX?: number } {
 	if (!parentCard || !linkPosition) {
 		return { position: { x: 0, y: 0 } };
@@ -77,8 +75,7 @@ export function calculateNewCardPosition(
 			linkPosition,
 			newCardDimensions,
 			existingCards,
-			existingPaths,
-			linkSide
+			existingPaths
 		);
 	}
 
@@ -235,8 +232,7 @@ function scoreCandidatePosition(
 	linkPosition: Point,
 	newCardDimensions: Dimensions,
 	existingCards: Card[],
-	existingPaths: Point[][],
-	linkSide?: LinkSide
+	existingPaths: Point[][]
 ): number {
 	let score = 0;
 
@@ -257,38 +253,33 @@ function scoreCandidatePosition(
 		return Infinity;
 	}
 
-	// 3. Coaxial overlap penalty (most important)
+	// 3. Early termination: card would overlap existing lines
+	// This is the inverse check - ensures new cards don't cover existing paths
+	if (cardOverlapsLines(candidate.position, newCardDimensions, existingPaths)) {
+		return Infinity;
+	}
+
+	// 4. Coaxial overlap penalty (most important)
 	const coaxial = detectCoaxialOverlap(simPath, existingPaths);
 	score += coaxial.count * SCORING.COAXIAL_PENALTY_PER_SEGMENT;
 	score += coaxial.totalLength * SCORING.COAXIAL_PENALTY_PER_PIXEL;
 
-	// 4. Path crossing penalty (perpendicular crossings are ok but not ideal)
+	// 5. Path crossing penalty (perpendicular crossings are ok but not ideal)
 	const crossings = countPathCrossings(simPath, existingPaths);
 	score += crossings * SCORING.CROSSING_PENALTY;
 
-	// 5. Distance from ideal Y position (prefer close to link)
-	// Apply extra penalty when Y offset exceeds threshold to encourage horizontal spread
+	// 6. Distance from ideal Y position (prefer close to link)
 	const idealY = linkPosition.y - 20;
 	const yDistance = Math.abs(candidate.position.y - idealY);
 	score += yDistance * SCORING.Y_DISTANCE_WEIGHT;
-	if (yDistance > SCORING.Y_THRESHOLD) {
-		score += SCORING.Y_THRESHOLD_PENALTY;
-	}
 
-	// 6. Column distance penalty (prefer closer columns)
+	// 7. Column distance penalty (prefer closer columns)
 	const columnDistance = Math.abs(candidate.column - parentColumn);
 	if (columnDistance > 1) {
 		score += (columnDistance - 1) * SCORING.COLUMN_FAR_PENALTY;
 	}
 
-	// 7. Column crowding penalty - discourage stacking many cards in the same column
-	const cardsInTargetColumn = existingCards.filter(card => {
-		const cardColumn = Math.floor(card.position.x / COLUMN_WIDTH);
-		return cardColumn === candidate.column;
-	}).length;
-	score += cardsInTargetColumn * SCORING.COLUMN_CROWDING_PENALTY;
-
-	// 8. Prefer unused routing channels (bonus for unique channel)
+	// 8. Prefer unused routing channels
 	const usedChannels = findUsedVerticalChannels(
 		existingPaths,
 		Math.min(parentCard.position.x, candidate.position.x),
@@ -328,6 +319,46 @@ function countPathCrossings(path: Point[], existingPaths: Point[][]): number {
 	}
 
 	return count;
+}
+
+/**
+ * Check if a candidate card position would overlap with existing path lines.
+ * This is the inverse of pathCrossesCards - ensures new cards don't cover existing lines.
+ */
+function cardOverlapsLines(
+	candidatePosition: Point,
+	candidateDimensions: Dimensions,
+	existingPaths: Point[][]
+): boolean {
+	const padding = 10; // Small padding around card bounds
+
+	const cardLeft = candidatePosition.x - padding;
+	const cardRight = candidatePosition.x + candidateDimensions.width + padding;
+	const cardTop = candidatePosition.y - padding;
+	const cardBottom = candidatePosition.y + candidateDimensions.height + padding;
+
+	for (const path of existingPaths) {
+		for (let i = 0; i < path.length - 1; i++) {
+			const segStart = path[i];
+			const segEnd = path[i + 1];
+
+			// Quick bounding box check
+			const segMinX = Math.min(segStart.x, segEnd.x);
+			const segMaxX = Math.max(segStart.x, segEnd.x);
+			const segMinY = Math.min(segStart.y, segEnd.y);
+			const segMaxY = Math.max(segStart.y, segEnd.y);
+
+			if (segMaxX >= cardLeft && segMinX <= cardRight &&
+				segMaxY >= cardTop && segMinY <= cardBottom) {
+				// More precise check
+				if (lineIntersectsRect(segStart, segEnd, cardLeft, cardTop, cardRight, cardBottom)) {
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
 }
 
 /**
@@ -383,34 +414,6 @@ function lineIntersectsRect(
 	);
 }
 
-function sharesEndpoint(p1: Point, p2: Point, p3: Point, p4: Point): boolean {
-	return (
-		pointsClose(p1, p3) || pointsClose(p1, p4) ||
-		pointsClose(p2, p3) || pointsClose(p2, p4)
-	);
-}
-
-function pointsClose(a: Point, b: Point): boolean {
-	return Math.abs(a.x - b.x) < 5 && Math.abs(a.y - b.y) < 5;
-}
-
-function segmentsIntersect(p1: Point, p2: Point, p3: Point, p4: Point): boolean {
-	const d1 = direction(p3, p4, p1);
-	const d2 = direction(p3, p4, p2);
-	const d3 = direction(p1, p2, p3);
-	const d4 = direction(p1, p2, p4);
-
-	if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
-		((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
-		return true;
-	}
-
-	return false;
-}
-
-function direction(p1: Point, p2: Point, p3: Point): number {
-	return (p3.x - p1.x) * (p2.y - p1.y) - (p2.x - p1.x) * (p3.y - p1.y);
-}
 
 /**
  * Check if a position overlaps with any existing cards.
