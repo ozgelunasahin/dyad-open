@@ -1,0 +1,281 @@
+<script lang="ts">
+	import { onMount, onDestroy } from 'svelte';
+	import { Editor, type JSONContent } from '@tiptap/core';
+	import StarterKit from '@tiptap/starter-kit';
+	import { Wikilink } from '$lib/tiptap/wikilink';
+
+	interface Props {
+		content: JSONContent;
+		onUpdate?: (json: JSONContent) => void;
+		onWikilinkClick?: (target: string) => void;
+		isLinkBroken?: (target: string) => boolean;
+		editable?: boolean;
+	}
+
+	let {
+		content,
+		onUpdate,
+		onWikilinkClick,
+		isLinkBroken,
+		editable = true
+	}: Props = $props();
+
+	let element: HTMLDivElement;
+	let editor: Editor | null = $state(null);
+
+	// Guard to prevent onUpdate firing during programmatic content sync
+	let isExternalUpdate = false;
+
+	onMount(() => {
+		// Ensure content is valid JSONContent, fallback to empty doc if string or invalid
+		const safeContent =
+			content && typeof content === 'object' && content.type === 'doc'
+				? content
+				: { type: 'doc', content: [{ type: 'paragraph' }] };
+
+		try {
+			editor = new Editor({
+			element,
+			extensions: [
+				StarterKit.configure({
+					heading: {
+						levels: [1, 2, 3]
+					},
+					bulletList: {},
+					orderedList: {},
+					blockquote: {},
+					codeBlock: {},
+					code: {},
+					bold: {},
+					italic: {}
+				}),
+				Wikilink.configure({
+					onWikilinkClick,
+					isLinkBroken
+				})
+			],
+			content: safeContent,
+			editable,
+			editorProps: {
+				attributes: {
+					// Zen writing: no browser interference
+					spellcheck: 'false',
+					autocorrect: 'off',
+					autocapitalize: 'off',
+					autocomplete: 'off',
+					'data-gramm': 'false',
+					'data-gramm_editor': 'false',
+					'data-enable-grammarly': 'false',
+					class: 'tiptap-content'
+				},
+				handleClick: (view, pos, event) => {
+					const target = event.target as HTMLElement;
+					if (target.classList.contains('wikilink') && onWikilinkClick) {
+						const wikilinkTarget = target.dataset.target;
+						if (wikilinkTarget) {
+							event.preventDefault();
+							onWikilinkClick(wikilinkTarget);
+							return true;
+						}
+					}
+					return false;
+				}
+			},
+			onUpdate: ({ editor }) => {
+				// Don't fire onUpdate during programmatic content sync
+				if (!isExternalUpdate) {
+					onUpdate?.(editor.getJSON());
+				}
+			}
+		});
+		} catch (err) {
+			console.error('TiptapEditor initialization failed:', err);
+		}
+	});
+
+	onDestroy(() => {
+		editor?.destroy();
+	});
+
+	$effect(() => {
+		if (editor) {
+			editor.setEditable(editable);
+		}
+	});
+
+	// Sync content prop changes to editor (e.g., when switching edit modes or external updates)
+	// Only sync when editor is NOT focused to avoid overwriting user's active edits
+	$effect(() => {
+		if (editor && content) {
+			// Skip if user is actively editing
+			if (editor.isFocused) return;
+
+			// Compare content to avoid unnecessary updates
+			const currentJSON = JSON.stringify(editor.getJSON());
+			const newJSON = JSON.stringify(content);
+			if (currentJSON !== newJSON) {
+				isExternalUpdate = true;
+				editor.commands.setContent(content);
+				isExternalUpdate = false;
+			}
+		}
+	});
+
+	export function getEditor(): Editor | null {
+		return editor;
+	}
+
+	export function focus(): void {
+		editor?.commands.focus();
+	}
+
+	export function getJSON(): JSONContent {
+		return editor?.getJSON() ?? { type: 'doc', content: [] };
+	}
+</script>
+
+<div bind:this={element} class="tiptap-editor"></div>
+
+<style>
+	.tiptap-editor {
+		width: 100%;
+		height: 100%;
+	}
+
+	/* Content styling - matches existing NoteCard styles */
+	.tiptap-editor :global(.tiptap-content) {
+		outline: none;
+		min-height: 100%;
+		font-family: 'Georgia', 'Times New Roman', 'Noto Serif', serif;
+		font-size: 14px;
+		line-height: 1.7;
+		color: var(--text-secondary);
+	}
+
+	.tiptap-editor :global(.tiptap-content:focus) {
+		outline: none;
+	}
+
+	/* Headings */
+	.tiptap-editor :global(h1) {
+		font-size: 18px;
+		font-weight: 600;
+		margin: 0 0 16px 0;
+		color: var(--text-primary);
+		letter-spacing: -0.01em;
+	}
+
+	.tiptap-editor :global(h2) {
+		font-size: 15px;
+		font-weight: 600;
+		margin: 20px 0 10px 0;
+		color: var(--text-primary);
+	}
+
+	.tiptap-editor :global(h3) {
+		font-size: 14px;
+		font-weight: 600;
+		margin: 16px 0 8px 0;
+		color: var(--text-secondary);
+	}
+
+	/* Paragraphs */
+	.tiptap-editor :global(p) {
+		margin: 0 0 14px 0;
+		text-align: justify;
+		hyphens: auto;
+	}
+
+	/* Lists */
+	.tiptap-editor :global(ul),
+	.tiptap-editor :global(ol) {
+		margin: 0 0 14px 0;
+		padding-left: 18px;
+	}
+
+	.tiptap-editor :global(li) {
+		margin-bottom: 6px;
+	}
+
+	/* Code */
+	.tiptap-editor :global(code) {
+		background: var(--bg-code);
+		padding: 2px 5px;
+		border-radius: 3px;
+		font-size: 12px;
+		font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+		color: var(--text-muted);
+	}
+
+	.tiptap-editor :global(pre) {
+		background: var(--bg-code-block);
+		padding: 12px;
+		border-radius: 4px;
+		overflow-x: auto;
+		margin: 0 0 14px 0;
+		border-left: 2px solid var(--border-code);
+	}
+
+	.tiptap-editor :global(pre code) {
+		background: none;
+		padding: 0;
+	}
+
+	/* Formatting */
+	.tiptap-editor :global(strong) {
+		font-weight: 600;
+		color: var(--text-primary);
+	}
+
+	.tiptap-editor :global(em) {
+		font-style: italic;
+	}
+
+	/* Blockquotes */
+	.tiptap-editor :global(blockquote) {
+		border-left: 3px solid var(--border-link);
+		margin: 0 0 14px 0;
+		padding-left: 16px;
+		color: var(--text-muted);
+		font-style: italic;
+	}
+
+	/* Wikilinks */
+	.tiptap-editor :global(.wikilink) {
+		background: none;
+		border: none;
+		outline: none;
+		color: var(--text-link);
+		text-decoration: none;
+		border-bottom: 1px solid var(--border-link);
+		cursor: pointer;
+		padding: 0;
+		font: inherit;
+		transition: all 0.15s ease;
+	}
+
+	.tiptap-editor :global(.wikilink:hover) {
+		color: var(--text-link-hover);
+		border-bottom-color: var(--border-link-hover);
+	}
+
+	.tiptap-editor :global(.wikilink.broken) {
+		color: var(--text-muted);
+		border-bottom-color: var(--border-code);
+		opacity: 0.5;
+	}
+
+	.tiptap-editor :global(.wikilink.broken:hover) {
+		color: var(--text-muted);
+		border-bottom-color: var(--border-code);
+	}
+
+	/* Link focus mode (Tab navigation) */
+	.tiptap-editor :global(.wikilink.link-focused) {
+		background: color-mix(in srgb, var(--text-link) 15%, transparent);
+		border-radius: 2px;
+		padding: 1px 3px;
+		margin: -1px -3px;
+		border-bottom-color: var(--text-link);
+	}
+</style>

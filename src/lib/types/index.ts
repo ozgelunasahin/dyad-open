@@ -1,3 +1,5 @@
+import type { JSONContent } from '@tiptap/core';
+
 export interface Point {
 	x: number;
 	y: number;
@@ -6,7 +8,7 @@ export interface Point {
 export interface Note {
 	id: string;
 	title: string;
-	content: string;
+	content: JSONContent; // ProseMirror document JSON
 	wikilinks: string[];
 }
 
