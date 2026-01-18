@@ -938,18 +938,7 @@
               },
               {
                 "type": "text",
-                "text": " enacted collectively or "
-              },
-              {
-                "type": "wikilink",
-                "attrs": {
-                  "target": "a-link",
-                  "display": "a link"
-                }
-              },
-              {
-                "type": "text",
-                "text": " alone, "
+                "text": " enacted collectively or alone, "
               },
               {
                 "type": "wikilink",
@@ -1149,7 +1138,6 @@
       },
       "wikilinks": [
         "whether",
-        "a-link",
         "silently-or-aloud",
         "isabelle-stengers",
         "things",
@@ -1516,68 +1504,6 @@
               {
                 "type": "text",
                 "text": "Whether Enacted Collectively"
-              }
-            ]
-          }
-        ]
-      },
-      "wikilinks": []
-    },
-    "test-note": {
-      "id": "test-note",
-      "title": "Test Note",
-      "content": {
-        "type": "doc",
-        "content": [
-          {
-            "type": "heading",
-            "attrs": {
-              "level": 1
-            },
-            "content": [
-              {
-                "type": "text",
-                "text": "Test Note"
-              }
-            ]
-          },
-          {
-            "type": "paragraph",
-            "content": [
-              {
-                "type": "text",
-                "text": "Hello world"
-              }
-            ]
-          }
-        ]
-      },
-      "wikilinks": []
-    },
-    "mock-note": {
-      "id": "mock-note",
-      "title": "Mock Note",
-      "content": {
-        "type": "doc",
-        "content": [
-          {
-            "type": "heading",
-            "attrs": {
-              "level": 1
-            },
-            "content": [
-              {
-                "type": "text",
-                "text": "Mock"
-              }
-            ]
-          },
-          {
-            "type": "paragraph",
-            "content": [
-              {
-                "type": "text",
-                "text": "Test content."
               }
             ]
           }

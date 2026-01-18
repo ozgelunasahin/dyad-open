@@ -149,8 +149,12 @@
 	function handleClick(event: MouseEvent) {
 		if (!isHTMLElement(event.target)) return;
 
-		const wikilinkTarget = event.target.closest('.wikilink');
-		if (wikilinkTarget) {
+		const wikilinkEl = event.target.closest('.wikilink');
+		if (wikilinkEl) {
+			const target = (wikilinkEl as HTMLElement).dataset.target;
+			if (target) {
+				handleWikilinkClick(target);
+			}
 			return;
 		}
 
