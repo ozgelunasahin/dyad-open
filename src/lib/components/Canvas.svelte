@@ -585,11 +585,14 @@
 		const width = svg.clientWidth;
 		const height = svg.clientHeight;
 
+		// Capture zoom at start to prevent race conditions if zoom changes mid-animation
+		const zoomLevel = transform.k;
+
 		// Reading view: place card top at ~15% from viewport top, horizontally centered
 		// Always preserve current zoom level
 		const topMargin = height * 0.15;
-		const endX = width / 2 - targetX * transform.k;
-		const endY = topMargin - targetY * transform.k;
+		const endX = width / 2 - targetX * zoomLevel;
+		const endY = topMargin - targetY * zoomLevel;
 
 		const startX = transform.x;
 		const startY = transform.y;
@@ -610,7 +613,7 @@
 			const currentX = startX + (endX - startX) * eased;
 			const currentY = startY + (endY - startY) * eased;
 
-			const newTransform = zoomIdentity.translate(currentX, currentY).scale(transform.k);
+			const newTransform = zoomIdentity.translate(currentX, currentY).scale(zoomLevel);
 
 			selection.call(zoomBehavior.transform, newTransform);
 
@@ -641,10 +644,13 @@
 		const width = svg.clientWidth;
 		const height = svg.clientHeight;
 
+		// Capture zoom at start to prevent race conditions if zoom changes mid-animation
+		const zoomLevel = transform.k;
+
 		// Compute target camera position to show focusPoint at viewport center
 		// Using CURRENT zoom level - never change zoom during navigation
-		const targetX = width / 2 - focusPoint.x * transform.k;
-		const targetY = height / 2 - focusPoint.y * transform.k;
+		const targetX = width / 2 - focusPoint.x * zoomLevel;
+		const targetY = height / 2 - focusPoint.y * zoomLevel;
 
 		const startX = transform.x;
 		const startY = transform.y;
@@ -666,7 +672,7 @@
 			const currentY = startY + (targetY - startY) * eased;
 
 			// Keep current zoom constant
-			const newTransform = zoomIdentity.translate(currentX, currentY).scale(transform.k);
+			const newTransform = zoomIdentity.translate(currentX, currentY).scale(zoomLevel);
 
 			selection.call(zoomBehavior.transform, newTransform);
 
