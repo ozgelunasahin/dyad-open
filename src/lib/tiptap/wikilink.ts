@@ -8,6 +8,7 @@ import { sanitizeSlug } from '$lib/utils/slug';
 export interface WikilinkOptions {
 	HTMLAttributes: Record<string, unknown>;
 	onWikilinkClick?: (target: string) => void;
+	onWikilinkDelete?: (target: string) => void;
 	isLinkBroken?: (target: string) => boolean;
 }
 
@@ -36,6 +37,7 @@ export const Wikilink = Node.create<WikilinkOptions>({
 		return {
 			HTMLAttributes: {},
 			onWikilinkClick: undefined,
+			onWikilinkDelete: undefined,
 			isLinkBroken: undefined
 		};
 	},
@@ -116,8 +118,46 @@ export const Wikilink = Node.create<WikilinkOptions>({
 				}
 			})
 		];
+	},
+
+	addKeyboardShortcuts() {
+		return {
+			// Backspace on a link converts it to plain text (like Gmail/Docs)
+			Backspace: ({ editor }) => {
+				const { state } = editor;
+				const { selection } = state;
+				const { $from, empty } = selection;
+
+				// Only handle when cursor is collapsed (not a selection)
+				if (!empty) return false;
+
+				// Check if there's a wikilink node immediately before the cursor
+				const posBefore = $from.pos - 1;
+				if (posBefore < 0) return false;
+
+				const nodeBefore = state.doc.nodeAt(posBefore);
+				if (!nodeBefore || nodeBefore.type.name !== 'wikilink') return false;
+
+				// Get the target and display text from the link
+				const target = nodeBefore.attrs.target;
+				const displayText = nodeBefore.attrs.display || target;
+
+				// Replace the wikilink with plain text
+				const from = posBefore;
+				const to = posBefore + nodeBefore.nodeSize;
+
+				editor.chain()
+					.deleteRange({ from, to })
+					.insertContentAt(from, displayText)
+					.run();
+
+				// Notify that this link was deleted (to close the linked card)
+				this.options.onWikilinkDelete?.(target);
+
+				return true;
+			}
+		};
 	}
-	// Note: No custom keyboard shortcuts needed - atom nodes have proper default backspace behavior
 });
 
 export default Wikilink;

@@ -3,6 +3,7 @@ import type { JSONContent } from '@tiptap/core';
 import { MAX_CARDS, MIN_CARD_WIDTH, MAX_CARD_WIDTH } from '$lib/types';
 import { calculateNewCardPosition } from '$lib/utils/layout';
 import { calculateOptimalWidthFromJson, estimateContentHeight } from '$lib/utils/json-content';
+import { computeTreeLayout, getCachedPosition, type PositionCache, type PrecomputedPosition } from '$lib/utils/tree-layout';
 
 // Stored path with metadata
 export interface StoredPath {
@@ -95,9 +96,19 @@ class CanvasStore {
 	// Dimension cache - pre-computed at vault load for O(1) lookup
 	private dimensionCache = $state<Map<string, Dimensions>>(new Map());
 
+	// Tree layout cache - pre-computed positions for wikilink subtrees
+	// Key format: "rootId" -> PositionCache (which contains "rootId:noteId" -> PrecomputedPosition)
+	private treeLayoutCache = $state<Map<string, PositionCache>>(new Map());
+	private currentTreeRoot = $state<string | null>(null);
+
 	// Link focus state for keyboard navigation
 	focusedLinkIndex = $state<number | null>(null);
 	isLinkFocusMode = $derived(this.focusedLinkIndex !== null);
+
+	// Hidden chains - stores downstream cards that were hidden together
+	// Key format: "parentCardId-childCardId" -> array of all hidden card IDs (including the child)
+	// Used to reopen entire chains when a link is followed again
+	private hiddenChains = $state<Map<string, string[]>>(new Map());
 
 	// Per-card reading state (vertical scroll position, link focus, etc.)
 	// Saved when leaving a card, restored when returning
@@ -142,6 +153,9 @@ class CanvasStore {
 		this.focusedCardId = null;
 		this.editingCardId = null;
 		this.history = { back: [], forward: [] };
+		this.treeLayoutCache = new Map();
+		this.currentTreeRoot = null;
+		this.hiddenChains = new Map();
 
 		// Pre-compute broken links
 		const validNoteIds = new Set(Object.keys(vault.notes));
@@ -175,11 +189,15 @@ class CanvasStore {
 			const restoredCards = new Map<string, Card>();
 
 			// Helper to extract noteId from parent reference (strip canvasId prefix)
+			const canvasIdPrefix = `${this.currentCanvasId}-`;
 			const extractNoteId = (parentCardId: string | null): string | null => {
 				if (!parentCardId) return null;
-				// parentCardId format is "canvasId-noteId", extract noteId
-				const dashIndex = parentCardId.indexOf('-');
-				return dashIndex !== -1 ? parentCardId.substring(dashIndex + 1) : parentCardId;
+				// parentCardId format is "canvasId-noteId", strip the known canvasId prefix
+				if (parentCardId.startsWith(canvasIdPrefix)) {
+					return parentCardId.substring(canvasIdPrefix.length);
+				}
+				// Fallback: return as-is if prefix doesn't match
+				return parentCardId;
 			};
 
 			for (const pos of savedPositions) {
@@ -202,17 +220,19 @@ class CanvasStore {
 			if (restoredCards.size > 0) {
 				this.cards = restoredCards;
 				// Rebuild connections from parent relationships
+				const newConnections: Connection[] = [];
 				for (const card of restoredCards.values()) {
 					if (card.parentId && restoredCards.has(card.parentId)) {
 						// Convert legacy sourceLink Point to SourceBounds
 						const legacyPoint = card.sourceLink || { x: card.position.x, y: card.position.y };
-						this.connections.push({
+						newConnections.push({
 							fromCardId: card.parentId,
 							toCardId: card.id,
 							sourceBounds: { left: legacyPoint.x, right: legacyPoint.x, y: legacyPoint.y }
 						});
 					}
 				}
+				this.connections = newConnections;
 				// Build active chain (cards without children at end)
 				this.activeChain = Array.from(restoredCards.keys());
 
@@ -221,6 +241,11 @@ class CanvasStore {
 				if (lastCard) {
 					this.focusCard(lastCard);
 				}
+
+				// Trigger path computation after Canvas component mounts
+				requestAnimationFrame(() => {
+					window.dispatchEvent(new CustomEvent('canvas-compute-paths'));
+				});
 				return;
 			}
 		}
@@ -256,6 +281,11 @@ class CanvasStore {
 
 				// Migrate to DB
 				this.persistToDatabase();
+
+				// Trigger path computation after Canvas component mounts
+				requestAnimationFrame(() => {
+					window.dispatchEvent(new CustomEvent('canvas-compute-paths'));
+				});
 				return;
 			}
 		}
@@ -323,6 +353,44 @@ class CanvasStore {
 	}
 
 	/**
+	 * Compute and cache tree layout for a root note.
+	 * Uses d3-flextree for intelligent sibling-aware positioning.
+	 */
+	private computeAndCacheTreeLayout(rootId: string): PositionCache | null {
+		if (!this.vault) return null;
+
+		// Check if already cached
+		if (this.treeLayoutCache.has(rootId)) {
+			return this.treeLayoutCache.get(rootId)!;
+		}
+
+		// Compute tree layout with depth 4 (root + 3 levels of children)
+		const cache = computeTreeLayout(this.vault, rootId, 4);
+
+		// Store in cache
+		const newTreeCache = new Map(this.treeLayoutCache);
+		newTreeCache.set(rootId, cache);
+		this.treeLayoutCache = newTreeCache;
+
+		console.log(`[TreeLayout] Computed layout for root ${rootId}: ${cache.size} positions cached`);
+
+		return cache;
+	}
+
+	/**
+	 * Get pre-computed position for a note in the current tree.
+	 * Returns null if not found (note not in tree or tree not computed).
+	 */
+	private getPrecomputedPosition(noteId: string): PrecomputedPosition | null {
+		if (!this.currentTreeRoot) return null;
+
+		const cache = this.treeLayoutCache.get(this.currentTreeRoot);
+		if (!cache) return null;
+
+		return getCachedPosition(cache, this.currentTreeRoot, noteId);
+	}
+
+	/**
 	 * Calculate dimensions for a note's content.
 	 * Uses cache if available, otherwise calculates and caches.
 	 */
@@ -383,8 +451,7 @@ class CanvasStore {
 			? { x: (sourceBounds.left + sourceBounds.right) / 2, y: sourceBounds.y }
 			: null;
 
-		// Calculate position using priority-based algorithm with crossing prevention
-		// Pass existing path points (not connections) for collision detection
+		// Calculate position using line-aware reactive algorithm
 		const existingPathPoints = this.getExistingPathPoints();
 		const { position, routingX } = calculateNewCardPosition(
 			parentCard,
@@ -820,10 +887,24 @@ class CanvasStore {
 
 		const targetCardId = this.activeChain[currentIndex - 1];
 
-		// Default behavior: close the card we're leaving (Miller Columns pattern)
-		// BUT: don't close if we're at index 1 (would leave only the root card)
-		if (!keepOpen && currentIndex > 1) {
-			this.unopenCurrentCard();
+		// Default behavior: close the current card AND all downstream cards
+		if (!keepOpen) {
+			// Get all cards from current position to end of chain (downstream)
+			const cardsToHide = this.activeChain.slice(currentIndex);
+
+			if (cardsToHide.length > 0) {
+				// Store as hidden chain, keyed by parent -> first hidden card
+				const chainKey = `${targetCardId}-${cardsToHide[0]}`;
+				const newHiddenChains = new Map(this.hiddenChains);
+				newHiddenChains.set(chainKey, cardsToHide);
+				this.hiddenChains = newHiddenChains;
+
+				// Close all downstream cards (in reverse order to maintain integrity)
+				// Use skipFocus=true so we control focus at the end
+				for (let i = cardsToHide.length - 1; i >= 0; i--) {
+					this.unopenCard(cardsToHide[i], true);
+				}
+			}
 		}
 
 		this.focusCard(targetCardId);
@@ -852,6 +933,15 @@ class CanvasStore {
 		sourceBounds: SourceBounds,
 		linkSide?: LinkSide
 	): boolean {
+		// Check if there's a hidden chain to restore
+		const chainKey = `${fromCardId}-${noteId}`;
+		const hiddenChain = this.hiddenChains.get(chainKey);
+
+		if (hiddenChain && hiddenChain.length > 0) {
+			// Restore the entire hidden chain
+			return this.restoreHiddenChain(chainKey, hiddenChain, fromCardId, sourceBounds);
+		}
+
 		// If note is already open, update chain and focus it
 		if (this.cards.has(noteId)) {
 			// Update chain to reflect navigation to this card
@@ -884,8 +974,7 @@ class CanvasStore {
 			existingCards,
 			linkCenter,
 			dimensions,
-			existingPathPoints,
-			linkSide
+			existingPathPoints
 		);
 
 		// Create new card
@@ -926,6 +1015,181 @@ class CanvasStore {
 		this.focusCard(noteId);
 		this.persistState();
 		this.schedulePersist();
+		return true;
+	}
+
+	/**
+	 * Restore a previously hidden chain of cards.
+	 * Reopens all cards in the chain and recreates their connections.
+	 */
+	private restoreHiddenChain(
+		chainKey: string,
+		cardIds: string[],
+		parentCardId: string,
+		sourceBounds: SourceBounds
+	): boolean {
+		if (!this.vault) return false;
+
+		// Remove from hidden chains
+		const newHiddenChains = new Map(this.hiddenChains);
+		newHiddenChains.delete(chainKey);
+		this.hiddenChains = newHiddenChains;
+
+		// Reopen each card in the chain
+		let prevCardId = parentCardId;
+		let prevSourceBounds = sourceBounds;
+
+		for (const cardId of cardIds) {
+			const note = this.vault.notes[cardId];
+			if (!note) continue;
+
+			// Calculate dimensions
+			const dimensions = this.calculateCardDimensions(note.content, cardId);
+
+			// Calculate position relative to previous card
+			const prevCard = this.cards.get(prevCardId);
+			const linkCenter: Point = {
+				x: (prevSourceBounds.left + prevSourceBounds.right) / 2,
+				y: prevSourceBounds.y
+			};
+
+			const existingCards = Array.from(this.cards.values());
+			const existingPathPoints = this.getExistingPathPoints();
+
+			const { position } = calculateNewCardPosition(
+				prevCard ?? null,
+				existingCards,
+				linkCenter,
+				dimensions,
+				existingPathPoints
+			);
+
+			// Create the card
+			const newCard: Card = {
+				id: cardId,
+				note,
+				position,
+				dimensions,
+				parentId: prevCardId,
+				sourceLink: linkCenter
+			};
+
+			const newCards = new Map(this.cards);
+			newCards.set(cardId, newCard);
+			this.cards = newCards;
+
+			// Add connection
+			this.connections = [
+				...this.connections,
+				{
+					fromCardId: prevCardId,
+					toCardId: cardId,
+					sourceBounds: prevSourceBounds
+				}
+			];
+
+			// Update for next iteration - use card's center as source bounds for next
+			prevCardId = cardId;
+			prevSourceBounds = {
+				left: position.x + dimensions.width / 2,
+				right: position.x + dimensions.width / 2,
+				y: position.y + 50 // Approximate link position
+			};
+		}
+
+		// Update active chain
+		const currentIndex = this.activeChain.indexOf(parentCardId);
+		if (currentIndex >= 0) {
+			this.activeChain = [...this.activeChain.slice(0, currentIndex + 1), ...cardIds];
+		} else {
+			this.activeChain = [...this.activeChain, ...cardIds];
+		}
+
+		// Focus on the last card in the chain
+		const lastCardId = cardIds[cardIds.length - 1];
+		this.focusCard(lastCardId);
+
+		// Trigger path computation
+		requestAnimationFrame(() => {
+			window.dispatchEvent(new CustomEvent('canvas-compute-paths'));
+		});
+
+		this.persistState();
+		this.schedulePersist();
+		return true;
+	}
+
+	// Unopen a specific card by ID (remove from view, NOT delete data)
+	// skipFocus: when true, don't change focus (used when bulk-closing from navigateLeftInChain)
+	unopenCard(cardId: string, skipFocus: boolean = false): boolean {
+		if (!this.cards.has(cardId)) return false;
+
+		// Don't allow unopening the entry point
+		if (this.vault && cardId === this.vault.entryPoint) return false;
+
+		// Remove card from canvas
+		const newCards = new Map(this.cards);
+		newCards.delete(cardId);
+		this.cards = newCards;
+
+		// Clean up connections referencing this card
+		this.connections = this.connections.filter(
+			conn => conn.fromCardId !== cardId && conn.toCardId !== cardId
+		);
+
+		// Clean up stored paths
+		const keysToDelete: string[] = [];
+		for (const [key] of this.storedPaths) {
+			if (key.includes(cardId)) {
+				keysToDelete.push(key);
+			}
+		}
+		if (keysToDelete.length > 0) {
+			const newPaths = new Map(this.storedPaths);
+			for (const key of keysToDelete) {
+				newPaths.delete(key);
+			}
+			this.storedPaths = newPaths;
+		}
+
+		// Clean up saved reading state
+		this.clearSavedCardState(cardId);
+
+		// Clean up hidden chains that reference this card
+		const chainKeysToDelete: string[] = [];
+		for (const [key, chain] of this.hiddenChains) {
+			if (key.includes(cardId) || chain.includes(cardId)) {
+				chainKeysToDelete.push(key);
+			}
+		}
+		if (chainKeysToDelete.length > 0) {
+			const newHiddenChains = new Map(this.hiddenChains);
+			for (const key of chainKeysToDelete) {
+				newHiddenChains.delete(key);
+			}
+			this.hiddenChains = newHiddenChains;
+		}
+
+		// Remove from active chain
+		this.activeChain = this.activeChain.filter(id => id !== cardId);
+
+		// If we closed the focused card, focus another (unless skipFocus is true)
+		if (this.focusedCardId === cardId && !skipFocus) {
+			if (this.activeChain.length > 0) {
+				this.focusCard(this.activeChain[this.activeChain.length - 1]);
+			} else {
+				this.focusedCardId = null;
+			}
+		}
+
+		this.persistState();
+		this.schedulePersist();
+
+		// Trigger path regeneration so remaining paths update their hops
+		requestAnimationFrame(() => {
+			window.dispatchEvent(new CustomEvent('canvas-compute-paths'));
+		});
+
 		return true;
 	}
 
@@ -990,6 +1254,12 @@ class CanvasStore {
 
 		this.persistState();
 		this.schedulePersist();
+
+		// Trigger path regeneration so remaining paths update their hops
+		requestAnimationFrame(() => {
+			window.dispatchEvent(new CustomEvent('canvas-compute-paths'));
+		});
+
 		return true;
 	}
 
@@ -1104,9 +1374,12 @@ class CanvasStore {
 		this.activeChain = [];
 		this.history = { back: [], forward: [] };
 		this.focusedCardId = null;
+		this.treeLayoutCache = new Map();
+		this.currentTreeRoot = null;
 		this.editingCardId = null;
 		this.focusedLinkIndex = null;
 		this.savedCardState = new Map();
+		this.hiddenChains = new Map();
 		this.camera = { x: 0, y: 0, zoom: 1 };
 
 		// 4. Reopen entry point

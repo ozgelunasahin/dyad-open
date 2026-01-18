@@ -270,53 +270,137 @@ export function routeConnection(
 /**
  * Find the X position for the vertical segment of the path.
  *
- * Deterministic offset based on source link Y position:
- * - Links at TOP of card → riser further RIGHT
- * - Links at BOTTOM of card → riser further LEFT
+ * Routes vertical segments ONLY through gaps between card columns,
+ * never through a column where they could cross card bodies.
  *
- * This naturally accommodates growing cards: as content is added at the bottom,
- * new links get their risers placed to the left of existing higher links.
- *
- * @param sourceY - Y position of the source link (determines offset)
+ * @param sourceY - Y position of the source link (determines offset within gap)
  */
 function findVerticalRoutingX(
 	exitX: number,
 	entryX: number,
-	_minY: number,
-	_maxY: number,
-	_cards: Card[],
+	minY: number,
+	maxY: number,
+	cards: Card[],
 	sourceCard: Card,
-	_targetCard: Card,
+	targetCard: Card,
 	_existingPaths: Point[][],
 	sourceY?: number
 ): number {
-	const gapWidth = entryX - exitX;
-	const midX = exitX + gapWidth / 2;
+	// Find all gaps between card columns in the routing region
+	const gaps = findColumnGaps(exitX, entryX, minY, maxY, cards, sourceCard, targetCard);
+
+	if (gaps.length === 0) {
+		// No clear gaps found, use midpoint as fallback
+		return (exitX + entryX) / 2;
+	}
+
+	// Find the best gap (widest, or closest to midpoint)
+	const midX = (exitX + entryX) / 2;
+	let bestGap = gaps[0];
+	let bestScore = -Infinity;
+
+	for (const gap of gaps) {
+		const gapMid = (gap.left + gap.right) / 2;
+		const gapWidth = gap.right - gap.left;
+		// Score based on width and proximity to midpoint
+		const distanceFromMid = Math.abs(gapMid - midX);
+		const score = gapWidth - distanceFromMid * 0.5;
+		if (score > bestScore) {
+			bestScore = score;
+			bestGap = gap;
+		}
+	}
+
+	// Position within the gap based on source link Y position
+	const gapWidth = bestGap.right - bestGap.left;
+	const gapMid = bestGap.left + gapWidth / 2;
 
 	if (sourceY === undefined || gapWidth < 40) {
-		return midX;
+		return gapMid;
 	}
 
 	// Calculate offset based on source link position within the card
-	// Top of card (normalizedY ≈ 0) → positive offset (right)
-	// Bottom of card (normalizedY ≈ 1) → negative offset (left)
 	const cardTop = sourceCard.position.y;
 	const cardHeight = sourceCard.dimensions.height;
 	const normalizedY = cardHeight > 0
 		? (sourceY - cardTop) / cardHeight
 		: 0.5;
 
-	// Use up to 80% of gap width for offset range
-	const maxOffset = gapWidth * 0.8;
-	// Flip: top (0) → +maxOffset/2, bottom (1) → -maxOffset/2
+	// Use up to 60% of gap width for offset range
+	const maxOffset = gapWidth * 0.6;
 	const offset = (0.5 - normalizedY) * maxOffset;
+	const routingX = gapMid + offset;
 
-	const routingX = midX + offset;
-
-	// Clamp to stay within gap bounds
-	const minBound = exitX + 15;
-	const maxBound = entryX - 15;
+	// Clamp to stay within gap bounds with padding
+	const minBound = bestGap.left + 10;
+	const maxBound = bestGap.right - 10;
 	return Math.max(minBound, Math.min(maxBound, routingX));
+}
+
+/**
+ * Find gaps between card columns in a horizontal region.
+ * Returns array of {left, right} representing clear vertical channels.
+ */
+function findColumnGaps(
+	minX: number,
+	maxX: number,
+	minY: number,
+	maxY: number,
+	cards: Card[],
+	sourceCard: Card,
+	targetCard: Card
+): Array<{ left: number; right: number }> {
+	// Collect all card horizontal extents that overlap with the Y range
+	const cardExtents: Array<{ left: number; right: number }> = [];
+	const padding = 15; // Padding around cards
+
+	for (const card of cards) {
+		// Skip source and target cards
+		if (card.id === sourceCard.id || card.id === targetCard.id) continue;
+
+		// Check if card overlaps vertically with our routing range
+		const cardTop = card.position.y;
+		const cardBottom = card.position.y + card.dimensions.height;
+
+		if (cardBottom < minY - padding || cardTop > maxY + padding) {
+			continue; // Card doesn't overlap vertically
+		}
+
+		// Card overlaps - add its horizontal extent
+		const cardLeft = card.position.x - padding;
+		const cardRight = card.position.x + card.dimensions.width + padding;
+
+		// Only consider cards that are in our horizontal range
+		if (cardRight < minX || cardLeft > maxX) {
+			continue;
+		}
+
+		cardExtents.push({ left: cardLeft, right: cardRight });
+	}
+
+	// Sort extents by left edge
+	cardExtents.sort((a, b) => a.left - b.left);
+
+	// Find gaps between card extents
+	const gaps: Array<{ left: number; right: number }> = [];
+	let currentX = minX;
+
+	for (const extent of cardExtents) {
+		if (extent.left > currentX) {
+			// There's a gap before this card
+			gaps.push({ left: currentX, right: extent.left });
+		}
+		currentX = Math.max(currentX, extent.right);
+	}
+
+	// Add final gap if there's space after last card
+	if (currentX < maxX) {
+		gaps.push({ left: currentX, right: maxX });
+	}
+
+	// Filter out gaps that are too narrow
+	const minGapWidth = 25;
+	return gaps.filter(g => g.right - g.left >= minGapWidth);
 }
 
 function sharesEndpoint(p1: Point, p2: Point, p3: Point, p4: Point): boolean {

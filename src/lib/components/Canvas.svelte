@@ -481,9 +481,18 @@
 		};
 		window.addEventListener('canvas-compute-paths', handleComputePaths);
 
+		// Compute any missing paths on mount (in case the event was dispatched before we listened)
+		// Use a small delay to ensure the DOM is fully settled
+		const mountPathsTimer = setTimeout(() => {
+			if (canvasStore.connections.length > 0) {
+				computeMissingPaths();
+			}
+		}, 100);
+
 		return () => {
 			// P2-007 fix: Cancel any running animations on unmount
 			animationCancelled = true;
+			clearTimeout(mountPathsTimer);
 			window.removeEventListener('canvas-focus', handleFocusAnimation);
 			window.removeEventListener('canvas-restore', handleRestorePosition);
 			window.removeEventListener('canvas-zoom-to-fit', handleZoomToFit);
@@ -855,19 +864,44 @@
 	 * Regenerate SVG paths for all stored connections.
 	 * This ensures every path has hops where it crosses ANY other path,
 	 * not just paths that existed when it was first computed.
+	 *
+	 * Convention: Only the "newer" path (lexicographically greater connection key) gets hops.
+	 * This prevents both lines from having hops at the same intersection.
 	 */
 	function regenerateAllPathSvgs(): void {
-		const allPathPoints = canvasStore.getExistingPathPoints();
+		// Build a sorted list of connections with their path points
+		const connectionsWithPaths: Array<{
+			key: string;
+			conn: typeof canvasStore.connections[0];
+			points: Point[];
+		}> = [];
 
 		for (const conn of canvasStore.connections) {
 			const storedPath = canvasStore.getStoredPath(conn.fromCardId, conn.toCardId);
+			if (storedPath) {
+				connectionsWithPaths.push({
+					key: `${conn.fromCardId}-${conn.toCardId}`,
+					conn,
+					points: storedPath.points
+				});
+			}
+		}
+
+		// Sort by key so we have consistent ordering
+		connectionsWithPaths.sort((a, b) => a.key.localeCompare(b.key));
+
+		// Regenerate SVG for each path, only hopping over paths with LOWER keys
+		for (let i = 0; i < connectionsWithPaths.length; i++) {
+			const { conn, points } = connectionsWithPaths[i];
+			const storedPath = canvasStore.getStoredPath(conn.fromCardId, conn.toCardId);
 			if (!storedPath) continue;
 
-			// Get all OTHER paths (exclude self)
-			const otherPaths = allPathPoints.filter(p => p !== storedPath.points);
+			// Only include paths with lower indices (earlier in sorted order) as "other paths"
+			// This means only the lexicographically greater path gets hops at intersections
+			const olderPaths = connectionsWithPaths.slice(0, i).map(c => c.points);
 
-			// Regenerate SVG with hops considering all other paths
-			const newSvgPath = pathToSvgWithHops(storedPath.points, otherPaths);
+			// Regenerate SVG with hops only for older paths
+			const newSvgPath = pathToSvgWithHops(points, olderPaths);
 
 			// Update the stored path with new SVG
 			canvasStore.storePath(conn.fromCardId, conn.toCardId, {

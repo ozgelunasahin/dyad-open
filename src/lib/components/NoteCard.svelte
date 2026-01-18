@@ -67,6 +67,11 @@
 			await saveNow();
 		}
 		canvasStore.exitEditMode();
+
+		// If content is empty after exiting edit mode, close the card
+		if (currentContent && isContentEmpty(currentContent)) {
+			canvasStore.unopenCard(card.id);
+		}
 	}
 
 	// Handle wikilink click
@@ -198,6 +203,24 @@
 		}
 	}
 
+	// Check if content is empty (no meaningful text)
+	function isContentEmpty(json: JSONContent): boolean {
+		if (!json.content || json.content.length === 0) return true;
+
+		// Recursively check if there's any text content
+		function hasText(node: JSONContent): boolean {
+			if (node.type === 'text' && node.text && node.text.trim().length > 0) {
+				return true;
+			}
+			if (node.content) {
+				return node.content.some(hasText);
+			}
+			return false;
+		}
+
+		return !hasText(json);
+	}
+
 	// Handle content updates from TiptapEditor
 	function handleEditorUpdate(json: JSONContent) {
 		currentContent = json;
@@ -260,6 +283,11 @@
 		return canvasStore.isLinkBroken(target);
 	}
 
+	// Handle wikilink deletion - close the linked card
+	function handleWikilinkDelete(target: string): void {
+		canvasStore.unopenCard(target);
+	}
+
 	// Cleanup on unmount
 	$effect(() => {
 		return () => {
@@ -294,6 +322,7 @@
 			content={isEditing ? (currentContent ?? card.note.content) : card.note.content}
 			onUpdate={handleEditorUpdate}
 			onWikilinkClick={handleWikilinkClick}
+			onWikilinkDelete={handleWikilinkDelete}
 			{isLinkBroken}
 			editable={isEditing}
 		/>
