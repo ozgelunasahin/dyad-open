@@ -639,7 +639,7 @@
 		const startX = transform.x;
 		const startY = transform.y;
 
-		const duration = 400;
+		const duration = 500; // Slower for calmer navigation
 		const startTime = Date.now();
 
 		function animate() {
@@ -697,7 +697,7 @@
 		const startX = transform.x;
 		const startY = transform.y;
 
-		const duration = 300; // Slightly faster for "going back"
+		const duration = 400; // Match calmer navigation pace
 		const startTime = Date.now();
 
 		function animate() {
@@ -750,7 +750,7 @@
 		const endX = transform.x + dx;
 		const endY = transform.y + dy;
 
-		const duration = 250; // Shorter for minimal pans
+		const duration = 350; // Slightly shorter for minimal pans
 		const startTime = Date.now();
 
 		function animate() {
