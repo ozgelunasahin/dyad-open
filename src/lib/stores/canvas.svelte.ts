@@ -545,45 +545,24 @@ class CanvasStore {
 
 	/**
 	 * Focus on a card and position for reading (top of card near top of viewport).
-	 * Saves reading state for current card, restores for target card if previously visited.
-	 * Link focus restoration is included in the event for the Canvas to handle after animation.
 	 *
-	 * Conservative panning: Only pans when necessary.
-	 * - Fully visible cards: Just update focus, no pan
-	 * - Partially visible cards: Minimal pan to show card fully
-	 * - Off-screen cards: Full pan to reading position
+	 * Core principle: Consistency is king. The panning behavior must be identical
+	 * whether navigating via clicks, links, or keyboard.
+	 *
+	 * Fundamental rule:
+	 * - If we did NOT pan to go TO a card, we do NOT need to pan to go BACK
+	 * - If we DID pan to go to a card, we DO need to pan to go back
+	 *
+	 * Implementation:
+	 * - FIRST determine if we will pan (based on visibility + saved state)
+	 * - ONLY save current card's reading position if we ARE going to pan
+	 * - This creates symmetry: no pan forward = no saved state = no pan back
 	 */
 	focusCard(cardId: string, forceAnimation: boolean = false): void {
 		const card = this.cards.get(cardId);
 		if (!card) return;
 
-		// Save current card's state before switching (camera is saved here, link state saved separately)
-		// BUT: If card has been panned out of the reading zone, don't save - clear it instead
-		if (this.focusedCardId && this.focusedCardId !== cardId) {
-			const inReadingZone = this.viewportWidth > 0 && this.viewportHeight > 0
-				? this.isCardInReadingZone(this.viewportWidth, this.viewportHeight, 100)
-				: true; // If no viewport info, assume in zone
-
-			if (!inReadingZone) {
-				// Card panned out of view - clear saved state so it will re-focus for reading
-				this.clearSavedCardState(this.focusedCardId);
-			} else {
-				// Card still in reading zone - save only vertical focus position
-				// Horizontal position is discarded; will restore to card center
-				const focusY = this.viewportHeight > 0
-					? (this.viewportHeight / 2 - this.camera.y) / this.camera.zoom
-					: 0;
-				const existing = this.savedCardState.get(this.focusedCardId);
-				const newMap = new Map(this.savedCardState);
-				newMap.set(this.focusedCardId, {
-					...existing,
-					focusY
-				});
-				this.savedCardState = newMap;
-			}
-		}
-
-		// Check visibility for conservative panning
+		const previousCardId = this.focusedCardId;
 		const visibility = this.getCardVisibility(cardId);
 		const savedState = this.savedCardState.get(cardId);
 
@@ -592,11 +571,73 @@ class CanvasStore {
 			? { linkTarget: savedState.linkTarget, linkFocusActive: true }
 			: null;
 
-		// Fully visible: just update focus, no pan needed
-		// But still dispatch event for link restoration if needed
-		if (!forceAnimation && visibility === 'fully-visible') {
-			this.focusedCardId = cardId;
-			if (linkRestoration && typeof window !== 'undefined') {
+		// STEP 1: Determine if we WILL pan (before saving any state)
+		// This is the key insight: decide pan first, then conditionally save
+		let willPan = true;
+		let panType: 'none' | 'minimal' | 'full' = 'full';
+		let minPan: { dx: number; dy: number } | null = null;
+
+		// If target card has saved reading position, we MUST pan to restore it
+		// (saved state exists = we panned to get here originally = pan back)
+		const hasSavedReadingPosition = savedState?.focusY !== undefined;
+
+		if (forceAnimation) {
+			willPan = true;
+			panType = 'full';
+		} else if (hasSavedReadingPosition) {
+			// Saved state means we panned away from this card, so pan back to restore
+			willPan = true;
+			panType = 'full';
+		} else {
+			// No saved state - use conservative panning based on visibility
+			if (visibility === 'fully-visible') {
+				willPan = false;
+				panType = 'none';
+			} else if (visibility === 'partially-visible') {
+				minPan = this.calculateMinimalPan(cardId);
+				if (minPan) {
+					willPan = true;
+					panType = 'minimal';
+				} else {
+					willPan = false;
+					panType = 'none';
+				}
+			} else {
+				// off-screen
+				willPan = true;
+				panType = 'full';
+			}
+		}
+
+		// STEP 2: Save current card's state ONLY if we're going to pan
+		// This is the fundamental insight: no pan = no saved state = no pan back
+		if (previousCardId && previousCardId !== cardId && willPan) {
+			const inReadingZone = this.viewportWidth > 0 && this.viewportHeight > 0
+				? this.isCardInReadingZone(this.viewportWidth, this.viewportHeight, 100)
+				: true;
+
+			if (!inReadingZone) {
+				// Card panned out of view - clear saved state
+				this.clearSavedCardState(previousCardId);
+			} else {
+				// Card still in reading zone - save vertical focus position
+				const focusY = this.viewportHeight > 0
+					? (this.viewportHeight / 2 - this.camera.y) / this.camera.zoom
+					: 0;
+				const existing = this.savedCardState.get(previousCardId);
+				const newMap = new Map(this.savedCardState);
+				newMap.set(previousCardId, { ...existing, focusY });
+				this.savedCardState = newMap;
+			}
+		}
+
+		// STEP 3: Update focus
+		this.focusedCardId = cardId;
+
+		// STEP 4: Execute pan (or not)
+		if (!willPan) {
+			// No pan needed - just dispatch instant focus event for link restoration
+			if (typeof window !== 'undefined') {
 				window.dispatchEvent(new CustomEvent('canvas-focus-instant', {
 					detail: { cardId, linkRestoration }
 				}));
@@ -604,90 +645,51 @@ class CanvasStore {
 			return;
 		}
 
-		// Partially visible: minimal pan to show card fully
-		if (!forceAnimation && visibility === 'partially-visible') {
-			const minPan = this.calculateMinimalPan(cardId);
-			if (minPan) {
-				this.focusedCardId = cardId;
-				if (typeof window !== 'undefined') {
-					this.isAnimating = true;
-					window.dispatchEvent(new CustomEvent('canvas-minimal-pan', {
-						detail: { cardId, dx: minPan.dx, dy: minPan.dy, linkRestoration }
-					}));
-				}
-				return;
-			}
-		}
-
-		// Off-screen or forceAnimation: full pan to reading position (existing behavior)
-
-		this.focusedCardId = cardId;
-
-		// Dispatch event for Canvas to animate
-		// Include link restoration info so Canvas can restore AFTER animation completes
+		// Dispatch appropriate animation event
 		if (typeof window !== 'undefined') {
 			this.isAnimating = true;
 
-			if (savedState?.focusY !== undefined) {
-				// Returning to previously visited card - restore vertical position
-				// Horizontal position restored to card center
-				window.dispatchEvent(
-					new CustomEvent('canvas-restore', {
-						detail: {
-							focusY: savedState.focusY,
-							cardId: card.id,  // Canvas uses this to compute centered X
-							linkRestoration
-						}
-					})
-				);
+			if (panType === 'minimal' && minPan) {
+				window.dispatchEvent(new CustomEvent('canvas-minimal-pan', {
+					detail: { cardId, dx: minPan.dx, dy: minPan.dy, linkRestoration }
+				}));
+			} else if (hasSavedReadingPosition) {
+				// Restore to saved position (we panned away, now pan back)
+				window.dispatchEvent(new CustomEvent('canvas-restore', {
+					detail: {
+						focusY: savedState!.focusY,
+						cardId: card.id,
+						linkRestoration
+					}
+				}));
 			} else {
 				// New card - animate to reading position
-				window.dispatchEvent(
-					new CustomEvent('canvas-focus', {
-						detail: {
-							x: card.position.x + card.dimensions.width / 2,
-							y: card.position.y, // Card top, not center
-							cardId: card.id,
-							linkRestoration
-						}
-					})
-				);
+				window.dispatchEvent(new CustomEvent('canvas-focus', {
+					detail: {
+						x: card.position.x + card.dimensions.width / 2,
+						y: card.position.y,
+						cardId: card.id,
+						linkRestoration
+					}
+				}));
 			}
 		}
 	}
 
 	/**
 	 * Focus a card without animating to it (for first-click behavior).
-	 * Just sets the focused card and saves current card's state.
+	 * Just sets the focused card - does NOT save current card's state.
 	 * A second click will trigger pan to reading position.
+	 *
+	 * Core principle: no pan = no saved state. Since this function doesn't pan,
+	 * it doesn't save reading position. This ensures consistent behavior.
 	 */
 	focusCardWithoutAnimation(cardId: string): void {
 		const card = this.cards.get(cardId);
 		if (!card) return;
 
-		// Save current card's state before switching
-		if (this.focusedCardId && this.focusedCardId !== cardId) {
-			const inReadingZone = this.viewportWidth > 0 && this.viewportHeight > 0
-				? this.isCardInReadingZone(this.viewportWidth, this.viewportHeight, 100)
-				: true;
-
-			if (!inReadingZone) {
-				this.clearSavedCardState(this.focusedCardId);
-			} else {
-				const focusY = this.viewportHeight > 0
-					? (this.viewportHeight / 2 - this.camera.y) / this.camera.zoom
-					: 0;
-				const existing = this.savedCardState.get(this.focusedCardId);
-				const newMap = new Map(this.savedCardState);
-				newMap.set(this.focusedCardId, {
-					...existing,
-					focusY
-				});
-				this.savedCardState = newMap;
-			}
-		}
-
-		// Just set focus, no animation
+		// Just set focus, no animation, no state save
+		// (consistent with "no pan = no saved state" principle)
 		this.focusedCardId = cardId;
 	}
 

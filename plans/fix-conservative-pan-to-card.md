@@ -1,5 +1,28 @@
 # fix: Conservative Pan-to-Card Behavior
 
+## Core Design Principles
+
+**Consistency is king.** The panning behavior must be identical whether navigating via:
+- Clicking on cards
+- Following links
+- Keyboard navigation (arrow keys)
+- Any other method
+
+**The fundamental rule:**
+- If we did NOT pan to go TO a card (because it was already visible), then we do NOT need to pan to go BACK to the parent
+- If we DID pan to go to a card, then we DO need to pan to go back
+
+**This means:**
+1. Reading position should only be saved/restored when panning actually occurred
+2. Don't handle click vs link vs keyboard differently - same rules everywhere
+3. The "reading position" concept only makes sense when the viewport actually moved
+
+**Implementation approach:**
+- Track whether a pan occurred when focusing a card
+- Only save reading position if we panned to get there
+- Only restore reading position if one was saved (meaning we panned before)
+- Conservative panning applies universally, not case-by-case
+
 ## Overview
 
 Make canvas pan-to-card behavior more conservative and calm. Currently, the canvas pans on every focus change regardless of whether the target card is already visible, creating a frenetic navigation experience. The goal is to pan only when necessary, pan minimally when possible, and make the overall experience calmer.
