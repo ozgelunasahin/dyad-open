@@ -1,15 +1,24 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import matter from 'gray-matter';
+import { markdownToJson } from './markdown-to-json';
 
 const CONTENT_DIR = 'content/notes';
 const OUTPUT_FILE = 'static/vault/index.json';
 const ENTRY_POINT = 'slow-reading';
 
+interface JSONContent {
+	type: string;
+	attrs?: Record<string, unknown>;
+	content?: JSONContent[];
+	text?: string;
+	marks?: Array<{ type: string; attrs?: Record<string, unknown> }>;
+}
+
 interface Note {
 	id: string;
 	title: string;
-	content: string;
+	content: JSONContent;
 	wikilinks: string[];
 }
 
@@ -90,7 +99,7 @@ function buildVault(): void {
 		notes[id] = {
 			id,
 			title: extractTitle(frontmatter, content, id),
-			content: content.trim(),
+			content: markdownToJson(content.trim()),
 			wikilinks: extractWikilinks(content)
 		};
 	}

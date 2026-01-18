@@ -33,14 +33,25 @@
 			return;
 		}
 
+		// Create JSON content for new note
+		const content = {
+			type: 'doc',
+			content: [
+				{
+					type: 'heading',
+					attrs: { level: 1 },
+					content: [{ type: 'text', text: newNoteName }]
+				},
+				{ type: 'paragraph' }
+			]
+		};
+
 		try {
-			// Create the note file via API
+			// Create the note via API with JSON content
 			const response = await fetch(`/api/notes/${slug}`, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					content: `---\ntitle: "${newNoteName}"\n---\n\n# ${newNoteName}\n\n`
-				})
+				body: JSON.stringify({ title: newNoteName, content })
 			});
 
 			if (!response.ok) {
@@ -62,11 +73,13 @@
 
 	onMount(async () => {
 		try {
+			console.log('[Canvas] Fetching vault...');
 			const response = await fetch('/vault/index.json');
 			if (!response.ok) {
 				throw new Error('Failed to load vault');
 			}
 			const vault: Vault = await response.json();
+			console.log('[Canvas] Vault loaded, notes:', Object.keys(vault.notes).length);
 
 			// If canvas has an entry point, use it; otherwise use vault default
 			if (data.canvas.entryPointNoteId) {
@@ -74,9 +87,12 @@
 			}
 
 			// Pass canvasId and saved positions for per-canvas state persistence
+			console.log('[Canvas] Initializing store...');
 			await canvasStore.initialize(vault, data.canvas.id, data.cardPositions);
+			console.log('[Canvas] Store initialized');
 			loading = false;
 		} catch (e) {
+			console.error('[Canvas] Error:', e);
 			error = e instanceof Error ? e.message : 'Unknown error';
 			loading = false;
 		}

@@ -1,7 +1,7 @@
 import type { Card, Connection, Camera, Point, Vault, Dimensions, LinkSide, SourceBounds } from '$lib/types';
-import { MAX_CARDS, DEFAULT_CARD_WIDTH, MIN_CARD_WIDTH, MAX_CARD_WIDTH } from '$lib/types';
+import type { JSONContent } from '@tiptap/core';
+import { MAX_CARDS } from '$lib/types';
 import { calculateNewCardPosition } from '$lib/utils/layout';
-import { measureMarkdownContent, calculateOptimalWidth } from '$lib/utils/measure';
 
 // Stored path with metadata
 export interface StoredPath {
@@ -126,6 +126,7 @@ class CanvasStore {
 	isAtLimit = $derived(this.cards.size >= MAX_CARDS);
 
 	async initialize(vault: Vault, canvasId?: string, savedPositions?: SavedPosition[]): Promise<void> {
+		console.log('[Store] initialize called');
 		this.vault = vault;
 		this.currentCanvasId = canvasId ?? null;
 
@@ -247,11 +248,14 @@ class CanvasStore {
 		}
 
 		// Fallback: Open the entry note
+		console.log('[Store] Opening entry note');
 		const entryNoteId = persisted?.lastViewedNoteId || vault.entryPoint;
 		const entryNote = vault.notes[entryNoteId] || vault.notes[vault.entryPoint];
 		if (entryNote) {
+			console.log('[Store] Entry note:', entryNote.id);
 			this.openNote(entryNote.id, null, null);
 		}
+		console.log('[Store] initialize complete');
 	}
 
 	// Debounced save to database
@@ -308,24 +312,21 @@ class CanvasStore {
 	/**
 	 * Calculate dimensions for a note's content.
 	 */
-	private calculateCardDimensions(content: string): Dimensions {
-		// Calculate optimal width based on content
-		const optimalWidth = calculateOptimalWidth(content, 1000, MIN_CARD_WIDTH, MAX_CARD_WIDTH);
-
-		// Measure actual height at this width
-		const measured = measureMarkdownContent(content, optimalWidth);
-
+	private calculateCardDimensions(content: JSONContent): Dimensions {
+		// Temporarily use defaults to debug
 		return {
-			width: optimalWidth,
-			height: Math.max(100, measured.height) // Minimum height
+			width: 320,
+			height: 200
 		};
 	}
 
 	openNote(noteId: string, fromCardId: string | null, sourceBounds: SourceBounds | null): boolean {
+		console.log('[Store] openNote:', noteId);
 		if (!this.vault) return false;
 
 		const note = this.vault.notes[noteId];
 		if (!note) return false;
+		console.log('[Store] Note content type:', typeof note.content);
 
 		// Check if note is already open
 		if (this.cards.has(noteId)) {
@@ -411,14 +412,20 @@ class CanvasStore {
 	 * Add a new note to the vault (for dynamically created notes).
 	 * This makes the note available for opening without a page reload.
 	 */
-	addNoteToVault(noteId: string, title: string): void {
+	addNoteToVault(noteId: string, title: string, content?: JSONContent): void {
 		if (!this.vault) return;
 
-		// Create a minimal note object
+		// Create note with provided content or default empty structure
 		const note = {
 			id: noteId,
 			title,
-			content: `# ${title}\n\n`,
+			content: content ?? {
+				type: 'doc',
+				content: [
+					{ type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: title }] },
+					{ type: 'paragraph' }
+				]
+			},
 			wikilinks: [] as string[]
 		};
 
@@ -429,6 +436,29 @@ class CanvasStore {
 		const newBrokenLinks = new Set(this.brokenLinks);
 		newBrokenLinks.delete(noteId);
 		this.brokenLinks = newBrokenLinks;
+	}
+
+	/**
+	 * Update the content of a note after editing.
+	 * Updates both the vault and any open card.
+	 */
+	updateNoteContent(noteId: string, content: JSONContent): void {
+		// Update in vault
+		if (this.vault?.notes[noteId]) {
+			this.vault.notes[noteId].content = content;
+		}
+
+		// Update in open card - reassign the map to trigger Svelte reactivity
+		const card = this.cards.get(noteId);
+		if (card) {
+			const updatedCard = {
+				...card,
+				note: { ...card.note, content }
+			};
+			const newCards = new Map(this.cards);
+			newCards.set(noteId, updatedCard);
+			this.cards = newCards;
+		}
 	}
 
 	/**
