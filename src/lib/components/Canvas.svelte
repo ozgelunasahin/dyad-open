@@ -395,12 +395,14 @@
 				}
 
 				// ArrowLeft: exit link focus, navigate left in chain
+				// Ctrl+Left keeps card open, plain Left closes it (Miller Columns pattern)
 				if (event.key === 'ArrowLeft') {
 					event.preventDefault();
 					saveLinkStateBeforeLeaving(true); // Remember we were in link focus
 					canvasStore.exitLinkFocusMode();
 					clearLinkHighlights();
-					canvasStore.navigateLeftInChain();
+					const keepOpen = event.ctrlKey || event.metaKey;
+					canvasStore.navigateLeftInChain(keepOpen);
 					// Link restoration happens after animation in restoreLinkFocusAfterAnimation()
 					return;
 				}
@@ -438,9 +440,11 @@
 			}
 
 			// Chain navigation (link restoration happens after animation)
+			// Ctrl+Left keeps card open, plain Left closes it (Miller Columns pattern)
 			if (event.key === 'ArrowLeft' && !event.altKey && !event.shiftKey) {
 				event.preventDefault();
-				canvasStore.navigateLeftInChain();
+				const keepOpen = event.ctrlKey || event.metaKey;
+				canvasStore.navigateLeftInChain(keepOpen);
 				return;
 			}
 

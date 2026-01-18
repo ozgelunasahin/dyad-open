@@ -22,10 +22,8 @@ const CHANNEL_STEP = 15; // Spacing between routing channels
 
 // Scoring constants for layout algorithm
 const SCORING = {
-	// Column preferences - right side is always preferred
-	RIGHT_SIDE_BONUS: 0,        // No penalty for right side
-	LEFT_SIDE_PENALTY: 150,     // Penalty for left side (even if link is on left)
-	COLUMN_FAR_PENALTY: 100,    // Additional penalty per column distance > 1
+	// Column preferences - right-only layout
+	COLUMN_FAR_PENALTY: 100,    // Penalty per column distance > 1
 	Y_DISTANCE_WEIGHT: 0.5,
 	// Line routing penalties
 	CHANNEL_REUSE_PENALTY: 500,
@@ -128,39 +126,27 @@ function generateCandidates(
 		yOffsets.push(-offset, offset);
 	}
 
-	// Columns to try: N+1, N+2, N+3 (right), and N-1, N-2 (left)
-	// Allow negative columns for left-side placement from root card
+	// Columns to try: right-only layout (N+1, N+2, N+3, N+4)
 	const columnsToTry = [
 		parentColumn + 1,
 		parentColumn + 2,
-		parentColumn - 1,  // Left side
-		parentColumn - 2,  // Further left
-		parentColumn + 3
+		parentColumn + 3,
+		parentColumn + 4
 	];
 
 	for (const targetColumn of columnsToTry) {
 		const targetX = targetColumn * COLUMN_WIDTH;
-		const isLeftSide = targetColumn < parentColumn;
 
-		// Calculate routing gap bounds
-		let gapStart: number, gapEnd: number;
-		if (isLeftSide) {
-			gapStart = targetX + newCardDimensions.width + 10;
-			gapEnd = parentCard.position.x - 10;
-		} else {
-			gapStart = parentCard.position.x + parentCard.dimensions.width + 10;
-			gapEnd = targetX - 10;
-		}
+		// Calculate routing gap bounds (right-only: parent right edge to target left edge)
+		const gapStart = parentCard.position.x + parentCard.dimensions.width + 10;
+		const gapEnd = targetX - 10;
 
 		// Find available routing channels in this gap
 		const usedChannels = findUsedVerticalChannels(existingPaths, gapStart, gapEnd);
 		const availableChannels = findAvailableChannels(gapStart, gapEnd, usedChannels);
 
-		// For left-side cards, position BELOW the link so line drops down (L-shape)
-		// For right-side cards, align heading with link position
-		const columnBaseY = isLeftSide
-			? linkPosition.y + 60  // Position card below link for downward L-shape
-			: baseY;               // Align heading with link
+		// Align heading with link position
+		const columnBaseY = baseY;
 
 		for (const yOffset of yOffsets) {
 			const candidateY = Math.max(0, columnBaseY + yOffset);
@@ -282,22 +268,10 @@ function scoreCandidatePosition(
 	const yDistance = Math.abs(candidate.position.y - idealY);
 	score += yDistance * SCORING.Y_DISTANCE_WEIGHT;
 
-	// 6. Column preference - right side always preferred, left as fallback
-	const isRightSide = candidate.column > parentColumn;
+	// 6. Column distance penalty (prefer closer columns)
 	const columnDistance = Math.abs(candidate.column - parentColumn);
-
-	if (isRightSide) {
-		// Right side: no base penalty, small penalty for distance
-		score += SCORING.RIGHT_SIDE_BONUS;
-		if (columnDistance > 1) {
-			score += (columnDistance - 1) * SCORING.COLUMN_FAR_PENALTY;
-		}
-	} else {
-		// Left side: base penalty plus distance penalty
-		score += SCORING.LEFT_SIDE_PENALTY;
-		if (columnDistance > 1) {
-			score += (columnDistance - 1) * SCORING.COLUMN_FAR_PENALTY;
-		}
+	if (columnDistance > 1) {
+		score += (columnDistance - 1) * SCORING.COLUMN_FAR_PENALTY;
 	}
 
 	// 7. Prefer unused routing channels (bonus for unique channel)

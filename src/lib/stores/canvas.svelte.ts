@@ -92,6 +92,9 @@ class CanvasStore {
 	// Edit mode state
 	editingCardId = $state<string | null>(null);
 
+	// Dimension cache - pre-computed at vault load for O(1) lookup
+	private dimensionCache = $state<Map<string, Dimensions>>(new Map());
+
 	// Link focus state for keyboard navigation
 	focusedLinkIndex = $state<number | null>(null);
 	isLinkFocusMode = $derived(this.focusedLinkIndex !== null);
@@ -151,6 +154,15 @@ class CanvasStore {
 			}
 		}
 		this.brokenLinks = broken;
+
+		// Pre-compute dimensions for all notes (O(1) lookup during navigation)
+		const newDimensionCache = new Map<string, Dimensions>();
+		for (const [noteId, note] of Object.entries(vault.notes)) {
+			const width = calculateOptimalWidthFromJson(note.content, MIN_CARD_WIDTH, MAX_CARD_WIDTH);
+			const height = estimateContentHeight(note.content, width);
+			newDimensionCache.set(noteId, { width, height: Math.max(100, height) });
+		}
+		this.dimensionCache = newDimensionCache;
 
 		// Load camera state from localStorage (camera is local preference)
 		const persisted = loadPersistedState(this.currentCanvasId);
@@ -312,14 +324,27 @@ class CanvasStore {
 
 	/**
 	 * Calculate dimensions for a note's content.
+	 * Uses cache if available, otherwise calculates and caches.
 	 */
-	private calculateCardDimensions(content: JSONContent): Dimensions {
+	private calculateCardDimensions(content: JSONContent, noteId?: string): Dimensions {
+		// Use cache if available
+		if (noteId && this.dimensionCache.has(noteId)) {
+			return this.dimensionCache.get(noteId)!;
+		}
+
+		// Fallback to calculation (for dynamically created notes)
 		const width = calculateOptimalWidthFromJson(content, MIN_CARD_WIDTH, MAX_CARD_WIDTH);
 		const height = estimateContentHeight(content, width);
-		return {
-			width,
-			height: Math.max(100, height)
-		};
+		const dimensions = { width, height: Math.max(100, height) };
+
+		// Cache the result
+		if (noteId) {
+			const newCache = new Map(this.dimensionCache);
+			newCache.set(noteId, dimensions);
+			this.dimensionCache = newCache;
+		}
+
+		return dimensions;
 	}
 
 	openNote(noteId: string, fromCardId: string | null, sourceBounds: SourceBounds | null): boolean {
@@ -346,8 +371,8 @@ class CanvasStore {
 			return false;
 		}
 
-		// Calculate dimensions for new card
-		const dimensions = this.calculateCardDimensions(note.content);
+		// Calculate dimensions for new card (uses cache)
+		const dimensions = this.calculateCardDimensions(note.content, noteId);
 
 		// Get parent card if exists
 		const parentCard = fromCardId ? this.cards.get(fromCardId) ?? null : null;
@@ -442,12 +467,19 @@ class CanvasStore {
 
 	/**
 	 * Update the content of a note after editing.
-	 * Updates both the vault and any open card.
+	 * Updates both the vault and any open card, and invalidates dimension cache.
 	 */
 	updateNoteContent(noteId: string, content: JSONContent): void {
 		// Update in vault
 		if (this.vault?.notes[noteId]) {
 			this.vault.notes[noteId].content = content;
+		}
+
+		// Invalidate dimension cache for this note (will recalculate on next open)
+		if (this.dimensionCache.has(noteId)) {
+			const newCache = new Map(this.dimensionCache);
+			newCache.delete(noteId);
+			this.dimensionCache = newCache;
 		}
 
 		// Update in open card - reassign the map to trigger Svelte reactivity
@@ -776,14 +808,24 @@ class CanvasStore {
 		this.focusedLinkIndex = (this.focusedLinkIndex - 1 + linkCount) % linkCount;
 	}
 
-	// Chain navigation: move left in chain
-	navigateLeftInChain(): boolean {
+	/**
+	 * Navigate left in chain with optional close behavior.
+	 * @param keepOpen - If true, don't close the current card (Ctrl+Left behavior)
+	 */
+	navigateLeftInChain(keepOpen: boolean = false): boolean {
 		if (!this.focusedCardId) return false;
 
 		const currentIndex = this.activeChain.indexOf(this.focusedCardId);
 		if (currentIndex <= 0) return false;
 
 		const targetCardId = this.activeChain[currentIndex - 1];
+
+		// Default behavior: close the card we're leaving (Miller Columns pattern)
+		// BUT: don't close if we're at index 1 (would leave only the root card)
+		if (!keepOpen && currentIndex > 1) {
+			this.unopenCurrentCard();
+		}
+
 		this.focusCard(targetCardId);
 		return true;
 	}
@@ -831,8 +873,8 @@ class CanvasStore {
 		// Use center of link bounds for placement calculations
 		const linkCenter: Point = { x: (sourceBounds.left + sourceBounds.right) / 2, y: sourceBounds.y };
 
-		// Calculate dimensions and position
-		const dimensions = this.calculateCardDimensions(note.content);
+		// Calculate dimensions and position (uses cache)
+		const dimensions = this.calculateCardDimensions(note.content, noteId);
 		const parentCard = this.cards.get(fromCardId) ?? null;
 		const existingCards = Array.from(this.cards.values());
 		const existingPathPoints = this.getExistingPathPoints();
@@ -1102,8 +1144,8 @@ class CanvasStore {
 			return true;
 		}
 
-		// Calculate dimensions
-		const dimensions = this.calculateCardDimensions(note.content);
+		// Calculate dimensions (uses cache)
+		const dimensions = this.calculateCardDimensions(note.content, noteId);
 
 		// Calculate orphan position - place above existing cards
 		const position = this.calculateOrphanPosition(dimensions);
