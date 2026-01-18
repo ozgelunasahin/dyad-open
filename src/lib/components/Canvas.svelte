@@ -182,6 +182,33 @@
 
 		window.addEventListener('canvas-restore', handleRestorePosition);
 
+		// Listen for minimal pan requests (partially visible cards)
+		const handleMinimalPan = (event: Event) => {
+			const customEvent = event as CustomEvent<{
+				cardId: string;
+				dx: number;
+				dy: number;
+				linkRestoration?: { linkTarget?: string; linkFocusActive: boolean } | null;
+			}>;
+			pendingLinkRestoration = customEvent.detail.linkRestoration ?? null;
+			animateMinimalPan(customEvent.detail.dx, customEvent.detail.dy);
+		};
+
+		window.addEventListener('canvas-minimal-pan', handleMinimalPan);
+
+		// Listen for instant focus (fully visible cards, no animation needed)
+		const handleFocusInstant = (event: Event) => {
+			const customEvent = event as CustomEvent<{
+				cardId: string;
+				linkRestoration?: { linkTarget?: string; linkFocusActive: boolean } | null;
+			}>;
+			// No animation needed, just restore link focus immediately
+			pendingLinkRestoration = customEvent.detail.linkRestoration ?? null;
+			restoreLinkFocusAfterAnimation();
+		};
+
+		window.addEventListener('canvas-focus-instant', handleFocusInstant);
+
 		// Keyboard shortcuts for canvas navigation
 		const handleKeyDown = (event: KeyboardEvent) => {
 			// Don't trigger if already editing or if typing in an input
@@ -495,6 +522,8 @@
 			clearTimeout(mountPathsTimer);
 			window.removeEventListener('canvas-focus', handleFocusAnimation);
 			window.removeEventListener('canvas-restore', handleRestorePosition);
+			window.removeEventListener('canvas-minimal-pan', handleMinimalPan);
+			window.removeEventListener('canvas-focus-instant', handleFocusInstant);
 			window.removeEventListener('canvas-zoom-to-fit', handleZoomToFit);
 			window.removeEventListener('canvas-compute-paths', handleComputePaths);
 			window.removeEventListener('keydown', handleKeyDown);
@@ -610,7 +639,7 @@
 		const startX = transform.x;
 		const startY = transform.y;
 
-		const duration = 400;
+		const duration = 500; // Slower for calmer navigation
 		const startTime = Date.now();
 
 		function animate() {
@@ -668,7 +697,7 @@
 		const startX = transform.x;
 		const startY = transform.y;
 
-		const duration = 300; // Slightly faster for "going back"
+		const duration = 400; // Match calmer navigation pace
 		const startTime = Date.now();
 
 		function animate() {
@@ -687,6 +716,57 @@
 			// Keep current zoom constant
 			const newTransform = zoomIdentity.translate(currentX, currentY).scale(zoomLevel);
 
+			selection.call(zoomBehavior.transform, newTransform);
+
+			if (progress < 1) {
+				requestAnimationFrame(animate);
+			} else {
+				canvasStore.setAnimating(false);
+				restoreLinkFocusAfterAnimation();
+			}
+		}
+
+		requestAnimationFrame(animate);
+	}
+
+	/**
+	 * Smoothly animate a minimal pan to show a partially visible card.
+	 * Uses shorter duration (250ms) since the movement is small.
+	 * Preserves current zoom level.
+	 */
+	function animateMinimalPan(dx: number, dy: number) {
+		if (!svg) return;
+
+		// Reset cancellation flag for new animation
+		animationCancelled = false;
+
+		const selection = select(svg);
+
+		// Capture zoom at start to prevent race conditions
+		const zoomLevel = transform.k;
+
+		const startX = transform.x;
+		const startY = transform.y;
+		const endX = transform.x + dx;
+		const endY = transform.y + dy;
+
+		const duration = 350; // Slightly shorter for minimal pans
+		const startTime = Date.now();
+
+		function animate() {
+			// Check cancellation at start of each frame
+			if (animationCancelled) return;
+
+			const elapsed = Date.now() - startTime;
+			const progress = Math.min(elapsed / duration, 1);
+
+			// Ease out quad
+			const eased = 1 - (1 - progress) * (1 - progress);
+
+			const currentX = startX + (endX - startX) * eased;
+			const currentY = startY + (endY - startY) * eased;
+
+			const newTransform = zoomIdentity.translate(currentX, currentY).scale(zoomLevel);
 			selection.call(zoomBehavior.transform, newTransform);
 
 			if (progress < 1) {
