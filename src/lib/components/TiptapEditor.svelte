@@ -142,8 +142,9 @@
 			editor.setEditable(editable);
 
 			// Auto-focus when becoming editable, blur when leaving
+			// Use focus() without position to preserve any existing selection from clicking
 			if (editable && !wasEditable) {
-				editor.commands.focus('end');
+				editor.commands.focus();
 			} else if (!editable && wasEditable) {
 				editor.commands.blur();
 			}
