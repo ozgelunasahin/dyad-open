@@ -891,16 +891,14 @@
 		connectionsWithPaths.sort((a, b) => a.key.localeCompare(b.key));
 
 		// Regenerate SVG for each path, only hopping over paths with LOWER keys
-		for (let i = 0; i < connectionsWithPaths.length; i++) {
-			const { conn, points } = connectionsWithPaths[i];
+		// Build olderPaths incrementally to avoid O(n²) allocations from slice().map()
+		const olderPaths: Point[][] = [];
+
+		for (const { conn, points } of connectionsWithPaths) {
 			const storedPath = canvasStore.getStoredPath(conn.fromCardId, conn.toCardId);
 			if (!storedPath) continue;
 
-			// Only include paths with lower indices (earlier in sorted order) as "other paths"
-			// This means only the lexicographically greater path gets hops at intersections
-			const olderPaths = connectionsWithPaths.slice(0, i).map(c => c.points);
-
-			// Regenerate SVG with hops only for older paths
+			// Regenerate SVG with hops only for older paths (already accumulated)
 			const newSvgPath = pathToSvgWithHops(points, olderPaths);
 
 			// Update the stored path with new SVG
@@ -908,6 +906,9 @@
 				...storedPath,
 				svgPath: newSvgPath
 			});
+
+			// Add this path to olderPaths for subsequent iterations
+			olderPaths.push(points);
 		}
 	}
 

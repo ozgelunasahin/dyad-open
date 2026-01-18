@@ -5,6 +5,7 @@ import {
 	findUsedVerticalChannels,
 	simulatePath
 } from './pathfinding';
+import { segmentsIntersect, sharesEndpoint } from './geometry';
 
 /**
  * Card placement with multi-candidate scoring to avoid coaxial line overlap.
@@ -413,34 +414,6 @@ function lineIntersectsRect(
 	);
 }
 
-function sharesEndpoint(p1: Point, p2: Point, p3: Point, p4: Point): boolean {
-	return (
-		pointsClose(p1, p3) || pointsClose(p1, p4) ||
-		pointsClose(p2, p3) || pointsClose(p2, p4)
-	);
-}
-
-function pointsClose(a: Point, b: Point): boolean {
-	return Math.abs(a.x - b.x) < 5 && Math.abs(a.y - b.y) < 5;
-}
-
-function segmentsIntersect(p1: Point, p2: Point, p3: Point, p4: Point): boolean {
-	const d1 = direction(p3, p4, p1);
-	const d2 = direction(p3, p4, p2);
-	const d3 = direction(p1, p2, p3);
-	const d4 = direction(p1, p2, p4);
-
-	if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
-		((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
-		return true;
-	}
-
-	return false;
-}
-
-function direction(p1: Point, p2: Point, p3: Point): number {
-	return (p3.x - p1.x) * (p2.y - p1.y) - (p2.x - p1.x) * (p3.y - p1.y);
-}
 
 /**
  * Check if a position overlaps with any existing cards.
