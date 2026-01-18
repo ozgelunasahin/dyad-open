@@ -163,7 +163,7 @@
 	}
 
 	export function focus(): void {
-		editor?.commands.focus();
+		editor?.commands.focus('end');
 	}
 
 	export function getJSON(): JSONContent {

@@ -123,8 +123,8 @@ function validateJSONContent(node: unknown, depth = 0): string | null {
 		const attrs = n.attrs as Record<string, unknown>;
 
 		if (n.type === 'image') {
-			// Allow only safe attributes for images
-			const allowedImageAttrs = ['src', 'alt', 'title'];
+			// Allow only safe attributes for images (Tiptap may add width/height)
+			const allowedImageAttrs = ['src', 'alt', 'title', 'width', 'height'];
 			for (const key of Object.keys(attrs)) {
 				if (!allowedImageAttrs.includes(key)) {
 					return `Invalid image attribute: "${key}"`;
