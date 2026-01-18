@@ -8,6 +8,9 @@ const VAULT_FILE = resolve('./static/vault/index.json');
 const API_WRITE_MARKER = '.last-api-write';
 const MAX_CONTENT_SIZE = 1024 * 100; // 100KB limit
 
+// Simple write lock to prevent concurrent vault modifications
+let writeLock: Promise<void> = Promise.resolve();
+
 // Response types for type safety
 interface NoteGetResponse {
 	content: JSONContent;
@@ -272,7 +275,17 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
 		);
 	}
 
+	// Use write lock to serialize vault modifications and prevent race conditions
+	let resolve: () => void;
+	const previousLock = writeLock;
+	writeLock = new Promise<void>((r) => {
+		resolve = r;
+	});
+
 	try {
+		// Wait for any in-progress write to complete
+		await previousLock;
+
 		// Load vault, update note, save vault
 		await touchMarker();
 		const vault = await loadVault();
@@ -294,6 +307,9 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
 		const message = error instanceof Error ? error.message : 'Unknown error';
 		console.error(`[API] Failed to save ${slug}:`, message);
 		return json({ error: 'Failed to save note' } satisfies ApiErrorResponse, { status: 500 });
+	} finally {
+		// Always release the lock
+		resolve!();
 	}
 };
 
