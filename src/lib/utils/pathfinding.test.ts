@@ -355,4 +355,14 @@ describe('getCardEntryPoint', () => {
 		expect(entry.y).toBe(70); // card.y + 20
 	});
 
+	it('enters from right when coming from the right', () => {
+		const card = makeCard(100, 50, 200, 300);
+		const fromPoint = { x: 400, y: 100 }; // Coming from right
+
+		const entry = getCardEntryPoint(card, fromPoint);
+
+		// Should enter from right edge (card.x + width + 8)
+		expect(entry.x).toBe(308); // 100 + 200 + 8
+		expect(entry.y).toBe(70); // card.y + 20
+	});
 });
