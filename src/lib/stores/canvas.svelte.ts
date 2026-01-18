@@ -120,6 +120,10 @@ class CanvasStore {
 	// Current canvas ID for per-canvas state persistence
 	private currentCanvasId: string | null = null;
 
+	// Debounce flag for path computation requests
+	// Prevents multiple requestAnimationFrame callbacks from queuing up
+	private pathComputationRequested = false;
+
 	private history = $state<{ back: string[][]; forward: string[][] }>({
 		back: [],
 		forward: []
@@ -235,9 +239,7 @@ class CanvasStore {
 				}
 
 				// Trigger path computation after Canvas component mounts
-				requestAnimationFrame(() => {
-					window.dispatchEvent(new CustomEvent('canvas-compute-paths'));
-				});
+				this.requestPathComputation();
 				return;
 			}
 		}
@@ -275,9 +277,7 @@ class CanvasStore {
 				this.persistToDatabase();
 
 				// Trigger path computation after Canvas component mounts
-				requestAnimationFrame(() => {
-					window.dispatchEvent(new CustomEvent('canvas-compute-paths'));
-				});
+				this.requestPathComputation();
 				return;
 			}
 		}
@@ -342,6 +342,22 @@ class CanvasStore {
 			return true;
 		}
 		return this.brokenLinks.has(target);
+	}
+
+	/**
+	 * Request path computation with debouncing.
+	 * Multiple calls within the same frame are coalesced into one event dispatch.
+	 */
+	private requestPathComputation(): void {
+		if (this.pathComputationRequested) return;
+		this.pathComputationRequested = true;
+
+		requestAnimationFrame(() => {
+			this.pathComputationRequested = false;
+			if (typeof window !== 'undefined') {
+				window.dispatchEvent(new CustomEvent('canvas-compute-paths'));
+			}
+		});
 	}
 
 	/**
@@ -989,9 +1005,16 @@ class CanvasStore {
 		newHiddenChains.delete(chainKey);
 		this.hiddenChains = newHiddenChains;
 
-		// Reopen each card in the chain
+		// Batch compute all cards and connections FIRST, then update state ONCE
+		// This prevents N map copies and N rerenders during chain restoration
+		const cardsToAdd: Card[] = [];
+		const connectionsToAdd: Connection[] = [];
+
 		let prevCardId = parentCardId;
 		let prevSourceBounds = sourceBounds;
+
+		// Build a working copy of cards for position calculation
+		const workingCards = new Map(this.cards);
 
 		for (const cardId of cardIds) {
 			const note = this.vault.notes[cardId];
@@ -1001,13 +1024,13 @@ class CanvasStore {
 			const dimensions = this.calculateCardDimensions(note.content, cardId);
 
 			// Calculate position relative to previous card
-			const prevCard = this.cards.get(prevCardId);
+			const prevCard = workingCards.get(prevCardId);
 			const linkCenter: Point = {
 				x: (prevSourceBounds.left + prevSourceBounds.right) / 2,
 				y: prevSourceBounds.y
 			};
 
-			const existingCards = Array.from(this.cards.values());
+			const existingCards = Array.from(workingCards.values());
 			const existingPathPoints = this.getExistingPathPoints();
 
 			const { position } = calculateNewCardPosition(
@@ -1018,7 +1041,7 @@ class CanvasStore {
 				existingPathPoints
 			);
 
-			// Create the card
+			// Create the card object
 			const newCard: Card = {
 				id: cardId,
 				note,
@@ -1028,28 +1051,33 @@ class CanvasStore {
 				sourceLink: linkCenter
 			};
 
-			const newCards = new Map(this.cards);
-			newCards.set(cardId, newCard);
-			this.cards = newCards;
+			// Add to batch arrays and working copy (for next iteration's position calc)
+			cardsToAdd.push(newCard);
+			workingCards.set(cardId, newCard);
 
-			// Add connection
-			this.connections = [
-				...this.connections,
-				{
-					fromCardId: prevCardId,
-					toCardId: cardId,
-					sourceBounds: prevSourceBounds
-				}
-			];
+			// Queue connection
+			connectionsToAdd.push({
+				fromCardId: prevCardId,
+				toCardId: cardId,
+				sourceBounds: prevSourceBounds
+			});
 
-			// Update for next iteration - use card's center as source bounds for next
+			// Update for next iteration
 			prevCardId = cardId;
 			prevSourceBounds = {
 				left: position.x + dimensions.width / 2,
 				right: position.x + dimensions.width / 2,
-				y: position.y + 50 // Approximate link position
+				y: position.y + 50 // Approximate Y offset to first link
 			};
 		}
+
+		// Single atomic state updates (triggers only one rerender)
+		const newCards = new Map(this.cards);
+		for (const card of cardsToAdd) {
+			newCards.set(card.id, card);
+		}
+		this.cards = newCards;
+		this.connections = [...this.connections, ...connectionsToAdd];
 
 		// Update active chain
 		const currentIndex = this.activeChain.indexOf(parentCardId);
@@ -1064,9 +1092,7 @@ class CanvasStore {
 		this.focusCard(lastCardId);
 
 		// Trigger path computation
-		requestAnimationFrame(() => {
-			window.dispatchEvent(new CustomEvent('canvas-compute-paths'));
-		});
+		this.requestPathComputation();
 
 		this.persistState();
 		this.schedulePersist();
@@ -1141,9 +1167,7 @@ class CanvasStore {
 		this.schedulePersist();
 
 		// Trigger path regeneration so remaining paths update their hops
-		requestAnimationFrame(() => {
-			window.dispatchEvent(new CustomEvent('canvas-compute-paths'));
-		});
+		this.requestPathComputation();
 
 		return true;
 	}
@@ -1211,9 +1235,7 @@ class CanvasStore {
 		this.schedulePersist();
 
 		// Trigger path regeneration so remaining paths update their hops
-		requestAnimationFrame(() => {
-			window.dispatchEvent(new CustomEvent('canvas-compute-paths'));
-		});
+		this.requestPathComputation();
 
 		return true;
 	}
@@ -1525,9 +1547,7 @@ class CanvasStore {
 		}
 
 		// Dispatch compute-paths event to generate all connection lines
-		if (typeof window !== 'undefined') {
-			window.dispatchEvent(new CustomEvent('canvas-compute-paths'));
-		}
+		this.requestPathComputation();
 
 		// Dispatch zoom to fit event after all links opened
 		if (typeof window !== 'undefined') {
