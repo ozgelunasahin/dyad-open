@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { tick } from 'svelte';
 	import type { Card } from '$lib/types';
 	import type { JSONContent } from '@tiptap/core';
 	import { isHTMLElement } from '$lib/utils/type-guards';
@@ -52,9 +51,7 @@
 
 			currentContent = card.note.content;
 			canvasStore.enterEditMode(card.id);
-
-			await tick();
-			editorComponent?.focus();
+			// TiptapEditor auto-focuses when editable changes to true
 		} finally {
 			isEnteringEditMode = false;
 		}
