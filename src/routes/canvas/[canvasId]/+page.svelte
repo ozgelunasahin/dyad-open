@@ -2,6 +2,8 @@
 	import { onMount } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { dev } from '$app/environment';
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import type { PageData, ActionData } from './$types';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import { themeStore } from '$lib/stores/theme.svelte';
@@ -18,7 +20,6 @@
 	let creatingNote = $state(false);
 	let newNoteName = $state('');
 	let showHelp = $state(false);
-	let hasNotes = $state(Object.keys(data.vault.notes).length > 0);
 
 	async function createOrphanNote() {
 		if (!newNoteName.trim()) return;
@@ -62,10 +63,10 @@
 				throw new Error('Failed to create note');
 			}
 
-			// For first note, add to vault before creating card
+			// If this was the first note, reload to properly initialize the canvas
 			if (wasEmpty) {
-				canvasStore.addNoteToVault(slug, newNoteName, content);
-				hasNotes = true; // Trigger re-render to exit empty state
+				window.location.href = `/canvas/${data.canvas.id}?edit=${slug}`;
+				return;
 			}
 
 			// Create orphan card in the canvas store
@@ -95,6 +96,17 @@
 			await canvasStore.initialize(data.vault, data.canvas.id, data.cardPositions);
 			console.log('[Canvas] Store initialized');
 			loading = false;
+
+			// Check for ?edit= query param (used after first note creation)
+			const editSlug = $page.url.searchParams.get('edit');
+			if (editSlug && data.vault.notes[editSlug]) {
+				// Clear the query param from URL
+				goto(`/canvas/${data.canvas.id}`, { replaceState: true });
+				// Enter edit mode after a short delay for card to render
+				setTimeout(() => {
+					canvasStore.enterEditMode(editSlug);
+				}, 100);
+			}
 		} catch (e) {
 			console.error('[Canvas] Error:', e);
 			error = e instanceof Error ? e.message : 'Unknown error';
@@ -145,7 +157,7 @@
 			<p>{error}</p>
 			<button onclick={() => window.location.reload()}>Retry</button>
 		</div>
-	{:else if !hasNotes}
+	{:else if Object.keys(data.vault.notes).length === 0}
 		<!-- Empty canvas state -->
 		<div class="empty-canvas">
 			<h2>Your canvas is empty</h2>
@@ -185,19 +197,16 @@
 							createOrphanNote();
 						}}
 					>
-						<div class="form-group">
-							<label for="noteName">Note Title</label>
-							<input
-								type="text"
-								id="noteName"
-								bind:value={newNoteName}
-								required
-								maxlength="100"
-								placeholder="Enter a title..."
-								disabled={creatingNote}
-								autofocus
-							/>
-						</div>
+						<input
+							type="text"
+							id="noteName"
+							bind:value={newNoteName}
+							required
+							maxlength="100"
+							placeholder="Note title"
+							disabled={creatingNote}
+							autofocus
+						/>
 						<div class="modal-actions">
 							<button
 								type="button"
@@ -334,19 +343,16 @@
 							createOrphanNote();
 						}}
 					>
-						<div class="form-group">
-							<label for="noteName">Note Title</label>
-							<input
-								type="text"
-								id="noteName"
-								bind:value={newNoteName}
-								required
-								maxlength="100"
-								placeholder="Enter a title..."
-								disabled={creatingNote}
-								autofocus
-							/>
-						</div>
+						<input
+							type="text"
+							id="noteName"
+							bind:value={newNoteName}
+							required
+							maxlength="100"
+							placeholder="Note title"
+							disabled={creatingNote}
+							autofocus
+						/>
 						<div class="modal-actions">
 							<button
 								type="button"
@@ -1007,18 +1013,7 @@
 		color: var(--text-muted);
 	}
 
-	.form-group {
-		margin-bottom: 20px;
-	}
-
-	.form-group label {
-		display: block;
-		margin-bottom: 6px;
-		font-size: 0.9rem;
-		color: var(--text-secondary);
-	}
-
-	.form-group input {
+	.modal input[type='text'] {
 		width: 100%;
 		padding: 10px 12px;
 		border: 1px solid var(--border-link);
@@ -1027,9 +1022,10 @@
 		font-family: inherit;
 		background: var(--bg-canvas);
 		color: var(--text-primary);
+		margin-bottom: 20px;
 	}
 
-	.form-group input:focus {
+	.modal input[type='text']:focus {
 		outline: none;
 		border-color: var(--text-link-hover);
 	}
