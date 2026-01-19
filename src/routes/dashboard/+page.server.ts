@@ -8,19 +8,32 @@ export const load: PageServerLoad = async ({ locals }) => {
 		redirect(302, '/login');
 	}
 
-	const { data: canvases, error } = await locals.supabase
-		.from('canvases')
-		.select('id, name, slug, is_published, entry_point_note_id, created_at, updated_at')
-		.order('updated_at', { ascending: false });
+	const userId = locals.user.id;
 
-	if (error) {
-		console.error('Failed to load canvases:', error);
+	// Load canvases and profile in parallel
+	const [canvasesResult, profileResult] = await Promise.all([
+		locals.supabase
+			.from('canvases')
+			.select('id, name, slug, is_published, entry_point_note_id, created_at, updated_at')
+			.order('updated_at', { ascending: false }),
+		locals.supabase
+			.from('profiles')
+			.select('onboarded')
+			.eq('id', userId)
+			.single()
+	]);
+
+	if (canvasesResult.error) {
+		console.error('Failed to load canvases:', canvasesResult.error);
 	}
 
-	// Seed starter canvas for new users
-	if (!canvases || canvases.length === 0) {
+	const canvases = canvasesResult.data;
+	const isOnboarded = profileResult.data?.onboarded ?? false;
+
+	// Seed starter canvas for new users who haven't been onboarded yet
+	// This only runs once per account - deleting the canvas won't recreate it
+	if ((!canvases || canvases.length === 0) && !isOnboarded) {
 		const canvasId = nanoid();
-		const userId = locals.user.id;
 
 		// Create starter canvas FIRST (notes have FK to canvas)
 		const { error: canvasError } = await locals.supabase.from('canvases').insert({
@@ -50,6 +63,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 		if (notesError) {
 			console.error('Failed to seed starter notes:', notesError);
 		}
+
+		// Mark user as onboarded
+		await locals.supabase
+			.from('profiles')
+			.update({ onboarded: true })
+			.eq('id', userId);
 
 		// Return the new canvas in the list (re-fetch to get accurate data)
 		const { data: newCanvases } = await locals.supabase
