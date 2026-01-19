@@ -244,7 +244,9 @@
 		// repeat. The exact mechanism isn't fully understood. For now, we only
 		// update the store when saving. This may affect real-time sync if multiple
 		// views of the same note exist.
-		scheduleSave();
+		if (!readOnly) {
+			scheduleSave();
+		}
 	}
 
 	// Debounced save
@@ -376,15 +378,10 @@
 			{isLinkBroken}
 			editable={isEditing}
 		/>
+		{#if saveStatus === 'error'}
+			<div class="save-indicator error">Error saving</div>
+		{/if}
 	</div>
-	{#if saveStatus === 'error'}
-		<div
-			xmlns="http://www.w3.org/1999/xhtml"
-			class="save-indicator error"
-		>
-			Error saving
-		</div>
-	{/if}
 </foreignObject>
 
 <style>
@@ -393,6 +390,7 @@
 	}
 
 	.text-block {
+		position: relative;
 		min-height: 100%;
 		font-family: 'Georgia', 'Times New Roman', 'Noto Serif', serif;
 		font-size: 14px;
@@ -416,12 +414,13 @@
 
 	.save-indicator {
 		position: absolute;
-		top: -28px;
-		right: 0;
+		top: 4px;
+		right: 4px;
 		font-size: 11px;
 		padding: 2px 8px;
 		border-radius: 3px;
 		font-family: system-ui, sans-serif;
+		z-index: 10;
 	}
 
 	.save-indicator.error {
