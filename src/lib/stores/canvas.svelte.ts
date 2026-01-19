@@ -156,6 +156,7 @@ class CanvasStore {
 		this.editingCardId = null;
 		this.history = { back: [], forward: [] };
 		this.hiddenChains = new Map();
+		this.savedCardState = new Map(); // Clear stale reading positions
 
 		// Pre-compute broken links
 		const validNoteIds = new Set(Object.keys(vault.notes));
