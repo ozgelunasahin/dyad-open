@@ -10,8 +10,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const userId = locals.user.id;
 
-	// Load canvases and profile in parallel
-	const [canvasesResult, profileResult] = await Promise.all([
+	// Load user's canvases, profile, and published canvases from others in parallel
+	const [canvasesResult, profileResult, publishedCanvasesResult] = await Promise.all([
 		locals.supabase
 			.from('canvases')
 			.select('id, name, slug, is_published, entry_point_note_id, created_at, updated_at')
@@ -19,10 +19,41 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.order('updated_at', { ascending: false }),
 		locals.supabase
 			.from('profiles')
-			.select('onboarded')
+			.select('onboarded, username')
 			.eq('id', userId)
-			.single()
+			.single(),
+		locals.supabase
+			.from('canvases')
+			.select('id, name, slug, user_id, updated_at')
+			.eq('is_published', true)
+			.neq('user_id', userId)
+			.order('updated_at', { ascending: false })
+			.limit(20)
 	]);
+
+	// Fetch usernames for published canvases (separate query since no direct FK)
+	let publishedCanvases: Array<{
+		id: string;
+		name: string;
+		slug: string;
+		user_id: string;
+		username: string;
+		updated_at: string;
+	}> = [];
+
+	if (publishedCanvasesResult.data && publishedCanvasesResult.data.length > 0) {
+		const userIds = [...new Set(publishedCanvasesResult.data.map((c) => c.user_id))];
+		const { data: profiles } = await locals.supabase
+			.from('profiles')
+			.select('id, username')
+			.in('id', userIds);
+
+		const usernameMap = new Map(profiles?.map((p) => [p.id, p.username]) ?? []);
+		publishedCanvases = publishedCanvasesResult.data.map((canvas) => ({
+			...canvas,
+			username: usernameMap.get(canvas.user_id) ?? 'unknown'
+		}));
+	}
 
 	if (canvasesResult.error) {
 		console.error('Failed to load canvases:', canvasesResult.error);
@@ -30,6 +61,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const canvases = canvasesResult.data;
 	const isOnboarded = profileResult.data?.onboarded ?? false;
+	const username = profileResult.data?.username ?? '';
 
 	// Seed starter canvas for new users who haven't been onboarded yet
 	// This only runs once per account - deleting the canvas won't recreate it
@@ -80,13 +112,17 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 		return {
 			user: locals.user,
-			canvases: newCanvases ?? []
+			username,
+			canvases: newCanvases ?? [],
+			publishedCanvases
 		};
 	}
 
 	return {
 		user: locals.user,
-		canvases: canvases ?? []
+		username,
+		canvases: canvases ?? [],
+		publishedCanvases
 	};
 };
 
