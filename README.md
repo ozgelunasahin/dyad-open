@@ -36,12 +36,31 @@ Run `supabase-setup.sql` in your Supabase SQL editor to create the required tabl
 
 ## Environment Variables
 
-Create a `.env` file:
+Create a `.env` file for local development:
 
 ```
 PUBLIC_SUPABASE_URL=your-supabase-url
 PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
+
+## Deployment
+
+The app is deployed to **Cloudflare Pages** using `@sveltejs/adapter-cloudflare`.
+
+### Cloudflare Pages Setup
+
+1. Connect your GitHub repository to Cloudflare Pages
+2. Set build command: `npm run build`
+3. Set build output directory: `.svelte-kit/cloudflare`
+4. Add environment variables in Cloudflare dashboard:
+   - `PUBLIC_SUPABASE_URL`
+   - `PUBLIC_SUPABASE_ANON_KEY`
+
+### Production Supabase
+
+For production, update your Supabase project settings:
+- Add your Cloudflare Pages URL to **Authentication > URL Configuration > Site URL**
+- Add it to **Redirect URLs** for OAuth flows
 
 ## License
 
