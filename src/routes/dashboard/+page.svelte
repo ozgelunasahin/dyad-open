@@ -27,7 +27,7 @@
 			<h1>Your Canvases</h1>
 		</div>
 		<div class="header-right">
-			<span class="username">@{data.user.username}</span>
+			<span class="username">{data.user.email}</span>
 			<a href="/logout" class="logout-btn">Sign out</a>
 		</div>
 	</header>
@@ -53,13 +53,13 @@
 					<a href="/canvas/{canvas.id}" class="canvas-card">
 						<div class="canvas-header">
 							<h2>{canvas.name}</h2>
-							{#if canvas.isPublished}
+							{#if canvas.is_published}
 								<span class="published-badge">Published</span>
 							{/if}
 						</div>
 						<div class="canvas-meta">
-							<span class="slug">/{data.user.username}/{canvas.slug}</span>
-							<span class="date">{formatDate(canvas.updatedAt)}</span>
+							<span class="slug">/{canvas.slug}</span>
+							<span class="date">{formatDate(canvas.updated_at)}</span>
 						</div>
 						<button
 							class="delete-btn"

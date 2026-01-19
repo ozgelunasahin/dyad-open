@@ -1,37 +1,44 @@
+import { createServerClient } from '@supabase/ssr';
+import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 import type { Handle } from '@sveltejs/kit';
-import { validateSession } from '$lib/server/db/operations';
-
-const SESSION_COOKIE = 'session';
 
 export const handle: Handle = async ({ event, resolve }) => {
-	const sessionId = event.cookies.get(SESSION_COOKIE);
-
-	if (sessionId) {
-		try {
-			const result = await validateSession(sessionId);
-			if (result) {
-				event.locals.user = {
-					id: result.user.id,
-					email: result.user.email,
-					username: result.user.username
-				};
-				event.locals.session = result.session;
-			} else {
-				// Invalid or expired session
-				event.cookies.delete(SESSION_COOKIE, { path: '/' });
-				event.locals.user = null;
-				event.locals.session = null;
+	event.locals.supabase = createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
+		cookies: {
+			getAll: () => event.cookies.getAll(),
+			setAll: (cookiesToSet) => {
+				cookiesToSet.forEach(({ name, value, options }) => {
+					event.cookies.set(name, value, { ...options, path: '/' });
+				});
 			}
-		} catch (err) {
-			console.error('Session validation error:', err);
-			event.cookies.delete(SESSION_COOKIE, { path: '/' });
-			event.locals.user = null;
-			event.locals.session = null;
 		}
-	} else {
-		event.locals.user = null;
-		event.locals.session = null;
-	}
+	});
+
+	event.locals.safeGetSession = async () => {
+		const {
+			data: { session }
+		} = await event.locals.supabase.auth.getSession();
+
+		if (!session) {
+			return { session: null, user: null };
+		}
+
+		const {
+			data: { user },
+			error
+		} = await event.locals.supabase.auth.getUser();
+
+		if (error) {
+			return { session: null, user: null };
+		}
+
+		return { session, user };
+	};
+
+	// Populate user and session for convenience
+	const { session, user } = await event.locals.safeGetSession();
+	event.locals.session = session;
+	event.locals.user = user;
 
 	return resolve(event);
 };

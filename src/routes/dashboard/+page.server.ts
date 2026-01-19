@@ -1,18 +1,24 @@
-import { redirect } from '@sveltejs/kit';
+import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { getUserCanvases, createCanvas, deleteCanvas, getCanvasById } from '$lib/server/db/operations';
-import { fail } from '@sveltejs/kit';
+import { nanoid } from 'nanoid';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) {
 		redirect(302, '/login');
 	}
 
-	const canvases = await getUserCanvases(locals.user.id);
+	const { data: canvases, error } = await locals.supabase
+		.from('canvases')
+		.select('id, name, slug, is_published, entry_point_note_id, created_at, updated_at')
+		.order('updated_at', { ascending: false });
+
+	if (error) {
+		console.error('Failed to load canvases:', error);
+	}
 
 	return {
 		user: locals.user,
-		canvases
+		canvases: canvases ?? []
 	};
 };
 
@@ -40,18 +46,25 @@ export const actions: Actions = {
 			return fail(400, { error: 'Invalid canvas name' });
 		}
 
-		let canvas;
-		try {
-			canvas = await createCanvas(locals.user.id, name, slug);
-		} catch (err: unknown) {
-			if (err instanceof Error && err.message.includes('UNIQUE constraint')) {
+		const id = nanoid();
+
+		const { error } = await locals.supabase.from('canvases').insert({
+			id,
+			user_id: locals.user.id,
+			name,
+			slug
+		});
+
+		if (error) {
+			if (error.code === '23505') {
+				// Unique constraint violation
 				return fail(400, { error: 'A canvas with this name already exists' });
 			}
-			console.error('Create canvas error:', err);
+			console.error('Create canvas error:', error);
 			return fail(500, { error: 'Failed to create canvas' });
 		}
 
-		redirect(302, `/canvas/${canvas.id}`);
+		redirect(302, `/canvas/${id}`);
 	},
 
 	delete: async ({ request, locals }) => {
@@ -66,16 +79,21 @@ export const actions: Actions = {
 			return fail(400, { error: 'Invalid canvas ID' });
 		}
 
-		// Verify ownership before deletion
-		const canvas = await getCanvasById(canvasId);
-		if (!canvas || canvas.userId !== locals.user.id) {
-			return fail(403, { error: 'Access denied' });
+		// RLS will handle ownership check, but we can verify it exists first
+		const { data: canvas } = await locals.supabase
+			.from('canvases')
+			.select('id')
+			.eq('id', canvasId)
+			.single();
+
+		if (!canvas) {
+			return fail(403, { error: 'Canvas not found or access denied' });
 		}
 
-		try {
-			await deleteCanvas(canvasId);
-		} catch (err) {
-			console.error('Delete canvas error:', err);
+		const { error } = await locals.supabase.from('canvases').delete().eq('id', canvasId);
+
+		if (error) {
+			console.error('Delete canvas error:', error);
 			return fail(500, { error: 'Failed to delete canvas' });
 		}
 

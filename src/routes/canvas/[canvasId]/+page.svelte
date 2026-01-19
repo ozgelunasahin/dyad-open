@@ -82,8 +82,8 @@
 			console.log('[Canvas] Vault loaded, notes:', Object.keys(vault.notes).length);
 
 			// If canvas has an entry point, use it; otherwise use vault default
-			if (data.canvas.entryPointNoteId) {
-				vault.entryPoint = data.canvas.entryPointNoteId;
+			if (data.canvas.entry_point_note_id) {
+				vault.entryPoint = data.canvas.entry_point_note_id;
 			}
 
 			// Pass canvasId and saved positions for per-canvas state persistence
@@ -110,7 +110,7 @@
 	}
 
 	function copyPublicUrl() {
-		const url = `${window.location.origin}/${data.user.username}/${data.canvas.slug}`;
+		const url = `${window.location.origin}/canvas/${data.canvas.id}`;
 		navigator.clipboard.writeText(url);
 	}
 </script>
@@ -210,8 +210,8 @@
 				<div class="setting-group">
 					<label>Public URL</label>
 					<div class="url-display">
-						<code>/{data.user.username}/{data.canvas.slug}</code>
-						{#if data.canvas.isPublished}
+						<code>/{data.canvas.slug}</code>
+						{#if data.canvas.is_published}
 							<button class="copy-btn" onclick={copyPublicUrl}>Copy</button>
 						{/if}
 					</div>
@@ -221,13 +221,13 @@
 					<label>Publishing</label>
 					<form method="POST" action="?/togglePublish" use:enhance>
 						<div class="toggle-row">
-							<span class="status">{data.canvas.isPublished ? 'Published' : 'Private'}</span>
+							<span class="status">{data.canvas.is_published ? 'Published' : 'Private'}</span>
 							<button type="submit" class="toggle-btn">
-								{data.canvas.isPublished ? 'Unpublish' : 'Publish'}
+								{data.canvas.is_published ? 'Unpublish' : 'Publish'}
 							</button>
 						</div>
 					</form>
-					{#if data.canvas.isPublished}
+					{#if data.canvas.is_published}
 						<p class="hint">Anyone with the link can view this canvas (read-only).</p>
 					{:else}
 						<p class="hint">Only you can view this canvas.</p>
