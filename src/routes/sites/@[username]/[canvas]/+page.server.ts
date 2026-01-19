@@ -23,7 +23,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		.from('canvases')
 		.select('id, name, slug, entry_point_note_id')
 		.eq('user_id', profile.id)
-		.eq('slug', params.page)
+		.eq('slug', params.canvas)
 		.eq('is_published', true)
 		.single();
 
@@ -59,6 +59,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			slug: c.slug
 		})),
 		// The iframe will point to the standalone canvas view
-		canvasUrl: `/@${params.username}/${params.page}`
+		canvasUrl: `/@${params.username}/${params.canvas}`
 	};
 };

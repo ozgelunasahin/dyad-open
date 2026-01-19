@@ -20,7 +20,7 @@
 		{:else}
 			<nav class="canvas-list">
 				{#each data.canvases as canvas}
-					<a href="/sites/{data.user.username}/{canvas.slug}" class="canvas-card">
+					<a href="/sites/@{data.user.username}/{canvas.slug}" class="canvas-card">
 						<h2>{canvas.name}</h2>
 						<span class="canvas-meta">
 							Last updated: {new Date(canvas.updatedAt).toLocaleDateString()}
