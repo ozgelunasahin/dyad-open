@@ -559,6 +559,30 @@ class CanvasStore {
 	}
 
 	/**
+	 * Delete an empty note, keeping its wikilink in the parent as a broken link.
+	 * Called when exiting edit mode with no content. The broken link serves as
+	 * a placeholder that can be clicked later to recreate the note.
+	 */
+	deleteEmptyNote(noteId: string): void {
+		if (!this.vault) return;
+
+		// Remove from vault
+		delete this.vault.notes[noteId];
+
+		// Add to broken links (the link in parent becomes a placeholder)
+		const newBrokenLinks = new Set(this.brokenLinks);
+		newBrokenLinks.add(noteId);
+		this.brokenLinks = newBrokenLinks;
+
+		// Remove from dimension cache
+		if (this.dimensionCache.has(noteId)) {
+			const newCache = new Map(this.dimensionCache);
+			newCache.delete(noteId);
+			this.dimensionCache = newCache;
+		}
+	}
+
+	/**
 	 * Open a note from the introduction panel (no parent connection).
 	 * Used when clicking wikilinks in the WebsiteContainer intro text.
 	 */

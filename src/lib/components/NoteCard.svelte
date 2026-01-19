@@ -63,14 +63,29 @@
 	// Exit edit mode and save
 	async function exitEditMode() {
 		clearTimeout(debounceTimer);
-		if (currentContent && saveStatus !== 'saving') {
-			await saveNow();
-		}
-		canvasStore.exitEditMode();
 
-		// If content is empty after exiting edit mode, close the card
-		if (currentContent && isContentEmpty(currentContent)) {
+		// Check if content is empty
+		const isEmpty = currentContent && isContentEmpty(currentContent);
+
+		if (isEmpty) {
+			// Delete empty note from database
+			try {
+				await fetch(`/api/notes/${card.note.id}`, { method: 'DELETE' });
+			} catch (err) {
+				console.error('Failed to delete empty note:', err);
+			}
+
+			// Clean up vault and mark as broken link (keeps wikilink in parent as placeholder)
+			canvasStore.deleteEmptyNote(card.note.id);
+
+			canvasStore.exitEditMode();
 			canvasStore.unopenCard(card.id);
+		} else {
+			// Normal save flow
+			if (currentContent && saveStatus !== 'saving') {
+				await saveNow();
+			}
+			canvasStore.exitEditMode();
 		}
 	}
 
