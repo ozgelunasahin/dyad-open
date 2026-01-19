@@ -1534,23 +1534,39 @@ class CanvasStore {
 	}
 
 	/**
-	 * Update a card's sourceLink and invalidate its incoming path.
+	 * Update a connection's sourceBounds and invalidate its path.
 	 * Called when parent card's content reflows and wikilink positions change.
 	 */
-	updateSourceLink(cardId: string, newSourceLink: { x: number; y: number }): void {
-		const card = this.cards.get(cardId);
-		if (!card || !card.parentId) return;
+	updateConnectionSourceBounds(
+		fromCardId: string,
+		toCardId: string,
+		newSourceBounds: SourceBounds
+	): void {
+		// Find and update the connection
+		const connIndex = this.connections.findIndex(
+			(c) => c.fromCardId === fromCardId && c.toCardId === toCardId
+		);
+		if (connIndex === -1) return;
 
-		// Update the card's sourceLink
-		const newCards = new Map(this.cards);
-		newCards.set(cardId, {
-			...card,
-			sourceLink: newSourceLink
-		});
-		this.cards = newCards;
+		// Update connection with new sourceBounds
+		this.connections = this.connections.map((c, i) =>
+			i === connIndex ? { ...c, sourceBounds: newSourceBounds } : c
+		);
 
-		// Invalidate the path from parent to this card
-		const pathKey = `${card.parentId}-${cardId}`;
+		// Also update the card's sourceLink for persistence
+		const card = this.cards.get(toCardId);
+		if (card) {
+			const centerX = (newSourceBounds.left + newSourceBounds.right) / 2;
+			const newCards = new Map(this.cards);
+			newCards.set(toCardId, {
+				...card,
+				sourceLink: { x: centerX, y: newSourceBounds.y }
+			});
+			this.cards = newCards;
+		}
+
+		// Invalidate the path
+		const pathKey = `${fromCardId}-${toCardId}`;
 		if (this.storedPaths.has(pathKey)) {
 			const newPaths = new Map(this.storedPaths);
 			newPaths.delete(pathKey);

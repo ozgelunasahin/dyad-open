@@ -552,7 +552,7 @@
 		};
 		window.addEventListener('canvas-zoom-to-fit', handleZoomToFit);
 
-		// Listen for card content reflow (during editing) to update child source links
+		// Listen for card content reflow (during editing) to update connection source bounds
 		const handleContentReflow = (event: Event) => {
 			const { cardId } = (event as CustomEvent<{ cardId: string }>).detail;
 			const childCards = canvasStore.getChildCards(cardId);
@@ -565,7 +565,7 @@
 
 			const svgRect = svg.getBoundingClientRect();
 
-			// Update sourceLink for each child
+			// Update sourceBounds for each child's connection
 			for (const child of childCards) {
 				// Find the wikilink in the parent that targets this child's note
 				const wikilinkEl = parentCardEl.querySelector(
@@ -576,12 +576,15 @@
 				// Get the wikilink's current screen position
 				const linkRect = wikilinkEl.getBoundingClientRect();
 
-				// Convert to canvas coordinates (bottom center of the link)
-				const canvasX = ((linkRect.left + linkRect.right) / 2 - svgRect.left - transform.x) / transform.k;
-				const canvasY = (linkRect.bottom - svgRect.top - transform.y) / transform.k;
+				// Convert to canvas coordinates (full bounds: left, right, y)
+				const newSourceBounds: SourceBounds = {
+					left: (linkRect.left - svgRect.left - transform.x) / transform.k,
+					right: (linkRect.right - svgRect.left - transform.x) / transform.k,
+					y: (linkRect.bottom - svgRect.top - transform.y) / transform.k
+				};
 
-				// Update the child's sourceLink
-				canvasStore.updateSourceLink(child.id, { x: canvasX, y: canvasY });
+				// Update the connection's sourceBounds
+				canvasStore.updateConnectionSourceBounds(cardId, child.id, newSourceBounds);
 			}
 		};
 		window.addEventListener('card-content-reflow', handleContentReflow);
