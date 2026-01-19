@@ -889,10 +889,12 @@
 	function handleCanvasClick(event: MouseEvent) {
 		// Exit edit mode if clicking outside card content
 		if (canvasStore.editingCardId) {
-			if (!isHTMLElement(event.target)) return;
-			const inForeignObject = event.target.closest('foreignObject') !== null;
+			const target = event.target as Element | null;
+			if (!target?.closest) return;
+			const inForeignObject = target.closest('foreignObject') !== null;
 			if (!inForeignObject) {
-				canvasStore.exitEditMode();
+				// Dispatch event so NoteCard can handle save before exiting
+				window.dispatchEvent(new CustomEvent('request-exit-edit-mode'));
 			}
 		}
 	}
