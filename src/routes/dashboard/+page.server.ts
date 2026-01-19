@@ -11,7 +11,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const userId = locals.user.id;
 
 	// Load user's canvases, profile, and published canvases from others in parallel
-	const [canvasesResult, profileResult, publishedResult] = await Promise.all([
+	const [canvasesResult, profileResult, publishedCanvasesResult] = await Promise.all([
 		locals.supabase
 			.from('canvases')
 			.select('id, name, slug, is_published, entry_point_note_id, created_at, updated_at')
@@ -24,12 +24,35 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.single(),
 		locals.supabase
 			.from('canvases')
-			.select('id, name, slug, user_id, profiles!inner(username)')
+			.select('id, name, slug, user_id')
 			.eq('is_published', true)
 			.neq('user_id', userId)
 			.order('updated_at', { ascending: false })
 			.limit(20)
 	]);
+
+	// Fetch usernames for published canvases (separate query since no direct FK)
+	let publishedCanvases: Array<{
+		id: string;
+		name: string;
+		slug: string;
+		user_id: string;
+		username: string;
+	}> = [];
+
+	if (publishedCanvasesResult.data && publishedCanvasesResult.data.length > 0) {
+		const userIds = [...new Set(publishedCanvasesResult.data.map((c) => c.user_id))];
+		const { data: profiles } = await locals.supabase
+			.from('profiles')
+			.select('id, username')
+			.in('id', userIds);
+
+		const usernameMap = new Map(profiles?.map((p) => [p.id, p.username]) ?? []);
+		publishedCanvases = publishedCanvasesResult.data.map((canvas) => ({
+			...canvas,
+			username: usernameMap.get(canvas.user_id) ?? 'unknown'
+		}));
+	}
 
 	if (canvasesResult.error) {
 		console.error('Failed to load canvases:', canvasesResult.error);
@@ -88,14 +111,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 		return {
 			user: locals.user,
 			canvases: newCanvases ?? [],
-			publishedCanvases: publishedResult.data ?? []
+			publishedCanvases
 		};
 	}
 
 	return {
 		user: locals.user,
 		canvases: canvases ?? [],
-		publishedCanvases: publishedResult.data ?? []
+		publishedCanvases
 	};
 };
 
