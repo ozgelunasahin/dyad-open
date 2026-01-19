@@ -13,6 +13,19 @@
 	let submitting = $state(false);
 	let error = $state<string | null>(null);
 	let success = $state(false);
+	let successTimeoutId: ReturnType<typeof setTimeout> | null = null;
+	let lastSubmitTime = 0;
+	const RATE_LIMIT_MS = 30000; // 30 seconds between submissions
+
+	// Clean up timeout when component unmounts or modal closes
+	$effect(() => {
+		return () => {
+			if (successTimeoutId) {
+				clearTimeout(successTimeoutId);
+				successTimeoutId = null;
+			}
+		};
+	});
 
 	function captureContext(): Record<string, unknown> {
 		const snapshot = $state.snapshot(canvasStore);
@@ -31,8 +44,17 @@
 		event.preventDefault();
 		if (submitting) return;
 
+		// Client-side rate limit
+		const now = Date.now();
+		if (now - lastSubmitTime < RATE_LIMIT_MS) {
+			const waitSecs = Math.ceil((RATE_LIMIT_MS - (now - lastSubmitTime)) / 1000);
+			error = `Please wait ${waitSecs}s before submitting again`;
+			return;
+		}
+
 		submitting = true;
 		error = null;
+		lastSubmitTime = now;
 
 		try {
 			const formData = new FormData();
@@ -58,8 +80,9 @@
 			description = '';
 			feedbackType = 'bug';
 
-			// Close after brief delay to show success
-			setTimeout(() => {
+			// Close after brief delay to show success (timeout is cleaned up on unmount)
+			successTimeoutId = setTimeout(() => {
+				successTimeoutId = null;
 				success = false;
 				onClose();
 			}, 1500);
