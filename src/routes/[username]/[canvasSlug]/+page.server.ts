@@ -2,20 +2,22 @@ import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
-	// Get the published canvas with author info and user_id
+	// First, get the user's profile by username
+	const { data: profile } = await locals.supabase
+		.from('profiles')
+		.select('id, username')
+		.eq('username', params.username)
+		.single();
+
+	if (!profile) {
+		error(404, 'User not found');
+	}
+
+	// Then get the published canvas for that user
 	const { data: canvas, error: canvasError } = await locals.supabase
 		.from('canvases')
-		.select(
-			`
-			id,
-			name,
-			slug,
-			user_id,
-			entry_point_note_id,
-			profiles!inner(username)
-		`
-		)
-		.eq('profiles.username', params.username)
+		.select('id, name, slug, user_id, entry_point_note_id')
+		.eq('user_id', profile.id)
 		.eq('slug', params.canvasSlug)
 		.eq('is_published', true)
 		.single();
