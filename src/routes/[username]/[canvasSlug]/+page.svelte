@@ -35,7 +35,7 @@
 
 <svelte:head>
 	<title>{data.canvas.name} by @{data.author.username} - dyad.berlin</title>
-	<meta name="description" content="A spatial reading canvas by @{data.author.username}" />
+	<meta name="description" content="A reading canvas by @{data.author.username}" />
 	<!-- Prevent caching of potentially private content -->
 	<meta http-equiv="Cache-Control" content="no-store" />
 </svelte:head>

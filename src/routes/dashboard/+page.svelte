@@ -45,7 +45,6 @@
 		{#if data.canvases.length === 0}
 			<div class="empty-state">
 				<p>You don't have any canvases yet.</p>
-				<p class="hint">Create your first canvas to start building your spatial reading environment.</p>
 			</div>
 		{:else}
 			<div class="canvas-grid">

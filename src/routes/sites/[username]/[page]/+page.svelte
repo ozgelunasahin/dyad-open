@@ -17,7 +17,7 @@
 
 <svelte:head>
 	<title>{data.canvas.name} by @{data.author.username} - dyad.berlin</title>
-	<meta name="description" content="A spatial reading canvas by @{data.author.username}" />
+	<meta name="description" content="A reading canvas by @{data.author.username}" />
 </svelte:head>
 
 <WebsiteContainer
