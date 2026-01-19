@@ -103,8 +103,9 @@
 						name="name"
 						required
 						maxlength="100"
-						placeholder="My Digital Garden"
+						placeholder="Enter a name..."
 						disabled={creating}
+						autofocus
 					/>
 				</div>
 				<div class="modal-actions">
