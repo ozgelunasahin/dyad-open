@@ -24,6 +24,7 @@
 	title={data.canvas.name}
 	author={data.author.username}
 	onPageLink={handlePageLink}
+	editUrl={data.isAuthor ? `/canvas/${data.canvas.id}` : undefined}
 >
 	<iframe
 		src={data.canvasUrl}

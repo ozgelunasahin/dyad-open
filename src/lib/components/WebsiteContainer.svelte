@@ -14,6 +14,8 @@
 		showIntro?: boolean;
 		/** Callback when a page link (cross-canvas) is clicked */
 		onPageLink?: (path: string) => void;
+		/** URL to edit this canvas (shown only to author) */
+		editUrl?: string;
 		/** Child content (the canvas) */
 		children: import('svelte').Snippet;
 	}
@@ -25,6 +27,7 @@
 		graphicUrl,
 		showIntro = true,
 		onPageLink,
+		editUrl,
 		children
 	}: Props = $props();
 
@@ -93,6 +96,15 @@
 					<div class="intro-text">
 						<h1 class="intro-title">{title}</h1>
 						<p class="intro-author">by <a href="/{author}">@{author}</a></p>
+
+						{#if editUrl}
+							<a href={editUrl} class="edit-button">
+								<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+									<path d="M10.5 1.5L12.5 3.5L4.5 11.5L1.5 12.5L2.5 9.5L10.5 1.5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+								</svg>
+								Edit canvas
+							</a>
+						{/if}
 
 						{#if introHtml}
 							<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
@@ -218,6 +230,27 @@
 
 	.intro-author a:hover {
 		color: var(--text-link-hover);
+	}
+
+	.edit-button {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		margin-bottom: 24px;
+		padding: 6px 12px;
+		font-family: system-ui, sans-serif;
+		font-size: 0.8rem;
+		color: var(--text-muted);
+		background: var(--bg-control);
+		border: 1px solid var(--border-link);
+		border-radius: 4px;
+		text-decoration: none;
+		transition: color 0.15s, border-color 0.15s;
+	}
+
+	.edit-button:hover {
+		color: var(--text-primary);
+		border-color: var(--text-muted);
 	}
 
 	.intro-body {

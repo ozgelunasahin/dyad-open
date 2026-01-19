@@ -39,6 +39,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		.eq('is_published', true)
 		.order('updated_at', { ascending: false });
 
+	// Check if current user is the author
+	const isAuthor = locals.user?.id === profile.id;
+
 	return {
 		canvas: {
 			id: canvas.id,
@@ -49,6 +52,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		author: {
 			username: params.username
 		},
+		isAuthor,
 		// Provide list of other canvases for navigation
 		siteCanvases: (allCanvases ?? []).map((c) => ({
 			name: c.name,
