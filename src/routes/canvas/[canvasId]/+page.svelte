@@ -2,7 +2,6 @@
 	import { onMount } from 'svelte';
 	import { enhance } from '$app/forms';
 	import type { PageData, ActionData } from './$types';
-	import type { Vault } from '$lib/types';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import Canvas from '$lib/components/Canvas.svelte';
@@ -73,22 +72,11 @@
 
 	onMount(async () => {
 		try {
-			console.log('[Canvas] Fetching vault...');
-			const response = await fetch('/vault/index.json');
-			if (!response.ok) {
-				throw new Error('Failed to load vault');
-			}
-			const vault: Vault = await response.json();
-			console.log('[Canvas] Vault loaded, notes:', Object.keys(vault.notes).length);
-
-			// If canvas has an entry point, use it; otherwise use vault default
-			if (data.canvas.entry_point_note_id) {
-				vault.entryPoint = data.canvas.entry_point_note_id;
-			}
+			console.log('[Canvas] Initializing with vault from page data...');
+			console.log('[Canvas] Notes count:', Object.keys(data.vault.notes).length);
 
 			// Pass canvasId and saved positions for per-canvas state persistence
-			console.log('[Canvas] Initializing store...');
-			await canvasStore.initialize(vault, data.canvas.id, data.cardPositions);
+			await canvasStore.initialize(data.vault, data.canvas.id, data.cardPositions);
 			console.log('[Canvas] Store initialized');
 			loading = false;
 		} catch (e) {

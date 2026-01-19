@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
-	// Get the published canvas with author info
+	// Get the published canvas with author info and user_id
 	const { data: canvas, error: canvasError } = await locals.supabase
 		.from('canvases')
 		.select(
@@ -10,6 +10,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			id,
 			name,
 			slug,
+			user_id,
 			entry_point_note_id,
 			profiles!inner(username)
 		`
@@ -42,6 +43,33 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		sourceLinkY: pos.source_link_y ?? null
 	}));
 
+	// Get the note slugs that are on this canvas
+	const noteSlugs = cardPositions.map((p) => p.noteId);
+
+	// Load notes from the canvas owner
+	// RLS policy allows viewing notes linked to published canvases
+	const { data: notes } = await locals.supabase
+		.from('notes')
+		.select('slug, title, content, wikilinks')
+		.eq('user_id', canvas.user_id)
+		.in('slug', noteSlugs.length > 0 ? noteSlugs : ['__none__']);
+
+	// Build vault object for the canvas store
+	const vault = {
+		entryPoint: canvas.entry_point_note_id || (notes?.[0]?.slug ?? ''),
+		notes: Object.fromEntries(
+			(notes ?? []).map((n) => [
+				n.slug,
+				{
+					id: n.slug,
+					title: n.title,
+					content: n.content,
+					wikilinks: n.wikilinks ?? []
+				}
+			])
+		)
+	};
+
 	return {
 		canvas: {
 			id: canvas.id,
@@ -53,6 +81,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			username: params.username
 		},
 		cardPositions,
+		vault,
 		readOnly: true
 	};
 };
