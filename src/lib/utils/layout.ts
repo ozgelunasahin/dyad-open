@@ -1,5 +1,5 @@
 import type { Card, Point, Dimensions } from '$lib/types';
-import { CARD_SPACING, DEFAULT_CARD_WIDTH } from '$lib/types';
+import { CARD_SPACING, CARD_WIDTH } from '$lib/types';
 import {
 	detectCoaxialOverlap,
 	findUsedVerticalChannels,
@@ -18,7 +18,7 @@ import { segmentsIntersect, sharesEndpoint } from './geometry';
  */
 
 const ROUTING_GAP = 80; // Horizontal gap between columns for routing vertical segments
-const COLUMN_WIDTH = DEFAULT_CARD_WIDTH + CARD_SPACING + ROUTING_GAP;
+const COLUMN_WIDTH = CARD_WIDTH + CARD_SPACING + ROUTING_GAP;
 const CHANNEL_STEP = 15; // Spacing between routing channels
 
 // Scoring constants for layout algorithm

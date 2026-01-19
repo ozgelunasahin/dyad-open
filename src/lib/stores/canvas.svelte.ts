@@ -1,8 +1,8 @@
 import type { Card, Connection, Camera, Point, Vault, Dimensions, LinkSide, SourceBounds } from '$lib/types';
 import type { JSONContent } from '@tiptap/core';
-import { MAX_CARDS, MIN_CARD_WIDTH, MAX_CARD_WIDTH } from '$lib/types';
+import { MAX_CARDS, CARD_WIDTH } from '$lib/types';
 import { calculateNewCardPosition } from '$lib/utils/layout';
-import { calculateOptimalWidthFromJson, estimateContentHeight } from '$lib/utils/json-content';
+import { estimateContentHeight } from '$lib/utils/json-content';
 
 // Visibility state for conservative panning
 export type VisibilityState = 'fully-visible' | 'partially-visible' | 'off-screen';
@@ -173,9 +173,8 @@ class CanvasStore {
 		// Pre-compute dimensions for all notes (O(1) lookup during navigation)
 		const newDimensionCache = new Map<string, Dimensions>();
 		for (const [noteId, note] of Object.entries(vault.notes)) {
-			const width = calculateOptimalWidthFromJson(note.content, MIN_CARD_WIDTH, MAX_CARD_WIDTH);
-			const height = estimateContentHeight(note.content, width);
-			newDimensionCache.set(noteId, { width, height: Math.max(100, height) });
+			const height = estimateContentHeight(note.content, CARD_WIDTH);
+			newDimensionCache.set(noteId, { width: CARD_WIDTH, height: Math.max(100, height) });
 		}
 		this.dimensionCache = newDimensionCache;
 
@@ -393,6 +392,7 @@ class CanvasStore {
 	/**
 	 * Calculate dimensions for a note's content.
 	 * Uses cache if available, otherwise calculates and caches.
+	 * All cards use fixed CARD_WIDTH for visual consistency.
 	 */
 	private calculateCardDimensions(content: JSONContent, noteId?: string): Dimensions {
 		// Use cache if available
@@ -400,10 +400,9 @@ class CanvasStore {
 			return this.dimensionCache.get(noteId)!;
 		}
 
-		// Fallback to calculation (for dynamically created notes)
-		const width = calculateOptimalWidthFromJson(content, MIN_CARD_WIDTH, MAX_CARD_WIDTH);
-		const height = estimateContentHeight(content, width);
-		const dimensions = { width, height: Math.max(100, height) };
+		// Calculate dimensions with fixed width (for dynamically created notes)
+		const height = estimateContentHeight(content, CARD_WIDTH);
+		const dimensions = { width: CARD_WIDTH, height: Math.max(100, height) };
 
 		// Cache the result
 		if (noteId) {

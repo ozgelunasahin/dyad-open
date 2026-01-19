@@ -55,10 +55,8 @@ export interface Vault {
 	entryPoint: string;
 }
 
-// Dynamic card sizing
-export const MIN_CARD_WIDTH = 220;
-export const MAX_CARD_WIDTH = 440;
-export const DEFAULT_CARD_WIDTH = 320;
+// Card sizing - fixed column width for visual consistency
+export const CARD_WIDTH = 440;
 export const CARD_SPACING = 100;
 export const CARD_SPACING_VERTICAL = 40;
 export const MAX_CARDS = 50;
