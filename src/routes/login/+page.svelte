@@ -39,6 +39,26 @@
 				};
 			}}
 		>
+			{#if mode === 'signup'}
+				<div class="form-group">
+					<label for="username">Username</label>
+					<input
+						type="text"
+						id="username"
+						name="username"
+						value={form?.username ?? ''}
+						required
+						autocomplete="username"
+						disabled={loading}
+						minlength={3}
+						maxlength={30}
+						pattern="[a-z0-9_-]+"
+						title="Lowercase letters, numbers, underscores, and hyphens only"
+					/>
+					<p class="hint">This will be your public URL: dyad.berlin/<strong>username</strong></p>
+				</div>
+			{/if}
+
 			{#if mode !== 'update'}
 				<div class="form-group">
 					<label for="email">Email</label>

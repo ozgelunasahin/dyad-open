@@ -1,0 +1,69 @@
+<script lang="ts">
+	import { page } from '$app/stores';
+</script>
+
+<svelte:head>
+	<title>{$page.status} - dyad.berlin</title>
+</svelte:head>
+
+<div class="error-container">
+	<div class="error-content">
+		<h1>{$page.status}</h1>
+		<p class="message">
+			{#if $page.status === 404}
+				This page doesn't exist.
+			{:else if $page.status === 403}
+				You don't have permission to view this.
+			{:else if $page.status === 500}
+				Something went wrong on our end.
+			{:else}
+				{$page.error?.message || 'An error occurred.'}
+			{/if}
+		</p>
+		<a href="/" class="home-link">Go home</a>
+	</div>
+</div>
+
+<style>
+	.error-container {
+		min-height: 100vh;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 2rem;
+		background: var(--bg-canvas);
+	}
+
+	.error-content {
+		text-align: center;
+	}
+
+	h1 {
+		font-size: 6rem;
+		font-weight: 300;
+		margin: 0;
+		color: var(--text-muted);
+		line-height: 1;
+	}
+
+	.message {
+		font-size: 1.25rem;
+		color: var(--text-secondary);
+		margin: 1rem 0 2rem;
+	}
+
+	.home-link {
+		display: inline-block;
+		padding: 0.75rem 1.5rem;
+		color: var(--text-link);
+		border: 1px solid var(--border-link);
+		border-radius: 4px;
+		text-decoration: none;
+		transition: border-color 0.2s, color 0.2s;
+	}
+
+	.home-link:hover {
+		color: var(--text-link-hover);
+		border-color: var(--border-link-hover);
+	}
+</style>
