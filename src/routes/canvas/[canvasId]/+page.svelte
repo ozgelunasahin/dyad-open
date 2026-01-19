@@ -18,6 +18,7 @@
 	let creatingNote = $state(false);
 	let newNoteName = $state('');
 	let showHelp = $state(false);
+	let hasNotes = $state(Object.keys(data.vault.notes).length > 0);
 
 	async function createOrphanNote() {
 		if (!newNoteName.trim()) return;
@@ -61,10 +62,10 @@
 				throw new Error('Failed to create note');
 			}
 
-			// If this was the first note, reload to properly initialize the canvas
+			// For first note, add to vault before creating card
 			if (wasEmpty) {
-				window.location.reload();
-				return;
+				canvasStore.addNoteToVault(slug, newNoteName, content);
+				hasNotes = true; // Trigger re-render to exit empty state
 			}
 
 			// Create orphan card in the canvas store
@@ -73,6 +74,11 @@
 			// Reset state
 			newNoteName = '';
 			showCreateNoteModal = false;
+
+			// Enter edit mode after card animation completes
+			setTimeout(() => {
+				canvasStore.enterEditMode(slug);
+			}, 500);
 		} catch (err) {
 			console.error('Failed to create orphan note:', err);
 		} finally {
@@ -139,7 +145,7 @@
 			<p>{error}</p>
 			<button onclick={() => window.location.reload()}>Retry</button>
 		</div>
-	{:else if Object.keys(data.vault.notes).length === 0}
+	{:else if !hasNotes}
 		<!-- Empty canvas state -->
 		<div class="empty-canvas">
 			<h2>Your canvas is empty</h2>
@@ -187,7 +193,7 @@
 								bind:value={newNoteName}
 								required
 								maxlength="100"
-								placeholder="My First Note"
+								placeholder="Enter a title..."
 								disabled={creatingNote}
 								autofocus
 							/>
@@ -336,7 +342,7 @@
 								bind:value={newNoteName}
 								required
 								maxlength="100"
-								placeholder="My New Note"
+								placeholder="Enter a title..."
 								disabled={creatingNote}
 								autofocus
 							/>
