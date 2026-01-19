@@ -122,6 +122,48 @@ export const Wikilink = Node.create<WikilinkOptions>({
 
 	addKeyboardShortcuts() {
 		return {
+			// Handle '[' key for wikilink creation
+			'[': ({ editor }) => {
+				const { state } = editor;
+				const { selection } = state;
+				const { $from, empty } = selection;
+
+				// Case 1: Text is selected - wrap in wikilink
+				if (!empty) {
+					const selectedText = state.doc.textBetween(selection.from, selection.to);
+					if (selectedText.trim()) {
+						const target = sanitizeSlug(selectedText);
+						editor.chain()
+							.deleteSelection()
+							.insertContent({
+								type: 'wikilink',
+								attrs: { target, display: selectedText.trim() }
+							})
+							.run();
+						// Trigger callback to open the linked note
+						this.options.onWikilinkClick?.(target);
+						return true;
+					}
+				}
+
+				// Case 2: No selection, check if previous char is '['
+				const posBefore = $from.pos - 1;
+				if (posBefore >= 0) {
+					const charBefore = state.doc.textBetween(posBefore, $from.pos);
+					if (charBefore === '[') {
+						// User typed '[[' - insert '[]]' (the second [ plus closing ]])
+						// and place cursor between the brackets
+						editor.chain()
+							.insertContent('[]]')
+							.setTextSelection($from.pos + 1) // Move cursor after the second [
+							.run();
+						return true;
+					}
+				}
+
+				return false; // Let default '[' insertion happen
+			},
+
 			// Backspace on a link converts it to plain text (like Gmail/Docs)
 			Backspace: ({ editor }) => {
 				const { state } = editor;
