@@ -1,6 +1,11 @@
 <script lang="ts">
 	import { parseMarkdown } from '$lib/utils/markdown';
 
+	interface CanvasLink {
+		name: string;
+		slug: string;
+	}
+
 	interface Props {
 		/** Canvas title */
 		title: string;
@@ -16,6 +21,10 @@
 		onPageLink?: (path: string) => void;
 		/** URL to edit this canvas (shown only to author) */
 		editUrl?: string;
+		/** List of canvases for navigation */
+		canvases?: CanvasLink[];
+		/** Current canvas slug (for highlighting in nav) */
+		currentCanvas?: string;
 		/** Child content (the canvas) */
 		children: import('svelte').Snippet;
 	}
@@ -28,6 +37,8 @@
 		showIntro = true,
 		onPageLink,
 		editUrl,
+		canvases = [],
+		currentCanvas,
 		children
 	}: Props = $props();
 
@@ -104,6 +115,24 @@
 								</svg>
 								Edit canvas
 							</a>
+						{/if}
+
+						{#if canvases.length > 1}
+							<nav class="canvas-nav">
+								<span class="nav-label">Canvases</span>
+								<ul>
+									{#each canvases as canvas}
+										<li>
+											<a
+												href="/sites/@{author}/{canvas.slug}"
+												class:active={canvas.slug === currentCanvas}
+											>
+												{canvas.name}
+											</a>
+										</li>
+									{/each}
+								</ul>
+							</nav>
 						{/if}
 
 						{#if introHtml}
@@ -251,6 +280,49 @@
 	.edit-button:hover {
 		color: var(--text-primary);
 		border-color: var(--text-muted);
+	}
+
+	.canvas-nav {
+		margin-bottom: 24px;
+		font-family: system-ui, sans-serif;
+	}
+
+	.nav-label {
+		display: block;
+		font-size: 0.7rem;
+		font-weight: 500;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--text-muted);
+		margin-bottom: 8px;
+	}
+
+	.canvas-nav ul {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+
+	.canvas-nav li {
+		margin: 0;
+	}
+
+	.canvas-nav a {
+		display: block;
+		padding: 6px 0;
+		font-size: 0.9rem;
+		color: var(--text-secondary);
+		text-decoration: none;
+		transition: color 0.15s;
+	}
+
+	.canvas-nav a:hover {
+		color: var(--text-primary);
+	}
+
+	.canvas-nav a.active {
+		color: var(--text-primary);
+		font-weight: 500;
 	}
 
 	.intro-body {
