@@ -36,6 +36,9 @@
 	// TiptapEditor reference
 	let editorComponent: TiptapEditor;
 
+	// Content container ref for height observation
+	let contentDiv: HTMLDivElement;
+
 	// Enter edit mode
 	async function enterEditMode() {
 		if (readOnly) return;
@@ -293,6 +296,23 @@
 			saveAbortController?.abort();
 		};
 	});
+
+	// Observe content height changes and update store
+	$effect(() => {
+		if (!contentDiv) return;
+
+		const observer = new ResizeObserver((entries) => {
+			for (const entry of entries) {
+				const newHeight = Math.ceil(entry.contentRect.height);
+				if (newHeight > 0 && newHeight !== card.dimensions.height) {
+					canvasStore.updateCardHeight(card.id, newHeight);
+				}
+			}
+		});
+
+		observer.observe(contentDiv);
+		return () => observer.disconnect();
+	});
 </script>
 
 <foreignObject
@@ -305,6 +325,7 @@
 >
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
+		bind:this={contentDiv}
 		xmlns="http://www.w3.org/1999/xhtml"
 		class="text-block"
 		class:dimmed={!isActive && !isEditing}
