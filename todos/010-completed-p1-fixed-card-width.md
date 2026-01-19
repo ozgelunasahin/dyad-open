@@ -1,9 +1,10 @@
 ---
 id: "010"
-status: pending
+status: completed
 priority: p1
 title: "Use fixed card width (column width) for all cards"
 created: "2025-01-19"
+completed: "2026-01-19"
 ---
 
 # Fixed Card Width
