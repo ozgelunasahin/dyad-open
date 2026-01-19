@@ -78,7 +78,7 @@
 		{#if data.publishedCanvases.length > 0}
 			<hr class="section-divider" />
 			<section class="discover-section">
-				<h2>discover</h2>
+				<h2 class="section-title">discover</h2>
 				<div class="canvas-grid">
 					{#each data.publishedCanvases as canvas}
 						<a href="/{canvas.username}/{canvas.slug}" class="canvas-card">
@@ -367,7 +367,7 @@
 	}
 
 	/* Discover section */
-	.discover-section h2 {
+	.section-title {
 		margin: 0 0 2rem 0;
 		font-size: 1.75rem;
 		font-weight: normal;
