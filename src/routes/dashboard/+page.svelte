@@ -357,19 +357,13 @@
 	/* Discover section */
 	.discover-section {
 		margin-top: 3rem;
-		padding-top: 2rem;
-		border-top: 1px solid var(--border-link);
 	}
 
 	.discover-section h2 {
-		margin: 0 0 1.5rem 0;
-		font-size: 1.25rem;
+		margin: 0 0 2rem 0;
+		font-size: 1.75rem;
 		font-weight: normal;
-		color: var(--text-muted);
-	}
-
-	.discover-card {
-		background: transparent;
+		color: var(--text-primary);
 	}
 
 	.author {
