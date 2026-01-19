@@ -861,9 +861,11 @@
 		// Capture zoom at start to prevent race conditions if zoom changes mid-animation
 		const zoomLevel = transform.k;
 
-		// Compute target camera position to show focusPoint at viewport center
+		// Compute target camera position to show focusPoint in reading zone
 		// Using CURRENT zoom level - never change zoom during navigation
-		const targetX = width / 2 - focusPoint.x * zoomLevel;
+		// Use same reading zone X (35%) as animateToCenter for consistency
+		const readingZoneX = width * 0.35;
+		const targetX = readingZoneX - focusPoint.x * zoomLevel;
 		const targetY = height / 2 - focusPoint.y * zoomLevel;
 
 		const startX = transform.x;
