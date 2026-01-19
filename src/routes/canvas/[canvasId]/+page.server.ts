@@ -15,7 +15,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			.single(),
 		locals.supabase
 			.from('profiles')
-			.select('username')
+			.select('username, can_publish_sites')
 			.eq('id', locals.user.id)
 			.single()
 	]);
@@ -72,7 +72,10 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 	return {
 		user: locals.user,
-		profile: { username: profile?.username ?? '' },
+		profile: {
+			username: profile?.username ?? '',
+			canPublishSites: profile?.can_publish_sites ?? false
+		},
 		canvas,
 		cardPositions,
 		vault
@@ -118,6 +121,17 @@ export const actions: Actions = {
 	togglePublish: async ({ locals, params }) => {
 		if (!locals.user) {
 			redirect(302, '/login');
+		}
+
+		// Check if user has sites publishing feature
+		const { data: profile } = await locals.supabase
+			.from('profiles')
+			.select('can_publish_sites')
+			.eq('id', locals.user.id)
+			.single();
+
+		if (!profile?.can_publish_sites) {
+			return fail(403, { error: 'Sites publishing not enabled for your account' });
 		}
 
 		// Get current state

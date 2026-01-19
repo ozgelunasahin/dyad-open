@@ -312,6 +312,7 @@
 					</form>
 				</div>
 
+				{#if data.profile.canPublishSites}
 				<div class="setting-group">
 					<label>Public URL</label>
 					<div class="url-display">
@@ -338,6 +339,7 @@
 						<p class="hint">Only you can view this canvas.</p>
 					{/if}
 				</div>
+			{/if}
 
 				<button class="close-btn" onclick={() => (showSettingsPanel = false)}>close</button>
 			</div>
