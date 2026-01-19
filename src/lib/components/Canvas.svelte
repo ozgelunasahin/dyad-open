@@ -51,6 +51,10 @@
 				}
 				// For mousedown/touchstart, handle focused vs non-focused cards differently
 				if (event.type === 'mousedown' || event.type === 'touchstart') {
+					// Clear stale drag state at the start of any mousedown
+					dragStartPos = null;
+					dragStartTarget = null;
+
 					if (!isHTMLElement(event.target)) return true;
 					const foreignObject = event.target.closest('foreignObject');
 					if (foreignObject) {
