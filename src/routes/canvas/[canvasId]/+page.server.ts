@@ -35,10 +35,32 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		sourceLinkY: pos.source_link_y ?? null
 	}));
 
+	// Load user's notes from Supabase (RLS filters to user's own notes)
+	const { data: notes } = await locals.supabase
+		.from('notes')
+		.select('slug, title, content, wikilinks');
+
+	// Build vault object for the canvas store
+	const vault = {
+		entryPoint: canvas.entry_point_note_id || (notes?.[0]?.slug ?? 'welcome'),
+		notes: Object.fromEntries(
+			(notes ?? []).map((n) => [
+				n.slug,
+				{
+					id: n.slug,
+					title: n.title,
+					content: n.content,
+					wikilinks: n.wikilinks ?? []
+				}
+			])
+		)
+	};
+
 	return {
 		user: locals.user,
 		canvas,
-		cardPositions
+		cardPositions,
+		vault
 	};
 };
 

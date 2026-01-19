@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
-	import type { Vault } from '$lib/types';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import Canvas from '$lib/components/Canvas.svelte';
@@ -13,19 +12,8 @@
 
 	onMount(async () => {
 		try {
-			const response = await fetch('/vault/index.json');
-			if (!response.ok) {
-				throw new Error('Failed to load vault');
-			}
-			const vault: Vault = await response.json();
-
-			// If canvas has an entry point, use it
-			if (data.canvas.entryPointNoteId) {
-				vault.entryPoint = data.canvas.entryPointNoteId;
-			}
-
-			// Pass canvasId and saved positions for per-canvas state persistence
-			await canvasStore.initialize(vault, data.canvas.id, data.cardPositions);
+			// Use vault from page data (loaded server-side from Supabase)
+			await canvasStore.initialize(data.vault, data.canvas.id, data.cardPositions);
 			loading = false;
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Unknown error';

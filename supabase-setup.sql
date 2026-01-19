@@ -121,6 +121,18 @@ CREATE POLICY "Users can view their own notes"
   ON notes FOR SELECT
   USING (auth.uid() = user_id);
 
+CREATE POLICY "Anyone can view notes linked to published canvases"
+  ON notes FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM card_positions
+      JOIN canvases ON canvases.id = card_positions.canvas_id
+      WHERE card_positions.note_id = notes.slug
+      AND canvases.user_id = notes.user_id
+      AND canvases.is_published = TRUE
+    )
+  );
+
 CREATE POLICY "Users can create their own notes"
   ON notes FOR INSERT
   WITH CHECK (auth.uid() = user_id);
