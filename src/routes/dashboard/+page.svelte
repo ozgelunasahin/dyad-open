@@ -74,6 +74,25 @@
 				{/each}
 			</div>
 		{/if}
+
+		{#if data.publishedCanvases.length > 0}
+			<section class="discover-section">
+				<h2>Discover</h2>
+				<div class="canvas-grid">
+					{#each data.publishedCanvases as canvas}
+						{@const profile = Array.isArray(canvas.profiles) ? canvas.profiles[0] : canvas.profiles}
+						<a href="/{profile?.username}/{canvas.slug}" class="canvas-card discover-card">
+							<div class="canvas-header">
+								<h2>{canvas.name}</h2>
+							</div>
+							<div class="canvas-meta">
+								<span class="author">@{profile?.username}</span>
+							</div>
+						</a>
+					{/each}
+				</div>
+			</section>
+		{/if}
 	</div>
 </div>
 
@@ -334,6 +353,28 @@
 
 	.delete-btn:hover {
 		color: #dc3545;
+	}
+
+	/* Discover section */
+	.discover-section {
+		margin-top: 3rem;
+		padding-top: 2rem;
+		border-top: 1px solid var(--border-link);
+	}
+
+	.discover-section h2 {
+		margin: 0 0 1.5rem 0;
+		font-size: 1.25rem;
+		font-weight: normal;
+		color: var(--text-muted);
+	}
+
+	.discover-card {
+		background: transparent;
+	}
+
+	.author {
+		color: var(--text-link);
 	}
 
 	/* Modal styles */

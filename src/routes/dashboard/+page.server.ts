@@ -10,8 +10,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const userId = locals.user.id;
 
-	// Load canvases and profile in parallel
-	const [canvasesResult, profileResult] = await Promise.all([
+	// Load user's canvases, profile, and published canvases from others in parallel
+	const [canvasesResult, profileResult, publishedResult] = await Promise.all([
 		locals.supabase
 			.from('canvases')
 			.select('id, name, slug, is_published, entry_point_note_id, created_at, updated_at')
@@ -21,7 +21,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.from('profiles')
 			.select('onboarded')
 			.eq('id', userId)
-			.single()
+			.single(),
+		locals.supabase
+			.from('canvases')
+			.select('id, name, slug, user_id, profiles!inner(username)')
+			.eq('is_published', true)
+			.neq('user_id', userId)
+			.order('updated_at', { ascending: false })
+			.limit(20)
 	]);
 
 	if (canvasesResult.error) {
@@ -80,13 +87,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 		return {
 			user: locals.user,
-			canvases: newCanvases ?? []
+			canvases: newCanvases ?? [],
+			publishedCanvases: publishedResult.data ?? []
 		};
 	}
 
 	return {
 		user: locals.user,
-		canvases: canvases ?? []
+		canvases: canvases ?? [],
+		publishedCanvases: publishedResult.data ?? []
 	};
 };
 
