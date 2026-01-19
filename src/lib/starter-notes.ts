@@ -17,11 +17,6 @@ export const STARTER_NOTES: StarterNote[] = [
 			type: 'doc',
 			content: [
 				{
-					type: 'heading',
-					attrs: { level: 1 },
-					content: [{ type: 'text', text: 'Slow Reading' }]
-				},
-				{
 					type: 'paragraph',
 					content: [
 						{ type: 'text', text: 'Double-click to edit. To create a link, type ' },
@@ -32,6 +27,11 @@ export const STARTER_NOTES: StarterNote[] = [
 					]
 				},
 				{ type: 'horizontalRule' },
+				{
+					type: 'heading',
+					attrs: { level: 1 },
+					content: [{ type: 'text', text: 'Slow Reading' }]
+				},
 				{
 					type: 'paragraph',
 					content: [
