@@ -29,7 +29,7 @@ The following issues were identified during code review and should be addressed:
 
 - Removed `status` and `screenshot_url` columns (use Supabase dashboard)
 - Removed indexes (premature for <100 rows)
-- Reduced context fields from 12 to 6
+- Reduced context fields from 12 to 7 (added recentErrors for debugging)
 - Inlined context capture (no separate utility file)
 
 ---
@@ -84,9 +84,55 @@ create policy "Users can insert feedback"
 - Size constraints added: description 10-5000 chars, context max 10KB
 - Admin access via Supabase dashboard (no RLS policy needed)
 
-### 2. Context Capture (Inline, Minimal)
+### 2. Context Capture (With Error Collection)
 
-Context is captured inline in the modal component - no separate utility file needed:
+#### Error Collector (in +layout.svelte)
+
+Set up a global error collector that captures recent console errors and unhandled exceptions:
+
+```typescript
+// In src/routes/+layout.svelte <script>
+import { onMount } from 'svelte';
+
+onMount(() => {
+  const MAX_ERRORS = 10;
+  window.__recentErrors = window.__recentErrors || [];
+
+  // Capture unhandled errors
+  const originalOnError = window.onerror;
+  window.onerror = (message, source, line, col, error) => {
+    window.__recentErrors.push({
+      type: 'error',
+      message: String(message),
+      source: source?.replace(window.location.origin, ''),
+      line,
+      col,
+      stack: error?.stack?.split('\n').slice(0, 3).join('\n'),
+      timestamp: Date.now()
+    });
+    if (window.__recentErrors.length > MAX_ERRORS) {
+      window.__recentErrors.shift();
+    }
+    if (originalOnError) return originalOnError(message, source, line, col, error);
+    return false;
+  };
+
+  // Capture unhandled promise rejections
+  window.addEventListener('unhandledrejection', (event) => {
+    window.__recentErrors.push({
+      type: 'unhandledrejection',
+      message: String(event.reason?.message || event.reason),
+      stack: event.reason?.stack?.split('\n').slice(0, 3).join('\n'),
+      timestamp: Date.now()
+    });
+    if (window.__recentErrors.length > MAX_ERRORS) {
+      window.__recentErrors.shift();
+    }
+  });
+});
+```
+
+#### Context Capture (in FeedbackModal)
 
 ```typescript
 // Inline in FeedbackModal.svelte
@@ -98,12 +144,17 @@ function captureContext(): Record<string, unknown> {
     camera: { x: snapshot.camera.x, y: snapshot.camera.y, zoom: snapshot.camera.zoom },
     userAgent: navigator.userAgent,
     viewport: { width: window.innerWidth, height: window.innerHeight },
-    url: window.location.href
+    url: window.location.href,
+    recentErrors: (window as any).__recentErrors || []
   };
 }
 ```
 
-**Removed fields:** `editingCardId`, `activeChainIds`, `timestamp` (redundant with `created_at`), `recentErrors` (unimplemented)
+**Notes:**
+- Captures last 10 errors max
+- Stack traces truncated to 3 lines (avoid bloating context)
+- Source paths stripped of origin for readability
+- Includes both sync errors and unhandled promise rejections
 
 ### 3. API Endpoint (With Validation)
 
@@ -332,6 +383,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 | File | Change |
 |------|--------|
 | `supabase/migrations/XXXXXX_create_feedback.sql` | New migration |
+| `src/routes/+layout.svelte` | Add error collector |
 | `src/lib/components/FeedbackModal.svelte` | New component |
 | `src/routes/canvas/[canvasId]/+page.svelte` | Add button + modal |
 | `src/routes/api/feedback/+server.ts` | New API endpoint |
@@ -374,5 +426,7 @@ const RATE_WINDOW = 60 * 60 * 1000;
 
 - Only capture application state, not note content
 - User controls what description text is included
-- Context data is minimal (6 fields, <10KB)
+- Context data is minimal (7 fields, <10KB)
 - No PII beyond user_id
+- Error messages may contain file paths but no user data
+- Stack traces truncated to 3 lines to minimize exposure
