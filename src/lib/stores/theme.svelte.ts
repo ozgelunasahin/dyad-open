@@ -26,19 +26,9 @@ class ThemeStore {
 	}
 
 	toggle() {
-		// Disable transitions during theme change to prevent flicker
-		if (typeof document !== 'undefined') {
-			document.body.classList.add('theme-transition-none');
-		}
 		this.current = this.current === 'light' ? 'dark' : 'light';
 		this.applyTheme();
 		this.persist();
-		// Re-enable transitions after a frame
-		if (typeof requestAnimationFrame !== 'undefined') {
-			requestAnimationFrame(() => {
-				document.body.classList.remove('theme-transition-none');
-			});
-		}
 	}
 
 	private applyTheme() {

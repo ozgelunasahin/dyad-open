@@ -68,8 +68,9 @@ body {
 	background: var(--bg-canvas);
 }
 
-/* Disable transitions during theme change to prevent flicker */
-.theme-transition-none,
-.theme-transition-none * {
-	transition: none !important;
+/* Smooth theme transitions - apply to all elements for consistency */
+*,
+*::before,
+*::after {
+	transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, fill 0.2s ease, stroke 0.2s ease;
 }

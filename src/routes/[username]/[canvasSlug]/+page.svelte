@@ -21,14 +21,8 @@
 	let theme = $state<'light' | 'dark'>('light');
 
 	function toggleTheme() {
-		// Disable transitions during theme change to prevent flicker
-		document.body.classList.add('theme-transition-none');
 		theme = theme === 'light' ? 'dark' : 'light';
 		document.documentElement.setAttribute('data-theme', theme);
-		// Re-enable transitions after a frame
-		requestAnimationFrame(() => {
-			document.body.classList.remove('theme-transition-none');
-		});
 	}
 
 	onMount(async () => {
