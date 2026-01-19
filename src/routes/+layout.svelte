@@ -52,6 +52,7 @@
 
 		return () => {
 			window.removeEventListener('unhandledrejection', handleRejection);
+			window.onerror = originalOnError;
 		};
 	});
 </script>

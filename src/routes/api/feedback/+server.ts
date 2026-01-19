@@ -5,7 +5,21 @@ const VALID_TYPES = ['bug', 'feature', 'other'] as const;
 const MAX_DESCRIPTION_LENGTH = 5000;
 const MAX_CONTEXT_SIZE = 10000; // 10KB
 
-// Safe JSON parse with prototype pollution protection
+const DANGEROUS_KEYS = ['__proto__', 'constructor', 'prototype'];
+
+// Recursively sanitize object to prevent prototype pollution at any depth
+function deepSanitize(obj: unknown): unknown {
+	if (obj === null || typeof obj !== 'object') return obj;
+	if (Array.isArray(obj)) return obj.map(deepSanitize);
+	const sanitized: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(obj)) {
+		if (DANGEROUS_KEYS.includes(key)) continue;
+		sanitized[key] = deepSanitize(value);
+	}
+	return sanitized;
+}
+
+// Safe JSON parse with recursive prototype pollution protection
 function safeJsonParse(input: unknown): Record<string, unknown> {
 	if (typeof input !== 'string' || !input) return {};
 	try {
@@ -13,13 +27,12 @@ function safeJsonParse(input: unknown): Record<string, unknown> {
 		if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
 			return {};
 		}
-		// Strip dangerous keys
-		const { __proto__, constructor, prototype, ...safe } = parsed;
+		const sanitized = deepSanitize(parsed) as Record<string, unknown>;
 		// Enforce size limit
-		if (JSON.stringify(safe).length > MAX_CONTEXT_SIZE) {
+		if (JSON.stringify(sanitized).length > MAX_CONTEXT_SIZE) {
 			return {};
 		}
-		return safe;
+		return sanitized;
 	} catch {
 		return {};
 	}
