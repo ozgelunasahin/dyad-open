@@ -199,7 +199,7 @@
 		{#if showCreateNoteModal}
 			<div class="modal-overlay" onclick={() => (showCreateNoteModal = false)}>
 				<div class="modal" onclick={(e) => e.stopPropagation()}>
-					<h2>Create your first note</h2>
+					<h2>Create Your First Note</h2>
 					<p class="modal-description">
 						Give your note a title. You can add content and links after creating it.
 					</p>
@@ -345,7 +345,7 @@
 		{#if showCreateNoteModal}
 			<div class="modal-overlay" onclick={() => (showCreateNoteModal = false)}>
 				<div class="modal" onclick={(e) => e.stopPropagation()}>
-					<h2>Create new note</h2>
+					<h2>Create New Note</h2>
 					<p class="modal-description">
 						Create an orphan note (not connected to any other card).
 					</p>

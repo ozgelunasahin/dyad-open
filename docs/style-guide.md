@@ -2,15 +2,15 @@
 
 ## Text Casing
 
-### Headings (Sentence case)
-Page titles, section headers, and modal titles use sentence case - capitalize only the first word and proper nouns.
+### Headings (Title Case)
+Page titles, section headers, and modal titles use Title Case - capitalize major words.
 
 **Examples:**
-- Your canvases
+- Your Canvases
 - Discover
-- Create new canvas
-- Delete canvas
-- Getting started
+- Create New Canvas
+- Delete Canvas
+- Getting Started
 
 ### Buttons & Actions (lowercase)
 All interactive elements like buttons, links that act as buttons, and action labels use lowercase.

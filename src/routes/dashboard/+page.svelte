@@ -24,7 +24,7 @@
 <div class="dashboard">
 	<header class="header">
 		<div class="header-left">
-			<h1>Your canvases</h1>
+			<h1>Your Canvases</h1>
 		</div>
 		<div class="header-right">
 			<span class="username">{data.user.email}</span>
@@ -100,7 +100,7 @@
 {#if showCreateModal}
 	<div class="modal-overlay" onclick={() => (showCreateModal = false)}>
 		<div class="modal" onclick={(e) => e.stopPropagation()}>
-			<h2>Create new canvas</h2>
+			<h2>Create New Canvas</h2>
 			<form
 				method="POST"
 				action="?/create"
@@ -141,7 +141,7 @@
 	{@const canvasToDelete = data.canvases.find((c) => c.id === showDeleteModal)}
 	<div class="modal-overlay" onclick={() => (showDeleteModal = null)}>
 		<div class="modal" onclick={(e) => e.stopPropagation()}>
-			<h2>Delete canvas</h2>
+			<h2>Delete Canvas</h2>
 			<p>
 				Are you sure you want to delete <strong>{canvasToDelete?.name}</strong>? This action cannot
 				be undone.
