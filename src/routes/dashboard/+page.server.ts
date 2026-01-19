@@ -1,6 +1,7 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { nanoid } from 'nanoid';
+import { STARTER_NOTES, STARTER_ENTRY_POINT } from '$lib/starter-notes';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) {
@@ -14,6 +15,43 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	if (error) {
 		console.error('Failed to load canvases:', error);
+	}
+
+	// Seed starter canvas for new users
+	if (!canvases || canvases.length === 0) {
+		const canvasId = nanoid();
+		const userId = locals.user.id;
+
+		// Insert starter notes
+		const notesToInsert = STARTER_NOTES.map((note) => ({
+			user_id: userId,
+			slug: note.slug,
+			title: note.title,
+			content: note.content,
+			wikilinks: note.wikilinks
+		}));
+
+		const { error: notesError } = await locals.supabase.from('notes').insert(notesToInsert);
+
+		if (notesError) {
+			console.error('Failed to seed starter notes:', notesError);
+		}
+
+		// Create starter canvas
+		const { error: canvasError } = await locals.supabase.from('canvases').insert({
+			id: canvasId,
+			user_id: userId,
+			name: 'Getting Started',
+			slug: 'getting-started',
+			entry_point_note_id: STARTER_ENTRY_POINT
+		});
+
+		if (canvasError) {
+			console.error('Failed to create starter canvas:', canvasError);
+		} else {
+			// Redirect directly to the new canvas
+			redirect(302, `/canvas/${canvasId}`);
+		}
 	}
 
 	return {
