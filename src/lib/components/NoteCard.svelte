@@ -306,6 +306,13 @@
 				const newHeight = Math.ceil(entry.contentRect.height);
 				if (newHeight > 0 && newHeight !== card.dimensions.height) {
 					canvasStore.updateCardHeight(card.id, newHeight);
+
+					// If editing, notify Canvas to update child card source links
+					if (isEditing) {
+						window.dispatchEvent(
+							new CustomEvent('card-content-reflow', { detail: { cardId: card.id } })
+						);
+					}
 				}
 			}
 		});
@@ -333,6 +340,7 @@
 		class:editing={isEditing}
 		data-editing={isEditing ? 'true' : undefined}
 		onclick={handleClick}
+		ondblclick={enterEditMode}
 		onkeydown={isEditing ? handleEditKeyDown : handleViewKeyDown}
 	>
 		<TiptapEditor

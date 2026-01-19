@@ -1534,6 +1534,41 @@ class CanvasStore {
 	}
 
 	/**
+	 * Update a card's sourceLink and invalidate its incoming path.
+	 * Called when parent card's content reflows and wikilink positions change.
+	 */
+	updateSourceLink(cardId: string, newSourceLink: { x: number; y: number }): void {
+		const card = this.cards.get(cardId);
+		if (!card || !card.parentId) return;
+
+		// Update the card's sourceLink
+		const newCards = new Map(this.cards);
+		newCards.set(cardId, {
+			...card,
+			sourceLink: newSourceLink
+		});
+		this.cards = newCards;
+
+		// Invalidate the path from parent to this card
+		const pathKey = `${card.parentId}-${cardId}`;
+		if (this.storedPaths.has(pathKey)) {
+			const newPaths = new Map(this.storedPaths);
+			newPaths.delete(pathKey);
+			this.storedPaths = newPaths;
+		}
+
+		// Request path recomputation
+		this.requestPathComputation();
+	}
+
+	/**
+	 * Get all child cards of a given parent card.
+	 */
+	getChildCards(parentCardId: string): Card[] {
+		return Array.from(this.cards.values()).filter(c => c.parentId === parentCardId);
+	}
+
+	/**
 	 * Get all existing path point arrays (for collision detection).
 	 */
 	getExistingPathPoints(): Point[][] {
