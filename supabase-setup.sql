@@ -29,8 +29,9 @@ CREATE TABLE IF NOT EXISTS canvases (
   UNIQUE(user_id, slug)
 );
 
--- Notes table
+-- Notes table (canvas-scoped)
 CREATE TABLE IF NOT EXISTS notes (
+  canvas_id TEXT NOT NULL REFERENCES canvases(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   slug TEXT NOT NULL,
   title TEXT NOT NULL,
@@ -38,7 +39,7 @@ CREATE TABLE IF NOT EXISTS notes (
   wikilinks TEXT[] DEFAULT '{}',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  PRIMARY KEY (user_id, slug)
+  PRIMARY KEY (canvas_id, slug)
 );
 
 -- Card positions table
@@ -64,6 +65,7 @@ CREATE TABLE IF NOT EXISTS card_positions (
 
 CREATE INDEX IF NOT EXISTS idx_canvases_user_id ON canvases(user_id);
 CREATE INDEX IF NOT EXISTS idx_canvases_is_published ON canvases(is_published);
+CREATE INDEX IF NOT EXISTS idx_notes_canvas_id ON notes(canvas_id);
 CREATE INDEX IF NOT EXISTS idx_notes_user_id ON notes(user_id);
 CREATE INDEX IF NOT EXISTS idx_card_positions_canvas_id ON card_positions(canvas_id);
 CREATE INDEX IF NOT EXISTS idx_profiles_username ON profiles(username);
