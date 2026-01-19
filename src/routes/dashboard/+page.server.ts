@@ -15,6 +15,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		locals.supabase
 			.from('canvases')
 			.select('id, name, slug, is_published, entry_point_note_id, created_at, updated_at')
+			.eq('user_id', userId)
 			.order('updated_at', { ascending: false }),
 		locals.supabase
 			.from('profiles')
@@ -74,6 +75,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const { data: newCanvases } = await locals.supabase
 			.from('canvases')
 			.select('id, name, slug, is_published, entry_point_note_id, created_at, updated_at')
+			.eq('user_id', userId)
 			.order('updated_at', { ascending: false });
 
 		return {
