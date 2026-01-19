@@ -70,7 +70,7 @@
 		if (isEmpty) {
 			// Delete empty note from database
 			try {
-				await fetch(`/api/notes/${card.note.id}`, { method: 'DELETE' });
+				await fetch(`/api/notes/${card.note.id}?canvas_id=${card.note.canvasId}`, { method: 'DELETE' });
 			} catch (err) {
 				console.error('Failed to delete empty note:', err);
 			}
@@ -145,7 +145,7 @@
 		};
 
 		try {
-			const res = await fetch(`/api/notes/${safeNoteId}`, {
+			const res = await fetch(`/api/notes/${safeNoteId}?canvas_id=${card.note.canvasId}`, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ title, content })
@@ -264,7 +264,7 @@
 		saveStatus = 'saving';
 
 		try {
-			const res = await fetch(`/api/notes/${card.note.id}`, {
+			const res = await fetch(`/api/notes/${card.note.id}?canvas_id=${card.note.canvasId}`, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ title: card.note.title, content: currentContent }),

@@ -35,10 +35,11 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		sourceLinkY: pos.source_link_y ?? null
 	}));
 
-	// Load user's notes from Supabase (RLS filters to user's own notes)
+	// Load notes for this canvas (canvas-scoped notes)
 	const { data: notes } = await locals.supabase
 		.from('notes')
-		.select('slug, title, content, wikilinks');
+		.select('slug, title, content, wikilinks, canvas_id')
+		.eq('canvas_id', params.canvasId);
 
 	// Build vault object for the canvas store
 	// Entry point: use canvas setting, or first note, or empty string (handled by store)
@@ -49,6 +50,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 				n.slug,
 				{
 					id: n.slug,
+					canvasId: n.canvas_id,
 					title: n.title,
 					content: n.content,
 					wikilinks: n.wikilinks ?? []

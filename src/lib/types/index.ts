@@ -6,7 +6,8 @@ export interface Point {
 }
 
 export interface Note {
-	id: string;
+	id: string; // The slug (human-readable identifier)
+	canvasId: string; // Canvas this note belongs to
 	title: string;
 	content: JSONContent; // ProseMirror document JSON
 	wikilinks: string[];

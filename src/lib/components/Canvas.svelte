@@ -453,7 +453,7 @@
 					};
 
 					try {
-						const res = await fetch(`/api/notes/${safeNoteId}`, {
+						const res = await fetch(`/api/notes/${safeNoteId}?canvas_id=${canvasStore.canvasId}`, {
 							method: 'PUT',
 							headers: { 'Content-Type': 'application/json' },
 							body: JSON.stringify({ title, content })

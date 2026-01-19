@@ -43,16 +43,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		sourceLinkY: pos.source_link_y ?? null
 	}));
 
-	// Get the note slugs that are on this canvas
-	const noteSlugs = cardPositions.map((p) => p.noteId);
-
-	// Load notes from the canvas owner
+	// Load notes for this canvas (canvas-scoped notes)
 	// RLS policy allows viewing notes linked to published canvases
 	const { data: notes } = await locals.supabase
 		.from('notes')
-		.select('slug, title, content, wikilinks')
-		.eq('user_id', canvas.user_id)
-		.in('slug', noteSlugs.length > 0 ? noteSlugs : ['__none__']);
+		.select('slug, title, content, wikilinks, canvas_id')
+		.eq('canvas_id', canvas.id);
 
 	// Build vault object for the canvas store
 	const vault = {
@@ -62,6 +58,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				n.slug,
 				{
 					id: n.slug,
+					canvasId: n.canvas_id,
 					title: n.title,
 					content: n.content,
 					wikilinks: n.wikilinks ?? []
