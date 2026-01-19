@@ -588,6 +588,11 @@ class CanvasStore {
 		const card = this.cards.get(cardId);
 		if (!card) return;
 
+		// Exit edit mode when focusing a different card
+		if (this.editingCardId && this.editingCardId !== cardId) {
+			this.exitEditMode();
+		}
+
 		const previousCardId = this.focusedCardId;
 		const visibility = this.getCardVisibility(cardId);
 		const savedState = this.savedCardState.get(cardId);
@@ -717,6 +722,11 @@ class CanvasStore {
 	focusCardWithoutAnimation(cardId: string): void {
 		const card = this.cards.get(cardId);
 		if (!card) return;
+
+		// Exit edit mode when focusing a different card
+		if (this.editingCardId && this.editingCardId !== cardId) {
+			this.exitEditMode();
+		}
 
 		// Just set focus, no animation, no state save
 		// (consistent with "no pan = no saved state" principle)

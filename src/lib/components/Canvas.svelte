@@ -254,7 +254,14 @@
 
 		// Keyboard shortcuts for canvas navigation
 		const handleKeyDown = (event: KeyboardEvent) => {
-			// Don't trigger if already editing or if typing in an input
+			// Escape exits edit mode from anywhere
+			if (event.key === 'Escape' && canvasStore.editingCardId) {
+				event.preventDefault();
+				canvasStore.exitEditMode();
+				return;
+			}
+
+			// Don't trigger other shortcuts if editing or typing in an input
 			if (canvasStore.editingCardId) return;
 			if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
 
