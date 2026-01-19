@@ -6,11 +6,22 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		redirect(302, '/login');
 	}
 
-	const { data: canvas, error: canvasError } = await locals.supabase
-		.from('canvases')
-		.select('id, name, slug, is_published, entry_point_note_id, created_at, updated_at')
-		.eq('id', params.canvasId)
-		.single();
+	// Fetch canvas and user profile in parallel
+	const [canvasResult, profileResult] = await Promise.all([
+		locals.supabase
+			.from('canvases')
+			.select('id, name, slug, is_published, entry_point_note_id, created_at, updated_at')
+			.eq('id', params.canvasId)
+			.single(),
+		locals.supabase
+			.from('profiles')
+			.select('username')
+			.eq('id', locals.user.id)
+			.single()
+	]);
+
+	const { data: canvas, error: canvasError } = canvasResult;
+	const { data: profile } = profileResult;
 
 	if (canvasError || !canvas) {
 		error(404, 'Canvas not found');
@@ -61,6 +72,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 	return {
 		user: locals.user,
+		profile: { username: profile?.username ?? '' },
 		canvas,
 		cardPositions,
 		vault
