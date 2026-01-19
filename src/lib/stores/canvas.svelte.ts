@@ -1,6 +1,6 @@
-import type { Card, Connection, Camera, Point, Vault, Dimensions, LinkSide, SourceBounds } from '$lib/types';
+import type { Card, Connection, Camera, Point, Vault, Dimensions, LinkSide, SourceBounds, ActiveArea } from '$lib/types';
 import type { JSONContent } from '@tiptap/core';
-import { MAX_CARDS, CARD_WIDTH } from '$lib/types';
+import { MAX_CARDS, CARD_WIDTH, ACTIVE_AREA_MARGINS } from '$lib/types';
 import { calculateNewCardPosition } from '$lib/utils/layout';
 import { estimateContentHeight } from '$lib/utils/json-content';
 
@@ -617,7 +617,8 @@ class CanvasStore {
 		const previousCardId = this.focusedCardId;
 		const visibility = this.getCardVisibility(cardId);
 		const savedState = this.savedCardState.get(cardId);
-		console.log('[ReadingPos] focusCard:', cardId, 'visibility:', visibility, 'savedState:', savedState ? { focusY: savedState.focusY } : null);
+		const cardFitsDebug = this.viewportHeight > 0 ? card.dimensions.height * this.camera.zoom <= this.viewportHeight * 0.85 : false;
+		console.log('[ReadingPos] focusCard:', cardId, 'visibility:', visibility, 'fitsOnScreen:', cardFitsDebug, 'savedState:', savedState ? { focusY: savedState.focusY } : null);
 
 		// Prepare link restoration info (needed for all paths)
 		const linkRestoration = savedState?.linkFocusActive
@@ -630,19 +631,22 @@ class CanvasStore {
 		let panType: 'none' | 'minimal' | 'full' = 'full';
 		let minPan: { dx: number; dy: number } | null = null;
 
-		// If target card has saved reading position, we MUST pan to restore it
-		// (saved state exists = we panned to get here originally = pan back)
-		const hasSavedReadingPosition = savedState?.focusY !== undefined;
+		// Check if card fits entirely on screen (no scrolling needed)
+		const cardFitsOnScreen = this.viewportHeight > 0 &&
+			card.dimensions.height * this.camera.zoom <= this.viewportHeight * 0.85; // 85% to leave some margin
+
+		// Saved reading position only matters for tall cards that don't fit on screen
+		const hasSavedReadingPosition = savedState?.focusY !== undefined && !cardFitsOnScreen;
 
 		if (forceAnimation) {
 			willPan = true;
 			panType = 'full';
 		} else if (hasSavedReadingPosition) {
-			// Saved state means we panned away from this card, so pan back to restore
+			// Tall card with saved reading position - restore to where user was reading
 			willPan = true;
 			panType = 'full';
 		} else {
-			// No saved state - use conservative panning based on visibility
+			// Card fits on screen OR no saved state - use conservative panning based on visibility
 			if (visibility === 'fully-visible') {
 				willPan = false;
 				panType = 'none';
@@ -849,6 +853,35 @@ class CanvasStore {
 		this.viewportHeight = height;
 	}
 
+	/**
+	 * Calculate active reading area margins in pixels.
+	 * Uses percentage-based margins from ACTIVE_AREA_MARGINS.
+	 * Asymmetric to match left-biased reading patterns (80% attention on left side).
+	 */
+	calculateActiveArea(): ActiveArea {
+		return {
+			top: this.viewportHeight * ACTIVE_AREA_MARGINS.top,
+			bottom: this.viewportHeight * ACTIVE_AREA_MARGINS.bottom,
+			left: this.viewportWidth * ACTIVE_AREA_MARGINS.left,
+			right: this.viewportWidth * ACTIVE_AREA_MARGINS.right
+		};
+	}
+
+	/**
+	 * Get active area bounds in canvas coordinates.
+	 * Returns the min/max X/Y that define the comfortable reading zone.
+	 */
+	getActiveAreaBounds(): { minX: number; maxX: number; minY: number; maxY: number } {
+		const area = this.calculateActiveArea();
+		const zoom = this.camera.zoom;
+		return {
+			minX: (-this.camera.x + area.left) / zoom,
+			maxX: (-this.camera.x + this.viewportWidth - area.right) / zoom,
+			minY: (-this.camera.y + area.top) / zoom,
+			maxY: (-this.camera.y + this.viewportHeight - area.bottom) / zoom
+		};
+	}
+
 	setAnimating(animating: boolean): void {
 		this.isAnimating = animating;
 		if (!animating) {
@@ -930,20 +963,22 @@ class CanvasStore {
 		}
 	}
 
-	// Check if the focused card is still within the viewport's reading zone
-	// The reading zone is the viewport minus margins on each side
-	// Vertical scrolling is allowed (reading), horizontal panning away is not
-	isCardInReadingZone(viewportWidth: number, viewportHeight: number, margin: number = 100): boolean {
+	/**
+	 * Check if the focused card is still within the active reading area.
+	 * Uses asymmetric margins based on UX research.
+	 * Vertical scrolling is allowed (reading), horizontal panning away is not.
+	 *
+	 * Note: Parameters are kept for backward compatibility but are now ignored
+	 * in favor of the stored viewport dimensions and active area calculation.
+	 */
+	isCardInReadingZone(_viewportWidth?: number, _viewportHeight?: number, _margin?: number): boolean {
 		if (!this.focusedCardId) return true;
 		const card = this.cards.get(this.focusedCardId);
 		if (!card) return true;
+		if (this.viewportWidth === 0 || this.viewportHeight === 0) return true;
 
-		// Convert viewport bounds to canvas coordinates
-		const zoom = this.camera.zoom;
-		const viewportLeft = -this.camera.x / zoom;
-		const viewportRight = (-this.camera.x + viewportWidth) / zoom;
-		const viewportTop = -this.camera.y / zoom;
-		const viewportBottom = (-this.camera.y + viewportHeight) / zoom;
+		// Get active area bounds in canvas coordinates
+		const bounds = this.getActiveAreaBounds();
 
 		// Card bounds
 		const cardLeft = card.position.x;
@@ -951,36 +986,36 @@ class CanvasStore {
 		const cardTop = card.position.y;
 		const cardBottom = card.position.y + card.dimensions.height;
 
-		// Reading zone (viewport with margins)
-		const zoneLeft = viewportLeft + margin / zoom;
-		const zoneRight = viewportRight - margin / zoom;
-		const zoneTop = viewportTop + margin / zoom;
-		const zoneBottom = viewportBottom - margin / zoom;
+		// Card is in reading zone if it overlaps horizontally with the active area
+		// and at least part of it is visible vertically (within viewport, not active area)
+		const horizontalOverlap = cardRight > bounds.minX && cardLeft < bounds.maxX;
 
-		// Card is in reading zone if it overlaps horizontally with the zone
-		// and at least part of it is visible vertically
-		const horizontalOverlap = cardRight > zoneLeft && cardLeft < zoneRight;
+		// For vertical, just check if any part is visible in the full viewport
+		const viewportTop = -this.camera.y / this.camera.zoom;
+		const viewportBottom = (-this.camera.y + this.viewportHeight) / this.camera.zoom;
 		const verticalVisible = cardBottom > viewportTop && cardTop < viewportBottom;
 
 		return horizontalOverlap && verticalVisible;
 	}
 
-	// Clear saved state for current card if it's been panned out of the reading zone
-	clearSavedStateIfNotInReadingZone(viewportWidth: number, viewportHeight: number, margin: number = 100): void {
+	/**
+	 * Clear saved state for current card if it's been panned out of the reading zone.
+	 * Parameters are kept for backward compatibility but ignored.
+	 */
+	clearSavedStateIfNotInReadingZone(_viewportWidth?: number, _viewportHeight?: number, _margin?: number): void {
 		if (!this.focusedCardId) return;
-		if (!this.isCardInReadingZone(viewportWidth, viewportHeight, margin)) {
+		if (!this.isCardInReadingZone()) {
 			this.clearSavedCardState(this.focusedCardId);
 		}
 	}
 
 	/**
-	 * Determine card visibility state relative to viewport.
-	 * Used for conservative panning - only pan when necessary.
+	 * Determine card visibility state relative to active reading area.
+	 * Uses asymmetric margins based on UX research (80% attention on left side).
 	 *
 	 * Returns:
-	 * - 'fully-visible': Card is in reading position (top visible, horizontally in view)
-	 *   This includes large cards that extend beyond viewport - they're "in view" for reading
-	 * - 'partially-visible': Card overlaps viewport but top/sides are cut off - needs panning
+	 * - 'fully-visible': Card is within active reading area - no pan needed
+	 * - 'partially-visible': Card overlaps active area but needs nudging - gentle pan
 	 * - 'off-screen': Card has no overlap with viewport - full pan needed
 	 */
 	getCardVisibility(cardId: string): VisibilityState {
@@ -988,7 +1023,7 @@ class CanvasStore {
 		if (!card) return 'off-screen';
 		if (this.viewportWidth === 0 || this.viewportHeight === 0) return 'off-screen';
 
-		const margin = 50;
+		const area = this.calculateActiveArea();
 		const zoom = this.camera.zoom;
 
 		// Convert card bounds to screen coordinates
@@ -1007,48 +1042,51 @@ class CanvasStore {
 
 		if (!anyOverlap) return 'off-screen';
 
-		// Card overlaps viewport - check if it's in a good reading position
-		// "Fully visible" means card is in a readable state - we don't need to pan
-		const horizontallyFits = screenLeft >= margin && screenRight <= this.viewportWidth - margin;
+		// Card overlaps viewport - check if it's within the active reading area
+		// Use asymmetric margins: left (5%), right (20%), top (15%), bottom (10%)
+		const horizontallyFits = screenLeft >= area.left && screenRight <= this.viewportWidth - area.right;
 
 		if (!horizontallyFits) {
-			// Sides cut off - needs horizontal panning
+			// Card extends outside active area horizontally - needs gentle pan
 			return 'partially-visible';
 		}
 
 		// Horizontally fits - now check vertical positioning
 		// A card is "fully visible" if:
-		// 1. Top is in reading position (not cut off at top), OR
-		// 2. User has scrolled down in a tall card (top is above viewport, but content is on screen)
-		const topCutOff = screenTop < margin;
-		const topBelowViewport = screenTop >= this.viewportHeight - margin;
+		// 1. Top is within active area (between top margin and bottom margin), OR
+		// 2. User has scrolled down in a tall card (top is above viewport, but card is on screen)
+		const topAboveArea = screenTop < area.top;
+		const topBelowArea = screenTop >= this.viewportHeight - area.bottom;
 
-		if (topBelowViewport) {
-			// Top hasn't even entered viewport yet - card is barely visible at bottom
+		if (topBelowArea) {
+			// Top hasn't entered active area yet - card is barely visible at bottom
 			return 'partially-visible';
 		}
 
-		if (topCutOff) {
+		if (topAboveArea) {
 			// Top is above viewport (user scrolled down in tall card)
 			// This is fine - user is actively reading. Consider it "fully visible"
 			return 'fully-visible';
 		}
 
-		// Top is in view and horizontally fits - fully visible
+		// Top is in active area and horizontally fits - fully visible
 		return 'fully-visible';
 	}
 
 	/**
-	 * Calculate the smallest camera translation to make card fully visible.
-	 * Returns null if card is already fully visible.
-	 * Used for minimal panning when card is partially visible.
+	 * Calculate gentle pan to bring card into active reading area.
+	 * Uses asymmetric margins based on UX research (80% attention on left side).
+	 * Returns null if card is already within active area.
+	 *
+	 * Pans the minimum amount to bring content just inside the boundary,
+	 * rather than centering (which feels jarring).
 	 */
 	calculateMinimalPan(cardId: string): { dx: number; dy: number } | null {
 		const card = this.cards.get(cardId);
 		if (!card) return null;
 		if (this.viewportWidth === 0 || this.viewportHeight === 0) return null;
 
-		const margin = 50;
+		const area = this.calculateActiveArea();
 		const zoom = this.camera.zoom;
 
 		// Convert card bounds to screen coordinates
@@ -1060,18 +1098,24 @@ class CanvasStore {
 		let dx = 0;
 		let dy = 0;
 
-		// Calculate horizontal adjustment
-		if (screenLeft < margin) {
-			dx = margin - screenLeft;  // Pan right to show left edge
-		} else if (screenRight > this.viewportWidth - margin) {
-			dx = (this.viewportWidth - margin) - screenRight;  // Pan left to show right edge
+		// Calculate horizontal adjustment using asymmetric margins
+		// Left margin is small (5%) - keep content near left where attention goes
+		// Right margin is larger (20%) - leave room for child cards
+		if (screenLeft < area.left) {
+			dx = area.left - screenLeft;  // Pan right to show left edge
+		} else if (screenRight > this.viewportWidth - area.right) {
+			dx = (this.viewportWidth - area.right) - screenRight;  // Pan left to show right edge
 		}
 
 		// Calculate vertical adjustment
-		if (screenTop < margin) {
-			dy = margin - screenTop;  // Pan down to show top edge
-		} else if (screenBottom > this.viewportHeight - margin) {
-			dy = (this.viewportHeight - margin) - screenBottom;  // Pan up to show bottom edge
+		// Top margin (15%) - reading starts near top
+		// Bottom margin (10%) - less space needed below
+		if (screenTop < area.top) {
+			dy = area.top - screenTop;  // Pan down to show top edge
+		} else if (screenTop > this.viewportHeight - area.bottom) {
+			// Note: We check screenTop, not screenBottom, because we care about
+			// where the card top is for reading position, not if card extends past bottom
+			dy = (this.viewportHeight - area.bottom) - screenTop;  // Pan up to show top
 		}
 
 		return (dx === 0 && dy === 0) ? null : { dx, dy };

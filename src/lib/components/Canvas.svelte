@@ -13,6 +13,7 @@
 	} from '$lib/utils/pathfinding';
 	import NoteCard from './NoteCard.svelte';
 	import ConnectionLine from './ConnectionLine.svelte';
+	import { sanitizeSlug } from '$lib/utils/slug';
 
 	interface Props {
 		readOnly?: boolean;
@@ -25,8 +26,9 @@
 	let zoomBehavior: ZoomBehavior<SVGSVGElement, unknown>;
 	let zoomSpeed = 0.001;
 
-	// Animation cancellation flag (P2-007 fix: prevent memory leaks)
-	let animationCancelled = false;
+	// Animation generation counter (P2-007 fix: prevent memory leaks and racing animations)
+	// Each animation increments this; if it changes mid-animation, the old animation stops
+	let animationGeneration = 0;
 
 	// Click vs drag detection for non-focused cards
 	let dragStartPos: { x: number; y: number } | null = null;
@@ -256,6 +258,22 @@
 
 		window.addEventListener('canvas-restore', handleRestorePosition);
 
+		// Listen for minimal pan requests (gentle nudge to bring card into active area)
+		const handleMinimalPan = (event: Event) => {
+			const customEvent = event as CustomEvent<{
+				cardId: string;
+				dx: number;
+				dy: number;
+				linkRestoration?: { linkTarget?: string; linkFocusActive: boolean } | null;
+			}>;
+			pendingLinkRestoration = customEvent.detail.linkRestoration ?? null;
+
+			// Use the shared animation function for consistent behavior
+			animateMinimalPan(customEvent.detail.dx, customEvent.detail.dy);
+		};
+
+		window.addEventListener('canvas-minimal-pan', handleMinimalPan);
+
 		// Keyboard shortcuts for canvas navigation
 		const handleKeyDown = (event: KeyboardEvent) => {
 			// Escape exits edit mode from anywhere
@@ -392,7 +410,7 @@
 
 			// Helper to follow the currently highlighted link
 			// Uses the DOM highlight as source of truth, not focusedLinkIndex
-			const followHighlightedLink = () => {
+			const followHighlightedLink = async () => {
 				const currentFocusedCard = canvasStore.focusedCardId;
 				const highlightedLink = getHighlightedLink();
 
@@ -400,9 +418,6 @@
 
 				const target = highlightedLink.dataset.target;
 				if (!target) return;
-
-				// Skip broken links
-				if (canvasStore.isLinkBroken(target)) return;
 
 				const rect = highlightedLink.getBoundingClientRect();
 				const svgRect = svg.getBoundingClientRect();
@@ -419,6 +434,58 @@
 					? fromCard.position.x + (fromCard.dimensions?.width ?? 400) / 2
 					: 0;
 				const linkSide: LinkSide = linkCenterX < cardCenterX ? 'left' : 'right';
+
+				// Handle broken links: create the note and open in edit mode
+				if (canvasStore.isLinkBroken(target)) {
+					const safeNoteId = sanitizeSlug(target);
+					if (!safeNoteId) return;
+
+					// Create title from slug
+					const title = safeNoteId
+						.split('-')
+						.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+						.join(' ');
+
+					// Create initial content as empty doc
+					const content = {
+						type: 'doc',
+						content: [{ type: 'paragraph' }]
+					};
+
+					try {
+						const res = await fetch(`/api/notes/${safeNoteId}`, {
+							method: 'PUT',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ title, content })
+						});
+
+						if (!res.ok) {
+							console.error('Failed to create note:', safeNoteId);
+							return;
+						}
+
+						canvasStore.addNoteToVault(safeNoteId, title, content);
+						canvasStore.exitLinkFocusMode();
+						canvasStore.followLinkToRight(safeNoteId, currentFocusedCard, canvasBounds, linkSide);
+
+						// Compute and store path for new connection
+						if (canvasStore.cards.has(safeNoteId)) {
+							computeAndStorePath(currentFocusedCard, safeNoteId, canvasBounds);
+						}
+
+						// Enter edit mode after animation completes (400ms)
+						// Guard: only enter if card is still focused (user didn't navigate away)
+						const targetCardId = safeNoteId;
+						setTimeout(() => {
+							if (canvasStore.cards.has(targetCardId) && canvasStore.focusedCardId === targetCardId) {
+								canvasStore.enterEditMode(targetCardId);
+							}
+						}, 500);
+					} catch (err) {
+						console.error('Failed to create note:', err);
+					}
+					return;
+				}
 
 				canvasStore.exitLinkFocusMode();
 				const noteAlreadyOpen = canvasStore.cards.has(target);
@@ -609,10 +676,12 @@
 
 		return () => {
 			// P2-007 fix: Cancel any running animations on unmount
-			animationCancelled = true;
+			animationGeneration++;
+			canvasStore.setAnimating(false);
 			clearTimeout(mountPathsTimer);
 			window.removeEventListener('canvas-focus', handleFocusAnimation);
 			window.removeEventListener('canvas-restore', handleRestorePosition);
+			window.removeEventListener('canvas-minimal-pan', handleMinimalPan);
 			window.removeEventListener('canvas-zoom-to-fit', handleZoomToFit);
 			window.removeEventListener('canvas-compute-paths', handleComputePaths);
 			window.removeEventListener('card-content-reflow', handleContentReflow);
@@ -711,8 +780,8 @@
 	function animateToCenter(targetX: number, targetY: number) {
 		if (!svg) return;
 
-		// Reset cancellation flag for new animation
-		animationCancelled = false;
+		// Increment generation to cancel any running animation
+		const myGeneration = ++animationGeneration;
 
 		const selection = select(svg);
 		const width = svg.clientWidth;
@@ -734,8 +803,8 @@
 		const startTime = Date.now();
 
 		function animate() {
-			// Check cancellation at start of each frame
-			if (animationCancelled) return;
+			// Check if a newer animation has started
+			if (animationGeneration !== myGeneration) return;
 
 			const elapsed = Date.now() - startTime;
 			const progress = Math.min(elapsed / duration, 1);
@@ -769,8 +838,8 @@
 	function animateToFocusPoint(focusPoint: { x: number; y: number }) {
 		if (!svg) return;
 
-		// Reset cancellation flag for new animation
-		animationCancelled = false;
+		// Increment generation to cancel any running animation
+		const myGeneration = ++animationGeneration;
 
 		const selection = select(svg);
 
@@ -792,8 +861,8 @@
 		const startTime = Date.now();
 
 		function animate() {
-			// Check cancellation at start of each frame
-			if (animationCancelled) return;
+			// Check if a newer animation has started
+			if (animationGeneration !== myGeneration) return;
 
 			const elapsed = Date.now() - startTime;
 			const progress = Math.min(elapsed / duration, 1);
@@ -805,6 +874,59 @@
 			const currentY = startY + (targetY - startY) * eased;
 
 			// Keep current zoom constant
+			const newTransform = zoomIdentity.translate(currentX, currentY).scale(zoomLevel);
+
+			selection.call(zoomBehavior.transform, newTransform);
+
+			if (progress < 1) {
+				requestAnimationFrame(animate);
+			} else {
+				canvasStore.setAnimating(false);
+				restoreLinkFocusAfterAnimation();
+			}
+		}
+
+		requestAnimationFrame(animate);
+	}
+
+	/**
+	 * Animate a minimal pan (gentle nudge) to bring content into active area.
+	 * Uses same pattern as other animations for consistency.
+	 * Captures zoom level at start to prevent interpolation issues.
+	 */
+	function animateMinimalPan(dx: number, dy: number) {
+		if (!svg) return;
+
+		// Increment generation to cancel any running animation
+		const myGeneration = ++animationGeneration;
+
+		const selection = select(svg);
+
+		// Capture all values at start to prevent race conditions
+		const startX = transform.x;
+		const startY = transform.y;
+		const zoomLevel = transform.k;
+
+		const targetX = startX + dx;
+		const targetY = startY + dy;
+
+		const duration = 350; // Gentle, unhurried animation
+		const startTime = Date.now();
+
+		function animate() {
+			// Check if a newer animation has started
+			if (animationGeneration !== myGeneration) return;
+
+			const elapsed = Date.now() - startTime;
+			const progress = Math.min(elapsed / duration, 1);
+
+			// Ease out cubic for smooth deceleration
+			const eased = 1 - Math.pow(1 - progress, 3);
+
+			const currentX = startX + (targetX - startX) * eased;
+			const currentY = startY + (targetY - startY) * eased;
+
+			// Keep zoom constant throughout animation
 			const newTransform = zoomIdentity.translate(currentX, currentY).scale(zoomLevel);
 
 			selection.call(zoomBehavior.transform, newTransform);

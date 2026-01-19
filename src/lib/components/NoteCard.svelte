@@ -158,7 +158,14 @@
 
 			canvasStore.addNoteToVault(safeNoteId, title, content);
 			onLinkClick(safeNoteId, card.id, linkBounds);
-			setTimeout(() => canvasStore.enterEditMode(safeNoteId), 100);
+			// Wait for animation to complete (400ms) before entering edit mode
+			// Guard: only enter if card is still focused (user didn't navigate away)
+			const targetCardId = safeNoteId;
+			setTimeout(() => {
+				if (canvasStore.cards.has(targetCardId) && canvasStore.focusedCardId === targetCardId) {
+					canvasStore.enterEditMode(targetCardId);
+				}
+			}, 500);
 		} catch (err) {
 			console.error('Failed to create note:', err);
 		}

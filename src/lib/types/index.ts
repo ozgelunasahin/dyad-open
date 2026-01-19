@@ -45,6 +45,29 @@ export interface Camera {
 	zoom: number;
 }
 
+/**
+ * Active reading area margins (in pixels).
+ * Defines the zone within the viewport where content should be for comfortable reading.
+ * Asymmetric to match left-biased reading patterns (80% attention on left side).
+ */
+export interface ActiveArea {
+	top: number;    // pixels from viewport top
+	bottom: number; // pixels from viewport bottom
+	left: number;   // pixels from viewport left
+	right: number;  // pixels from viewport right
+}
+
+/**
+ * Active reading area margins as percentages of viewport.
+ * Based on UX research: readers focus 80% on left half of screen.
+ */
+export const ACTIVE_AREA_MARGINS = {
+	top: 0.15,    // 15% - reading starts near top
+	bottom: 0.10, // 10% - less space needed below
+	left: 0.05,   // 5% - minimal, keep content near left where attention goes
+	right: 0.20   // 20% - larger, users don't focus here; room for child cards
+};
+
 export interface NavigationHistory {
 	back: string[][];
 	forward: string[][];
