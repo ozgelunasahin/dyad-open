@@ -288,6 +288,17 @@
 		canvasStore.unopenCard(target);
 	}
 
+	// Listen for request to exit edit mode (from Canvas when clicking outside)
+	$effect(() => {
+		const handleExitRequest = () => {
+			if (isEditing) {
+				exitEditMode();
+			}
+		};
+		window.addEventListener('request-exit-edit-mode', handleExitRequest);
+		return () => window.removeEventListener('request-exit-edit-mode', handleExitRequest);
+	});
+
 	// Cleanup on unmount
 	$effect(() => {
 		return () => {
