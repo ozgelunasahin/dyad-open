@@ -1131,7 +1131,14 @@ class CanvasStore {
 				// Truncate chain after current position, append target
 				this.activeChain = [...this.activeChain.slice(0, currentIndex + 1), noteId];
 			}
-			this.focusCard(noteId);
+			// Use same pan logic as clicking a card:
+			// - If it's already focused, pan to reading position
+			// - Otherwise, just focus without panning (user can click again to pan)
+			if (this.focusedCardId === noteId) {
+				this.panToFocusedCard();
+			} else {
+				this.focusCard(noteId);
+			}
 			return true;
 		}
 

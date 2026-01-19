@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { enhance } from '$app/forms';
+	import { dev } from '$app/environment';
 	import type { PageData, ActionData } from './$types';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import Canvas from '$lib/components/Canvas.svelte';
+	import HelpBar from '$lib/components/HelpBar.svelte';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -15,6 +17,7 @@
 	let renaming = $state(false);
 	let creatingNote = $state(false);
 	let newNoteName = $state('');
+	let showHelp = $state(false);
 
 	async function createOrphanNote() {
 		if (!newNoteName.trim()) return;
@@ -94,6 +97,9 @@
 	});
 
 	function handleKeydown(event: KeyboardEvent) {
+		// Don't trigger shortcuts if typing in an input
+		if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+
 		if (event.altKey && event.key === 'ArrowLeft') {
 			event.preventDefault();
 			canvasStore.goBack();
@@ -101,6 +107,11 @@
 		if (event.altKey && event.key === 'ArrowRight') {
 			event.preventDefault();
 			canvasStore.goForward();
+		}
+		// Toggle help bar with ?
+		if (event.key === '?' || (event.shiftKey && event.key === '/')) {
+			event.preventDefault();
+			showHelp = !showHelp;
 		}
 	}
 
@@ -445,27 +456,32 @@
 			</button>
 		{/if}
 
-		<!-- Debug toggle -->
-		<button
-			class="debug-toggle"
-			class:active={canvasStore.debugMode}
-			onclick={() => canvasStore.toggleDebugMode()}
-			aria-label="Toggle debug mode"
-		>
-			<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-				{#if canvasStore.debugMode}
-					<rect x="1" y="1" width="6" height="6" fill="currentColor" rx="1" />
-					<rect x="9" y="1" width="6" height="6" fill="currentColor" rx="1" />
-					<rect x="1" y="9" width="6" height="6" fill="currentColor" rx="1" />
-					<rect x="9" y="9" width="6" height="6" fill="currentColor" rx="1" />
-				{:else}
-					<rect x="1" y="1" width="6" height="6" stroke="currentColor" stroke-width="1.5" rx="1" />
-					<rect x="9" y="1" width="6" height="6" stroke="currentColor" stroke-width="1.5" rx="1" />
-					<rect x="1" y="9" width="6" height="6" stroke="currentColor" stroke-width="1.5" rx="1" />
-					<rect x="9" y="9" width="6" height="6" stroke="currentColor" stroke-width="1.5" rx="1" />
-				{/if}
-			</svg>
-		</button>
+		<!-- Debug toggle (dev only) -->
+		{#if dev}
+			<button
+				class="debug-toggle"
+				class:active={canvasStore.debugMode}
+				onclick={() => canvasStore.toggleDebugMode()}
+				aria-label="Toggle debug mode"
+			>
+				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+					{#if canvasStore.debugMode}
+						<rect x="1" y="1" width="6" height="6" fill="currentColor" rx="1" />
+						<rect x="9" y="1" width="6" height="6" fill="currentColor" rx="1" />
+						<rect x="1" y="9" width="6" height="6" fill="currentColor" rx="1" />
+						<rect x="9" y="9" width="6" height="6" fill="currentColor" rx="1" />
+					{:else}
+						<rect x="1" y="1" width="6" height="6" stroke="currentColor" stroke-width="1.5" rx="1" />
+						<rect x="9" y="1" width="6" height="6" stroke="currentColor" stroke-width="1.5" rx="1" />
+						<rect x="1" y="9" width="6" height="6" stroke="currentColor" stroke-width="1.5" rx="1" />
+						<rect x="9" y="9" width="6" height="6" stroke="currentColor" stroke-width="1.5" rx="1" />
+					{/if}
+				</svg>
+			</button>
+		{/if}
+
+		<!-- Help bar -->
+		<HelpBar visible={showHelp} />
 
 		<!-- Theme toggle -->
 		<button class="theme-toggle" onclick={() => themeStore.toggle()} aria-label="Toggle theme">

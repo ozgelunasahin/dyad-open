@@ -1,6 +1,6 @@
 ---
 id: "015"
-status: pending
+status: completed
 priority: p1
 title: "Implement password reset flow"
 created: "2026-01-19"

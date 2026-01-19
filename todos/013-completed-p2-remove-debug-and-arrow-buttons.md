@@ -1,6 +1,6 @@
 ---
 id: "013"
-status: pending
+status: completed
 priority: p2
 title: "Remove debug button in prod and non-functional arrow buttons"
 created: "2026-01-19"

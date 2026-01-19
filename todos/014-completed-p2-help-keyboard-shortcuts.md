@@ -1,6 +1,6 @@
 ---
 id: "014"
-status: pending
+status: completed
 priority: p2
 title: "Add help button and ? shortcut for keyboard commands"
 created: "2026-01-19"

@@ -1,21 +1,23 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import type { ActionData } from './$types';
+	import type { ActionData, PageData } from './$types';
 
-	let { form }: { form: ActionData } = $props();
+	let { data, form }: { data: PageData; form: ActionData } = $props();
 	let loading = $state(false);
-	let mode = $state<'login' | 'signup'>('login');
+	let mode = $state<'login' | 'signup' | 'reset' | 'update'>(data.mode === 'update' ? 'update' : 'login');
 </script>
 
 <svelte:head>
-	<title>{mode === 'login' ? 'Login' : 'Sign Up'} - dyad.berlin</title>
+	<title>{mode === 'login' ? 'Login' : mode === 'signup' ? 'Sign Up' : mode === 'reset' ? 'Reset Password' : 'Set New Password'} - dyad.berlin</title>
 </svelte:head>
 
 <div class="auth-container">
 	<div class="auth-card">
-		<h1>{mode === 'login' ? 'Welcome back' : 'Create account'}</h1>
+		<h1>
+			{#if mode === 'login'}Welcome back{:else if mode === 'signup'}Create account{:else if mode === 'reset'}Reset password{:else}Set new password{/if}
+		</h1>
 		<p class="subtitle">
-			{mode === 'login' ? 'Sign in to continue to your canvases' : 'Get started with your own canvas'}
+			{#if mode === 'login'}Sign in to continue to your canvases{:else if mode === 'signup'}Get started with your own canvas{:else if mode === 'reset'}Enter your email to receive a reset link{:else}Choose a new password for your account{/if}
 		</p>
 
 		{#if form?.error}
@@ -28,7 +30,7 @@
 
 		<form
 			method="POST"
-			action="?/{mode}"
+			action="?/{mode === 'reset' ? 'resetPassword' : mode === 'update' ? 'updatePassword' : mode}"
 			use:enhance={() => {
 				loading = true;
 				return async ({ update }) => {
@@ -37,40 +39,44 @@
 				};
 			}}
 		>
-			<div class="form-group">
-				<label for="email">Email</label>
-				<input
-					type="email"
-					id="email"
-					name="email"
-					value={form?.email ?? ''}
-					required
-					autocomplete="email"
-					disabled={loading}
-				/>
-			</div>
+			{#if mode !== 'update'}
+				<div class="form-group">
+					<label for="email">Email</label>
+					<input
+						type="email"
+						id="email"
+						name="email"
+						value={form?.email ?? ''}
+						required
+						autocomplete="email"
+						disabled={loading}
+					/>
+				</div>
+			{/if}
 
-			<div class="form-group">
-				<label for="password">Password</label>
-				<input
-					type="password"
-					id="password"
-					name="password"
-					required
-					autocomplete={mode === 'login' ? 'current-password' : 'new-password'}
-					disabled={loading}
-					minlength={mode === 'signup' ? 6 : undefined}
-				/>
-				{#if mode === 'signup'}
-					<p class="hint">At least 6 characters</p>
-				{/if}
-			</div>
+			{#if mode !== 'reset'}
+				<div class="form-group">
+					<label for="password">{mode === 'update' ? 'New password' : 'Password'}</label>
+					<input
+						type="password"
+						id="password"
+						name="password"
+						required
+						autocomplete={mode === 'login' ? 'current-password' : 'new-password'}
+						disabled={loading}
+						minlength={mode === 'signup' || mode === 'update' ? 6 : undefined}
+					/>
+					{#if mode === 'signup' || mode === 'update'}
+						<p class="hint">At least 6 characters</p>
+					{/if}
+				</div>
+			{/if}
 
 			<button type="submit" class="submit-btn" disabled={loading}>
 				{#if loading}
-					{mode === 'login' ? 'Signing in...' : 'Creating account...'}
+					{#if mode === 'login'}Signing in...{:else if mode === 'signup'}Creating account...{:else if mode === 'reset'}Sending...{:else}Updating...{/if}
 				{:else}
-					{mode === 'login' ? 'Sign in' : 'Create account'}
+					{#if mode === 'login'}Sign in{:else if mode === 'signup'}Create account{:else if mode === 'reset'}Send reset link{:else}Update password{/if}
 				{/if}
 			</button>
 		</form>
@@ -79,9 +85,16 @@
 			{#if mode === 'login'}
 				Don't have an account?
 				<button type="button" class="link-btn" onclick={() => (mode = 'signup')}>Create one</button>
-			{:else}
+				<span class="separator">|</span>
+				<button type="button" class="link-btn" onclick={() => (mode = 'reset')}>Forgot password?</button>
+			{:else if mode === 'signup'}
 				Already have an account?
 				<button type="button" class="link-btn" onclick={() => (mode = 'login')}>Sign in</button>
+			{:else if mode === 'reset'}
+				Remember your password?
+				<button type="button" class="link-btn" onclick={() => (mode = 'login')}>Sign in</button>
+			{:else}
+				<a href="/dashboard" class="link-btn">Go to dashboard</a>
 			{/if}
 		</p>
 	</div>
@@ -222,5 +235,10 @@
 	.link-btn:hover {
 		color: var(--text-link-hover);
 		border-color: var(--border-link-hover);
+	}
+
+	.separator {
+		margin: 0 0.5rem;
+		color: var(--text-muted);
 	}
 </style>

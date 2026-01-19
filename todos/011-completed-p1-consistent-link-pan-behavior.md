@@ -1,6 +1,6 @@
 ---
 id: "011"
-status: pending
+status: completed
 priority: p1
 title: "Make link following pan behavior consistent with focus + click"
 created: "2026-01-19"

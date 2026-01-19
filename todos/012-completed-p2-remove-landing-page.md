@@ -1,6 +1,6 @@
 ---
 id: "012"
-status: pending
+status: completed
 priority: p2
 title: "Remove landing page and immediately show login"
 created: "2026-01-19"

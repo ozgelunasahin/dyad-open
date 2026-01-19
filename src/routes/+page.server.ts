@@ -18,6 +18,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 		redirect(302, '/dashboard');
 	}
 
-	// Not logged in - show landing page
-	return {};
+	// Not logged in - redirect to login
+	redirect(302, '/login');
 };
