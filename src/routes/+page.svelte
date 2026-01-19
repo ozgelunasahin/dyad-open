@@ -3,8 +3,8 @@
 </script>
 
 <svelte:head>
-	<title>dyad.berlin - Spatial Reading for Connected Notes</title>
-	<meta name="description" content="A spatial reading environment for connected notes" />
+	<title>dyad.berlin - reading for Connected Notes</title>
+	<meta name="description" content="A reading environment for connected notes" />
 </svelte:head>
 
 <main class="landing">
@@ -17,7 +17,7 @@
 	</nav>
 
 	<section class="hero">
-		<h1>A spatial reading environment for connected notes</h1>
+		<h1>A reading environment for connected notes</h1>
 		<p class="subtitle">
 			Navigate your knowledge graph on an infinite canvas. Click wikilinks to expand your reading
 			context while keeping everything in view.

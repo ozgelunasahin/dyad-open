@@ -140,7 +140,7 @@
 	}
 
 	function copyPublicUrl() {
-		const url = `${window.location.origin}/canvas/${data.canvas.id}`;
+		const url = `${window.location.origin}/${data.profile.username}/${data.canvas.slug}`;
 		navigator.clipboard.writeText(url);
 	}
 </script>
@@ -306,7 +306,7 @@
 				<div class="setting-group">
 					<label>Public URL</label>
 					<div class="url-display">
-						<code>/{data.canvas.slug}</code>
+						<code>/{data.profile.username}/{data.canvas.slug}</code>
 						{#if data.canvas.is_published}
 							<button class="copy-btn" onclick={copyPublicUrl}>Copy</button>
 						{/if}

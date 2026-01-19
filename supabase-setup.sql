@@ -189,7 +189,7 @@ BEGIN
     NEW.id,
     COALESCE(
       NEW.raw_user_meta_data->>'username',
-      SPLIT_PART(NEW.email, '@', 1) || '-' || SUBSTRING(NEW.id::TEXT, 1, 8)
+      SPLIT_PART(NEW.email, '@', 1)
     )
   );
   RETURN NEW;
