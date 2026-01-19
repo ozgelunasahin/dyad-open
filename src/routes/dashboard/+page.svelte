@@ -81,16 +81,13 @@
 				<h2 class="section-title">discover</h2>
 				<div class="canvas-grid">
 					{#each data.publishedCanvases as canvas}
-						<a href="/{canvas.username}/{canvas.slug}" class="canvas-card">
+						<a href="/@{canvas.username}/{canvas.slug}" class="canvas-card">
 							<div class="canvas-header">
 								<h2>{canvas.name}</h2>
 							</div>
 							<div class="canvas-meta">
-								<span class="slug">/{canvas.username}/{canvas.slug}</span>
+								<span class="slug">/@{canvas.username}/{canvas.slug}</span>
 								<span class="date">{formatDate(canvas.updated_at)}</span>
-							</div>
-							<div class="canvas-author">
-								<span class="author">@{canvas.username}</span>
 							</div>
 						</a>
 					{/each}
@@ -372,15 +369,6 @@
 		font-size: 1.75rem;
 		font-weight: normal;
 		color: var(--text-primary);
-	}
-
-	.canvas-author {
-		margin-top: 0.5rem;
-	}
-
-	.author {
-		color: var(--text-link);
-		font-size: 0.85rem;
 	}
 
 	/* Modal styles */
