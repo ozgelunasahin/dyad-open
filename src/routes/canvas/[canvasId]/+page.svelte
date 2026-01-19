@@ -9,6 +9,7 @@
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import Canvas from '$lib/components/Canvas.svelte';
 	import HelpBar from '$lib/components/HelpBar.svelte';
+	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -20,6 +21,7 @@
 	let creatingNote = $state(false);
 	let newNoteName = $state('');
 	let showHelp = $state(false);
+	let showFeedbackModal = $state(false);
 
 	async function createOrphanNote() {
 		if (!newNoteName.trim()) return;
@@ -472,6 +474,25 @@
 				</svg>
 			{/if}
 		</button>
+
+		<!-- Feedback button -->
+		<button
+			class="feedback-btn"
+			onclick={() => (showFeedbackModal = true)}
+			title="send feedback"
+			aria-label="Send feedback"
+		>
+			<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+				<path d="M2 3h12v8H4l-2 2V3z" stroke="currentColor" stroke-width="1.5" />
+			</svg>
+		</button>
+
+		<!-- Feedback Modal -->
+		<FeedbackModal
+			open={showFeedbackModal}
+			onClose={() => (showFeedbackModal = false)}
+			canvasId={data.canvas.id}
+		/>
 	{/if}
 </main>
 
@@ -809,6 +830,31 @@
 	}
 
 	.theme-toggle:hover {
+		background: var(--bg-control-hover);
+		color: var(--control-color-hover);
+		opacity: 1;
+	}
+
+	.feedback-btn {
+		position: fixed;
+		bottom: 24px;
+		right: 64px;
+		width: 32px;
+		height: 32px;
+		border: none;
+		border-radius: 4px;
+		background: var(--bg-control);
+		cursor: pointer;
+		color: var(--control-color);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: all 0.2s ease;
+		opacity: 0.4;
+		z-index: 100;
+	}
+
+	.feedback-btn:hover {
 		background: var(--bg-control-hover);
 		color: var(--control-color-hover);
 		opacity: 1;
