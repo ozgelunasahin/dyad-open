@@ -2,6 +2,8 @@
 	import { onMount } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { dev } from '$app/environment';
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import type { PageData, ActionData } from './$types';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import { themeStore } from '$lib/stores/theme.svelte';
@@ -63,7 +65,7 @@
 
 			// If this was the first note, reload to properly initialize the canvas
 			if (wasEmpty) {
-				window.location.reload();
+				window.location.href = `/canvas/${data.canvas.id}?edit=${slug}`;
 				return;
 			}
 
@@ -73,6 +75,11 @@
 			// Reset state
 			newNoteName = '';
 			showCreateNoteModal = false;
+
+			// Enter edit mode after card animation completes
+			setTimeout(() => {
+				canvasStore.enterEditMode(slug);
+			}, 500);
 		} catch (err) {
 			console.error('Failed to create orphan note:', err);
 		} finally {
@@ -89,6 +96,17 @@
 			await canvasStore.initialize(data.vault, data.canvas.id, data.cardPositions);
 			console.log('[Canvas] Store initialized');
 			loading = false;
+
+			// Check for ?edit= query param (used after first note creation)
+			const editSlug = $page.url.searchParams.get('edit');
+			if (editSlug && data.vault.notes[editSlug]) {
+				// Clear the query param from URL
+				goto(`/canvas/${data.canvas.id}`, { replaceState: true });
+				// Enter edit mode after a short delay for card to render
+				setTimeout(() => {
+					canvasStore.enterEditMode(editSlug);
+				}, 100);
+			}
 		} catch (e) {
 			console.error('[Canvas] Error:', e);
 			error = e instanceof Error ? e.message : 'Unknown error';
@@ -114,6 +132,11 @@
 			event.preventDefault();
 			showHelp = !showHelp;
 		}
+		// Toggle debug mode with Ctrl+Shift+D (dev only)
+		if (dev && event.ctrlKey && event.shiftKey && event.key === 'D') {
+			event.preventDefault();
+			canvasStore.toggleDebugMode();
+		}
 	}
 
 	function copyPublicUrl() {
@@ -124,7 +147,7 @@
 
 <svelte:head>
 	<title>{data.canvas.name} - dyad.berlin</title>
-	<meta name="description" content="A spatial reading environment for connected notes" />
+	<meta name="description" content="A reading environment for connected notes" />
 </svelte:head>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -179,19 +202,16 @@
 							createOrphanNote();
 						}}
 					>
-						<div class="form-group">
-							<label for="noteName">Note Title</label>
-							<input
-								type="text"
-								id="noteName"
-								bind:value={newNoteName}
-								required
-								maxlength="100"
-								placeholder="My First Note"
-								disabled={creatingNote}
-								autofocus
-							/>
-						</div>
+						<input
+							type="text"
+							id="noteName"
+							bind:value={newNoteName}
+							required
+							maxlength="100"
+							placeholder="Note title"
+							disabled={creatingNote}
+							autofocus
+						/>
 						<div class="modal-actions">
 							<button
 								type="button"
@@ -328,19 +348,16 @@
 							createOrphanNote();
 						}}
 					>
-						<div class="form-group">
-							<label for="noteName">Note Title</label>
-							<input
-								type="text"
-								id="noteName"
-								bind:value={newNoteName}
-								required
-								maxlength="100"
-								placeholder="My New Note"
-								disabled={creatingNote}
-								autofocus
-							/>
-						</div>
+						<input
+							type="text"
+							id="noteName"
+							bind:value={newNoteName}
+							required
+							maxlength="100"
+							placeholder="Note title"
+							disabled={creatingNote}
+							autofocus
+						/>
 						<div class="modal-actions">
 							<button
 								type="button"
@@ -357,42 +374,6 @@
 				</div>
 			</div>
 		{/if}
-
-		<!-- Minimal navigation -->
-		<nav class="controls" class:can-navigate={canvasStore.canGoBack || canvasStore.canGoForward}>
-			<button
-				class="nav-btn"
-				onclick={() => canvasStore.goBack()}
-				disabled={!canvasStore.canGoBack}
-				aria-label="Go back"
-			>
-				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-					<path
-						d="M10 12L6 8L10 4"
-						stroke="currentColor"
-						stroke-width="1.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					/>
-				</svg>
-			</button>
-			<button
-				class="nav-btn"
-				onclick={() => canvasStore.goForward()}
-				disabled={!canvasStore.canGoForward}
-				aria-label="Go forward"
-			>
-				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-					<path
-						d="M6 4L10 8L6 12"
-						stroke="currentColor"
-						stroke-width="1.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					/>
-				</svg>
-			</button>
-		</nav>
 
 		<!-- Debug controls -->
 		{#if canvasStore.debugMode}
@@ -453,30 +434,6 @@
 						stroke-linecap="round"
 						stroke-linejoin="round"
 					/>
-				</svg>
-			</button>
-		{/if}
-
-		<!-- Debug toggle (dev only) -->
-		{#if dev}
-			<button
-				class="debug-toggle"
-				class:active={canvasStore.debugMode}
-				onclick={() => canvasStore.toggleDebugMode()}
-				aria-label="Toggle debug mode"
-			>
-				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-					{#if canvasStore.debugMode}
-						<rect x="1" y="1" width="6" height="6" fill="currentColor" rx="1" />
-						<rect x="9" y="1" width="6" height="6" fill="currentColor" rx="1" />
-						<rect x="1" y="9" width="6" height="6" fill="currentColor" rx="1" />
-						<rect x="9" y="9" width="6" height="6" fill="currentColor" rx="1" />
-					{:else}
-						<rect x="1" y="1" width="6" height="6" stroke="currentColor" stroke-width="1.5" rx="1" />
-						<rect x="9" y="1" width="6" height="6" stroke="currentColor" stroke-width="1.5" rx="1" />
-						<rect x="1" y="9" width="6" height="6" stroke="currentColor" stroke-width="1.5" rx="1" />
-						<rect x="9" y="9" width="6" height="6" stroke="currentColor" stroke-width="1.5" rx="1" />
-					{/if}
 				</svg>
 			</button>
 		{/if}
@@ -825,55 +782,6 @@
 		color: var(--text-secondary);
 	}
 
-	/* Navigation controls */
-	.controls {
-		position: fixed;
-		bottom: 24px;
-		left: 24px;
-		display: flex;
-		gap: 4px;
-		opacity: 0;
-		transition: opacity 0.3s ease;
-		z-index: 100;
-	}
-
-	.controls:hover,
-	.controls.can-navigate {
-		opacity: 1;
-	}
-
-	.app:hover .controls.can-navigate {
-		opacity: 0.6;
-	}
-
-	.app:hover .controls.can-navigate:hover {
-		opacity: 1;
-	}
-
-	.nav-btn {
-		width: 32px;
-		height: 32px;
-		border: none;
-		border-radius: 4px;
-		background: var(--bg-control);
-		cursor: pointer;
-		color: var(--control-color);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		transition: all 0.2s ease;
-	}
-
-	.nav-btn:hover:not(:disabled) {
-		background: var(--bg-control-hover);
-		color: var(--control-color-hover);
-	}
-
-	.nav-btn:disabled {
-		opacity: 0.3;
-		cursor: not-allowed;
-	}
-
 	.theme-toggle {
 		position: fixed;
 		bottom: 24px;
@@ -896,37 +804,6 @@
 	.theme-toggle:hover {
 		background: var(--bg-control-hover);
 		color: var(--control-color-hover);
-		opacity: 1;
-	}
-
-	.debug-toggle {
-		position: fixed;
-		bottom: 24px;
-		right: 64px;
-		width: 32px;
-		height: 32px;
-		border: none;
-		border-radius: 4px;
-		background: var(--bg-control);
-		cursor: pointer;
-		color: var(--control-color);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		transition: all 0.2s ease;
-		opacity: 0.4;
-		z-index: 100;
-	}
-
-	.debug-toggle:hover {
-		background: var(--bg-control-hover);
-		color: var(--control-color-hover);
-		opacity: 1;
-	}
-
-	.debug-toggle.active {
-		background: var(--bg-control-hover);
-		color: #4ade80;
 		opacity: 1;
 	}
 
@@ -1001,18 +878,7 @@
 		color: var(--text-muted);
 	}
 
-	.form-group {
-		margin-bottom: 20px;
-	}
-
-	.form-group label {
-		display: block;
-		margin-bottom: 6px;
-		font-size: 0.9rem;
-		color: var(--text-secondary);
-	}
-
-	.form-group input {
+	.modal input[type='text'] {
 		width: 100%;
 		padding: 10px 12px;
 		border: 1px solid var(--border-link);
@@ -1021,9 +887,10 @@
 		font-family: inherit;
 		background: var(--bg-canvas);
 		color: var(--text-primary);
+		margin-bottom: 20px;
 	}
 
-	.form-group input:focus {
+	.modal input[type='text']:focus {
 		outline: none;
 		border-color: var(--text-link-hover);
 	}

@@ -197,15 +197,32 @@
 		// Listen on document to catch mouseup even if mouse moves off the card
 		document.addEventListener('mouseup', handleMouseUp);
 
-		// Restore camera position from store
+		// Position camera for focused card in reading zone, or restore stored position
 		const storedCamera = canvasStore.camera;
-		if (storedCamera.x !== 0 || storedCamera.y !== 0 || storedCamera.zoom !== 1) {
+		if (canvasStore.focusedCardId) {
+			// Always position focused card in reading zone on mount
+			const card = canvasStore.cards.get(canvasStore.focusedCardId);
+			if (card) {
+				const width = svg.clientWidth;
+				const height = svg.clientHeight;
+				const topMargin = height * 0.15;
+				const readingZoneX = width * 0.35;
+				const targetX = card.position.x + card.dimensions.width / 2;
+				const targetY = card.position.y;
+				const zoomLevel = storedCamera.zoom !== 1 ? storedCamera.zoom : 1;
+				const initialTransform = zoomIdentity
+					.translate(readingZoneX - targetX * zoomLevel, topMargin - targetY * zoomLevel)
+					.scale(zoomLevel);
+				selection.call(zoomBehavior.transform, initialTransform);
+			}
+		} else if (storedCamera.x !== 0 || storedCamera.y !== 0 || storedCamera.zoom !== 1) {
+			// No focused card, restore stored camera
 			const initialTransform = zoomIdentity
 				.translate(storedCamera.x, storedCamera.y)
 				.scale(storedCamera.zoom);
 			selection.call(zoomBehavior.transform, initialTransform);
 		} else {
-			// Center initial view
+			// Center initial view (no focused card, no stored camera)
 			const width = svg.clientWidth;
 			const height = svg.clientHeight;
 			const initialTransform = zoomIdentity.translate(width / 2, height / 2);
@@ -511,13 +528,6 @@
 					return;
 				}
 
-				if (event.key === 'Delete') {
-					event.preventDefault();
-					canvasStore.unopenCurrentCard();
-					clearLinkHighlights();
-					return;
-				}
-
 				// Tab/Shift+Tab: cycle through visible links
 				if (event.key === 'Tab' && !event.shiftKey) {
 					event.preventDefault();
@@ -569,7 +579,7 @@
 				return;
 			}
 
-			if (event.key === 'Delete') {
+			if (event.key === 'Escape') {
 				event.preventDefault();
 				canvasStore.unopenCurrentCard();
 				return;
@@ -790,10 +800,12 @@
 		// Capture zoom at start to prevent race conditions if zoom changes mid-animation
 		const zoomLevel = transform.k;
 
-		// Reading view: place card top at ~15% from viewport top, horizontally centered
+		// Reading view: place card in left-biased reading zone, top near viewport top
+		// Reading zone spans 5%-80% of viewport width; position card around 35% for left-bias
 		// Always preserve current zoom level
 		const topMargin = height * 0.15;
-		const endX = width / 2 - targetX * zoomLevel;
+		const readingZoneX = width * 0.35;
+		const endX = readingZoneX - targetX * zoomLevel;
 		const endY = topMargin - targetY * zoomLevel;
 
 		const startX = transform.x;
@@ -849,9 +861,11 @@
 		// Capture zoom at start to prevent race conditions if zoom changes mid-animation
 		const zoomLevel = transform.k;
 
-		// Compute target camera position to show focusPoint at viewport center
+		// Compute target camera position to show focusPoint in reading zone
 		// Using CURRENT zoom level - never change zoom during navigation
-		const targetX = width / 2 - focusPoint.x * zoomLevel;
+		// Use same reading zone X (35%) as animateToCenter for consistency
+		const readingZoneX = width * 0.35;
+		const targetX = readingZoneX - focusPoint.x * zoomLevel;
 		const targetY = height / 2 - focusPoint.y * zoomLevel;
 
 		const startX = transform.x;
