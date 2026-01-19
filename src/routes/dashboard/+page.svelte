@@ -80,13 +80,12 @@
 				<h2>Discover</h2>
 				<div class="canvas-grid">
 					{#each data.publishedCanvases as canvas}
-						{@const profile = Array.isArray(canvas.profiles) ? canvas.profiles[0] : canvas.profiles}
-						<a href="/{profile?.username}/{canvas.slug}" class="canvas-card discover-card">
+						<a href="/{canvas.username}/{canvas.slug}" class="canvas-card discover-card">
 							<div class="canvas-header">
 								<h2>{canvas.name}</h2>
 							</div>
 							<div class="canvas-meta">
-								<span class="author">@{profile?.username}</span>
+								<span class="author">@{canvas.username}</span>
 							</div>
 						</a>
 					{/each}
