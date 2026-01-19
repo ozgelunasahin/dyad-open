@@ -12,25 +12,19 @@
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
+	import { themeStore } from '$lib/stores/theme.svelte';
 	import Canvas from '$lib/components/Canvas.svelte';
 
 	let { data }: { data: PageData } = $props();
 
 	let loading = $state(true);
 	let error = $state<string | null>(null);
-	let theme = $state<'light' | 'dark'>('light');
 
 	function toggleTheme() {
-		theme = theme === 'light' ? 'dark' : 'light';
-		document.documentElement.setAttribute('data-theme', theme);
+		themeStore.toggle();
 	}
 
 	onMount(async () => {
-		// Set theme based on browser/system preference
-		const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-		theme = prefersDark ? 'dark' : 'light';
-		document.documentElement.setAttribute('data-theme', theme);
-
 		try {
 			// Use vault from page data (loaded server-side from Supabase)
 			await canvasStore.initialize(data.vault, data.canvas.id, data.cardPositions);
@@ -76,7 +70,7 @@
 		<Canvas readOnly={true} />
 
 		<button class="theme-toggle" onclick={toggleTheme} aria-label="Toggle theme">
-			{#if theme === 'light'}
+			{#if themeStore.current === 'light'}
 				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
 					<circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5" />
 					<path
