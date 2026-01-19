@@ -552,6 +552,40 @@
 		};
 		window.addEventListener('canvas-zoom-to-fit', handleZoomToFit);
 
+		// Listen for card content reflow (during editing) to update child source links
+		const handleContentReflow = (event: Event) => {
+			const { cardId } = (event as CustomEvent<{ cardId: string }>).detail;
+			const childCards = canvasStore.getChildCards(cardId);
+
+			if (childCards.length === 0) return;
+
+			// Get the parent card's DOM element
+			const parentCardEl = svg.querySelector(`[data-note-id="${cardId}"]`);
+			if (!parentCardEl) return;
+
+			const svgRect = svg.getBoundingClientRect();
+
+			// Update sourceLink for each child
+			for (const child of childCards) {
+				// Find the wikilink in the parent that targets this child's note
+				const wikilinkEl = parentCardEl.querySelector(
+					`.wikilink[data-target="${child.note.id}"]`
+				);
+				if (!wikilinkEl) continue;
+
+				// Get the wikilink's current screen position
+				const linkRect = wikilinkEl.getBoundingClientRect();
+
+				// Convert to canvas coordinates (bottom center of the link)
+				const canvasX = ((linkRect.left + linkRect.right) / 2 - svgRect.left - transform.x) / transform.k;
+				const canvasY = (linkRect.bottom - svgRect.top - transform.y) / transform.k;
+
+				// Update the child's sourceLink
+				canvasStore.updateSourceLink(child.id, { x: canvasX, y: canvasY });
+			}
+		};
+		window.addEventListener('card-content-reflow', handleContentReflow);
+
 		// Listen for compute-paths requests (for programmatic card creation)
 		const handleComputePaths = () => {
 			computeMissingPaths();
@@ -574,6 +608,7 @@
 			window.removeEventListener('canvas-restore', handleRestorePosition);
 			window.removeEventListener('canvas-zoom-to-fit', handleZoomToFit);
 			window.removeEventListener('canvas-compute-paths', handleComputePaths);
+			window.removeEventListener('card-content-reflow', handleContentReflow);
 			window.removeEventListener('keydown', handleKeyDown);
 			document.removeEventListener('mouseup', handleMouseUp);
 			svg.removeEventListener('wheel', handleWheel);

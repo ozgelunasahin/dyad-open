@@ -48,10 +48,18 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 		if (canvasError) {
 			console.error('Failed to create starter canvas:', canvasError);
-		} else {
-			// Redirect directly to the new canvas
-			redirect(302, `/canvas/${canvasId}`);
 		}
+
+		// Return the new canvas in the list (re-fetch to get accurate data)
+		const { data: newCanvases } = await locals.supabase
+			.from('canvases')
+			.select('id, name, slug, is_published, entry_point_note_id, created_at, updated_at')
+			.order('updated_at', { ascending: false });
+
+		return {
+			user: locals.user,
+			canvases: newCanvases ?? []
+		};
 	}
 
 	return {
