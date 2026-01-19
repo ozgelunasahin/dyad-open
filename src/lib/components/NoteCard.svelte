@@ -345,7 +345,7 @@
 	>
 		<TiptapEditor
 			bind:this={editorComponent}
-			content={isEditing ? (currentContent ?? card.note.content) : card.note.content}
+			content={currentContent ?? card.note.content}
 			onUpdate={handleEditorUpdate}
 			onWikilinkClick={handleWikilinkClick}
 			onWikilinkDelete={handleWikilinkDelete}
@@ -353,14 +353,12 @@
 			editable={isEditing}
 		/>
 	</div>
-	{#if isEditing && saveStatus !== 'idle'}
+	{#if saveStatus === 'error'}
 		<div
 			xmlns="http://www.w3.org/1999/xhtml"
-			class="save-indicator"
-			class:saving={saveStatus === 'saving'}
-			class:error={saveStatus === 'error'}
+			class="save-indicator error"
 		>
-			{saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved' : 'Error'}
+			Error saving
 		</div>
 	{/if}
 </foreignObject>
@@ -394,18 +392,12 @@
 
 	.save-indicator {
 		position: absolute;
-		top: 12px;
-		right: 12px;
+		top: -28px;
+		right: 0;
 		font-size: 11px;
-		padding: 2px 6px;
+		padding: 2px 8px;
 		border-radius: 3px;
-		background: var(--bg-control);
-		color: var(--text-muted);
 		font-family: system-ui, sans-serif;
-	}
-
-	.save-indicator.saving {
-		opacity: 0.7;
 	}
 
 	.save-indicator.error {
