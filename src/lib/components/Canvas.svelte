@@ -528,13 +528,6 @@
 					return;
 				}
 
-				if (event.key === 'Delete') {
-					event.preventDefault();
-					canvasStore.unopenCurrentCard();
-					clearLinkHighlights();
-					return;
-				}
-
 				// Tab/Shift+Tab: cycle through visible links
 				if (event.key === 'Tab' && !event.shiftKey) {
 					event.preventDefault();
@@ -586,7 +579,7 @@
 				return;
 			}
 
-			if (event.key === 'Delete') {
+			if (event.key === 'Escape') {
 				event.preventDefault();
 				canvasStore.unopenCurrentCard();
 				return;
