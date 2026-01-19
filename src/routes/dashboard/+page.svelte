@@ -24,7 +24,7 @@
 <div class="dashboard">
 	<header class="header">
 		<div class="header-left">
-			<h1>Your Canvases</h1>
+			<h1>your canvases</h1>
 		</div>
 		<div class="header-right">
 			<span class="username">{data.user.email}</span>
@@ -76,15 +76,20 @@
 		{/if}
 
 		{#if data.publishedCanvases.length > 0}
+			<hr class="section-divider" />
 			<section class="discover-section">
-				<h2>Discover</h2>
+				<h2>discover</h2>
 				<div class="canvas-grid">
 					{#each data.publishedCanvases as canvas}
-						<a href="/{canvas.username}/{canvas.slug}" class="canvas-card discover-card">
+						<a href="/{canvas.username}/{canvas.slug}" class="canvas-card">
 							<div class="canvas-header">
 								<h2>{canvas.name}</h2>
 							</div>
 							<div class="canvas-meta">
+								<span class="slug">/{canvas.username}/{canvas.slug}</span>
+								<span class="date">{formatDate(canvas.updated_at)}</span>
+							</div>
+							<div class="canvas-author">
 								<span class="author">@{canvas.username}</span>
 							</div>
 						</a>
@@ -354,11 +359,14 @@
 		color: #dc3545;
 	}
 
-	/* Discover section */
-	.discover-section {
-		margin-top: 3rem;
+	/* Section divider */
+	.section-divider {
+		border: none;
+		border-top: 1px solid var(--border-link);
+		margin: 3rem 0 2rem 0;
 	}
 
+	/* Discover section */
 	.discover-section h2 {
 		margin: 0 0 2rem 0;
 		font-size: 1.75rem;
@@ -366,8 +374,13 @@
 		color: var(--text-primary);
 	}
 
+	.canvas-author {
+		margin-top: 0.5rem;
+	}
+
 	.author {
 		color: var(--text-link);
+		font-size: 0.85rem;
 	}
 
 	/* Modal styles */

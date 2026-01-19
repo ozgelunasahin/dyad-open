@@ -24,7 +24,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.single(),
 		locals.supabase
 			.from('canvases')
-			.select('id, name, slug, user_id')
+			.select('id, name, slug, user_id, updated_at')
 			.eq('is_published', true)
 			.neq('user_id', userId)
 			.order('updated_at', { ascending: false })
@@ -38,6 +38,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		slug: string;
 		user_id: string;
 		username: string;
+		updated_at: string;
 	}> = [];
 
 	if (publishedCanvasesResult.data && publishedCanvasesResult.data.length > 0) {
