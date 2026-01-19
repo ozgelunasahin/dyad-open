@@ -268,13 +268,22 @@ class CanvasStore {
 
 			if (restoredCards.size > 0) {
 				this.cards = restoredCards;
-				this.connections = persisted.connections || [];
-				this.activeChain = persisted.activeChain || [];
 
-				// Focus on the current card
+				// Filter connections and activeChain to only include cards that were restored
+				const validCardIds = new Set(restoredCards.keys());
+				this.connections = (persisted.connections || []).filter(
+					(conn) => validCardIds.has(conn.fromCardId) && validCardIds.has(conn.toCardId)
+				);
+				this.activeChain = (persisted.activeChain || []).filter((id) => validCardIds.has(id));
+
+				// Focus on the current card (if it's still valid)
 				const currentCardId = this.activeChain[this.activeChain.length - 1];
 				if (currentCardId && this.cards.has(currentCardId)) {
 					this.focusCard(currentCardId);
+				} else if (restoredCards.size > 0) {
+					// Fallback to first restored card
+					const firstCardId = Array.from(restoredCards.keys())[0];
+					this.focusCard(firstCardId);
 				}
 
 				// Migrate to DB
@@ -288,8 +297,24 @@ class CanvasStore {
 
 		// Fallback: Open the entry note
 		console.log('[Store] Opening entry note');
-		const entryNoteId = persisted?.lastViewedNoteId || vault.entryPoint;
-		const entryNote = vault.notes[entryNoteId] || vault.notes[vault.entryPoint];
+
+		// Handle empty vault (new user with no notes)
+		const noteIds = Object.keys(vault.notes);
+		if (noteIds.length === 0) {
+			console.log('[Store] Vault is empty - no notes to display');
+			return;
+		}
+
+		// Try to find a valid entry note, ignoring stale localStorage references
+		let entryNoteId = vault.entryPoint;
+
+		// Only use persisted lastViewedNoteId if it exists in the current vault
+		if (persisted?.lastViewedNoteId && vault.notes[persisted.lastViewedNoteId]) {
+			entryNoteId = persisted.lastViewedNoteId;
+		}
+
+		// Fallback to first available note if entryPoint doesn't exist
+		const entryNote = vault.notes[entryNoteId] || vault.notes[noteIds[0]];
 		if (entryNote) {
 			console.log('[Store] Entry note:', entryNote.id);
 			this.openNote(entryNote.id, null, null);
