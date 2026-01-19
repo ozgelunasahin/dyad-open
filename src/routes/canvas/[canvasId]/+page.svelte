@@ -20,6 +20,7 @@
 		if (!newNoteName.trim()) return;
 
 		creatingNote = true;
+		const wasEmpty = Object.keys(data.vault.notes).length === 0;
 
 		// Generate slug from name
 		const slug = newNoteName
@@ -55,6 +56,12 @@
 
 			if (!response.ok) {
 				throw new Error('Failed to create note');
+			}
+
+			// If this was the first note, reload to properly initialize the canvas
+			if (wasEmpty) {
+				window.location.reload();
+				return;
 			}
 
 			// Create orphan card in the canvas store
@@ -120,6 +127,75 @@
 			<p>{error}</p>
 			<button onclick={() => window.location.reload()}>Retry</button>
 		</div>
+	{:else if Object.keys(data.vault.notes).length === 0}
+		<!-- Empty canvas state -->
+		<div class="empty-canvas">
+			<h2>Your canvas is empty</h2>
+			<p>Create your first note to get started.</p>
+			<button class="create-first-note-btn" onclick={() => (showCreateNoteModal = true)}>
+				Create Note
+			</button>
+		</div>
+
+		<!-- Header with canvas info (simplified for empty state) -->
+		<header class="canvas-header">
+			<a href="/dashboard" class="back-link">
+				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+					<path
+						d="M10 12L6 8L10 4"
+						stroke="currentColor"
+						stroke-width="1.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					/>
+				</svg>
+			</a>
+			<h1>{data.canvas.name}</h1>
+		</header>
+
+		<!-- Create Note Modal for empty state -->
+		{#if showCreateNoteModal}
+			<div class="modal-overlay" onclick={() => (showCreateNoteModal = false)}>
+				<div class="modal" onclick={(e) => e.stopPropagation()}>
+					<h2>Create Your First Note</h2>
+					<p class="modal-description">
+						Give your note a title. You can add content and links after creating it.
+					</p>
+					<form
+						onsubmit={(e) => {
+							e.preventDefault();
+							createOrphanNote();
+						}}
+					>
+						<div class="form-group">
+							<label for="noteName">Note Title</label>
+							<input
+								type="text"
+								id="noteName"
+								bind:value={newNoteName}
+								required
+								maxlength="100"
+								placeholder="My First Note"
+								disabled={creatingNote}
+								autofocus
+							/>
+						</div>
+						<div class="modal-actions">
+							<button
+								type="button"
+								class="cancel-btn"
+								onclick={() => (showCreateNoteModal = false)}
+							>
+								Cancel
+							</button>
+							<button type="submit" class="submit-btn" disabled={creatingNote || !newNoteName.trim()}>
+								{creatingNote ? 'Creating...' : 'Create Note'}
+							</button>
+						</div>
+					</form>
+				</div>
+			</div>
+		{/if}
 	{:else}
 		<Canvas />
 
@@ -447,6 +523,48 @@
 		cursor: pointer;
 		font-family: inherit;
 		font-size: 13px;
+	}
+
+	.empty-canvas {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		height: 100%;
+		gap: 16px;
+		color: var(--text-muted);
+		font-family: 'Georgia', serif;
+		text-align: center;
+		padding: 24px;
+	}
+
+	.empty-canvas h2 {
+		margin: 0;
+		font-size: 1.5rem;
+		font-weight: normal;
+		color: var(--text-primary);
+	}
+
+	.empty-canvas p {
+		margin: 0;
+		font-size: 1rem;
+	}
+
+	.create-first-note-btn {
+		margin-top: 8px;
+		padding: 12px 24px;
+		background: var(--text-primary);
+		color: var(--bg-canvas);
+		border: none;
+		border-radius: 6px;
+		font-size: 1rem;
+		font-family: inherit;
+		cursor: pointer;
+		transition: opacity 0.2s;
+	}
+
+	.create-first-note-btn:hover {
+		opacity: 0.9;
 	}
 
 	.error button:hover {

@@ -41,8 +41,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		.select('slug, title, content, wikilinks');
 
 	// Build vault object for the canvas store
+	// Entry point: use canvas setting, or first note, or empty string (handled by store)
 	const vault = {
-		entryPoint: canvas.entry_point_note_id || (notes?.[0]?.slug ?? 'welcome'),
+		entryPoint: canvas.entry_point_note_id || (notes?.[0]?.slug ?? ''),
 		notes: Object.fromEntries(
 			(notes ?? []).map((n) => [
 				n.slug,
