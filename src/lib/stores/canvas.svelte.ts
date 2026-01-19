@@ -208,7 +208,7 @@ class CanvasStore {
 						id: pos.noteId,
 						note,
 						position: { x: pos.x, y: pos.y },
-						dimensions: { width: pos.width, height: pos.height },
+						dimensions: { width: CARD_WIDTH, height: pos.height },
 						parentId: extractNoteId(pos.parentCardId),
 						sourceLink: pos.sourceLinkX !== null && pos.sourceLinkY !== null
 							? { x: pos.sourceLinkX, y: pos.sourceLinkY }
@@ -259,7 +259,7 @@ class CanvasStore {
 						id: savedCard.id,
 						note,
 						position: savedCard.position,
-						dimensions: savedCard.dimensions,
+						dimensions: { width: CARD_WIDTH, height: savedCard.dimensions.height },
 						parentId: savedCard.parentId,
 						sourceLink: savedCard.sourceLink
 					});
