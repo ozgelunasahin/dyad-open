@@ -19,7 +19,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.order('updated_at', { ascending: false }),
 		locals.supabase
 			.from('profiles')
-			.select('onboarded')
+			.select('onboarded, username')
 			.eq('id', userId)
 			.single(),
 		locals.supabase
@@ -61,6 +61,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const canvases = canvasesResult.data;
 	const isOnboarded = profileResult.data?.onboarded ?? false;
+	const username = profileResult.data?.username ?? '';
 
 	// Seed starter canvas for new users who haven't been onboarded yet
 	// This only runs once per account - deleting the canvas won't recreate it
@@ -111,6 +112,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 		return {
 			user: locals.user,
+			username,
 			canvases: newCanvases ?? [],
 			publishedCanvases
 		};
@@ -118,6 +120,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	return {
 		user: locals.user,
+		username,
 		canvases: canvases ?? [],
 		publishedCanvases
 	};

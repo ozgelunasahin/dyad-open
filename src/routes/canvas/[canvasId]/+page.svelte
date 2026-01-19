@@ -92,8 +92,15 @@
 			console.log('[Canvas] Initializing with vault from page data...');
 			console.log('[Canvas] Notes count:', Object.keys(data.vault.notes).length);
 
+			// Check for deep link to specific note via URL hash
+			const hash = window.location.hash.slice(1); // Remove '#'
+			const vault = { ...data.vault };
+			if (hash && vault.notes[hash]) {
+				vault.entryPoint = hash;
+			}
+
 			// Pass canvasId and saved positions for per-canvas state persistence
-			await canvasStore.initialize(data.vault, data.canvas.id, data.cardPositions);
+			await canvasStore.initialize(vault, data.canvas.id, data.cardPositions);
 			console.log('[Canvas] Store initialized');
 			loading = false;
 
@@ -160,7 +167,7 @@
 	{:else if error}
 		<div class="error">
 			<p>{error}</p>
-			<button onclick={() => window.location.reload()}>Retry</button>
+			<button onclick={() => window.location.reload()}>retry</button>
 		</div>
 	{:else if Object.keys(data.vault.notes).length === 0}
 		<!-- Empty canvas state -->
@@ -168,7 +175,7 @@
 			<h2>Your canvas is empty</h2>
 			<p>Create your first note to get started.</p>
 			<button class="create-first-note-btn" onclick={() => (showCreateNoteModal = true)}>
-				Create Note
+				+ create note
 			</button>
 		</div>
 
@@ -192,7 +199,7 @@
 		{#if showCreateNoteModal}
 			<div class="modal-overlay" onclick={() => (showCreateNoteModal = false)}>
 				<div class="modal" onclick={(e) => e.stopPropagation()}>
-					<h2>Create Your First Note</h2>
+					<h2>Create your first note</h2>
 					<p class="modal-description">
 						Give your note a title. You can add content and links after creating it.
 					</p>
@@ -218,10 +225,10 @@
 								class="cancel-btn"
 								onclick={() => (showCreateNoteModal = false)}
 							>
-								Cancel
+								cancel
 							</button>
 							<button type="submit" class="submit-btn" disabled={creatingNote || !newNoteName.trim()}>
-								{creatingNote ? 'Creating...' : 'Create Note'}
+								{creatingNote ? 'creating...' : 'create note'}
 							</button>
 						</div>
 					</form>
@@ -297,7 +304,7 @@
 								maxlength="100"
 							/>
 							<button type="submit" class="save-btn" disabled={renaming}>
-								{renaming ? '...' : 'Save'}
+								{renaming ? '...' : 'save'}
 							</button>
 						</div>
 					</form>
@@ -308,7 +315,7 @@
 					<div class="url-display">
 						<code>/{data.profile.username}/{data.canvas.slug}</code>
 						{#if data.canvas.is_published}
-							<button class="copy-btn" onclick={copyPublicUrl}>Copy</button>
+							<button class="copy-btn" onclick={copyPublicUrl}>copy</button>
 						{/if}
 					</div>
 				</div>
@@ -319,7 +326,7 @@
 						<div class="toggle-row">
 							<span class="status">{data.canvas.is_published ? 'Published' : 'Private'}</span>
 							<button type="submit" class="toggle-btn">
-								{data.canvas.is_published ? 'Unpublish' : 'Publish'}
+								{data.canvas.is_published ? 'unpublish' : 'publish'}
 							</button>
 						</div>
 					</form>
@@ -330,7 +337,7 @@
 					{/if}
 				</div>
 
-				<button class="close-btn" onclick={() => (showSettingsPanel = false)}>Close</button>
+				<button class="close-btn" onclick={() => (showSettingsPanel = false)}>close</button>
 			</div>
 		{/if}
 
@@ -338,7 +345,7 @@
 		{#if showCreateNoteModal}
 			<div class="modal-overlay" onclick={() => (showCreateNoteModal = false)}>
 				<div class="modal" onclick={(e) => e.stopPropagation()}>
-					<h2>Create New Note</h2>
+					<h2>Create new note</h2>
 					<p class="modal-description">
 						Create an orphan note (not connected to any other card).
 					</p>
@@ -364,10 +371,10 @@
 								class="cancel-btn"
 								onclick={() => (showCreateNoteModal = false)}
 							>
-								Cancel
+								cancel
 							</button>
 							<button type="submit" class="submit-btn" disabled={creatingNote || !newNoteName.trim()}>
-								{creatingNote ? 'Creating...' : 'Create Note'}
+								{creatingNote ? 'creating...' : 'create note'}
 							</button>
 						</div>
 					</form>

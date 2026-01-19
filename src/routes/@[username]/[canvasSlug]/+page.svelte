@@ -26,8 +26,15 @@
 
 	onMount(async () => {
 		try {
+			// Check for deep link to specific note via URL hash
+			const hash = window.location.hash.slice(1); // Remove '#'
+			const vault = { ...data.vault };
+			if (hash && vault.notes[hash]) {
+				vault.entryPoint = hash;
+			}
+
 			// Use vault from page data (loaded server-side from Supabase)
-			await canvasStore.initialize(data.vault, data.canvas.id, data.cardPositions);
+			await canvasStore.initialize(vault, data.canvas.id, data.cardPositions);
 			loading = false;
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Unknown error';

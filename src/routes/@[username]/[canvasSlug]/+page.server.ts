@@ -1,4 +1,4 @@
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -13,16 +13,27 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		error(404, 'User not found');
 	}
 
-	// Then get the published canvas for that user
+	const isOwner = locals.user?.id === profile.id;
+
+	// Get the canvas for that user (check publish status based on ownership)
 	const { data: canvas, error: canvasError } = await locals.supabase
 		.from('canvases')
-		.select('id, name, slug, user_id, entry_point_note_id')
+		.select('id, name, slug, user_id, entry_point_note_id, is_published')
 		.eq('user_id', profile.id)
 		.eq('slug', params.canvasSlug)
-		.eq('is_published', true)
 		.single();
 
 	if (canvasError || !canvas) {
+		error(404, 'Canvas not found');
+	}
+
+	// If owner is viewing their own canvas, redirect to edit view
+	if (isOwner) {
+		redirect(302, `/canvas/${canvas.id}`);
+	}
+
+	// For non-owners, only allow viewing published canvases
+	if (!canvas.is_published) {
 		error(404, 'Canvas not found');
 	}
 

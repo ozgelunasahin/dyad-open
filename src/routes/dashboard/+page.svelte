@@ -24,11 +24,11 @@
 <div class="dashboard">
 	<header class="header">
 		<div class="header-left">
-			<h1>your canvases</h1>
+			<h1>Your canvases</h1>
 		</div>
 		<div class="header-right">
 			<span class="username">{data.user.email}</span>
-			<a href="/logout" class="logout-btn">Sign out</a>
+			<a href="/logout" class="logout-btn">sign out</a>
 		</div>
 	</header>
 
@@ -38,8 +38,7 @@
 
 	<div class="content">
 		<button class="create-btn" onclick={() => (showCreateModal = true)}>
-			<span class="plus">+</span>
-			New Canvas
+			+ new canvas
 		</button>
 
 		{#if data.canvases.length === 0}
@@ -57,7 +56,7 @@
 							{/if}
 						</div>
 						<div class="canvas-meta">
-							<span class="slug">/{canvas.slug}</span>
+							<span class="slug">/@{data.username}/{canvas.slug}</span>
 							<span class="date">{formatDate(canvas.updated_at)}</span>
 						</div>
 						<button
@@ -68,7 +67,7 @@
 								showDeleteModal = canvas.id;
 							}}
 						>
-							Delete
+							delete
 						</button>
 					</a>
 				{/each}
@@ -78,7 +77,7 @@
 		{#if data.publishedCanvases.length > 0}
 			<hr class="section-divider" />
 			<section class="discover-section">
-				<h2 class="section-title">discover</h2>
+				<h2 class="section-title">Discover</h2>
 				<div class="canvas-grid">
 					{#each data.publishedCanvases as canvas}
 						<a href="/@{canvas.username}/{canvas.slug}" class="canvas-card">
@@ -101,7 +100,7 @@
 {#if showCreateModal}
 	<div class="modal-overlay" onclick={() => (showCreateModal = false)}>
 		<div class="modal" onclick={(e) => e.stopPropagation()}>
-			<h2>Create New Canvas</h2>
+			<h2>Create new canvas</h2>
 			<form
 				method="POST"
 				action="?/create"
@@ -126,10 +125,10 @@
 				/>
 				<div class="modal-actions">
 					<button type="button" class="cancel-btn" onclick={() => (showCreateModal = false)}>
-						Cancel
+						cancel
 					</button>
 					<button type="submit" class="submit-btn" disabled={creating}>
-						{creating ? 'Creating...' : 'Create Canvas'}
+						{creating ? 'creating...' : 'create canvas'}
 					</button>
 				</div>
 			</form>
@@ -142,7 +141,7 @@
 	{@const canvasToDelete = data.canvases.find((c) => c.id === showDeleteModal)}
 	<div class="modal-overlay" onclick={() => (showDeleteModal = null)}>
 		<div class="modal" onclick={(e) => e.stopPropagation()}>
-			<h2>Delete Canvas</h2>
+			<h2>Delete canvas</h2>
 			<p>
 				Are you sure you want to delete <strong>{canvasToDelete?.name}</strong>? This action cannot
 				be undone.
@@ -162,10 +161,10 @@
 				<input type="hidden" name="canvasId" value={showDeleteModal} />
 				<div class="modal-actions">
 					<button type="button" class="cancel-btn" onclick={() => (showDeleteModal = null)}>
-						Cancel
+						cancel
 					</button>
 					<button type="submit" class="delete-confirm-btn" disabled={deleting}>
-						{deleting ? 'Deleting...' : 'Delete Canvas'}
+						{deleting ? 'deleting...' : 'delete canvas'}
 					</button>
 				</div>
 			</form>
@@ -257,11 +256,6 @@
 
 	.create-btn:hover {
 		opacity: 0.9;
-	}
-
-	.plus {
-		font-size: 1.25rem;
-		line-height: 1;
 	}
 
 	.empty-state {
