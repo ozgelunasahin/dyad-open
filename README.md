@@ -1,38 +1,48 @@
-# sv
+# dyad.berlin
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+A reading environment where markdown notes unfold onto a 2D canvas. Click [[wikilinks]] to spawn connected note cards that expand outward, preserving context while exploring non-linear thought.
 
-## Creating a project
+## Features
 
-If you're seeing this, you've probably already done this step. Congrats!
+- **Wikilink navigation**: Type `[[` to create links between notes
+- **Spatial layout**: Cards spawn from their source link, creating visual trails of exploration
+- **Reading zone**: New cards appear in an optimal reading position (left third of screen)
+- **Canvas publishing**: Share your canvases with a human-readable URL (`dyad.berlin/username/canvas-name`)
+- **Light/dark mode**: Follows browser preference, with manual toggle
+
+## Tech Stack
+
+- **Frontend**: SvelteKit, Svelte 5 (runes), TypeScript
+- **Editor**: Tiptap with custom wikilink extension
+- **Backend**: Supabase (Auth, Database, Storage)
+- **Styling**: CSS custom properties for theming
+
+## Development
 
 ```sh
-# create a new project in the current directory
-npx sv create
+# Install dependencies
+npm install
 
-# create a new project in my-app
-npx sv create my-app
-```
+# Start Supabase locally
+npx supabase start
 
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
+# Start dev server
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
 
-## Building
+## Database Setup
 
-To create a production version of your app:
+Run `supabase-setup.sql` in your Supabase SQL editor to create the required tables, RLS policies, and triggers.
 
-```sh
-npm run build
+## Environment Variables
+
+Create a `.env` file:
+
+```
+PUBLIC_SUPABASE_URL=your-supabase-url
+PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-You can preview the production build with `npm run preview`.
+## License
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+MIT
