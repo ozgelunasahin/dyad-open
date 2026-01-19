@@ -1752,3 +1752,32 @@ class CanvasStore {
 }
 
 export const canvasStore = new CanvasStore();
+
+/**
+ * Load vault from API (for Supabase-backed notes storage).
+ * Returns a Vault object compatible with canvasStore.initialize().
+ */
+export async function loadVaultFromAPI(): Promise<Vault> {
+	const response = await fetch('/api/notes');
+	if (!response.ok) {
+		throw new Error('Failed to load notes from API');
+	}
+
+	const notesArray = await response.json();
+
+	// Convert array to vault structure
+	const notes: Record<string, Vault['notes'][string]> = {};
+	for (const note of notesArray) {
+		notes[note.slug] = {
+			id: note.slug,
+			title: note.title,
+			content: note.content,
+			wikilinks: note.wikilinks || []
+		};
+	}
+
+	return {
+		entryPoint: notesArray[0]?.slug ?? '',
+		notes
+	};
+}

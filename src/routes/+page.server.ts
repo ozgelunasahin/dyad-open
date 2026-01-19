@@ -1,12 +1,16 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { getUserCanvases } from '$lib/server/db/operations';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	// If user is logged in, redirect to dashboard or their first canvas
 	if (locals.user) {
-		const canvases = await getUserCanvases(locals.user.id);
-		if (canvases.length > 0) {
+		const { data: canvases } = await locals.supabase
+			.from('canvases')
+			.select('id')
+			.order('updated_at', { ascending: false })
+			.limit(1);
+
+		if (canvases && canvases.length > 0) {
 			// Redirect to first canvas
 			redirect(302, `/canvas/${canvases[0].id}`);
 		}

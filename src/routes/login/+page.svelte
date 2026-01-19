@@ -4,23 +4,31 @@
 
 	let { form }: { form: ActionData } = $props();
 	let loading = $state(false);
+	let mode = $state<'login' | 'signup'>('login');
 </script>
 
 <svelte:head>
-	<title>Login - dyad.berlin</title>
+	<title>{mode === 'login' ? 'Login' : 'Sign Up'} - dyad.berlin</title>
 </svelte:head>
 
 <div class="auth-container">
 	<div class="auth-card">
-		<h1>Welcome back</h1>
-		<p class="subtitle">Sign in to continue to your canvases</p>
+		<h1>{mode === 'login' ? 'Welcome back' : 'Create account'}</h1>
+		<p class="subtitle">
+			{mode === 'login' ? 'Sign in to continue to your canvases' : 'Get started with your own canvas'}
+		</p>
 
 		{#if form?.error}
 			<div class="error-message">{form.error}</div>
 		{/if}
 
+		{#if form?.success}
+			<div class="success-message">{form.message}</div>
+		{/if}
+
 		<form
 			method="POST"
+			action="?/{mode}"
 			use:enhance={() => {
 				loading = true;
 				return async ({ update }) => {
@@ -30,14 +38,14 @@
 			}}
 		>
 			<div class="form-group">
-				<label for="identifier">Email or Username</label>
+				<label for="email">Email</label>
 				<input
-					type="text"
-					id="identifier"
-					name="identifier"
-					value={form?.identifier ?? ''}
+					type="email"
+					id="email"
+					name="email"
+					value={form?.email ?? ''}
 					required
-					autocomplete="username"
+					autocomplete="email"
 					disabled={loading}
 				/>
 			</div>
@@ -49,18 +57,32 @@
 					id="password"
 					name="password"
 					required
-					autocomplete="current-password"
+					autocomplete={mode === 'login' ? 'current-password' : 'new-password'}
 					disabled={loading}
+					minlength={mode === 'signup' ? 6 : undefined}
 				/>
+				{#if mode === 'signup'}
+					<p class="hint">At least 6 characters</p>
+				{/if}
 			</div>
 
 			<button type="submit" class="submit-btn" disabled={loading}>
-				{loading ? 'Signing in...' : 'Sign in'}
+				{#if loading}
+					{mode === 'login' ? 'Signing in...' : 'Creating account...'}
+				{:else}
+					{mode === 'login' ? 'Sign in' : 'Create account'}
+				{/if}
 			</button>
 		</form>
 
 		<p class="switch-auth">
-			Don't have an account? <a href="/register">Create one</a>
+			{#if mode === 'login'}
+				Don't have an account?
+				<button type="button" class="link-btn" onclick={() => (mode = 'signup')}>Create one</button>
+			{:else}
+				Already have an account?
+				<button type="button" class="link-btn" onclick={() => (mode = 'login')}>Sign in</button>
+			{/if}
 		</p>
 	</div>
 </div>
@@ -107,6 +129,16 @@
 		font-size: 0.9rem;
 	}
 
+	.success-message {
+		background: rgba(25, 135, 84, 0.1);
+		border: 1px solid rgba(25, 135, 84, 0.3);
+		color: #198754;
+		padding: 0.75rem 1rem;
+		border-radius: 4px;
+		margin-bottom: 1.5rem;
+		font-size: 0.9rem;
+	}
+
 	.form-group {
 		margin-bottom: 1.25rem;
 	}
@@ -140,6 +172,12 @@
 		cursor: not-allowed;
 	}
 
+	.hint {
+		margin: 0.5rem 0 0 0;
+		font-size: 0.85rem;
+		color: var(--text-muted);
+	}
+
 	.submit-btn {
 		width: 100%;
 		padding: 0.85rem;
@@ -170,14 +208,18 @@
 		font-size: 0.95rem;
 	}
 
-	.switch-auth a {
+	.link-btn {
+		background: none;
+		border: none;
+		padding: 0;
 		color: var(--text-link);
-		text-decoration: none;
+		font: inherit;
+		cursor: pointer;
 		border-bottom: 1px solid var(--border-link);
 		transition: border-color 0.2s, color 0.2s;
 	}
 
-	.switch-auth a:hover {
+	.link-btn:hover {
 		color: var(--text-link-hover);
 		border-color: var(--border-link-hover);
 	}

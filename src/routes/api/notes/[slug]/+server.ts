@@ -1,47 +1,8 @@
 import { json } from '@sveltejs/kit';
-import { writeFile, readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import type { RequestHandler } from './$types';
 import type { JSONContent } from '@tiptap/core';
 
-const VAULT_FILE = resolve('./static/vault/index.json');
-const API_WRITE_MARKER = '.last-api-write';
 const MAX_CONTENT_SIZE = 1024 * 100; // 100KB limit
-
-// Simple write lock to prevent concurrent vault modifications
-let writeLock: Promise<void> = Promise.resolve();
-
-// Response types for type safety
-interface NoteGetResponse {
-	content: JSONContent;
-	title: string;
-}
-
-interface NotePutResponse {
-	success: true;
-	saved: string;
-}
-
-interface ApiErrorResponse {
-	error: string;
-}
-
-// Type guard for PUT request body - now expects JSONContent
-interface PutNoteBody {
-	title: string;
-	content: JSONContent;
-}
-
-function isValidPutBody(body: unknown): body is PutNoteBody {
-	return (
-		typeof body === 'object' &&
-		body !== null &&
-		'content' in body &&
-		typeof (body as PutNoteBody).content === 'object' &&
-		'title' in body &&
-		typeof (body as PutNoteBody).title === 'string'
-	);
-}
 
 // Whitelist of allowed ProseMirror node types to prevent injection attacks
 const ALLOWED_NODE_TYPES = new Set([
@@ -126,17 +87,15 @@ function validateJSONContent(node: unknown, depth = 0): string | null {
 		const attrs = n.attrs as Record<string, unknown>;
 
 		if (n.type === 'image') {
-			// Allow only safe attributes for images (Tiptap may add width/height)
+			// Allow only safe attributes for images
 			const allowedImageAttrs = ['src', 'alt', 'title', 'width', 'height'];
 			for (const key of Object.keys(attrs)) {
 				if (!allowedImageAttrs.includes(key)) {
 					return `Invalid image attribute: "${key}"`;
 				}
 			}
-			// Validate src is a local upload path
-			if (typeof attrs.src === 'string' && !attrs.src.startsWith('/uploads/')) {
-				return 'Image src must be a local upload path';
-			}
+			// For Supabase Storage, images come from supabase URL
+			// Skip strict local path validation
 		} else {
 			// Block dangerous attribute names on non-image nodes
 			const dangerousAttrs = ['onclick', 'onerror', 'onload', 'onmouseover', 'href', 'src'];
@@ -162,28 +121,6 @@ function validateJSONContent(node: unknown, depth = 0): string | null {
 	return null; // Valid
 }
 
-interface Vault {
-	entryPoint: string;
-	notes: Record<
-		string,
-		{
-			id: string;
-			title: string;
-			content: JSONContent;
-			wikilinks: string[];
-		}
-	>;
-}
-
-async function loadVault(): Promise<Vault> {
-	const raw = await readFile(VAULT_FILE, 'utf-8');
-	return JSON.parse(raw) as Vault;
-}
-
-async function saveVault(vault: Vault): Promise<void> {
-	await writeFile(VAULT_FILE, JSON.stringify(vault, null, 2) + '\n', 'utf-8');
-}
-
 /**
  * Extract wikilinks from JSON content.
  */
@@ -205,113 +142,10 @@ function extractWikilinks(content: JSONContent): string[] {
 	return [...new Set(links)];
 }
 
-// Touch marker file to signal vite plugin to skip hot reload
-async function touchMarker(): Promise<void> {
-	try {
-		await writeFile(API_WRITE_MARKER, Date.now().toString(), 'utf-8');
-	} catch {
-		// Ignore errors - not critical
-	}
-}
-
 // Validate slug to prevent traversal
 function isValidSlug(slug: string): boolean {
 	return /^[a-z0-9-]+$/.test(slug) && !slug.includes('..');
 }
-
-export const PUT: RequestHandler = async ({ locals, params, request }) => {
-	console.log('[API PUT] Request received for:', params.slug);
-
-	if (!locals.user) {
-		console.log('[API PUT] Unauthorized - no user');
-		return json({ error: 'Unauthorized' }, { status: 401 });
-	}
-
-	const { slug } = params;
-
-	if (!isValidSlug(slug)) {
-		console.log('[API PUT] Invalid slug:', slug);
-		return json({ error: 'Invalid slug' } satisfies ApiErrorResponse, { status: 400 });
-	}
-
-	// Parse JSON body with error handling
-	let body: unknown;
-	try {
-		body = await request.json();
-		console.log('[API PUT] Body parsed, content type:', typeof (body as Record<string, unknown>)?.content);
-	} catch (e) {
-		console.log('[API PUT] JSON parse error:', e);
-		return json({ error: 'Invalid JSON body' } satisfies ApiErrorResponse, { status: 400 });
-	}
-
-	// Validate body structure
-	if (!isValidPutBody(body)) {
-		console.log('[API PUT] Invalid body structure:', Object.keys(body as object));
-		return json(
-			{ error: 'Request body must have "title" string and "content" object fields' } satisfies ApiErrorResponse,
-			{ status: 400 }
-		);
-	}
-
-	const { title, content } = body;
-
-	// Validate JSONContent structure to prevent XSS
-	const contentError = validateJSONContent(content);
-	if (contentError) {
-		console.error(`[API] Content validation failed for ${slug}:`, contentError);
-		console.error(`[API] Content was:`, JSON.stringify(content).slice(0, 500));
-		return json(
-			{ error: `Invalid content: ${contentError}` } satisfies ApiErrorResponse,
-			{ status: 400 }
-		);
-	}
-
-	// Check content size limit (rough estimate)
-	const contentSize = JSON.stringify(content).length;
-	if (contentSize > MAX_CONTENT_SIZE) {
-		return json(
-			{ error: `Content exceeds maximum size of ${MAX_CONTENT_SIZE} bytes` } satisfies ApiErrorResponse,
-			{ status: 413 }
-		);
-	}
-
-	// Use write lock to serialize vault modifications and prevent race conditions
-	let resolve: () => void;
-	const previousLock = writeLock;
-	writeLock = new Promise<void>((r) => {
-		resolve = r;
-	});
-
-	try {
-		// Wait for any in-progress write to complete
-		await previousLock;
-
-		// Load vault, update note, save vault
-		await touchMarker();
-		const vault = await loadVault();
-
-		// Extract wikilinks from JSON content
-		const wikilinks = extractWikilinks(content);
-
-		// Update or create note
-		vault.notes[slug] = {
-			id: slug,
-			title,
-			content,
-			wikilinks
-		};
-
-		await saveVault(vault);
-		return json({ success: true, saved: new Date().toISOString() } satisfies NotePutResponse);
-	} catch (error) {
-		const message = error instanceof Error ? error.message : 'Unknown error';
-		console.error(`[API] Failed to save ${slug}:`, message);
-		return json({ error: 'Failed to save note' } satisfies ApiErrorResponse, { status: 500 });
-	} finally {
-		// Always release the lock
-		resolve!();
-	}
-};
 
 export const GET: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) {
@@ -321,19 +155,112 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 	const { slug } = params;
 
 	if (!isValidSlug(slug)) {
-		return json({ error: 'Invalid slug' } satisfies ApiErrorResponse, { status: 400 });
+		return json({ error: 'Invalid slug' }, { status: 400 });
 	}
 
+	const { data: note, error } = await locals.supabase
+		.from('notes')
+		.select('title, content')
+		.eq('slug', slug)
+		.single();
+
+	if (error || !note) {
+		return json({ error: 'Note not found' }, { status: 404 });
+	}
+
+	return json({ content: note.content, title: note.title });
+};
+
+export const PUT: RequestHandler = async ({ locals, params, request }) => {
+	if (!locals.user) {
+		return json({ error: 'Unauthorized' }, { status: 401 });
+	}
+
+	const { slug } = params;
+
+	if (!isValidSlug(slug)) {
+		return json({ error: 'Invalid slug' }, { status: 400 });
+	}
+
+	// Parse JSON body with error handling
+	let body: unknown;
 	try {
-		const vault = await loadVault();
-		const note = vault.notes[slug];
-
-		if (!note) {
-			return json({ error: 'Note not found' } satisfies ApiErrorResponse, { status: 404 });
-		}
-
-		return json({ content: note.content, title: note.title } satisfies NoteGetResponse);
+		body = await request.json();
 	} catch {
-		return json({ error: 'Failed to load vault' } satisfies ApiErrorResponse, { status: 500 });
+		return json({ error: 'Invalid JSON body' }, { status: 400 });
 	}
+
+	// Validate body structure
+	if (
+		typeof body !== 'object' ||
+		body === null ||
+		!('content' in body) ||
+		!('title' in body) ||
+		typeof (body as { title: unknown }).title !== 'string' ||
+		typeof (body as { content: unknown }).content !== 'object'
+	) {
+		return json(
+			{ error: 'Request body must have "title" string and "content" object fields' },
+			{ status: 400 }
+		);
+	}
+
+	const { title, content } = body as { title: string; content: JSONContent };
+
+	// Validate JSONContent structure to prevent XSS
+	const contentError = validateJSONContent(content);
+	if (contentError) {
+		console.error(`[API] Content validation failed for ${slug}:`, contentError);
+		return json({ error: `Invalid content: ${contentError}` }, { status: 400 });
+	}
+
+	// Check content size limit
+	const contentSize = JSON.stringify(content).length;
+	if (contentSize > MAX_CONTENT_SIZE) {
+		return json({ error: `Content exceeds maximum size of ${MAX_CONTENT_SIZE} bytes` }, { status: 413 });
+	}
+
+	const wikilinks = extractWikilinks(content);
+
+	const { error } = await locals.supabase.from('notes').upsert(
+		{
+			user_id: locals.user.id,
+			slug,
+			title,
+			content,
+			wikilinks,
+			updated_at: new Date().toISOString()
+		},
+		{
+			onConflict: 'user_id,slug'
+		}
+	);
+
+	if (error) {
+		console.error('Failed to save note:', error);
+		return json({ error: 'Failed to save note' }, { status: 500 });
+	}
+
+	return json({ success: true, saved: new Date().toISOString() });
+};
+
+export const DELETE: RequestHandler = async ({ locals, params }) => {
+	if (!locals.user) {
+		return json({ error: 'Unauthorized' }, { status: 401 });
+	}
+
+	const { slug } = params;
+
+	if (!isValidSlug(slug)) {
+		return json({ error: 'Invalid slug' }, { status: 400 });
+	}
+
+	const { error } = await locals.supabase.from('notes').delete().eq('slug', slug);
+
+	if (error) {
+		console.error('Failed to delete note:', error);
+		return json({ error: 'Failed to delete note' }, { status: 500 });
+	}
+
+	return json({ success: true });
 };

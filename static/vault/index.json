@@ -953,12 +953,12 @@
               },
               {
                 "type": "text",
+                "text": "being in attendance",
                 "marks": [
                   {
                     "type": "italic"
                   }
-                ],
-                "text": "being in attendance"
+                ]
               },
               {
                 "type": "text",
@@ -1019,12 +1019,12 @@
               },
               {
                 "type": "text",
+                "text": "Wait, I'm confused. There's just something I'm not getting.",
                 "marks": [
                   {
                     "type": "italic"
                   }
-                ],
-                "text": "Wait, I'm confused. There's just something I'm not getting."
+                ]
               },
               {
                 "type": "text",
@@ -1077,12 +1077,12 @@
               },
               {
                 "type": "text",
+                "text": "what may have been",
                 "marks": [
                   {
                     "type": "italic"
                   }
-                ],
-                "text": "what may have been"
+                ]
               },
               {
                 "type": "text",
@@ -1090,12 +1090,12 @@
               },
               {
                 "type": "text",
+                "text": "yet-to-be",
                 "marks": [
                   {
                     "type": "italic"
                   }
-                ],
-                "text": "yet-to-be"
+                ]
               },
               {
                 "type": "text",
@@ -1103,12 +1103,12 @@
               },
               {
                 "type": "text",
+                "text": "Sorry to interrupt you, but can we go back and read that last part of the sentence again?",
                 "marks": [
                   {
                     "type": "italic"
                   }
-                ],
-                "text": "Sorry to interrupt you, but can we go back and read that last part of the sentence again?"
+                ]
               },
               {
                 "type": "text",

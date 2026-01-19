@@ -1,25 +1,39 @@
-import { redirect, error } from '@sveltejs/kit';
+import { redirect, error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { getCanvasById, updateCanvas, getUserById, getCardPositions } from '$lib/server/db/operations';
-import { fail } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	if (!locals.user) {
 		redirect(302, '/login');
 	}
 
-	const canvas = await getCanvasById(params.canvasId);
-	if (!canvas) {
+	const { data: canvas, error: canvasError } = await locals.supabase
+		.from('canvases')
+		.select('id, name, slug, is_published, entry_point_note_id, created_at, updated_at')
+		.eq('id', params.canvasId)
+		.single();
+
+	if (canvasError || !canvas) {
 		error(404, 'Canvas not found');
 	}
 
-	// Check if user owns this canvas
-	if (canvas.userId !== locals.user.id) {
-		error(403, 'You do not have access to this canvas');
-	}
-
 	// Load saved card positions
-	const cardPositions = await getCardPositions(params.canvasId);
+	const { data: rawPositions } = await locals.supabase
+		.from('card_positions')
+		.select('id, note_id, x, y, width, height, parent_card_id, source_link_x, source_link_y')
+		.eq('canvas_id', params.canvasId);
+
+	// Transform to match SavedPosition interface
+	const cardPositions = (rawPositions ?? []).map((pos) => ({
+		id: pos.id,
+		noteId: pos.note_id,
+		x: pos.x,
+		y: pos.y,
+		width: pos.width,
+		height: pos.height,
+		parentCardId: pos.parent_card_id ?? null,
+		sourceLinkX: pos.source_link_x ?? null,
+		sourceLinkY: pos.source_link_y ?? null
+	}));
 
 	return {
 		user: locals.user,
@@ -34,11 +48,7 @@ export const actions: Actions = {
 			redirect(302, '/login');
 		}
 
-		const canvas = await getCanvasById(params.canvasId);
-		if (!canvas || canvas.userId !== locals.user.id) {
-			return fail(403, { error: 'Access denied' });
-		}
-
+		// RLS ensures user can only update their own canvases
 		const data = await request.formData();
 		const name = data.get('name');
 
@@ -53,10 +63,13 @@ export const actions: Actions = {
 			.replace(/^-|-$/g, '')
 			.substring(0, 50);
 
-		try {
-			await updateCanvas(params.canvasId, { name, slug });
-		} catch (err: unknown) {
-			if (err instanceof Error && err.message.includes('UNIQUE constraint')) {
+		const { error: updateError } = await locals.supabase
+			.from('canvases')
+			.update({ name, slug, updated_at: new Date().toISOString() })
+			.eq('id', params.canvasId);
+
+		if (updateError) {
+			if (updateError.code === '23505') {
 				return fail(400, { error: 'A canvas with this name already exists' });
 			}
 			return fail(500, { error: 'Failed to rename canvas' });
@@ -70,14 +83,23 @@ export const actions: Actions = {
 			redirect(302, '/login');
 		}
 
-		const canvas = await getCanvasById(params.canvasId);
-		if (!canvas || canvas.userId !== locals.user.id) {
-			return fail(403, { error: 'Access denied' });
+		// Get current state
+		const { data: canvas } = await locals.supabase
+			.from('canvases')
+			.select('is_published')
+			.eq('id', params.canvasId)
+			.single();
+
+		if (!canvas) {
+			return fail(404, { error: 'Canvas not found' });
 		}
 
-		try {
-			await updateCanvas(params.canvasId, { isPublished: !canvas.isPublished });
-		} catch (err) {
+		const { error: updateError } = await locals.supabase
+			.from('canvases')
+			.update({ is_published: !canvas.is_published, updated_at: new Date().toISOString() })
+			.eq('id', params.canvasId);
+
+		if (updateError) {
 			return fail(500, { error: 'Failed to update publish status' });
 		}
 
@@ -89,11 +111,6 @@ export const actions: Actions = {
 			redirect(302, '/login');
 		}
 
-		const canvas = await getCanvasById(params.canvasId);
-		if (!canvas || canvas.userId !== locals.user.id) {
-			return fail(403, { error: 'Access denied' });
-		}
-
 		const data = await request.formData();
 		const noteId = data.get('noteId');
 
@@ -101,9 +118,15 @@ export const actions: Actions = {
 			return fail(400, { error: 'Invalid note ID' });
 		}
 
-		try {
-			await updateCanvas(params.canvasId, { entryPointNoteId: noteId || null });
-		} catch (err) {
+		const { error: updateError } = await locals.supabase
+			.from('canvases')
+			.update({
+				entry_point_note_id: noteId || null,
+				updated_at: new Date().toISOString()
+			})
+			.eq('id', params.canvasId);
+
+		if (updateError) {
 			return fail(500, { error: 'Failed to set entry point' });
 		}
 
