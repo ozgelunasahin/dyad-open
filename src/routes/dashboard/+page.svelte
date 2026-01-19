@@ -95,19 +95,16 @@
 					};
 				}}
 			>
-				<div class="form-group">
-					<label for="name">Canvas Name</label>
-					<input
-						type="text"
-						id="name"
-						name="name"
-						required
-						maxlength="100"
-						placeholder="Enter a name..."
-						disabled={creating}
-						autofocus
-					/>
-				</div>
+				<input
+					type="text"
+					id="name"
+					name="name"
+					required
+					maxlength="100"
+					placeholder="Canvas name"
+					disabled={creating}
+					autofocus
+				/>
 				<div class="modal-actions">
 					<button type="button" class="cancel-btn" onclick={() => (showCreateModal = false)}>
 						Cancel
@@ -376,18 +373,7 @@
 		line-height: 1.5;
 	}
 
-	.form-group {
-		margin-bottom: 1.5rem;
-	}
-
-	.form-group label {
-		display: block;
-		margin-bottom: 0.5rem;
-		color: var(--text-secondary);
-		font-size: 0.95rem;
-	}
-
-	.form-group input {
+	.modal input[type='text'] {
 		width: 100%;
 		padding: 0.75rem;
 		border: 1px solid var(--border-link);
@@ -396,9 +382,10 @@
 		font-family: inherit;
 		background: var(--bg-canvas);
 		color: var(--text-primary);
+		margin-bottom: 1.5rem;
 	}
 
-	.form-group input:focus {
+	.modal input[type='text']:focus {
 		outline: none;
 		border-color: var(--text-link-hover);
 	}
