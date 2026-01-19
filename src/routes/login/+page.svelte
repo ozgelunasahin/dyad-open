@@ -105,7 +105,7 @@
 			{#if mode === 'login'}
 				Don't have an account?
 				<button type="button" class="link-btn" onclick={() => (mode = 'signup')}>Create one</button>
-				<span class="separator">|</span>
+				<br />
 				<button type="button" class="link-btn" onclick={() => (mode = 'reset')}>Forgot password?</button>
 			{:else if mode === 'signup'}
 				Already have an account?
@@ -255,10 +255,5 @@
 	.link-btn:hover {
 		color: var(--text-link-hover);
 		border-color: var(--border-link-hover);
-	}
-
-	.separator {
-		margin: 0 0.5rem;
-		color: var(--text-muted);
 	}
 </style>
