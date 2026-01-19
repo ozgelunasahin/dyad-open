@@ -11,11 +11,11 @@
 		<h1>{$page.status}</h1>
 		<p class="message">
 			{#if $page.status === 404}
-				This page doesn't exist.
+				this page doesn't exist.
 			{:else if $page.status === 403}
-				You don't have permission to view this.
+				you don't have permission to view this.
 			{:else if $page.status === 500}
-				Something went wrong on our end.
+				something went wrong. sorry.
 			{:else}
 				{$page.error?.message || 'An error occurred.'}
 			{/if}
