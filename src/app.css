@@ -66,5 +66,10 @@ body {
 	font-family: 'Georgia', 'Times New Roman', serif;
 	overflow: hidden;
 	background: var(--bg-canvas);
-	transition: background 0.3s ease;
+}
+
+/* Disable transitions during theme change to prevent flicker */
+.theme-transition-none,
+.theme-transition-none * {
+	transition: none !important;
 }
