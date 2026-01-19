@@ -123,19 +123,10 @@
 			.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
 			.join(' ');
 
-		// Create initial content as ProseMirror JSON
+		// Create initial content as empty doc
 		const content: JSONContent = {
 			type: 'doc',
-			content: [
-				{
-					type: 'heading',
-					attrs: { level: 1 },
-					content: [{ type: 'text', text: title }]
-				},
-				{
-					type: 'paragraph'
-				}
-			]
+			content: [{ type: 'paragraph' }]
 		};
 
 		try {

@@ -514,10 +514,7 @@ class CanvasStore {
 			title,
 			content: content ?? {
 				type: 'doc',
-				content: [
-					{ type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: title }] },
-					{ type: 'paragraph' }
-				]
+				content: [{ type: 'paragraph' }]
 			},
 			wikilinks: [] as string[]
 		};
