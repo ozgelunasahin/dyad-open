@@ -339,9 +339,17 @@ describe('findUsedVerticalChannels', () => {
 describe('getCardEntryPoint', () => {
 	const makeCard = (x: number, y: number, width: number, height: number): Card => ({
 		id: 'test',
-		noteId: 'test-note',
+		note: {
+			id: 'test-note',
+			canvasId: 'test-canvas',
+			title: 'Test Note',
+			content: { type: 'doc', content: [] },
+			wikilinks: []
+		},
 		position: { x, y },
-		dimensions: { width, height }
+		dimensions: { width, height },
+		parentId: null,
+		sourceLink: null
 	});
 
 	it('enters from left when coming from the left', () => {

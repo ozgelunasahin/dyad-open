@@ -22,8 +22,22 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const canvasId = nanoid();
 		const userId = locals.user.id;
 
-		// Insert starter notes
+		// Create starter canvas FIRST (notes have FK to canvas)
+		const { error: canvasError } = await locals.supabase.from('canvases').insert({
+			id: canvasId,
+			user_id: userId,
+			name: 'Getting Started',
+			slug: 'getting-started',
+			entry_point_note_id: STARTER_ENTRY_POINT
+		});
+
+		if (canvasError) {
+			console.error('Failed to create starter canvas:', canvasError);
+		}
+
+		// Insert starter notes (canvas-scoped, after canvas exists)
 		const notesToInsert = STARTER_NOTES.map((note) => ({
+			canvas_id: canvasId,
 			user_id: userId,
 			slug: note.slug,
 			title: note.title,
@@ -35,19 +49,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 		if (notesError) {
 			console.error('Failed to seed starter notes:', notesError);
-		}
-
-		// Create starter canvas
-		const { error: canvasError } = await locals.supabase.from('canvases').insert({
-			id: canvasId,
-			user_id: userId,
-			name: 'Getting Started',
-			slug: 'getting-started',
-			entry_point_note_id: STARTER_ENTRY_POINT
-		});
-
-		if (canvasError) {
-			console.error('Failed to create starter canvas:', canvasError);
 		}
 
 		// Return the new canvas in the list (re-fetch to get accurate data)

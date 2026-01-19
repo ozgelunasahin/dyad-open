@@ -51,7 +51,7 @@
 
 		try {
 			// Create the note via API with JSON content
-			const response = await fetch(`/api/notes/${slug}`, {
+			const response = await fetch(`/api/notes/${slug}?canvas_id=${data.canvas.id}`, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ title: newNoteName, content })

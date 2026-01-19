@@ -124,6 +124,11 @@ class CanvasStore {
 	// Current canvas ID for per-canvas state persistence
 	private currentCanvasId: string | null = null;
 
+	// Public getter for canvas ID (needed for API calls)
+	get canvasId(): string | null {
+		return this.currentCanvasId;
+	}
+
 	// Debounce flag for path computation requests
 	// Prevents multiple requestAnimationFrame callbacks from queuing up
 	private pathComputationRequested = false;
@@ -507,10 +512,12 @@ class CanvasStore {
 	 */
 	addNoteToVault(noteId: string, title: string, content?: JSONContent): void {
 		if (!this.vault) return;
+		if (!this.currentCanvasId) return;
 
 		// Create note with provided content or default empty structure
 		const note = {
 			id: noteId,
+			canvasId: this.currentCanvasId,
 			title,
 			content: content ?? {
 				type: 'doc',
@@ -1914,9 +1921,10 @@ export const canvasStore = new CanvasStore();
 /**
  * Load vault from API (for Supabase-backed notes storage).
  * Returns a Vault object compatible with canvasStore.initialize().
+ * @param canvasId - The canvas ID to load notes for (canvas-scoped notes)
  */
-export async function loadVaultFromAPI(): Promise<Vault> {
-	const response = await fetch('/api/notes');
+export async function loadVaultFromAPI(canvasId: string): Promise<Vault> {
+	const response = await fetch(`/api/notes?canvas_id=${canvasId}`);
 	if (!response.ok) {
 		throw new Error('Failed to load notes from API');
 	}
@@ -1928,6 +1936,7 @@ export async function loadVaultFromAPI(): Promise<Vault> {
 	for (const note of notesArray) {
 		notes[note.slug] = {
 			id: note.slug,
+			canvasId: note.canvas_id,
 			title: note.title,
 			content: note.content,
 			wikilinks: note.wikilinks || []

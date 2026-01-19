@@ -147,12 +147,17 @@ function isValidSlug(slug: string): boolean {
 	return /^[a-z0-9-]+$/.test(slug) && !slug.includes('..');
 }
 
-export const GET: RequestHandler = async ({ locals, params }) => {
+export const GET: RequestHandler = async ({ locals, params, url }) => {
 	if (!locals.user) {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
 	const { slug } = params;
+	const canvasId = url.searchParams.get('canvas_id');
+
+	if (!canvasId) {
+		return json({ error: 'canvas_id parameter is required' }, { status: 400 });
+	}
 
 	if (!isValidSlug(slug)) {
 		return json({ error: 'Invalid slug' }, { status: 400 });
@@ -161,6 +166,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 	const { data: note, error } = await locals.supabase
 		.from('notes')
 		.select('title, content')
+		.eq('canvas_id', canvasId)
 		.eq('slug', slug)
 		.single();
 
@@ -171,12 +177,17 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 	return json({ content: note.content, title: note.title });
 };
 
-export const PUT: RequestHandler = async ({ locals, params, request }) => {
+export const PUT: RequestHandler = async ({ locals, params, request, url }) => {
 	if (!locals.user) {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
 	const { slug } = params;
+	const canvasId = url.searchParams.get('canvas_id');
+
+	if (!canvasId) {
+		return json({ error: 'canvas_id parameter is required' }, { status: 400 });
+	}
 
 	if (!isValidSlug(slug)) {
 		return json({ error: 'Invalid slug' }, { status: 400 });
@@ -224,6 +235,7 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
 
 	const { error } = await locals.supabase.from('notes').upsert(
 		{
+			canvas_id: canvasId,
 			user_id: locals.user.id,
 			slug,
 			title,
@@ -232,7 +244,7 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
 			updated_at: new Date().toISOString()
 		},
 		{
-			onConflict: 'user_id,slug'
+			onConflict: 'canvas_id,slug'
 		}
 	);
 
@@ -244,18 +256,27 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
 	return json({ success: true, saved: new Date().toISOString() });
 };
 
-export const DELETE: RequestHandler = async ({ locals, params }) => {
+export const DELETE: RequestHandler = async ({ locals, params, url }) => {
 	if (!locals.user) {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
 	const { slug } = params;
+	const canvasId = url.searchParams.get('canvas_id');
+
+	if (!canvasId) {
+		return json({ error: 'canvas_id parameter is required' }, { status: 400 });
+	}
 
 	if (!isValidSlug(slug)) {
 		return json({ error: 'Invalid slug' }, { status: 400 });
 	}
 
-	const { error } = await locals.supabase.from('notes').delete().eq('slug', slug);
+	const { error } = await locals.supabase
+		.from('notes')
+		.delete()
+		.eq('canvas_id', canvasId)
+		.eq('slug', slug);
 
 	if (error) {
 		console.error('Failed to delete note:', error);
