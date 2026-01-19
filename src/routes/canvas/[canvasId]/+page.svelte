@@ -97,8 +97,9 @@
 	});
 
 	function handleKeydown(event: KeyboardEvent) {
-		// Don't trigger shortcuts if typing in an input
+		// Don't trigger shortcuts if typing in an input or editing a card
 		if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+		if (canvasStore.editingCardId) return;
 
 		if (event.altKey && event.key === 'ArrowLeft') {
 			event.preventDefault();
