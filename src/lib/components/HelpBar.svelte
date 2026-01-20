@@ -6,6 +6,9 @@
 	let { visible }: Props = $props();
 
 	const shortcuts = [
+		{ key: '[[...]]', desc: 'Create link' },
+		{ key: '[', desc: 'Link selection' },
+		{ key: 'Ctrl+K', desc: 'Link selection' },
 		{ key: 'Tab', desc: 'Enter link mode' },
 		{ key: 'Tab/Shift+Tab', desc: 'Cycle links' },
 		{ key: 'Enter/Right', desc: 'Follow link' },
