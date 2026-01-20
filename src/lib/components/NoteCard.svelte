@@ -158,14 +158,6 @@
 
 			canvasStore.addNoteToVault(safeNoteId, title, content);
 			onLinkClick(safeNoteId, card.id, linkBounds);
-			// Wait for animation to complete (400ms) before entering edit mode
-			// Guard: only enter if card is still focused (user didn't navigate away)
-			const targetCardId = safeNoteId;
-			setTimeout(() => {
-				if (canvasStore.cards.has(targetCardId) && canvasStore.focusedCardId === targetCardId) {
-					canvasStore.enterEditMode(targetCardId);
-				}
-			}, 500);
 		} catch (err) {
 			console.error('Failed to create note:', err);
 		}
@@ -369,6 +361,19 @@
 		ondblclick={enterEditMode}
 		onkeydown={isEditing ? handleEditKeyDown : handleViewKeyDown}
 	>
+		{#if card.parentId}
+			<button
+				class="close-dot"
+				aria-label="Close card"
+				onclick={(e) => {
+					e.stopPropagation();
+					// Guard against double-click race (card may already be closing)
+					if (canvasStore.cards.has(card.id)) {
+						canvasStore.unopenCard(card.id);
+					}
+				}}
+			></button>
+		{/if}
 		<TiptapEditor
 			bind:this={editorComponent}
 			content={currentContent ?? card.note.content}
@@ -412,10 +417,46 @@
 		background: color-mix(in srgb, var(--text-link) 4%, transparent);
 	}
 
+	.close-dot {
+		position: absolute;
+		top: 12px;
+		left: -16px;
+		width: 16px;
+		height: 16px;
+		border: none;
+		background: transparent;
+		cursor: pointer;
+		padding: 0;
+		margin: 0;
+		z-index: 10;
+		-webkit-appearance: none;
+		appearance: none;
+		user-select: none;
+		outline: none;
+		box-sizing: border-box;
+	}
+
+	.close-dot::after {
+		content: '';
+		position: absolute;
+		left: 50%;
+		top: 50%;
+		width: 3px;
+		height: 3px;
+		transform: translate(-50%, -50%);
+		border-radius: 50%;
+		background: var(--line-color);
+		transition: transform 0.15s ease;
+	}
+
+	.close-dot:hover::after {
+		transform: translate(-50%, -50%) scale(2);
+	}
+
 	.save-indicator {
 		position: absolute;
 		top: 4px;
-		right: 4px;
+		right: 28px;
 		font-size: 11px;
 		padding: 2px 8px;
 		border-radius: 3px;

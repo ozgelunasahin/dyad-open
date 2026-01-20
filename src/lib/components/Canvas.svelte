@@ -3,7 +3,7 @@
 	import { zoom, zoomIdentity, type ZoomBehavior } from 'd3-zoom';
 	import { select } from 'd3-selection';
 	import 'd3-transition'; // Adds .transition() method to selections
-	import type { Point, LinkSide, SourceBounds } from '$lib/types';
+	import type { Point, LinkSide, SourceBounds, CardRestoration } from '$lib/types';
 	import { isHTMLElement } from '$lib/utils/type-guards';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import {
@@ -36,7 +36,7 @@
 	const CLICK_THRESHOLD = 5; // pixels - movement below this is a click, above is a drag
 
 	// Pending link restoration to apply after animation completes
-	let pendingLinkRestoration: { linkTarget?: string; linkFocusActive: boolean } | null = null;
+	let pendingLinkRestoration: CardRestoration | null = null;
 
 	onMount(() => {
 		zoomBehavior = zoom<SVGSVGElement, unknown>()
@@ -247,7 +247,7 @@
 				x: number;
 				y: number;
 				cardId: string;
-				linkRestoration?: { linkTarget?: string; linkFocusActive: boolean } | null;
+				linkRestoration?: CardRestoration | null;
 			}>;
 			pendingLinkRestoration = customEvent.detail.linkRestoration ?? null;
 			animateToCenter(customEvent.detail.x, customEvent.detail.y);
@@ -255,12 +255,25 @@
 
 		window.addEventListener('canvas-focus', handleFocusAnimation);
 
+		// Listen for instant focus events (no animation, just restore link state)
+		const handleInstantFocus = (event: Event) => {
+			const customEvent = event as CustomEvent<{
+				cardId: string;
+				linkRestoration?: CardRestoration | null;
+			}>;
+			// Restore link state immediately (no animation to wait for)
+			pendingLinkRestoration = customEvent.detail.linkRestoration ?? null;
+			restoreLinkFocusAfterAnimation();
+		};
+
+		window.addEventListener('canvas-focus-instant', handleInstantFocus);
+
 		// Listen for restore position requests (returning to previous card)
 		const handleRestorePosition = (event: Event) => {
 			const customEvent = event as CustomEvent<{
 				focusY: number;
 				cardId: string;
-				linkRestoration?: { linkTarget?: string; linkFocusActive: boolean } | null;
+				linkRestoration?: CardRestoration | null;
 			}>;
 			pendingLinkRestoration = customEvent.detail.linkRestoration ?? null;
 
@@ -281,7 +294,7 @@
 				cardId: string;
 				dx: number;
 				dy: number;
-				linkRestoration?: { linkTarget?: string; linkFocusActive: boolean } | null;
+				linkRestoration?: CardRestoration | null;
 			}>;
 			pendingLinkRestoration = customEvent.detail.linkRestoration ?? null;
 
@@ -676,6 +689,22 @@
 		};
 		window.addEventListener('canvas-compute-paths', handleComputePaths);
 
+		// Listen for connection removal (for wikilink unmarking and same-line path recomputation)
+		const handleConnectionRemoved = (event: Event) => {
+			const { fromCardId, toCardId, sourceBounds } = (event as CustomEvent<{
+				fromCardId: string;
+				toCardId: string;
+				sourceBounds: SourceBounds;
+			}>).detail;
+			// Only handle connections where the source card still exists
+			if (canvasStore.cards.has(fromCardId)) {
+				markWikilinkConnection(fromCardId, toCardId, false);
+				// Recompute remaining same-line paths to remove offsets if needed
+				recomputeSameLinePathsAfterRemoval(fromCardId, sourceBounds.y);
+			}
+		};
+		window.addEventListener('canvas-connection-removed', handleConnectionRemoved);
+
 		// Compute any missing paths on mount (in case the event was dispatched before we listened)
 		// Use a small delay to ensure the DOM is fully settled
 		const mountPathsTimer = setTimeout(() => {
@@ -690,10 +719,12 @@
 			canvasStore.setAnimating(false);
 			clearTimeout(mountPathsTimer);
 			window.removeEventListener('canvas-focus', handleFocusAnimation);
+			window.removeEventListener('canvas-focus-instant', handleInstantFocus);
 			window.removeEventListener('canvas-restore', handleRestorePosition);
 			window.removeEventListener('canvas-minimal-pan', handleMinimalPan);
 			window.removeEventListener('canvas-zoom-to-fit', handleZoomToFit);
 			window.removeEventListener('canvas-compute-paths', handleComputePaths);
+			window.removeEventListener('canvas-connection-removed', handleConnectionRemoved);
 			window.removeEventListener('card-content-reflow', handleContentReflow);
 			window.removeEventListener('keydown', handleKeyDown);
 			document.removeEventListener('mouseup', handleMouseUp);
@@ -738,47 +769,60 @@
 	}
 
 	/**
-	 * Restore link focus after animation completes.
+	 * Restore card state (edit mode and/or link focus) after animation completes.
 	 * Uses ALL links in the card (not filtered by visibility) to find the target.
 	 */
 	function restoreLinkFocusAfterAnimation() {
-		if (!pendingLinkRestoration?.linkFocusActive) {
-			pendingLinkRestoration = null;
+		if (!pendingLinkRestoration) {
 			return;
 		}
 
-		const { linkTarget } = pendingLinkRestoration;
+		const { linkTarget, linkFocusActive, wasEditing } = pendingLinkRestoration;
 		pendingLinkRestoration = null;
 
-		// Get ALL links in the focused card (not filtered by visibility)
 		const currentFocusedCard = canvasStore.focusedCardId;
-		const cardElement = currentFocusedCard
-			? document.querySelector(`[data-note-id="${currentFocusedCard}"]`)
-			: null;
-		if (!cardElement) return;
+		if (!currentFocusedCard) return;
 
-		const allLinks = Array.from(cardElement.querySelectorAll('.wikilink')).filter(isHTMLElement);
-		if (allLinks.length === 0) return;
+		// Restore edit mode if we were editing
+		if (wasEditing) {
+			canvasStore.enterEditMode(currentFocusedCard);
+			return; // Edit mode takes precedence - don't also enter link focus
+		}
 
-		// Enter link focus mode
-		canvasStore.enterLinkFocusMode();
+		// Restore link focus mode if active
+		if (!linkFocusActive) return;
 
-		// Find the link with matching target
-		if (linkTarget) {
-			const targetIndex = allLinks.findIndex(link => link.dataset.target === linkTarget);
-			if (targetIndex >= 0) {
-				canvasStore.focusedLinkIndex = targetIndex;
+		// Wait for DOM to settle after state changes before querying
+		requestAnimationFrame(() => {
+			// Get ALL links in the focused card (not filtered by visibility)
+			// CSS.escape for defense-in-depth (IDs are already sanitized)
+			const cardElement = document.querySelector(`[data-note-id="${CSS.escape(currentFocusedCard)}"]`);
+			if (!cardElement) return;
+
+			const allLinks = Array.from(cardElement.querySelectorAll('.wikilink')).filter(isHTMLElement);
+			if (allLinks.length === 0) return;
+
+			// Enter link focus mode
+			canvasStore.enterLinkFocusMode();
+
+			// Find the link with matching target
+			if (linkTarget) {
+				const targetIndex = allLinks.findIndex(link => link.dataset.target === linkTarget);
+				if (targetIndex >= 0) {
+					canvasStore.focusedLinkIndex = targetIndex;
+				}
 			}
-		}
 
-		// Clear any existing highlights and highlight the focused link
-		document.querySelectorAll('.wikilink.link-focused').forEach(el => {
-			el.classList.remove('link-focused');
+			// Clear highlights within this card (scoped query for performance)
+			cardElement.querySelectorAll('.wikilink.link-focused').forEach(el => {
+				el.classList.remove('link-focused');
+			});
+
+			const focusedIndex = canvasStore.focusedLinkIndex;
+			if (focusedIndex !== null && focusedIndex < allLinks.length) {
+				allLinks[focusedIndex]?.classList.add('link-focused');
+			}
 		});
-		const focusedIndex = canvasStore.focusedLinkIndex;
-		if (focusedIndex !== null && focusedIndex < allLinks.length) {
-			allLinks[focusedIndex]?.classList.add('link-focused');
-		}
 	}
 
 	/**
@@ -811,7 +855,7 @@
 		const startX = transform.x;
 		const startY = transform.y;
 
-		const duration = 400;
+		const duration = 600;
 		const startTime = Date.now();
 
 		function animate() {
@@ -871,7 +915,7 @@
 		const startX = transform.x;
 		const startY = transform.y;
 
-		const duration = 300; // Slightly faster for "going back"
+		const duration = 500;
 		const startTime = Date.now();
 
 		function animate() {
@@ -924,7 +968,7 @@
 		const targetX = startX + dx;
 		const targetY = startY + dy;
 
-		const duration = 350; // Gentle, unhurried animation
+		const duration = 450;
 		const startTime = Date.now();
 
 		function animate() {
@@ -961,8 +1005,9 @@
 	 * Uses simple geometric routing (L-shape, Z-shape, around) without A*.
 	 * @param sourceBounds - Link underline bounds (left, right, y) for determining start point
 	 * @param routingX - Optional pre-assigned routing channel X from layout
+	 * @param skipSameLineRecompute - If true, skip recomputing other same-line paths (to avoid recursion)
 	 */
-	function computeAndStorePath(fromCardId: string, toCardId: string, sourceBounds: SourceBounds, routingX?: number): void {
+	function computeAndStorePath(fromCardId: string, toCardId: string, sourceBounds: SourceBounds, routingX?: number, skipSameLineRecompute?: boolean): void {
 		const fromCard = canvasStore.cards.get(fromCardId);
 		const toCard = canvasStore.cards.get(toCardId);
 
@@ -976,12 +1021,38 @@
 		const targetCenterX = toCard.position.x + toCard.dimensions.width / 2;
 		const exitRight = targetCenterX > sourceCenterX;
 
-		// Choose start X based on actual exit direction
-		// Right-exiting → start from RIGHT edge of link underline
-		// Left-exiting → start from LEFT edge of link underline
+		// Calculate vertical offset for multiple links on the same line.
+		// Only apply offset when there's already another connection from the same text line.
+		// Links further right get placed below links further left (max 4px spacing between lines).
+		const LINE_Y_TOLERANCE = 5; // Links within 5px Y are considered "same line"
+		const LINE_SPACING = 4; // Vertical spacing between connection lines
+
+		// Find existing connections from the same source card on the same line
+		const sameLine = canvasStore.connections.filter(conn => {
+			if (conn.fromCardId !== fromCardId) return false;
+			if (conn.toCardId === toCardId) return false; // Don't count ourselves
+			return Math.abs(conn.sourceBounds.y - sourceBounds.y) < LINE_Y_TOLERANCE;
+		});
+
+		let verticalOffset = 0;
+		if (sameLine.length > 0) {
+			// There are other links open on this line - calculate offset
+			const linkCenterX = (sourceBounds.left + sourceBounds.right) / 2;
+
+			// Count how many existing connections are from links further LEFT than us
+			// Those lines appear above ours, so we offset down by that count
+			const linksToLeft = sameLine.filter(conn => {
+				const connCenterX = (conn.sourceBounds.left + conn.sourceBounds.right) / 2;
+				return connCenterX < linkCenterX;
+			});
+
+			verticalOffset = linksToLeft.length * LINE_SPACING;
+		}
+
+		// Always start from LEFT edge of link underline for cleaner visual
 		const startPoint: Point = {
-			x: exitRight ? sourceBounds.right : sourceBounds.left,
-			y: sourceBounds.y
+			x: sourceBounds.left,
+			y: sourceBounds.y + verticalOffset
 		};
 
 		// Get all cards as array for obstacle checking
@@ -1023,6 +1094,156 @@
 				result.path.length, 'points',
 				result.failed ? '(FAILED)' : ''
 			);
+		}
+
+		// Mark the wikilink as having an active connection (hides underline)
+		markWikilinkConnection(fromCardId, toCardId, true);
+
+		// Recompute other same-line paths to ensure correct offset ordering
+		// (e.g., if right-hand link was opened first, then left-hand link)
+		if (!skipSameLineRecompute) {
+			recomputeSameLinePaths(fromCardId, sourceBounds.y, toCardId);
+		}
+	}
+
+	/**
+	 * Mark or unmark a wikilink as having an active connection.
+	 * When marked, the underline is hidden (replaced by the connection line).
+	 */
+	function markWikilinkConnection(fromCardId: string, toCardId: string, hasConnection: boolean): void {
+		const cardElement = svg?.querySelector(`[data-note-id="${CSS.escape(fromCardId)}"]`);
+		if (!cardElement) return;
+
+		const wikilinkEl = cardElement.querySelector(`.wikilink[data-target="${CSS.escape(toCardId)}"]`);
+		if (wikilinkEl) {
+			if (hasConnection) {
+				wikilinkEl.classList.add('has-connection');
+			} else {
+				wikilinkEl.classList.remove('has-connection');
+			}
+		}
+	}
+
+	/**
+	 * Recompute paths for all connections on the same line as the given connection.
+	 * Called when a new connection is added to ensure proper offset ordering.
+	 * Also nudges target cards to match new line offsets for smooth visual alignment.
+	 * @param excludeToCardId - Skip recomputing this connection (it was just computed)
+	 */
+	function recomputeSameLinePaths(fromCardId: string, sourceBoundsY: number, excludeToCardId?: string): void {
+		const LINE_Y_TOLERANCE = 5;
+		const LINE_SPACING = 4;
+
+		// Find all connections from the same card on the same line (excluding the one just computed)
+		const sameLineConns = canvasStore.connections.filter(conn => {
+			if (conn.fromCardId !== fromCardId) return false;
+			if (excludeToCardId && conn.toCardId === excludeToCardId) return false;
+			return Math.abs(conn.sourceBounds.y - sourceBoundsY) < LINE_Y_TOLERANCE;
+		});
+
+		// If no other connections on this line, nothing to recompute
+		if (sameLineConns.length === 0) return;
+
+		// Sort by horizontal position (left to right)
+		sameLineConns.sort((a, b) => {
+			const aCenterX = (a.sourceBounds.left + a.sourceBounds.right) / 2;
+			const bCenterX = (b.sourceBounds.left + b.sourceBounds.right) / 2;
+			return aCenterX - bCenterX;
+		});
+
+		// Calculate new offsets and nudge target cards before recomputing paths
+		// Total connections on this line (including the excluded one we just computed)
+		const totalConns = excludeToCardId ? sameLineConns.length + 1 : sameLineConns.length;
+
+		for (const conn of sameLineConns) {
+			const oldPath = canvasStore.getStoredPath(conn.fromCardId, conn.toCardId);
+			if (!oldPath || oldPath.points.length === 0) continue;
+
+			// Calculate what the new offset should be
+			const linkCenterX = (conn.sourceBounds.left + conn.sourceBounds.right) / 2;
+
+			// Count all connections to the left of this one (including excluded)
+			let linksToLeft = 0;
+			for (const other of sameLineConns) {
+				const otherCenterX = (other.sourceBounds.left + other.sourceBounds.right) / 2;
+				if (otherCenterX < linkCenterX) linksToLeft++;
+			}
+			// Also check the excluded connection
+			if (excludeToCardId) {
+				const excludedConn = canvasStore.connections.find(c =>
+					c.fromCardId === fromCardId && c.toCardId === excludeToCardId
+				);
+				if (excludedConn) {
+					const excludedCenterX = (excludedConn.sourceBounds.left + excludedConn.sourceBounds.right) / 2;
+					if (excludedCenterX < linkCenterX) linksToLeft++;
+				}
+			}
+
+			const newOffset = linksToLeft * LINE_SPACING;
+			const oldStartY = oldPath.points[0].y;
+			const baseY = conn.sourceBounds.y;
+			const oldOffset = oldStartY - baseY;
+			const deltaY = newOffset - oldOffset;
+
+			// Nudge target card by the offset difference
+			if (deltaY !== 0) {
+				canvasStore.nudgeCardY(conn.toCardId, deltaY);
+			}
+		}
+
+		// Now recompute paths with updated card positions
+		for (const conn of sameLineConns) {
+			canvasStore.clearPath(conn.fromCardId, conn.toCardId);
+			computeAndStorePath(conn.fromCardId, conn.toCardId, conn.sourceBounds, conn.routingX, true);
+		}
+	}
+
+	/**
+	 * Recompute same-line paths after a connection is removed.
+	 * Nudges target cards to match new offsets and recomputes paths.
+	 */
+	function recomputeSameLinePathsAfterRemoval(fromCardId: string, sourceBoundsY: number): void {
+		const LINE_Y_TOLERANCE = 5;
+		const LINE_SPACING = 4;
+
+		// Find remaining connections on the same line
+		const remaining = canvasStore.connections.filter(conn => {
+			if (conn.fromCardId !== fromCardId) return false;
+			return Math.abs(conn.sourceBounds.y - sourceBoundsY) < LINE_Y_TOLERANCE;
+		});
+
+		if (remaining.length === 0) return;
+
+		// Sort by horizontal position
+		remaining.sort((a, b) => {
+			const aCenterX = (a.sourceBounds.left + a.sourceBounds.right) / 2;
+			const bCenterX = (b.sourceBounds.left + b.sourceBounds.right) / 2;
+			return aCenterX - bCenterX;
+		});
+
+		// Calculate new offsets and nudge target cards
+		for (let i = 0; i < remaining.length; i++) {
+			const conn = remaining[i];
+			const oldPath = canvasStore.getStoredPath(conn.fromCardId, conn.toCardId);
+			if (!oldPath || oldPath.points.length === 0) continue;
+
+			// New offset is simply the index (leftmost = 0, second = 1, etc.)
+			// But only apply offset if there are multiple connections
+			const newOffset = remaining.length > 1 ? i * LINE_SPACING : 0;
+			const oldStartY = oldPath.points[0].y;
+			const baseY = conn.sourceBounds.y;
+			const oldOffset = oldStartY - baseY;
+			const deltaY = newOffset - oldOffset;
+
+			if (deltaY !== 0) {
+				canvasStore.nudgeCardY(conn.toCardId, deltaY);
+			}
+		}
+
+		// Recompute paths with updated card positions
+		for (const conn of remaining) {
+			canvasStore.clearPath(conn.fromCardId, conn.toCardId);
+			computeAndStorePath(conn.fromCardId, conn.toCardId, conn.sourceBounds, conn.routingX, true);
 		}
 	}
 
@@ -1077,8 +1298,10 @@
 			: 0;
 		const linkSide: LinkSide = linkCenterX < cardCenterX ? 'left' : 'right';
 
-		// Save current card's reading state before navigating (same as keyboard nav)
-		canvasStore.saveLinkState(undefined, false);
+		// Save current card's state before navigating (for restoration when coming back)
+		// Only restore link highlight if user was already in link focus mode (keyboard nav)
+		const wasInLinkFocusMode = canvasStore.isLinkFocusMode;
+		canvasStore.saveLinkState(wasInLinkFocusMode ? noteId : undefined, wasInLinkFocusMode);
 
 		// Clear any link highlights
 		document.querySelectorAll('.wikilink.link-focused').forEach(el => {
@@ -1086,7 +1309,7 @@
 		});
 
 		// Exit link focus mode if active
-		if (canvasStore.isLinkFocusMode) {
+		if (wasInLinkFocusMode) {
 			canvasStore.exitLinkFocusMode();
 		}
 
@@ -1111,6 +1334,9 @@
 			const existingPath = canvasStore.getStoredPath(conn.fromCardId, conn.toCardId);
 			if (!existingPath) {
 				computeAndStorePath(conn.fromCardId, conn.toCardId, conn.sourceBounds, conn.routingX);
+			} else {
+				// Mark wikilink for connections with existing (restored) paths
+				markWikilinkConnection(conn.fromCardId, conn.toCardId, true);
 			}
 		}
 

@@ -445,8 +445,10 @@ function compressPath(path: Point[]): Point[] {
 	return compressed;
 }
 
+const CORNER_RADIUS = 6;
+
 /**
- * Generate SVG path string with only horizontal and vertical segments.
+ * Generate SVG path string with rounded corners at elbows.
  */
 export function pathToSvg(points: Point[]): string {
 	if (points.length < 2) return '';
@@ -456,14 +458,68 @@ export function pathToSvg(points: Point[]): string {
 	for (let i = 1; i < points.length; i++) {
 		const prev = points[i - 1];
 		const curr = points[i];
+		const next = points[i + 1];
 
-		if (Math.abs(curr.y - prev.y) < 0.5) {
-			d += ` H ${curr.x}`;
-		} else if (Math.abs(curr.x - prev.x) < 0.5) {
-			d += ` V ${curr.y}`;
+		// Determine segment direction
+		const isHorizontal = Math.abs(curr.y - prev.y) < 0.5;
+		const isVertical = Math.abs(curr.x - prev.x) < 0.5;
+
+		// If this is the last point, just draw to it
+		if (!next) {
+			if (isHorizontal) {
+				d += ` H ${curr.x}`;
+			} else if (isVertical) {
+				d += ` V ${curr.y}`;
+			} else {
+				d += ` L ${curr.x} ${curr.y}`;
+			}
+			continue;
+		}
+
+		// Check if there's a corner at curr (direction change)
+		const nextIsHorizontal = Math.abs(next.y - curr.y) < 0.5;
+		const hasCorner = isHorizontal !== nextIsHorizontal;
+
+		if (hasCorner) {
+			// Calculate corner radius (limited by segment lengths)
+			const segLen = isHorizontal
+				? Math.abs(curr.x - prev.x)
+				: Math.abs(curr.y - prev.y);
+			const nextSegLen = nextIsHorizontal
+				? Math.abs(next.x - curr.x)
+				: Math.abs(next.y - curr.y);
+			const r = Math.min(CORNER_RADIUS, segLen / 2, nextSegLen / 2);
+
+			if (r > 1) {
+				// Draw line stopping before the corner
+				if (isHorizontal) {
+					const stopX = curr.x + (prev.x < curr.x ? -r : r);
+					d += ` H ${stopX}`;
+					// Quadratic curve around corner
+					const endY = curr.y + (next.y > curr.y ? r : -r);
+					d += ` Q ${curr.x} ${curr.y} ${curr.x} ${endY}`;
+				} else {
+					const stopY = curr.y + (prev.y < curr.y ? -r : r);
+					d += ` V ${stopY}`;
+					// Quadratic curve around corner
+					const endX = curr.x + (next.x > curr.x ? r : -r);
+					d += ` Q ${curr.x} ${curr.y} ${endX} ${curr.y}`;
+				}
+			} else {
+				// Radius too small, just draw sharp corner
+				if (isHorizontal) {
+					d += ` H ${curr.x}`;
+				} else {
+					d += ` V ${curr.y}`;
+				}
+			}
 		} else {
-			// Force orthogonal
-			d += ` H ${curr.x} V ${curr.y}`;
+			// No corner, draw straight segment
+			if (isHorizontal) {
+				d += ` H ${curr.x}`;
+			} else if (isVertical) {
+				d += ` V ${curr.y}`;
+			}
 		}
 	}
 
@@ -554,7 +610,8 @@ export function getIntersectionPoint(
 }
 
 /**
- * Generate SVG path string with hops (arcs) where it crosses existing paths.
+ * Generate SVG path string with hops (arcs) where it crosses existing paths,
+ * and rounded corners at elbows.
  */
 export function pathToSvgWithHops(points: Point[], existingPaths: Point[][]): string {
 	if (points.length < 2) return '';
@@ -564,27 +621,54 @@ export function pathToSvgWithHops(points: Point[], existingPaths: Point[][]): st
 	for (let i = 1; i < points.length; i++) {
 		const prev = points[i - 1];
 		const curr = points[i];
+		const next = points[i + 1];
 
 		const isHorizontal = Math.abs(curr.y - prev.y) < 0.5;
 		const isVertical = Math.abs(curr.x - prev.x) < 0.5;
 		const goingRight = curr.x > prev.x;
 		const goingDown = curr.y > prev.y;
 
+		// Check if there's a corner at curr
+		const nextIsHorizontal = next ? Math.abs(next.y - curr.y) < 0.5 : isHorizontal;
+		const hasCorner = next && isHorizontal !== nextIsHorizontal;
+
+		// Calculate corner radius if needed
+		let cornerR = 0;
+		if (hasCorner) {
+			const segLen = isHorizontal ? Math.abs(curr.x - prev.x) : Math.abs(curr.y - prev.y);
+			const nextSegLen = nextIsHorizontal ? Math.abs(next.x - curr.x) : Math.abs(next.y - curr.y);
+			cornerR = Math.min(CORNER_RADIUS, segLen / 2, nextSegLen / 2);
+			if (cornerR < 1) cornerR = 0;
+		}
+
 		// Find crossings on this segment
 		const crossings = findCrossingsOnSegment(prev, curr, existingPaths);
 
 		if (crossings.length === 0) {
-			// No crossings - simple segment
-			if (isHorizontal) {
-				d += ` H ${curr.x}`;
-			} else if (isVertical) {
-				d += ` V ${curr.y}`;
+			// No crossings - draw segment with optional rounded corner
+			if (hasCorner && cornerR > 0) {
+				if (isHorizontal) {
+					const stopX = curr.x + (goingRight ? -cornerR : cornerR);
+					d += ` H ${stopX}`;
+					const endY = curr.y + (next.y > curr.y ? cornerR : -cornerR);
+					d += ` Q ${curr.x} ${curr.y} ${curr.x} ${endY}`;
+				} else {
+					const stopY = curr.y + (goingDown ? -cornerR : cornerR);
+					d += ` V ${stopY}`;
+					const endX = curr.x + (next.x > curr.x ? cornerR : -cornerR);
+					d += ` Q ${curr.x} ${curr.y} ${endX} ${curr.y}`;
+				}
 			} else {
-				d += ` H ${curr.x} V ${curr.y}`;
+				if (isHorizontal) {
+					d += ` H ${curr.x}`;
+				} else if (isVertical) {
+					d += ` V ${curr.y}`;
+				} else {
+					d += ` L ${curr.x} ${curr.y}`;
+				}
 			}
 		} else {
 			// Has crossings - add hops
-			// Sort crossings in the direction of travel
 			if (isHorizontal) {
 				crossings.sort((a, b) => goingRight ? a.x - b.x : b.x - a.x);
 			} else {
@@ -595,41 +679,47 @@ export function pathToSvgWithHops(points: Point[], existingPaths: Point[][]): st
 
 			for (const crossing of crossings) {
 				if (isHorizontal) {
-					const segmentY = prev.y; // Use segment's Y for consistency
+					const segmentY = prev.y;
 					const hopStart = goingRight ? crossing.x - HOP_RADIUS : crossing.x + HOP_RADIUS;
 					const hopEnd = goingRight ? crossing.x + HOP_RADIUS : crossing.x - HOP_RADIUS;
 
-					// Draw to just before crossing
 					if (goingRight ? hopStart > lastPos + 1 : hopStart < lastPos - 1) {
 						d += ` H ${hopStart}`;
 					}
-					// Arc over the crossing (semicircle curving upward - away from page)
-					// In SVG, Y increases downward, so "upward" = smaller Y
-					// sweep-flag: 0 for counter-clockwise (going right, curves up), 1 for clockwise (going left, curves up)
-					const arcCmd = ` A ${HOP_RADIUS} ${HOP_RADIUS} 0 0 ${goingRight ? 0 : 1} ${hopEnd} ${segmentY}`;
-					d += arcCmd;
+					d += ` A ${HOP_RADIUS} ${HOP_RADIUS} 0 0 ${goingRight ? 0 : 1} ${hopEnd} ${segmentY}`;
 					lastPos = hopEnd;
 				} else if (isVertical) {
-					const segmentX = prev.x; // Use segment's X for consistency
+					const segmentX = prev.x;
 					const hopStart = goingDown ? crossing.y - HOP_RADIUS : crossing.y + HOP_RADIUS;
 					const hopEnd = goingDown ? crossing.y + HOP_RADIUS : crossing.y - HOP_RADIUS;
 
-					// Draw to just before crossing
 					if (goingDown ? hopStart > lastPos + 1 : hopStart < lastPos - 1) {
 						d += ` V ${hopStart}`;
 					}
-					// Arc over the crossing (semicircle curving to the right)
-					// sweep-flag: 1 for clockwise (going down, curves right), 0 for counter-clockwise (going up, curves right)
 					d += ` A ${HOP_RADIUS} ${HOP_RADIUS} 0 0 ${goingDown ? 1 : 0} ${segmentX} ${hopEnd}`;
 					lastPos = hopEnd;
 				}
 			}
 
-			// Finish segment
-			if (isHorizontal) {
-				d += ` H ${curr.x}`;
-			} else if (isVertical) {
-				d += ` V ${curr.y}`;
+			// Finish segment with optional rounded corner
+			if (hasCorner && cornerR > 0) {
+				if (isHorizontal) {
+					const stopX = curr.x + (goingRight ? -cornerR : cornerR);
+					d += ` H ${stopX}`;
+					const endY = curr.y + (next.y > curr.y ? cornerR : -cornerR);
+					d += ` Q ${curr.x} ${curr.y} ${curr.x} ${endY}`;
+				} else {
+					const stopY = curr.y + (goingDown ? -cornerR : cornerR);
+					d += ` V ${stopY}`;
+					const endX = curr.x + (next.x > curr.x ? cornerR : -cornerR);
+					d += ` Q ${curr.x} ${curr.y} ${endX} ${curr.y}`;
+				}
+			} else {
+				if (isHorizontal) {
+					d += ` H ${curr.x}`;
+				} else if (isVertical) {
+					d += ` V ${curr.y}`;
+				}
 			}
 		}
 	}

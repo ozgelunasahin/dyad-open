@@ -328,6 +328,11 @@
 		border-bottom-color: var(--text-link);
 	}
 
+	/* Hide underline when connection line is active */
+	.tiptap-editor :global(.wikilink.has-connection) {
+		border-bottom-color: transparent;
+	}
+
 	/* Images */
 	.tiptap-editor :global(img) {
 		max-width: 100%;

@@ -59,13 +59,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 		console.error('Failed to load canvases:', canvasesResult.error);
 	}
 
-	const canvases = canvasesResult.data;
+	const canvases = canvasesResult.data ?? [];
 	const isOnboarded = profileResult.data?.onboarded ?? false;
 	const username = profileResult.data?.username ?? '';
 
-	// Seed starter canvas for new users who haven't been onboarded yet
-	// This only runs once per account - deleting the canvas won't recreate it
-	if ((!canvases || canvases.length === 0) && !isOnboarded) {
+	// Seed starter canvas for users who haven't been onboarded and don't have it yet
+	const hasGettingStarted = canvases.some((c) => c.slug === 'getting-started');
+	if (!isOnboarded && !hasGettingStarted) {
 		const canvasId = nanoid();
 
 		// Create starter canvas FIRST (notes have FK to canvas)

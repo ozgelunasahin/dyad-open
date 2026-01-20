@@ -12,7 +12,7 @@
 <style>
 	.connection {
 		stroke: var(--line-color);
-		stroke-width: 1.5;
+		stroke-width: 1;
 		stroke-linecap: round;
 		stroke-linejoin: round;
 		transition: stroke 0.3s ease;

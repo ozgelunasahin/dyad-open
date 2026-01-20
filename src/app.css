@@ -13,8 +13,8 @@
 	--text-link: #555;
 	--text-link-hover: #1a1a1a;
 
-	--line-color: rgba(0, 0, 0, 0.4);
-	--line-color-active: rgba(0, 0, 0, 0.6);
+	--line-color: #939190;
+	--line-color-active: #6a6968;
 	--border-link: rgba(0, 0, 0, 0.25);
 	--border-link-hover: rgba(0, 0, 0, 0.5);
 	--border-code: rgba(0, 0, 0, 0.15);
@@ -41,8 +41,8 @@
 	--text-link: #b8b4ac;
 	--text-link-hover: #f5f3f0;
 
-	--line-color: rgba(255, 255, 255, 0.4);
-	--line-color-active: rgba(255, 255, 255, 0.6);
+	--line-color: #767676;
+	--line-color-active: #9a9a9a;
 	--border-link: rgba(255, 255, 255, 0.25);
 	--border-link-hover: rgba(255, 255, 255, 0.5);
 	--border-code: rgba(255, 255, 255, 0.15);
