@@ -92,3 +92,10 @@ export const OBSTACLE_PADDING = 20; // Keep small so paths can use gaps
 // Layout types
 export type LinkSide = 'left' | 'right';
 
+// Card state restoration (saved when leaving, restored when returning)
+export interface CardRestoration {
+	linkTarget?: string;
+	linkFocusActive: boolean;
+	wasEditing?: boolean;
+}
+
