@@ -122,6 +122,30 @@ export const Wikilink = Node.create<WikilinkOptions>({
 
 	addKeyboardShortcuts() {
 		return {
+			// Cmd/Ctrl+K: Universal link creation shortcut (accessibility)
+			// Works like '[' - requires selected text
+			'Mod-k': ({ editor }) => {
+				const { state } = editor;
+				const { selection } = state;
+
+				if (selection.empty) return false;
+
+				const selectedText = state.doc.textBetween(selection.from, selection.to);
+				if (!selectedText.trim()) return false;
+
+				const target = sanitizeSlug(selectedText);
+				editor.chain()
+					.deleteSelection()
+					.insertContent({
+						type: 'wikilink',
+						attrs: { target, display: selectedText.trim() }
+					})
+					.run();
+
+				this.options.onWikilinkClick?.(target);
+				return true;
+			},
+
 			// Handle '[' key for wikilink creation (only for selected text)
 			'[': ({ editor }) => {
 				const { state } = editor;
