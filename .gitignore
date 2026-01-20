@@ -30,3 +30,8 @@ data/
 # Uploads
 static/uploads/*
 !static/uploads/.gitkeep
+
+# Playwright
+tests/.auth/
+playwright-report/
+test-results/
