@@ -95,6 +95,7 @@ class CanvasStore {
 
 	// Edit mode state
 	editingCardId = $state<string | null>(null);
+	editFocusPosition = $state<'end' | null>(null);
 
 	// Dimension cache - pre-computed at vault load for O(1) lookup
 	private dimensionCache = $state<Map<string, Dimensions>>(new Map());
@@ -913,12 +914,14 @@ class CanvasStore {
 		}
 	}
 
-	enterEditMode(cardId: string): void {
+	enterEditMode(cardId: string, focusPosition: 'end' | null = null): void {
 		this.editingCardId = cardId;
+		this.editFocusPosition = focusPosition;
 	}
 
 	exitEditMode(): void {
 		this.editingCardId = null;
+		this.editFocusPosition = null;
 	}
 
 	// Link focus methods for keyboard navigation
@@ -1560,12 +1563,15 @@ class CanvasStore {
 	}
 
 	// Unopen current card (remove from view, NOT delete data)
-	// NOTE: Entry point has privileged position - design decision pending review
 	unopenCurrentCard(): boolean {
 		if (!this.focusedCardId) return false;
 
-		// Don't allow unopening the entry point (prevents soft lock)
-		if (this.vault && this.focusedCardId === this.vault.entryPoint) return false;
+		const card = this.cards.get(this.focusedCardId);
+		if (!card) return false;
+
+		// Don't allow unopening root cards (entry point or orphans with no parent)
+		// These have nowhere to "go back" to
+		if (card.parentId === null) return false;
 
 		const cardToUnopen = this.focusedCardId;
 		const currentIndex = this.activeChain.indexOf(cardToUnopen);
@@ -1849,6 +1855,7 @@ class CanvasStore {
 	/**
 	 * Create an orphan card (a card with no parent).
 	 * The card is positioned in a designated orphan area above the main canvas.
+	 * Automatically adds a heading with the title and enters edit mode.
 	 */
 	async createOrphanCard(noteId: string, title: string): Promise<boolean> {
 		if (!this.vault) return false;
@@ -1859,8 +1866,20 @@ class CanvasStore {
 		}
 
 		// Create note in vault if it doesn't exist
+		// Include a heading with the title and an empty paragraph for body text
 		if (!this.vault.notes[noteId]) {
-			this.addNoteToVault(noteId, title);
+			const contentWithHeading = {
+				type: 'doc' as const,
+				content: [
+					{
+						type: 'heading',
+						attrs: { level: 1 },
+						content: [{ type: 'text', text: title }]
+					},
+					{ type: 'paragraph' }
+				]
+			};
+			this.addNoteToVault(noteId, title, contentWithHeading);
 		}
 
 		const note = this.vault.notes[noteId];
@@ -1898,8 +1917,9 @@ class CanvasStore {
 		this.history.forward = [];
 		this.addToActiveChain(noteId);
 
-		// Focus on new card
+		// Focus on new card and enter edit mode with cursor at end (after heading)
 		this.focusCard(noteId);
+		this.enterEditMode(noteId, 'end');
 
 		this.persistState();
 		this.schedulePersist();

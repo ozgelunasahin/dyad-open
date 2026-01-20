@@ -5,6 +5,7 @@
 	import Image from '@tiptap/extension-image';
 	import type { EditorView } from '@tiptap/pm/view';
 	import { Wikilink } from '$lib/tiptap/wikilink';
+	import { canvasStore } from '$lib/stores/canvas.svelte';
 
 	interface Props {
 		content: JSONContent;
@@ -142,9 +143,14 @@
 			editor.setEditable(editable);
 
 			// Auto-focus when becoming editable, blur when leaving
-			// Use focus() without position to preserve any existing selection from clicking
 			if (editable && !wasEditable) {
-				editor.commands.focus();
+				// Check if store requests cursor at end (e.g., after creating orphan card)
+				if (canvasStore.editFocusPosition === 'end') {
+					editor.commands.focus('end');
+				} else {
+					// Default: focus without position to preserve any existing selection
+					editor.commands.focus();
+				}
 			} else if (!editable && wasEditable) {
 				editor.commands.blur();
 			}
