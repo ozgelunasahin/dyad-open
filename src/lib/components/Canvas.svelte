@@ -116,32 +116,24 @@
 				? canvasStore.cards.get(canvasStore.focusedCardId)
 				: null;
 
-			if (!focusedCard) {
-				// No focused card - just pan freely
-				const newY = transform.y - event.deltaY;
-				const newTransform = zoomIdentity.translate(transform.x, newY).scale(transform.k);
-				selection.call(zoomBehavior.transform, newTransform);
-				return;
+			let newY = transform.y - event.deltaY;
+
+			if (focusedCard) {
+				// Calculate vertical bounds based on focused card
+				const viewportHeight = svg.clientHeight;
+				const cardTop = focusedCard.position.y;
+				const cardBottom = focusedCard.position.y + focusedCard.dimensions.height;
+
+				// Convert to screen coordinates for bounds
+				const maxY = viewportHeight / 2 - cardTop * transform.k + 100;
+				const minY = viewportHeight / 2 - cardBottom * transform.k - 100;
+
+				// Apply bounds
+				newY = Math.max(minY, Math.min(maxY, newY));
 			}
 
-			// Calculate vertical bounds based on focused card
-			const viewportHeight = svg.clientHeight;
-			const cardTop = focusedCard.position.y;
-			const cardBottom = focusedCard.position.y + focusedCard.dimensions.height;
-			const cardCenterY = (cardTop + cardBottom) / 2;
-
-			// Convert to screen coordinates for bounds
-			// When card top is at viewport center: transform.y = viewportHeight/2 - cardTop * transform.k
-			// When card bottom is at viewport center: transform.y = viewportHeight/2 - cardBottom * transform.k
-			const maxY = viewportHeight / 2 - cardTop * transform.k + 100; // Allow 100px past top
-			const minY = viewportHeight / 2 - cardBottom * transform.k - 100; // Allow 100px past bottom
-
-			// Apply scroll with bounds
-			let newY = transform.y - event.deltaY;
-			newY = Math.max(minY, Math.min(maxY, newY));
-
 			const newTransform = zoomIdentity.translate(transform.x, newY).scale(transform.k);
-			selection.call(zoomBehavior.transform, newTransform);
+			zoomBehavior.transform(selection, newTransform);
 		}
 
 		svg.addEventListener('wheel', handleWheel, { passive: false });
@@ -360,7 +352,7 @@
 				const newTransform = zoomIdentity
 					.translate(transform.x + dx, transform.y + dy)
 					.scale(transform.k);
-				selection.call(zoomBehavior.transform, newTransform);
+				zoomBehavior.transform(selection, newTransform);
 				return;
 			}
 
@@ -565,16 +557,25 @@
 					return;
 				}
 
-				// ArrowLeft: exit link focus, navigate left in chain
-				// Ctrl+Left keeps card open, plain Left closes it (Miller Columns pattern)
+				// ArrowLeft: close linked card if open, else exit link focus mode
+				// Priority: 1) Close linked card, 2) Exit link focus, 3) Close current card (in card mode)
 				if (event.key === 'ArrowLeft') {
 					event.preventDefault();
-					saveLinkStateBeforeLeaving(true); // Remember we were in link focus
+
+					// Check if highlighted link points to an open card
+					const highlightedLink = getHighlightedLink();
+					const linkTarget = highlightedLink?.dataset.target;
+
+					if (linkTarget && canvasStore.cards.has(linkTarget)) {
+						// Close the linked card, stay in link focus mode
+						canvasStore.unopenCard(linkTarget);
+						return;
+					}
+
+					// No open linked card - just exit link focus mode (don't close current card yet)
+					saveLinkStateBeforeLeaving(false); // Exiting, don't restore on next focus
 					canvasStore.exitLinkFocusMode();
 					clearLinkHighlights();
-					const keepOpen = event.ctrlKey || event.metaKey;
-					canvasStore.navigateLeftInChain(keepOpen);
-					// Link restoration happens after animation in restoreLinkFocusAfterAnimation()
 					return;
 				}
 
@@ -598,15 +599,34 @@
 				return;
 			}
 
-			// Vertical panning with ArrowUp/Down (works in both modes)
+			// Vertical scrolling with ArrowUp/Down (same behavior as wheel scroll)
 			if ((event.key === 'ArrowUp' || event.key === 'ArrowDown') && !event.shiftKey) {
 				event.preventDefault();
-				const panAmount = 80;
-				const dy = event.key === 'ArrowUp' ? panAmount : -panAmount;
-				const newTransform = zoomIdentity
-					.translate(transform.x, transform.y + dy)
-					.scale(transform.k);
-				selection.call(zoomBehavior.transform, newTransform);
+				const scrollAmount = 80;
+				const dy = event.key === 'ArrowUp' ? scrollAmount : -scrollAmount;
+
+				const focusedCard = canvasStore.focusedCardId
+					? canvasStore.cards.get(canvasStore.focusedCardId)
+					: null;
+
+				let newY = transform.y + dy;
+
+				if (focusedCard) {
+					// Calculate vertical bounds based on focused card
+					const viewportHeight = svg.clientHeight;
+					const cardTop = focusedCard.position.y;
+					const cardBottom = focusedCard.position.y + focusedCard.dimensions.height;
+
+					// Convert to screen coordinates for bounds
+					const maxY = viewportHeight / 2 - cardTop * transform.k + 100;
+					const minY = viewportHeight / 2 - cardBottom * transform.k - 100;
+
+					// Apply bounds
+					newY = Math.max(minY, Math.min(maxY, newY));
+				}
+
+				const newTransform = zoomIdentity.translate(transform.x, newY).scale(transform.k);
+				zoomBehavior.transform(selection, newTransform);
 				return;
 			}
 
@@ -729,6 +749,7 @@
 			window.removeEventListener('keydown', handleKeyDown);
 			document.removeEventListener('mouseup', handleMouseUp);
 			svg.removeEventListener('wheel', handleWheel);
+			if (wheelTransitionTimer) clearTimeout(wheelTransitionTimer);
 			resizeObserver.disconnect();
 		};
 	});

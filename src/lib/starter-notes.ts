@@ -6,9 +6,9 @@ interface StarterNote {
 	content: JSONContent;
 	wikilinks: string[];
 }
-
 export const STARTER_ENTRY_POINT = 'slow-reading';
 
+// Double-click to edit. Esc to stop. Enclose text in [[..]] to create a link, or highlight it and press Ctrl+K. ? for keyboard shortcuts
 export const STARTER_NOTES: StarterNote[] = [
 	{
 		slug: 'slow-reading',
@@ -21,13 +21,13 @@ export const STARTER_NOTES: StarterNote[] = [
 					content: [
 						{ type: 'text', text: 'Double-click to edit. ' },
 						{ type: 'text', text: 'Esc', marks: [{ type: 'code' }] },
-						{ type: 'text', text: ' to stop. To create a link, type ' },						
-						{ type: 'text', text: '[[', marks: [{ type: 'code' }] },
-						{ type: 'text', text: ' or highlight and ' },
+						{ type: 'text', text: ' to stop. To create a link, enclose text in ' },
+						{ type: 'text', text: '[[..]]', marks: [{ type: 'code' }] },
+						{ type: 'text', text: ' or highlight it and press ' },
 						{ type: 'text', text: 'Ctrl+K', marks: [{ type: 'code' }] },
-						{ type: 'text', text: '. Press ' },
+						{ type: 'text', text: '. ' },
 						{ type: 'text', text: '?', marks: [{ type: 'code' }] },
-						{ type: 'text', text: ' for more help.' }
+						{ type: 'text', text: ' for keyboard shortcuts.' }
 					]
 				},
 				{ type: 'horizontalRule' },

@@ -6,20 +6,14 @@
 	let { visible }: Props = $props();
 
 	const shortcuts = [
-		{ key: '[[...]]', desc: 'Create link' },
-		{ key: '[', desc: 'Link selection' },
-		{ key: 'Ctrl+K', desc: 'Link selection' },
-		{ key: 'Tab', desc: 'Enter link mode' },
-		{ key: 'Tab/Shift+Tab', desc: 'Cycle links' },
-		{ key: 'Enter/Right', desc: 'Follow link' },
-		{ key: 'Esc', desc: 'Back/Close' },
-		{ key: 'Left', desc: 'Go back (close)' },
-		{ key: 'Ctrl+Left', desc: 'Go back (keep)' },
-		{ key: 'Up/Down', desc: 'Scroll' },
 		{ key: 'e', desc: 'Edit' },
-		{ key: 'l', desc: 'Toggle lines' },
-		{ key: 'Ctrl +/-/0', desc: 'Zoom' },
-		{ key: '?', desc: 'Toggle help' }
+		{ key: '[[..]]', desc: 'Create link' },
+		{ key: 'Ctrl+K', desc: 'Link selection' },
+		{ key: 'Tab/⇧Tab', desc: 'Cycle links' },
+		{ key: '(Ctrl+)←/→', desc: 'Navigate (keep open)' },
+		{ key: '⇧+Arrows', desc: 'Pan' },
+		{ key: 'Esc', desc: 'Back' },
+		{ key: '?', desc: 'This help' }
 	];
 </script>
 

@@ -151,6 +151,14 @@ class CanvasStore {
 	cardCount = $derived(this.cards.size);
 	isAtLimit = $derived(this.cards.size >= MAX_CARDS);
 
+	/**
+	 * Add a card to the active chain, removing any existing occurrence first.
+	 * Prevents duplicates like ['A', 'B', 'A'] which break navigation.
+	 */
+	private addToActiveChain(cardId: string): void {
+		this.activeChain = [...this.activeChain.filter(id => id !== cardId), cardId];
+	}
+
 	async initialize(vault: Vault, canvasId?: string, savedPositions?: SavedPosition[]): Promise<void> {
 		console.log('[Store] initialize called');
 		this.vault = vault;
@@ -436,7 +444,7 @@ class CanvasStore {
 			// Update active chain and focus
 			this.history.back.push([...this.activeChain]);
 			this.history.forward = [];
-			this.activeChain = [...this.activeChain, noteId];
+			this.addToActiveChain(noteId);
 			this.focusCard(noteId);
 			this.persistState();
 			return true;
@@ -500,7 +508,7 @@ class CanvasStore {
 		// Update navigation
 		this.history.back.push([...this.activeChain]);
 		this.history.forward = [];
-		this.activeChain = [...this.activeChain, noteId];
+		this.addToActiveChain(noteId);
 
 		// Focus on new card
 		this.focusCard(noteId);
@@ -1234,8 +1242,9 @@ class CanvasStore {
 			// Update chain to reflect navigation to this card
 			const currentIndex = this.activeChain.indexOf(fromCardId);
 			if (currentIndex >= 0) {
-				// Truncate chain after current position, append target
-				this.activeChain = [...this.activeChain.slice(0, currentIndex + 1), noteId];
+				// Truncate chain after current position, filter out target, then append
+				const truncated = this.activeChain.slice(0, currentIndex + 1).filter(id => id !== noteId);
+				this.activeChain = [...truncated, noteId];
 			}
 			// Use same pan logic as clicking a card:
 			// - If it's already focused, pan to reading position
@@ -1294,12 +1303,13 @@ class CanvasStore {
 			}
 		];
 
-		// Update chain: truncate after current, append new
+		// Update chain: truncate after current, append new (filter to prevent duplicates)
 		const currentIndex = this.activeChain.indexOf(fromCardId);
 		if (currentIndex >= 0) {
-			this.activeChain = [...this.activeChain.slice(0, currentIndex + 1), noteId];
+			const truncated = this.activeChain.slice(0, currentIndex + 1).filter(id => id !== noteId);
+			this.activeChain = [...truncated, noteId];
 		} else {
-			this.activeChain = [...this.activeChain, noteId];
+			this.addToActiveChain(noteId);
 		}
 
 		// Update history
@@ -1886,7 +1896,7 @@ class CanvasStore {
 		// Update navigation
 		this.history.back.push([...this.activeChain]);
 		this.history.forward = [];
-		this.activeChain = [...this.activeChain, noteId];
+		this.addToActiveChain(noteId);
 
 		// Focus on new card
 		this.focusCard(noteId);

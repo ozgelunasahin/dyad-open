@@ -1,5 +1,5 @@
 ---
-status: pending
+status: complete
 priority: p1
 issue_id: "021"
 tags: [code-review, plan-review, data-integrity, state-management]
@@ -73,8 +73,8 @@ Option 1 - Create helper method that removes existing occurrence before appendin
 
 ## Acceptance Criteria
 
-- [ ] No duplicate card IDs ever appear in activeChain
-- [ ] Navigation back/forward works correctly
+- [x] No duplicate card IDs ever appear in activeChain
+- [x] Navigation back/forward works correctly
 - [ ] Unit test verifies deduplication
 
 ## Work Log
@@ -82,6 +82,7 @@ Option 1 - Create helper method that removes existing occurrence before appendin
 | Date | Action | Learnings |
 |------|--------|-----------|
 | 2026-01-16 | Created from plan review | Duplicates break navigation semantics |
+| 2026-01-20 | Implemented Option 1 with addToActiveChain() helper | Applied to openNote, followLinkToRight, createOrphanCard |
 
 ## Resources
 
