@@ -6,11 +6,11 @@
 	let { data }: { data: PageData } = $props();
 
 	function handlePageLink(path: string) {
-		// Navigate to another page in the site
-		// Convert canvas path like /username/slug to site path /sites/username/slug
+		// Navigate to another canvas in the site
+		// Convert canvas path like /@username/slug to site path /sites/@username/slug
 		const parts = path.split('/').filter(Boolean);
 		if (parts.length >= 2) {
-			goto(`/sites/${parts[0]}/${parts[1]}`);
+			goto(`/sites/@${parts[0].replace('@', '')}/${parts[1]}`);
 		}
 	}
 </script>
@@ -24,6 +24,9 @@
 	title={data.canvas.name}
 	author={data.author.username}
 	onPageLink={handlePageLink}
+	editUrl={data.isAuthor ? `/canvas/${data.canvas.id}` : undefined}
+	canvases={data.siteCanvases}
+	currentCanvas={data.canvas.slug}
 >
 	<iframe
 		src={data.canvasUrl}

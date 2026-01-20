@@ -1,6 +1,11 @@
 <script lang="ts">
 	import { parseMarkdown } from '$lib/utils/markdown';
 
+	interface CanvasLink {
+		name: string;
+		slug: string;
+	}
+
 	interface Props {
 		/** Canvas title */
 		title: string;
@@ -14,6 +19,12 @@
 		showIntro?: boolean;
 		/** Callback when a page link (cross-canvas) is clicked */
 		onPageLink?: (path: string) => void;
+		/** URL to edit this canvas (shown only to author) */
+		editUrl?: string;
+		/** List of canvases for navigation */
+		canvases?: CanvasLink[];
+		/** Current canvas slug (for highlighting in nav) */
+		currentCanvas?: string;
 		/** Child content (the canvas) */
 		children: import('svelte').Snippet;
 	}
@@ -25,6 +36,9 @@
 		graphicUrl,
 		showIntro = true,
 		onPageLink,
+		editUrl,
+		canvases = [],
+		currentCanvas,
 		children
 	}: Props = $props();
 
@@ -93,6 +107,33 @@
 					<div class="intro-text">
 						<h1 class="intro-title">{title}</h1>
 						<p class="intro-author">by <a href="/{author}">@{author}</a></p>
+
+						{#if editUrl}
+							<a href={editUrl} class="edit-button">
+								<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+									<path d="M10.5 1.5L12.5 3.5L4.5 11.5L1.5 12.5L2.5 9.5L10.5 1.5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+								</svg>
+								Edit canvas
+							</a>
+						{/if}
+
+						{#if canvases.length > 1}
+							<nav class="canvas-nav">
+								<span class="nav-label">Canvases</span>
+								<ul>
+									{#each canvases as canvas}
+										<li>
+											<a
+												href="/sites/@{author}/{canvas.slug}"
+												class:active={canvas.slug === currentCanvas}
+											>
+												{canvas.name}
+											</a>
+										</li>
+									{/each}
+								</ul>
+							</nav>
+						{/if}
 
 						{#if introHtml}
 							<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
@@ -218,6 +259,70 @@
 
 	.intro-author a:hover {
 		color: var(--text-link-hover);
+	}
+
+	.edit-button {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		margin-bottom: 24px;
+		padding: 6px 12px;
+		font-family: system-ui, sans-serif;
+		font-size: 0.8rem;
+		color: var(--text-muted);
+		background: var(--bg-control);
+		border: 1px solid var(--border-link);
+		border-radius: 4px;
+		text-decoration: none;
+		transition: color 0.15s, border-color 0.15s;
+	}
+
+	.edit-button:hover {
+		color: var(--text-primary);
+		border-color: var(--text-muted);
+	}
+
+	.canvas-nav {
+		margin-bottom: 24px;
+		font-family: system-ui, sans-serif;
+	}
+
+	.nav-label {
+		display: block;
+		font-size: 0.7rem;
+		font-weight: 500;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--text-muted);
+		margin-bottom: 8px;
+	}
+
+	.canvas-nav ul {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+
+	.canvas-nav li {
+		margin: 0;
+	}
+
+	.canvas-nav a {
+		display: block;
+		padding: 6px 0;
+		font-size: 0.9rem;
+		color: var(--text-secondary);
+		text-decoration: none;
+		transition: color 0.15s;
+	}
+
+	.canvas-nav a:hover {
+		color: var(--text-primary);
+	}
+
+	.canvas-nav a.active {
+		color: var(--text-primary);
+		font-weight: 500;
 	}
 
 	.intro-body {

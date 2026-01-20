@@ -2,21 +2,27 @@ import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
-	// Find user by username from auth.users metadata or a profiles table
-	// For now, we'll query canvases directly and extract user info
+	// First check if user exists and has sites feature enabled
+	const { data: profile, error: profileError } = await locals.supabase
+		.from('profiles')
+		.select('id, username, can_publish_sites')
+		.eq('username', params.username)
+		.single();
+
+	if (profileError || !profile) {
+		error(404, 'User not found');
+	}
+
+	// Only users with can_publish_sites flag can have public sites
+	if (!profile.can_publish_sites) {
+		error(404, 'Site not found');
+	}
+
+	// Get published canvases for this user (canvases.user_id = profiles.id)
 	const { data: canvases, error: queryError } = await locals.supabase
 		.from('canvases')
-		.select(
-			`
-			id,
-			name,
-			slug,
-			entry_point_note_id,
-			updated_at,
-			profiles!inner(username)
-		`
-		)
-		.eq('profiles.username', params.username)
+		.select('id, name, slug, entry_point_note_id, updated_at')
+		.eq('user_id', profile.id)
 		.eq('is_published', true)
 		.order('updated_at', { ascending: false });
 
@@ -26,17 +32,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	}
 
 	if (!canvases || canvases.length === 0) {
-		// Check if user exists but has no published canvases
-		const { data: profile } = await locals.supabase
-			.from('profiles')
-			.select('username')
-			.eq('username', params.username)
-			.single();
-
-		if (!profile) {
-			error(404, 'User not found');
-		}
-
 		return {
 			user: { username: params.username },
 			canvases: []
