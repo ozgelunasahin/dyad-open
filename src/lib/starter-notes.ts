@@ -19,13 +19,15 @@ export const STARTER_NOTES: StarterNote[] = [
 				{
 					type: 'paragraph',
 					content: [
-						{ type: 'text', text: 'Double-click to edit. To create a link, type ' },
+						{ type: 'text', text: 'Double-click to edit. ' },
+						{ type: 'text', text: 'Esc', marks: [{ type: 'code' }] },
+						{ type: 'text', text: ' to stop. To create a link, type ' },						
 						{ type: 'text', text: '[[', marks: [{ type: 'code' }] },
-						{ type: 'text', text: ' or select text and press ' },
+						{ type: 'text', text: ' or highlight and ' },
 						{ type: 'text', text: 'Ctrl+K', marks: [{ type: 'code' }] },
 						{ type: 'text', text: '. Press ' },
 						{ type: 'text', text: '?', marks: [{ type: 'code' }] },
-						{ type: 'text', text: ' anytime for keyboard shortcuts.' }
+						{ type: 'text', text: ' for more help.' }
 					]
 				},
 				{ type: 'horizontalRule' },
