@@ -167,12 +167,9 @@
 	function handleClick(event: MouseEvent) {
 		if (!isHTMLElement(event.target)) return;
 
+		// Wikilink clicks are handled by TiptapEditor - ignore them here
 		const wikilinkEl = event.target.closest('.wikilink');
 		if (wikilinkEl) {
-			const target = (wikilinkEl as HTMLElement).dataset.target;
-			if (target) {
-				handleWikilinkClick(target);
-			}
 			return;
 		}
 

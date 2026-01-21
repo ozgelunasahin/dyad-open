@@ -81,6 +81,7 @@
 						const wikilinkTarget = target.dataset.target;
 						if (wikilinkTarget) {
 							event.preventDefault();
+							event.stopPropagation();
 							onWikilinkClick(wikilinkTarget);
 							return true;
 						}
