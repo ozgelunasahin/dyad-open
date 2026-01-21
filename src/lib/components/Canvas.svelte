@@ -1303,6 +1303,20 @@
 	}
 
 	function handleLinkClick(noteId: string, fromCardId: string, screenBounds: ScreenLinkBounds) {
+		// TODO: Clicking a link on an unfocused card should focus that card first
+		// Currently focusCardWithoutAnimation doesn't visually update the focus state
+		if (canvasStore.focusedCardId !== fromCardId) {
+			canvasStore.focusCardWithoutAnimation(fromCardId);
+		}
+
+		// Check if this note is already open as a direct child of the clicked card
+		const existingCard = canvasStore.cards.get(noteId);
+		if (existingCard && existingCard.parentId === fromCardId) {
+			// Toggle behavior: close the child card
+			canvasStore.unopenCard(noteId);
+			return;
+		}
+
 		// Convert screen bounds to canvas coordinates
 		const svgRect = svg.getBoundingClientRect();
 		const canvasBounds: SourceBounds = {
