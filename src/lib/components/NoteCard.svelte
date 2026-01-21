@@ -208,22 +208,25 @@
 		}
 	}
 
-	// Check if content is empty (no meaningful text)
+	// Check if content is empty (no meaningful text or media)
 	function isContentEmpty(json: JSONContent): boolean {
 		if (!json.content || json.content.length === 0) return true;
 
-		// Recursively check if there's any text content
-		function hasText(node: JSONContent): boolean {
+		// Recursively check if there's any meaningful content (text or images)
+		function hasContent(node: JSONContent): boolean {
 			if (node.type === 'text' && node.text && node.text.trim().length > 0) {
 				return true;
 			}
+			if (node.type === 'image' && node.attrs?.src) {
+				return true;
+			}
 			if (node.content) {
-				return node.content.some(hasText);
+				return node.content.some(hasContent);
 			}
 			return false;
 		}
 
-		return !hasText(json);
+		return !hasContent(json);
 	}
 
 	// Handle content updates from TiptapEditor

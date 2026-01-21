@@ -93,8 +93,8 @@
 					const files = event.clipboardData?.files;
 					if (!files?.length) return false;
 
-					const imageFile = Array.from(files).find(
-						(f) => f.type === 'image/jpeg' || f.type === 'image/png'
+					const imageFile = Array.from(files).find((f) =>
+						['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(f.type)
 					);
 					if (!imageFile) return false;
 
@@ -339,11 +339,12 @@
 		border-bottom-color: transparent;
 	}
 
-	/* Images */
+	/* Images - centered and shrink to fit */
 	.tiptap-editor :global(img) {
+		display: block;
 		max-width: 100%;
 		height: auto;
+		margin: 1em auto;
 		border-radius: 4px;
-		margin: 0.5em 0;
 	}
 </style>
