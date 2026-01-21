@@ -10,6 +10,7 @@
 	 * See git history for full implementation if needed.
 	 */
 	import { onMount } from 'svelte';
+	import { fade } from 'svelte/transition';
 	import type { PageData } from './$types';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import { themeStore } from '$lib/stores/theme.svelte';
@@ -65,18 +66,17 @@
 
 <main class="app">
 	{#if loading}
-		<div class="loading">
-			<p>Loading...</p>
-		</div>
+		<div class="loading" out:fade={{ duration: 200 }}></div>
 	{:else if error}
-		<div class="error">
+		<div class="error" in:fade={{ duration: 200 }}>
 			<p>{error}</p>
 			<button onclick={() => window.location.reload()}>Retry</button>
 		</div>
 	{:else}
-		<Canvas readOnly={true} />
+		<div class="canvas-container" in:fade={{ duration: 200 }}>
+			<Canvas readOnly={true} />
 
-		<button class="theme-toggle" onclick={toggleTheme} aria-label="Toggle theme">
+			<button class="theme-toggle" onclick={toggleTheme} aria-label="Toggle theme">
 			{#if themeStore.current === 'light'}
 				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
 					<circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5" />
@@ -98,7 +98,8 @@
 					/>
 				</svg>
 			{/if}
-		</button>
+			</button>
+		</div>
 	{/if}
 </main>
 
@@ -110,7 +111,16 @@
 		overflow: hidden;
 	}
 
-	.loading,
+	.loading {
+		height: 100%;
+		background: var(--bg-canvas);
+	}
+
+	.canvas-container {
+		width: 100%;
+		height: 100%;
+	}
+
 	.error {
 		display: flex;
 		flex-direction: column;

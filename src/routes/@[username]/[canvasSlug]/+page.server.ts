@@ -1,7 +1,7 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+export const load: PageServerLoad = async ({ params, locals, url }) => {
 	// First, get the user's profile by username
 	const { data: profile } = await locals.supabase
 		.from('profiles')
@@ -14,6 +14,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	}
 
 	const isOwner = locals.user?.id === profile.id;
+	const forceReadOnly = url.searchParams.get('readonly') === 'true';
 
 	// Get the canvas for that user (check publish status based on ownership)
 	const { data: canvas, error: canvasError } = await locals.supabase
@@ -28,12 +29,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	}
 
 	// If owner is viewing their own canvas, redirect to edit view
-	if (isOwner) {
+	// Unless readonly mode is explicitly requested (for site preview/publish)
+	if (isOwner && !forceReadOnly) {
 		redirect(302, `/canvas/${canvas.id}`);
 	}
 
 	// For non-owners, only allow viewing published canvases
-	if (!canvas.is_published) {
+	// Owners can view their own unpublished canvases in readonly mode
+	if (!canvas.is_published && !isOwner) {
 		error(404, 'Canvas not found');
 	}
 

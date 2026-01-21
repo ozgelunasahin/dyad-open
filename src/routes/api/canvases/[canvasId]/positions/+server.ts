@@ -131,3 +131,6 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
 
 	return json({ success: true });
 };
+
+// POST handler for sendBeacon (which only supports POST)
+export const POST: RequestHandler = PUT;

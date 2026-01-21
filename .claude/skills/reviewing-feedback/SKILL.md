@@ -10,9 +10,10 @@ Review user feedback submitted through the in-app feedback system and decide how
 ## Quick Start
 
 ```bash
-npm run feedback              # Show new feedback items
-npm run feedback -- --all     # Show all feedback
-npm run feedback -- --json    # Get JSON for processing
+npm run feedback                                    # Show new feedback items
+npm run feedback -- --all                           # Show all feedback
+npm run feedback -- --json                          # Get JSON for processing
+npm run feedback -- update <id> <status> [notes]    # Update feedback status
 ```
 
 ## Workflow
@@ -49,14 +50,19 @@ Run `npm run feedback` to see items with status `new`.
 
 ### 4. Update Status
 
-Use Supabase dashboard or SQL:
+Use the update command:
 
-```sql
-UPDATE feedback
-SET status = 'reviewed',
-    reviewed_at = now(),
-    notes = 'Your notes here'
-WHERE id = '<feedback-id>';
+```bash
+npm run feedback -- update <id> <status> [notes]
+```
+
+**Status options:** `new`, `reviewed`, `in_progress`, `resolved`, `wont_fix`
+
+**Examples:**
+```bash
+npm run feedback -- update abc123 resolved "Fixed in commit xyz"
+npm run feedback -- update def456 reviewed "Backlog for v2"
+npm run feedback -- update ghi789 wont_fix "Out of scope"
 ```
 
 ## Context Fields
@@ -112,3 +118,5 @@ Use this context to:
 - Add clear notes explaining your decision
 - If unsure, mark as `reviewed` with questions in notes
 - Batch similar feedback items together
+- **Mark items as you review them** - don't leave items in `new` status after reviewing
+- Use `--json` to get full context details including all errors

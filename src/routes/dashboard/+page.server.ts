@@ -19,7 +19,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.order('updated_at', { ascending: false }),
 		locals.supabase
 			.from('profiles')
-			.select('onboarded, username')
+			.select('onboarded, username, can_publish_sites')
 			.eq('id', userId)
 			.single(),
 		locals.supabase
@@ -62,6 +62,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const canvases = canvasesResult.data ?? [];
 	const isOnboarded = profileResult.data?.onboarded ?? false;
 	const username = profileResult.data?.username ?? '';
+	const canPublishSites = profileResult.data?.can_publish_sites ?? false;
 
 	// Seed starter canvas for users who haven't been onboarded and don't have it yet
 	const hasGettingStarted = canvases.some((c) => c.slug === 'getting-started');
@@ -114,7 +115,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			user: locals.user,
 			username,
 			canvases: newCanvases ?? [],
-			publishedCanvases
+			publishedCanvases,
+			canPublishSites
 		};
 	}
 
@@ -122,7 +124,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		user: locals.user,
 		username,
 		canvases: canvases ?? [],
-		publishedCanvases
+		publishedCanvases,
+		canPublishSites
 	};
 };
 

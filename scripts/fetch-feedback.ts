@@ -8,8 +8,7 @@
  *   npm run feedback -- --type bug      # Filter by type
  *   npm run feedback -- --json          # Output as JSON
  *   npm run feedback -- --limit 10      # Limit results
- *
- * To update status, use the Supabase dashboard or run SQL directly.
+ *   npm run feedback -- update <id> <status> [notes]  # Update feedback status
  */
 
 import 'dotenv/config';
@@ -42,8 +41,7 @@ interface FeedbackItem {
 	notes: string | null;
 }
 
-async function fetchFeedback() {
-	const args = process.argv.slice(2);
+async function fetchFeedback(args: string[]) {
 	let limit = 20;
 	let typeFilter: string | null = null;
 	let statusFilter: string | null = 'new'; // Default to showing new items
@@ -167,4 +165,45 @@ async function fetchFeedback() {
 	console.log(`  npx supabase db execute --sql "UPDATE feedback SET status='reviewed', reviewed_at=now() WHERE id='<id>'"`);
 }
 
-fetchFeedback();
+async function updateFeedback(id: string, status: FeedbackStatus, notes?: string) {
+	const updateData: { status: FeedbackStatus; reviewed_at: string; notes?: string } = {
+		status,
+		reviewed_at: new Date().toISOString()
+	};
+	if (notes) {
+		updateData.notes = notes;
+	}
+
+	const { error } = await supabase.from('feedback').update(updateData).eq('id', id);
+
+	if (error) {
+		console.error('Error updating feedback:', error.message);
+		process.exit(1);
+	}
+
+	console.log(`✅ Updated feedback ${id} to status '${status}'`);
+}
+
+// Check if this is an update command
+const args = process.argv.slice(2);
+if (args[0] === 'update') {
+	const id = args[1];
+	const status = args[2] as FeedbackStatus;
+	const notes = args.slice(3).join(' ') || undefined;
+
+	if (!id || !status) {
+		console.error('Usage: npm run feedback -- update <id> <status> [notes]');
+		console.error('Status options: new, reviewed, in_progress, resolved, wont_fix');
+		process.exit(1);
+	}
+
+	const validStatuses: FeedbackStatus[] = ['new', 'reviewed', 'in_progress', 'resolved', 'wont_fix'];
+	if (!validStatuses.includes(status)) {
+		console.error(`Invalid status '${status}'. Must be one of: ${validStatuses.join(', ')}`);
+		process.exit(1);
+	}
+
+	updateFeedback(id, status, notes);
+} else {
+	fetchFeedback(args);
+}

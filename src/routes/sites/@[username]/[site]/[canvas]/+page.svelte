@@ -7,22 +7,12 @@
 
 	let iframeLoading = $state(true);
 
-	// For explicit sites, use site-based navigation
-	// For backward compat (canvas mode), navigation is per-canvas
-	let baseUrl = $derived(
-		data.mode === 'site' && data.site
-			? `/sites/@${data.author.username}/${data.site.slug}`
-			: undefined
-	);
-
-	let title = $derived(
-		data.mode === 'site' && data.site
-			? `${data.site.name} by @${data.author.username}`
-			: `${data.canvas.name} by @${data.author.username}`
-	);
+	// For explicit sites, navigation should stay within the site
+	let siteBaseUrl = $derived(`/sites/@${data.author.username}/${data.site.slug}`);
 
 	// Reset loading state when canvas changes (on navigation)
 	$effect(() => {
+		// Track canvas URL to detect navigation
 		data.canvasUrl;
 		iframeLoading = true;
 	});
@@ -33,15 +23,15 @@
 </script>
 
 <svelte:head>
-	<title>{title} - dyad.berlin</title>
-	<meta name="description" content="A reading canvas by @{data.author.username}" />
+	<title>{data.canvas.name} - {data.site.name} by @{data.author.username}</title>
+	<meta name="description" content="{data.site.name} by @{data.author.username}" />
 </svelte:head>
 
 <WebsiteContainer
 	author={data.author.username}
 	canvases={data.siteCanvases}
 	currentCanvas={data.canvas.slug}
-	{baseUrl}
+	baseUrl={siteBaseUrl}
 >
 	<div class="iframe-wrapper">
 		{#if iframeLoading}

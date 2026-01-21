@@ -189,10 +189,10 @@
 		// Listen on document to catch mouseup even if mouse moves off the card
 		document.addEventListener('mouseup', handleMouseUp);
 
-		// Position camera for focused card in reading zone, or restore stored position
+		// Position camera: focused card in reading zone, or restore stored position
 		const storedCamera = canvasStore.camera;
 		if (canvasStore.focusedCardId) {
-			// Always position focused card in reading zone on mount
+			// Position focused card in reading zone on mount
 			const card = canvasStore.cards.get(canvasStore.focusedCardId);
 			if (card) {
 				const width = svg.clientWidth;
@@ -749,7 +749,6 @@
 			window.removeEventListener('keydown', handleKeyDown);
 			document.removeEventListener('mouseup', handleMouseUp);
 			svg.removeEventListener('wheel', handleWheel);
-			if (wheelTransitionTimer) clearTimeout(wheelTransitionTimer);
 			resizeObserver.disconnect();
 		};
 	});

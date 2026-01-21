@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { dev } from '$app/environment';
 	import { page } from '$app/stores';
@@ -89,7 +89,26 @@
 		}
 	}
 
-	onMount(async () => {
+	// Flush pending saves before page unload (important for iframe context)
+	function handleBeforeUnload() {
+		canvasStore.flushPendingPersist();
+	}
+
+	// Track which canvas we've initialized (non-reactive to avoid effect loops)
+	let lastInitializedCanvasId: string | null = null;
+
+	async function initializeCanvas(canvasId: string) {
+		// Skip if already initialized for this canvas
+		if (lastInitializedCanvasId === canvasId) return;
+
+		// Flush any pending saves from previous canvas before switching
+		if (lastInitializedCanvasId !== null) {
+			canvasStore.flushPendingPersist();
+		}
+
+		loading = true;
+		error = null;
+
 		try {
 			console.log('[Canvas] Initializing with vault from page data...');
 			console.log('[Canvas] Notes count:', Object.keys(data.vault.notes).length);
@@ -102,15 +121,16 @@
 			}
 
 			// Pass canvasId and saved positions for per-canvas state persistence
-			await canvasStore.initialize(vault, data.canvas.id, data.cardPositions);
+			await canvasStore.initialize(vault, canvasId, data.cardPositions);
 			console.log('[Canvas] Store initialized');
+			lastInitializedCanvasId = canvasId;
 			loading = false;
 
 			// Check for ?edit= query param (used after first note creation)
 			const editSlug = $page.url.searchParams.get('edit');
 			if (editSlug && data.vault.notes[editSlug]) {
 				// Clear the query param from URL
-				goto(`/canvas/${data.canvas.id}`, { replaceState: true });
+				goto(`/canvas/${canvasId}`, { replaceState: true });
 				// Enter edit mode after a short delay for card to render
 				setTimeout(() => {
 					canvasStore.enterEditMode(editSlug);
@@ -121,6 +141,26 @@
 			error = e instanceof Error ? e.message : 'Unknown error';
 			loading = false;
 		}
+	}
+
+	// Re-initialize when canvas ID changes (client-side navigation)
+	$effect(() => {
+		// Only depend on data.canvas.id
+		const canvasId = data.canvas.id;
+		// Use untrack to prevent tracking reads inside initializeCanvas
+		untrack(() => initializeCanvas(canvasId));
+	});
+
+	onMount(() => {
+		// Register unload handler to save positions before navigating away
+		window.addEventListener('beforeunload', handleBeforeUnload);
+
+		// Cleanup on unmount
+		return () => {
+			window.removeEventListener('beforeunload', handleBeforeUnload);
+			// Also flush when component unmounts (e.g., SvelteKit navigation)
+			canvasStore.flushPendingPersist();
+		};
 	});
 
 	function handleKeydown(event: KeyboardEvent) {
@@ -163,9 +203,7 @@
 
 <main class="app">
 	{#if loading}
-		<div class="loading">
-			<p>Loading...</p>
-		</div>
+		<div class="loading"></div>
 	{:else if error}
 		<div class="error">
 			<p>{error}</p>
@@ -506,7 +544,11 @@
 		overflow: hidden;
 	}
 
-	.loading,
+	.loading {
+		height: 100%;
+		background: var(--bg-canvas);
+	}
+
 	.error {
 		display: flex;
 		flex-direction: column;

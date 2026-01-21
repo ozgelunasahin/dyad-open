@@ -1,86 +1,55 @@
 <script lang="ts">
-	import { parseMarkdown } from '$lib/utils/markdown';
-
 	interface CanvasLink {
 		name: string;
 		slug: string;
 	}
 
 	interface Props {
-		/** Canvas title */
-		title: string;
 		/** Author username */
 		author: string;
-		/** Optional introduction text with wikilinks (markdown) */
-		introduction?: string;
-		/** Optional header graphic URL */
-		graphicUrl?: string;
-		/** Whether to show the intro panel */
-		showIntro?: boolean;
-		/** Callback when a page link (cross-canvas) is clicked */
-		onPageLink?: (path: string) => void;
-		/** URL to edit this canvas (shown only to author) */
-		editUrl?: string;
 		/** List of canvases for navigation */
 		canvases?: CanvasLink[];
 		/** Current canvas slug (for highlighting in nav) */
 		currentCanvas?: string;
 		/** Child content (the canvas) */
 		children: import('svelte').Snippet;
+		/** Optional base URL for navigation links (e.g., for preview mode) */
+		baseUrl?: string;
 	}
 
 	let {
-		title,
 		author,
-		introduction = '',
-		graphicUrl,
-		showIntro = true,
-		onPageLink,
-		editUrl,
 		canvases = [],
 		currentCanvas,
-		children
+		children,
+		baseUrl
 	}: Props = $props();
 
-	let introExpanded = $state(true);
-
-	// Parse introduction markdown
-	let introHtml = $derived(introduction ? parseMarkdown(introduction) : '');
-
-	function handleIntroClick(event: MouseEvent) {
-		const target = event.target as HTMLElement;
-
-		// Handle wikilinks in the introduction
-		if (target.classList.contains('wikilink')) {
-			event.preventDefault();
-			const linkTarget = target.dataset.target;
-			if (!linkTarget) return;
-
-			// Check if it's a page link (starts with /)
-			if (linkTarget.startsWith('/')) {
-				// Cross-canvas navigation
-				onPageLink?.(linkTarget);
-			} else {
-				// In-canvas link - dispatch event for canvas to handle
-				window.dispatchEvent(new CustomEvent('intro-wikilink-click', {
-					detail: { target: linkTarget }
-				}));
+	function getCanvasUrl(canvasSlug: string): string {
+		if (baseUrl) {
+			// For explicit sites and preview mode, append canvas slug as path segment
+			// Preview uses ?canvas=, sites use /canvas path
+			if (baseUrl.includes('/preview')) {
+				return `${baseUrl}?canvas=${canvasSlug}`;
 			}
+			return `${baseUrl}/${canvasSlug}`;
 		}
+		return `/sites/@${author}/${canvasSlug}`;
 	}
 
-	function toggleIntro() {
-		introExpanded = !introExpanded;
+	let navExpanded = $state(true);
+
+	function toggleNav() {
+		navExpanded = !navExpanded;
 	}
 </script>
 
 <div class="website-container">
-	<!-- Introduction panel -->
-	{#if showIntro}
-		<aside class="intro-panel" class:collapsed={!introExpanded}>
-			<button class="intro-toggle" onclick={toggleIntro} aria-label={introExpanded ? 'Collapse introduction' : 'Expand introduction'}>
+	{#if canvases.length > 0}
+		<aside class="nav-panel" class:collapsed={!navExpanded}>
+			<button class="nav-toggle" onclick={toggleNav} aria-label={navExpanded ? 'Collapse navigation' : 'Expand navigation'}>
 				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-					{#if introExpanded}
+					{#if navExpanded}
 						<path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
 					{:else}
 						<path d="M6 4L10 8L6 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -88,67 +57,25 @@
 				</svg>
 			</button>
 
-			{#if introExpanded}
-				<div class="intro-content">
-					{#if graphicUrl}
-						<div class="intro-graphic">
-							<img src={graphicUrl} alt="" />
-						</div>
-					{:else}
-						<!-- Placeholder graphic -->
-						<div class="intro-graphic placeholder">
-							<svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-								<rect x="4" y="4" width="40" height="40" rx="4" stroke="currentColor" stroke-width="2" stroke-dasharray="4 4"/>
-								<circle cx="24" cy="24" r="8" stroke="currentColor" stroke-width="2"/>
-							</svg>
-						</div>
-					{/if}
-
-					<div class="intro-text">
-						<h1 class="intro-title">{title}</h1>
-						<p class="intro-author">by <a href="/{author}">@{author}</a></p>
-
-						{#if editUrl}
-							<a href={editUrl} class="edit-button">
-								<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-									<path d="M10.5 1.5L12.5 3.5L4.5 11.5L1.5 12.5L2.5 9.5L10.5 1.5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-								</svg>
-								Edit canvas
-							</a>
-						{/if}
-
-						{#if canvases.length > 1}
-							<nav class="canvas-nav">
-								<span class="nav-label">Canvases</span>
-								<ul>
-									{#each canvases as canvas}
-										<li>
-											<a
-												href="/sites/@{author}/{canvas.slug}"
-												class:active={canvas.slug === currentCanvas}
-											>
-												{canvas.name}
-											</a>
-										</li>
-									{/each}
-								</ul>
-							</nav>
-						{/if}
-
-						{#if introHtml}
-							<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-							<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-							<div class="intro-body" onclick={handleIntroClick}>
-								{@html introHtml}
-							</div>
-						{/if}
-					</div>
-				</div>
+			{#if navExpanded}
+				<nav class="canvas-nav">
+					<ul>
+						{#each canvases as canvas}
+							<li>
+								<a
+									href={getCanvasUrl(canvas.slug)}
+									class:active={canvas.slug === currentCanvas}
+								>
+									{canvas.name}
+								</a>
+							</li>
+						{/each}
+					</ul>
+				</nav>
 			{/if}
 		</aside>
 	{/if}
 
-	<!-- Main canvas area -->
 	<main class="canvas-area">
 		{@render children()}
 	</main>
@@ -162,29 +89,28 @@
 		overflow: hidden;
 	}
 
-	/* Introduction panel */
-	.intro-panel {
+	.nav-panel {
 		position: relative;
-		width: 360px;
-		min-width: 360px;
+		width: 200px;
+		min-width: 200px;
 		height: 100%;
 		background: var(--bg-canvas);
 		border-right: 1px solid var(--border-link);
 		display: flex;
 		flex-direction: column;
-		transition: width 0.3s ease, min-width 0.3s ease;
+		transition: width 0.2s ease, min-width 0.2s ease;
 		z-index: 10;
 	}
 
-	.intro-panel.collapsed {
-		width: 48px;
-		min-width: 48px;
+	.nav-panel.collapsed {
+		width: 32px;
+		min-width: 32px;
 	}
 
-	.intro-toggle {
+	.nav-toggle {
 		position: absolute;
-		top: 16px;
-		right: 12px;
+		top: 24px;
+		right: 16px;
 		width: 24px;
 		height: 24px;
 		border: none;
@@ -198,103 +124,19 @@
 		z-index: 1;
 	}
 
-	.intro-panel.collapsed .intro-toggle {
-		right: 12px;
+	.nav-panel.collapsed .nav-toggle {
+		right: 4px;
+		top: 24px;
 	}
 
-	.intro-toggle:hover {
+	.nav-toggle:hover {
 		color: var(--text-primary);
-	}
-
-	.intro-content {
-		padding: 48px 32px 32px;
-		overflow-y: auto;
-		flex: 1;
-	}
-
-	.intro-graphic {
-		width: 100%;
-		aspect-ratio: 16 / 9;
-		margin-bottom: 24px;
-		border-radius: 4px;
-		overflow: hidden;
-	}
-
-	.intro-graphic img {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-	}
-
-	.intro-graphic.placeholder {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: var(--bg-control);
-		color: var(--text-muted);
-	}
-
-	.intro-text {
-		font-family: 'Georgia', serif;
-	}
-
-	.intro-title {
-		margin: 0 0 8px;
-		font-size: 1.5rem;
-		font-weight: normal;
-		color: var(--text-primary);
-		line-height: 1.3;
-	}
-
-	.intro-author {
-		margin: 0 0 24px;
-		font-size: 0.9rem;
-		color: var(--text-muted);
-	}
-
-	.intro-author a {
-		color: var(--text-link);
-		text-decoration: none;
-	}
-
-	.intro-author a:hover {
-		color: var(--text-link-hover);
-	}
-
-	.edit-button {
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-		margin-bottom: 24px;
-		padding: 6px 12px;
-		font-family: system-ui, sans-serif;
-		font-size: 0.8rem;
-		color: var(--text-muted);
-		background: var(--bg-control);
-		border: 1px solid var(--border-link);
-		border-radius: 4px;
-		text-decoration: none;
-		transition: color 0.15s, border-color 0.15s;
-	}
-
-	.edit-button:hover {
-		color: var(--text-primary);
-		border-color: var(--text-muted);
 	}
 
 	.canvas-nav {
-		margin-bottom: 24px;
-		font-family: system-ui, sans-serif;
-	}
-
-	.nav-label {
-		display: block;
-		font-size: 0.7rem;
-		font-weight: 500;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		color: var(--text-muted);
-		margin-bottom: 8px;
+		padding: 24px 20px;
+		overflow-y: auto;
+		flex: 1;
 	}
 
 	.canvas-nav ul {
@@ -304,103 +146,67 @@
 	}
 
 	.canvas-nav li {
-		margin: 0;
+		margin: 0 0 8px;
 	}
 
 	.canvas-nav a {
 		display: block;
-		padding: 6px 0;
-		font-size: 0.9rem;
-		color: var(--text-secondary);
-		text-decoration: none;
-		transition: color 0.15s;
-	}
-
-	.canvas-nav a:hover {
-		color: var(--text-primary);
-	}
-
-	.canvas-nav a.active {
-		color: var(--text-primary);
-		font-weight: 500;
-	}
-
-	.intro-body {
-		font-size: 1rem;
-		line-height: 1.7;
-		color: var(--text-secondary);
-	}
-
-	.intro-body :global(p) {
-		margin: 0 0 1em;
-	}
-
-	.intro-body :global(p:last-child) {
-		margin-bottom: 0;
-	}
-
-	.intro-body :global(.wikilink) {
-		background: none;
-		border: none;
-		padding: 0;
-		font: inherit;
-		color: var(--text-link);
+		padding: 4px 0;
+		font-family: 'Georgia', serif;
+		font-size: 1.2rem;
+		color: #8b7355;
 		text-decoration: underline;
-		text-decoration-color: var(--border-link);
-		text-underline-offset: 2px;
-		cursor: pointer;
+		text-decoration-color: rgba(139, 115, 85, 0.4);
+		text-underline-offset: 3px;
 		transition: color 0.15s, text-decoration-color 0.15s;
 	}
 
-	.intro-body :global(.wikilink:hover) {
-		color: var(--text-link-hover);
-		text-decoration-color: var(--text-link-hover);
+	.canvas-nav a:hover {
+		color: #5a4a3a;
+		text-decoration-color: #5a4a3a;
 	}
 
-	/* Page links (cross-canvas navigation) - slightly different styling */
-	.intro-body :global(.pagelink) {
+	.canvas-nav a.active {
+		color: #1a1a1a;
 		font-weight: 500;
+		text-decoration-color: rgba(26, 26, 26, 0.3);
 	}
 
-	.intro-body :global(.pagelink::after) {
-		content: ' →';
-		font-size: 0.85em;
-		opacity: 0.6;
+	.canvas-nav a.active:hover {
+		text-decoration-color: #1a1a1a;
 	}
 
-	/* Canvas area */
 	.canvas-area {
 		flex: 1;
 		position: relative;
 		overflow: hidden;
 	}
 
-	/* Responsive: collapse intro on small screens */
 	@media (max-width: 768px) {
-		.intro-panel {
+		.nav-panel {
 			position: absolute;
 			left: 0;
 			top: 0;
 			height: 100%;
-			box-shadow: 2px 0 12px rgba(0, 0, 0, 0.1);
+			box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
 		}
 
-		.intro-panel.collapsed {
+		.nav-panel.collapsed {
 			width: 0;
 			min-width: 0;
 			border-right: none;
 		}
 
-		.intro-panel.collapsed .intro-toggle {
+		.nav-panel.collapsed .nav-toggle {
 			position: fixed;
 			left: 8px;
-			top: 16px;
+			top: 12px;
 			right: auto;
 			background: var(--bg-canvas);
 			border: 1px solid var(--border-link);
 			border-radius: 4px;
-			width: 32px;
-			height: 32px;
+			width: 28px;
+			height: 28px;
 		}
 
 		.canvas-area {

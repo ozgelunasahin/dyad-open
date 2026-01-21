@@ -31,6 +31,7 @@ interface PersistedState {
 	}>;
 	connections?: Connection[];
 	activeChain?: string[];
+	focusedCardId?: string | null;
 }
 
 function getStorageKey(canvasId: string | null): string {
@@ -196,13 +197,58 @@ class CanvasStore {
 		}
 		this.dimensionCache = newDimensionCache;
 
-		// Load camera state from localStorage (camera is local preference)
+		// Load persisted state from localStorage
+		// localStorage is written synchronously during saves, so it's always up-to-date
+		// Server-provided positions may be stale due to sendBeacon race conditions
 		const persisted = loadPersistedState(this.currentCanvasId);
 		if (persisted?.cameraState) {
 			this.camera = persisted.cameraState;
 		}
 
-		// Try to restore from database positions first
+		// Prefer localStorage positions over server-provided positions when available
+		// This avoids race conditions where sendBeacon hasn't been processed yet
+		if (persisted?.cards && persisted.cards.length > 0) {
+			const restoredCards = new Map<string, Card>();
+
+			for (const savedCard of persisted.cards) {
+				const note = vault.notes[savedCard.noteId];
+				if (note) {
+					restoredCards.set(savedCard.id, {
+						id: savedCard.id,
+						note,
+						position: savedCard.position,
+						dimensions: { width: CARD_WIDTH, height: savedCard.dimensions.height },
+						parentId: savedCard.parentId,
+						sourceLink: savedCard.sourceLink
+					});
+				}
+			}
+
+			if (restoredCards.size > 0) {
+				this.cards = restoredCards;
+
+				// Filter connections and activeChain to only include cards that were restored
+				const validCardIds = new Set(restoredCards.keys());
+				this.connections = (persisted.connections || []).filter(
+					(conn) => validCardIds.has(conn.fromCardId) && validCardIds.has(conn.toCardId)
+				);
+				this.activeChain = (persisted.activeChain || []).filter((id) => validCardIds.has(id));
+
+				// Restore focused card (use persisted value, fallback to last in chain, then first card)
+				const focusedId = persisted.focusedCardId && validCardIds.has(persisted.focusedCardId)
+					? persisted.focusedCardId
+					: this.activeChain[this.activeChain.length - 1] || Array.from(restoredCards.keys())[0];
+				if (focusedId) {
+					this.focusCardWithoutAnimation(focusedId);
+				}
+
+				// Trigger path computation after Canvas component mounts
+				this.requestPathComputation();
+				return;
+			}
+		}
+
+		// Fall back to server-provided database positions if localStorage has no data
 		if (savedPositions && savedPositions.length > 0) {
 			const restoredCards = new Map<string, Card>();
 
@@ -266,53 +312,6 @@ class CanvasStore {
 			}
 		}
 
-		// Fallback to localStorage if no DB positions
-		if (persisted?.cards && persisted.cards.length > 0) {
-			const restoredCards = new Map<string, Card>();
-
-			for (const savedCard of persisted.cards) {
-				const note = vault.notes[savedCard.noteId];
-				if (note) {
-					restoredCards.set(savedCard.id, {
-						id: savedCard.id,
-						note,
-						position: savedCard.position,
-						dimensions: { width: CARD_WIDTH, height: savedCard.dimensions.height },
-						parentId: savedCard.parentId,
-						sourceLink: savedCard.sourceLink
-					});
-				}
-			}
-
-			if (restoredCards.size > 0) {
-				this.cards = restoredCards;
-
-				// Filter connections and activeChain to only include cards that were restored
-				const validCardIds = new Set(restoredCards.keys());
-				this.connections = (persisted.connections || []).filter(
-					(conn) => validCardIds.has(conn.fromCardId) && validCardIds.has(conn.toCardId)
-				);
-				this.activeChain = (persisted.activeChain || []).filter((id) => validCardIds.has(id));
-
-				// Focus on the current card (if it's still valid)
-				const currentCardId = this.activeChain[this.activeChain.length - 1];
-				if (currentCardId && this.cards.has(currentCardId)) {
-					this.focusCard(currentCardId);
-				} else if (restoredCards.size > 0) {
-					// Fallback to first restored card
-					const firstCardId = Array.from(restoredCards.keys())[0];
-					this.focusCard(firstCardId);
-				}
-
-				// Migrate to DB
-				this.persistToDatabase();
-
-				// Trigger path computation after Canvas component mounts
-				this.requestPathComputation();
-				return;
-			}
-		}
-
 		// Fallback: Open the entry note
 		console.log('[Store] Opening entry note');
 
@@ -342,17 +341,36 @@ class CanvasStore {
 
 	// Debounced save to database
 	private persistDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+	private hasPendingPersist = false;
 
 	private schedulePersist(): void {
+		this.hasPendingPersist = true;
 		if (this.persistDebounceTimer) {
 			clearTimeout(this.persistDebounceTimer);
 		}
 		this.persistDebounceTimer = setTimeout(() => {
+			this.hasPendingPersist = false;
 			this.persistToDatabase();
 		}, 1000);
 	}
 
-	private async persistToDatabase(): Promise<void> {
+	/**
+	 * Flush any pending database saves immediately.
+	 * Call this before the page unloads to ensure positions are saved.
+	 * Uses sendBeacon for reliability during page unload.
+	 */
+	flushPendingPersist(): void {
+		if (this.hasPendingPersist) {
+			if (this.persistDebounceTimer) {
+				clearTimeout(this.persistDebounceTimer);
+				this.persistDebounceTimer = null;
+			}
+			this.hasPendingPersist = false;
+			this.persistToDatabase(true); // Use beacon for unload
+		}
+	}
+
+	private async persistToDatabase(useBeacon = false): Promise<void> {
 		if (!this.currentCanvasId) return;
 
 		// Use canvasId-noteId as unique ID to avoid conflicts across canvases
@@ -369,14 +387,23 @@ class CanvasStore {
 			sourceLinkY: card.sourceLink?.y ?? null
 		}));
 
-		try {
-			await fetch(`/api/canvases/${this.currentCanvasId}/positions`, {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ positions })
-			});
-		} catch (err) {
-			console.error('Failed to persist canvas state:', err);
+		const url = `/api/canvases/${this.currentCanvasId}/positions`;
+		const body = JSON.stringify({ positions });
+
+		// Use sendBeacon for reliability during page unload (e.g., iframe destruction)
+		if (useBeacon && typeof navigator !== 'undefined' && navigator.sendBeacon) {
+			const blob = new Blob([body], { type: 'application/json' });
+			navigator.sendBeacon(url, blob);
+		} else {
+			try {
+				await fetch(url, {
+					method: 'PUT',
+					headers: { 'Content-Type': 'application/json' },
+					body
+				});
+			} catch (err) {
+				console.error('Failed to persist canvas state:', err);
+			}
 		}
 
 		// Also save camera to localStorage (local preference)
@@ -1804,7 +1831,8 @@ class CanvasStore {
 			cameraState: this.camera,
 			cards: serializedCards,
 			connections: [...this.connections],
-			activeChain: [...this.activeChain]
+			activeChain: [...this.activeChain],
+			focusedCardId: this.focusedCardId
 		});
 	}
 
