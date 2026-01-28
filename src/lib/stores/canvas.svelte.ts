@@ -305,10 +305,12 @@ class CanvasStore {
 				// Build active chain (cards without children at end)
 				this.activeChain = Array.from(restoredCards.keys());
 
-				// Focus on last card
-				const lastCard = this.activeChain[this.activeChain.length - 1];
-				if (lastCard) {
-					this.focusCard(lastCard);
+				// Focus on entry point (not last card) so landing page starts at the top
+				const entryId = vault.entryPoint && restoredCards.has(vault.entryPoint)
+					? vault.entryPoint
+					: this.activeChain[0];
+				if (entryId) {
+					this.focusCard(entryId);
 				}
 
 				// Trigger path computation after Canvas component mounts
@@ -815,6 +817,32 @@ class CanvasStore {
 		// Just set focus, no animation, no state save
 		// (consistent with "no pan = no saved state" principle)
 		this.focusedCardId = cardId;
+	}
+
+	/**
+	 * Navigate to a specific card by building the parent chain from root to target,
+	 * setting it as the activeChain, and focusing/panning to the target.
+	 */
+	navigateToCard(cardId: string): void {
+		const card = this.cards.get(cardId);
+		if (!card) return;
+
+		// Build chain from target up to root by following parentId
+		const chain: string[] = [];
+		let current: string | null = cardId;
+		const visited = new Set<string>();
+		while (current && !visited.has(current)) {
+			visited.add(current);
+			chain.unshift(current);
+			const c = this.cards.get(current);
+			current = c?.parentId ?? null;
+		}
+
+		this.history.back.push([...this.activeChain]);
+		this.history.forward = [];
+		this.activeChain = chain;
+		this.focusCard(cardId, true);
+		this.persistState();
 	}
 
 	/**

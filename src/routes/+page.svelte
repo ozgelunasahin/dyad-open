@@ -16,11 +16,9 @@
 		}
 	});
 
-	function handleNavigate(slug: string) {
-		const map = data.entryPointMap as Record<string, string> | undefined;
-		const cardId = map?.[slug];
+	function handleNavigate(slug: string, cardId?: string) {
 		if (cardId) {
-			canvasStore.focusCard(cardId, true);
+			canvasStore.navigateToCard(cardId);
 			currentSection = slug;
 		}
 	}

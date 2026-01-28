@@ -1,20 +1,20 @@
 <script lang="ts">
 	export interface SiteSection {
 		id: string;
-		type: 'canvas' | 'page' | 'hero' | 'contact';
+		type: 'canvas' | 'hero' | 'contact';
 		name: string;
-		slug?: string;
 		position: number;
 		config?: Record<string, unknown>;
-		/** Only for canvases - original index in canvases array */
-		canvasIndex?: number;
+		/** For canvas sections — the underlying canvas id */
+		canvasId?: string;
+		canvasSlug?: string;
 	}
 
 	interface Props {
 		sections: SiteSection[];
 		onReorder: (sections: SiteSection[]) => void;
 		onRemove: (section: SiteSection) => void;
-		onAdd: (type: 'page' | 'hero' | 'contact') => void;
+		onAdd: (type: 'canvas' | 'hero' | 'contact') => void;
 		selectedId?: string | null;
 		onSelect?: (section: SiteSection) => void;
 	}
@@ -68,9 +68,8 @@
 	function getTypeLabel(type: string): string {
 		switch (type) {
 			case 'canvas': return 'Canvas';
-			case 'page': return 'Page';
 			case 'hero': return 'Hero';
-			case 'contact': return 'Contact Form';
+			case 'contact': return 'Contact';
 			default: return type;
 		}
 	}
@@ -78,7 +77,6 @@
 	function getTypeIcon(type: string): string {
 		switch (type) {
 			case 'canvas': return '◇';
-			case 'page': return '▪';
 			case 'hero': return '▲';
 			case 'contact': return '✉';
 			default: return '•';
@@ -95,8 +93,8 @@
 			</button>
 			{#if showAddMenu}
 				<div class="add-menu">
-					<button onclick={() => { onAdd('page'); showAddMenu = false; }}>
-						▪ Page
+					<button onclick={() => { onAdd('canvas'); showAddMenu = false; }}>
+						◇ Canvas
 					</button>
 					<button onclick={() => { onAdd('hero'); showAddMenu = false; }}>
 						▲ Hero Section
@@ -131,15 +129,13 @@
 					<span class="type-icon">{getTypeIcon(section.type)}</span>
 					<span class="item-name">{section.name}</span>
 					<span class="type-badge">{getTypeLabel(section.type)}</span>
-					{#if section.type !== 'canvas'}
-						<button
-							class="remove-btn"
-							onclick={(e) => { e.stopPropagation(); onRemove(section); }}
-							aria-label="Remove section"
-						>
-							×
-						</button>
-					{/if}
+					<button
+						class="remove-btn"
+						onclick={(e) => { e.stopPropagation(); onRemove(section); }}
+						aria-label="Remove section"
+					>
+						×
+					</button>
 				</li>
 			{/each}
 		</ul>

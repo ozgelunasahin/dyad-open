@@ -8,16 +8,21 @@ export interface NavItem {
 	type: 'canvas' | 'hero' | 'contact';
 	slug: string;
 	name: string;
+	/** The specific card ID to focus when this nav item is clicked */
+	cardId: string;
 }
 
-// Canvas section data (previously in hypercanvas store)
+// Canvas section data — one per site_canvases row (same canvas can appear multiple times)
 export interface CanvasSectionData {
+	sectionId: string;
 	canvasId: string;
 	slug: string;
 	name: string;
+	navLabel: string | null;
 	position: number;
 	vault: Vault;
 	cardPositions: SavedPosition[];
+	navNoteId: string | null;
 }
 
 export interface HtmlSectionData {
@@ -34,11 +39,12 @@ export type SectionData = (CanvasSectionData & { type: 'canvas' }) | HtmlSection
 /**
  * Load all site sections (canvases + pages) for a given site.
  * Uses bulk queries (.in()) to avoid N+1 per canvas.
+ * Same canvas can appear multiple times with different sectionIds.
  */
 export async function loadSiteSections(
 	supabase: SupabaseClient,
 	siteId: string
-): Promise<{ allSections: SectionData[]; navItems: NavItem[] }> {
+): Promise<{ allSections: SectionData[] }> {
 	// Load pages and canvases in parallel
 	const [{ data: sitePages }, { data: siteCanvases }] = await Promise.all([
 		supabase
@@ -49,8 +55,11 @@ export async function loadSiteSections(
 		supabase
 			.from('site_canvases')
 			.select(`
+				id,
 				canvas_id,
 				position,
+				nav_note_id,
+				nav_label,
 				canvases!inner (
 					id,
 					name,
@@ -62,13 +71,22 @@ export async function loadSiteSections(
 			.order('position', { ascending: true })
 	]);
 
-	const canvases = (siteCanvases ?? []).map((sc) => {
+	const canvasRows = (siteCanvases ?? []).map((sc) => {
 		const c = sc.canvases as unknown as { id: string; name: string; slug: string; entry_point_note_id: string | null };
-		return { id: c.id, name: c.name, slug: c.slug, entryPointNoteId: c.entry_point_note_id, position: sc.position };
+		return {
+			sectionId: sc.id as string,
+			canvasId: c.id,
+			name: c.name,
+			slug: c.slug,
+			entryPointNoteId: c.entry_point_note_id,
+			navNoteId: sc.nav_note_id as string | null,
+			navLabel: sc.nav_label as string | null,
+			position: sc.position as number
+		};
 	});
 
 	// Bulk-load all notes and card_positions in 2 queries instead of 2*N
-	const canvasIds = canvases.map((c) => c.id);
+	const canvasIds = [...new Set(canvasRows.map((c) => c.canvasId))];
 	let allNotes: Array<{ slug: string; title: string; content: unknown; wikilinks: string[] | null; canvas_id: string }> = [];
 	let allPositions: Array<{ id: string; note_id: string; x: number; y: number; width: number; height: number; parent_card_id: string | null; source_link_x: number | null; source_link_y: number | null; canvas_id: string }> = [];
 
@@ -107,19 +125,21 @@ export async function loadSiteSections(
 		positionsByCanvas.set(pos.canvas_id, list);
 	}
 
-	// Build canvas sections
-	const canvasSections: SectionData[] = canvases.map((canvas) => {
-		const notes = notesByCanvas.get(canvas.id) ?? [];
-		const rawPositions = positionsByCanvas.get(canvas.id) ?? [];
+	// Build canvas sections (one per site_canvases row)
+	const canvasSections: SectionData[] = canvasRows.map((row) => {
+		const notes = notesByCanvas.get(row.canvasId) ?? [];
+		const rawPositions = positionsByCanvas.get(row.canvasId) ?? [];
 
 		return {
 			type: 'canvas' as const,
-			canvasId: canvas.id,
-			slug: canvas.slug,
-			name: canvas.name,
-			position: canvas.position,
+			sectionId: row.sectionId,
+			canvasId: row.canvasId,
+			slug: row.slug,
+			name: row.name,
+			navLabel: row.navLabel,
+			position: row.position,
 			vault: {
-				entryPoint: canvas.entryPointNoteId || (notes[0]?.slug ?? ''),
+				entryPoint: row.entryPointNoteId || (notes[0]?.slug ?? ''),
 				notes: Object.fromEntries(
 					notes.map((n) => [
 						n.slug,
@@ -127,6 +147,7 @@ export async function loadSiteSections(
 					])
 				)
 			},
+			navNoteId: row.navNoteId,
 			cardPositions: rawPositions.map((pos) => ({
 				id: pos.id,
 				noteId: pos.note_id,
@@ -152,9 +173,8 @@ export async function loadSiteSections(
 	}));
 
 	const allSections = [...canvasSections, ...pageSections].sort((a, b) => a.position - b.position);
-	const navItems = allSections.map((s) => ({ type: s.type, slug: s.slug, name: s.name }));
 
-	return { allSections, navItems };
+	return { allSections };
 }
 
 const SECTION_CARD_WIDTH = 600;
@@ -163,107 +183,119 @@ const VERTICAL_GAP = 120;
 
 /**
  * Build a single merged vault + saved positions for the landing page canvas.
- * Merges all canvas notes, prefixing slugs with canvas slug to avoid collisions.
- * Creates synthetic notes for hero/contact page sections.
+ * Each unique canvas is merged once (notes + positions). Multiple site_canvases
+ * rows pointing to the same canvas just produce additional nav items targeting
+ * different cards within that single canvas instance.
  */
 export async function buildLandingCanvasData(
 	supabase: SupabaseClient,
 	siteId: string
-): Promise<{ vault: Vault; savedPositions: SavedPosition[]; navItems: NavItem[]; entryPointMap: Record<string, string> }> {
-	const { allSections, navItems } = await loadSiteSections(supabase, siteId);
+): Promise<{ vault: Vault; savedPositions: SavedPosition[]; navItems: NavItem[] }> {
+	const { allSections } = await loadSiteSections(supabase, siteId);
 
 	const mergedNotes: Record<string, Note> = {};
 	const savedPositions: SavedPosition[] = [];
-	// Maps section slug -> card ID for sidebar navigation
-	const entryPointMap: Record<string, string> = {};
+	const navItems: NavItem[] = [];
 	let currentY = 0;
 
-	// Sort sections by position (already sorted from loadSiteSections)
+	// Track which canvas slugs have already been merged into the vault
+	const mergedCanvasSlugs = new Set<string>();
+	// Map canvas slug -> prefix used in the merged vault
+	const canvasPrefixMap = new Map<string, string>();
+
 	for (const section of allSections) {
 		if (section.type === 'canvas') {
-			const canvasData = section as SectionData & { type: 'canvas' };
+			const canvasData = section as CanvasSectionData & { type: 'canvas' };
 			const prefix = canvasData.slug;
+			const navName = canvasData.navLabel || canvasData.name;
 
-			// Rewrite notes with prefixed slugs
-			for (const [noteId, note] of Object.entries(canvasData.vault.notes)) {
-				const prefixedId = `${prefix}/${noteId}`;
-				const prefixedWikilinks = note.wikilinks.map((link: string) => `${prefix}/${link}`);
+			// Merge canvas notes + positions only once per unique canvas
+			if (!mergedCanvasSlugs.has(canvasData.slug)) {
+				mergedCanvasSlugs.add(canvasData.slug);
+				canvasPrefixMap.set(canvasData.slug, prefix);
 
-				// Rewrite wikilink targets in content (wikilinks are inline nodes)
-				const rewrittenContent = rewriteWikilinksInContent(note.content, prefix);
+				// Rewrite notes with prefixed slugs
+				for (const [noteId, note] of Object.entries(canvasData.vault.notes)) {
+					const prefixedId = `${prefix}/${noteId}`;
+					const prefixedWikilinks = note.wikilinks.map((link: string) => `${prefix}/${link}`);
+					const rewrittenContent = rewriteWikilinksInContent(note.content, prefix);
 
-				mergedNotes[prefixedId] = {
-					id: prefixedId,
-					canvasId: 'site-landing',
-					title: note.title,
-					content: rewrittenContent,
-					wikilinks: prefixedWikilinks
-				};
-			}
-
-			// Include all saved card positions from the editor, offset by currentY
-			if (canvasData.cardPositions.length > 0) {
-				let minY = Infinity, maxY = -Infinity;
-
-				// parentCardId in DB is "canvasId-noteSlug" — strip the canvasId prefix
-				const dbPrefix = `${canvasData.canvasId}-`;
-				const stripDbPrefix = (id: string) =>
-					id.startsWith(dbPrefix) ? id.substring(dbPrefix.length) : id;
-
-				for (const pos of canvasData.cardPositions) {
-					const prefixedNoteId = `${prefix}/${pos.noteId}`;
-					if (!mergedNotes[prefixedNoteId]) continue;
-
-					const prefixedParent = pos.parentCardId
-						? `${prefix}/${stripDbPrefix(pos.parentCardId)}`
-						: null;
-
-					savedPositions.push({
-						id: prefixedNoteId,
-						noteId: prefixedNoteId,
-						x: pos.x,
-						y: pos.y + currentY,
-						width: pos.width,
-						height: pos.height,
-						parentCardId: prefixedParent,
-						sourceLinkX: pos.sourceLinkX,
-						sourceLinkY: pos.sourceLinkY !== null ? pos.sourceLinkY + currentY : null
-					});
-
-					minY = Math.min(minY, pos.y);
-					maxY = Math.max(maxY, pos.y + pos.height);
+					mergedNotes[prefixedId] = {
+						id: prefixedId,
+						canvasId: 'site-landing',
+						title: note.title,
+						content: rewrittenContent,
+						wikilinks: prefixedWikilinks
+					};
 				}
 
-				// Track entry point for sidebar nav
-				const entryNoteId = canvasData.vault.entryPoint;
-				const prefixedEntryId = `${prefix}/${entryNoteId}`;
-				entryPointMap[canvasData.slug] = prefixedEntryId;
+				// Include saved card positions, offset by currentY
+				if (canvasData.cardPositions.length > 0) {
+					let minY = Infinity, maxY = -Infinity;
 
-				const sectionHeight = minY === Infinity ? 200 : (maxY - minY);
-				currentY += sectionHeight + VERTICAL_GAP;
-			} else {
-				// No saved positions — place just the entry-point card
-				const entryNoteId = canvasData.vault.entryPoint;
-				const prefixedEntryId = `${prefix}/${entryNoteId}`;
-				const entryNote = canvasData.vault.notes[entryNoteId];
+					const dbPrefix = `${canvasData.canvasId}-`;
+					const stripDbPrefix = (id: string) =>
+						id.startsWith(dbPrefix) ? id.substring(dbPrefix.length) : id;
 
-				if (entryNote) {
-					const entryHeight = Math.max(100, estimateContentHeight(entryNote.content, CARD_WIDTH));
-					savedPositions.push({
-						id: prefixedEntryId,
-						noteId: prefixedEntryId,
-						x: 0,
-						y: currentY,
-						width: CARD_WIDTH,
-						height: entryHeight,
-						parentCardId: null,
-						sourceLinkX: null,
-						sourceLinkY: null
-					});
-					entryPointMap[canvasData.slug] = prefixedEntryId;
-					currentY += entryHeight + VERTICAL_GAP;
+					for (const pos of canvasData.cardPositions) {
+						const prefixedNoteId = `${prefix}/${pos.noteId}`;
+						if (!mergedNotes[prefixedNoteId]) continue;
+
+						const prefixedParent = pos.parentCardId
+							? `${prefix}/${stripDbPrefix(pos.parentCardId)}`
+							: null;
+
+						savedPositions.push({
+							id: prefixedNoteId,
+							noteId: prefixedNoteId,
+							x: pos.x,
+							y: pos.y + currentY,
+							width: pos.width,
+							height: pos.height,
+							parentCardId: prefixedParent,
+							sourceLinkX: pos.sourceLinkX,
+							sourceLinkY: pos.sourceLinkY !== null ? pos.sourceLinkY + currentY : null
+						});
+
+						minY = Math.min(minY, pos.y);
+						maxY = Math.max(maxY, pos.y + pos.height);
+					}
+
+					const sectionHeight = minY === Infinity ? 200 : (maxY - minY);
+					currentY += sectionHeight + VERTICAL_GAP;
+				} else {
+					// No saved positions — place just the entry-point card
+					const entryNoteId = canvasData.vault.entryPoint;
+					const prefixedEntryId = `${prefix}/${entryNoteId}`;
+					const entryNote = canvasData.vault.notes[entryNoteId];
+
+					if (entryNote) {
+						const entryHeight = Math.max(100, estimateContentHeight(entryNote.content, CARD_WIDTH));
+						savedPositions.push({
+							id: prefixedEntryId,
+							noteId: prefixedEntryId,
+							x: 0,
+							y: currentY,
+							width: CARD_WIDTH,
+							height: entryHeight,
+							parentCardId: null,
+							sourceLinkX: null,
+							sourceLinkY: null
+						});
+						currentY += entryHeight + VERTICAL_GAP;
+					}
 				}
 			}
+
+			// Every site_canvases row produces a nav item pointing to a card in the (single) canvas
+			const resolvedPrefix = canvasPrefixMap.get(canvasData.slug) ?? prefix;
+			const navNoteId = canvasData.navNoteId || canvasData.vault.entryPoint;
+			navItems.push({
+				type: 'canvas',
+				slug: canvasData.sectionId,
+				name: navName,
+				cardId: `${resolvedPrefix}/${navNoteId}`
+			});
 		} else {
 			// HTML section (hero, contact, etc.) — wide block, arbitrary content
 			const sectionId = `__section:${section.type}:${section.id}`;
@@ -294,7 +326,7 @@ export async function buildLandingCanvasData(
 				sourceLinkX: null,
 				sourceLinkY: null
 			});
-			entryPointMap[section.slug] = sectionId;
+			navItems.push({ type: section.type as 'hero' | 'contact', slug: section.slug, name: section.name, cardId: sectionId });
 			currentY += SECTION_CARD_HEIGHT + VERTICAL_GAP;
 		}
 	}
@@ -305,8 +337,7 @@ export async function buildLandingCanvasData(
 	return {
 		vault: { notes: mergedNotes, entryPoint: firstEntry },
 		savedPositions,
-		navItems,
-		entryPointMap
+		navItems
 	};
 }
 

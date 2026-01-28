@@ -25,39 +25,59 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		.eq('id', locals.user.id)
 		.single();
 
-	// Load all user's canvases
+	// Load all user's canvases (for the "add canvas" picker)
 	const { data: allCanvases } = await locals.supabase
 		.from('canvases')
 		.select('id, name, slug')
 		.eq('user_id', locals.user.id)
 		.order('updated_at', { ascending: false });
 
-	// Load site's selected canvases
+	// Load site's canvas sections (may have duplicates of same canvas with different labels)
 	const { data: siteCanvases } = await locals.supabase
 		.from('site_canvases')
-		.select('canvas_id, position')
+		.select(`
+			id,
+			canvas_id,
+			position,
+			nav_label,
+			nav_note_id,
+			canvases!inner (
+				id,
+				name,
+				slug
+			)
+		`)
 		.eq('site_id', site.id)
 		.order('position', { ascending: true });
 
-	// Build canvas list with inclusion status and position
-	const includedIds = new Map(
-		(siteCanvases ?? []).map((sc) => [sc.canvas_id, sc.position])
-	);
-
-	const canvases = (allCanvases ?? []).map((canvas) => ({
-		id: canvas.id,
-		name: canvas.name,
-		slug: canvas.slug,
-		included: includedIds.has(canvas.id),
-		position: includedIds.get(canvas.id) ?? 999
-	}));
-
-	// Sort: included canvases first (by position), then excluded
-	canvases.sort((a, b) => {
-		if (a.included && !b.included) return -1;
-		if (!a.included && b.included) return 1;
-		return a.position - b.position;
+	// Build canvas section list (each row is a separate section)
+	const canvasSections = (siteCanvases ?? []).map((sc) => {
+		const c = sc.canvases as unknown as { id: string; name: string; slug: string };
+		return {
+			id: sc.id as string,
+			canvasId: c.id,
+			canvasName: c.name,
+			canvasSlug: c.slug,
+			position: sc.position as number,
+			navLabel: sc.nav_label as string | null,
+			navNoteId: sc.nav_note_id as string | null
+		};
 	});
+
+	// Load notes for all canvases used in sections (for the nav target picker)
+	const canvasIds = [...new Set(canvasSections.map((s) => s.canvasId))];
+	let canvasNotes: Record<string, Array<{ slug: string; title: string }>> = {};
+	if (canvasIds.length > 0) {
+		const { data: notes } = await locals.supabase
+			.from('notes')
+			.select('slug, title, canvas_id')
+			.in('canvas_id', canvasIds);
+		for (const note of notes ?? []) {
+			const list = canvasNotes[note.canvas_id] ?? [];
+			list.push({ slug: note.slug, title: note.title });
+			canvasNotes[note.canvas_id] = list;
+		}
+	}
 
 	// Load site pages (hero, contact, etc.)
 	const { data: sitePages } = await locals.supabase
@@ -70,7 +90,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		user: locals.user,
 		username: profile?.username ?? '',
 		site,
-		canvases,
+		availableCanvases: (allCanvases ?? []).map((c) => ({ id: c.id, name: c.name, slug: c.slug })),
+		canvasSections,
+		canvasNotes,
 		sitePages: sitePages ?? []
 	};
 };

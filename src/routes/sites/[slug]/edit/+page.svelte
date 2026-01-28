@@ -1,30 +1,30 @@
 <script lang="ts">
-	import CanvasSelector from '$lib/components/CanvasSelector.svelte';
 	import SectionList from '$lib/components/SectionList.svelte';
 	import type { SiteSection } from '$lib/components/SectionList.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
-	let canvases = $state(data.canvases);
+	let canvasSections = $state(data.canvasSections);
 	let sitePages = $state(data.sitePages);
+	let canvasNotes = $state(data.canvasNotes as Record<string, Array<{ slug: string; title: string }>>);
 	let saving = $state(false);
 	let error = $state<string | null>(null);
 	let lastSaved = $state<string | null>(null);
 	let selectedSectionId = $state<string | null>(null);
-	let selectedSectionType = $state<'canvas' | 'page' | 'hero' | 'contact' | null>(null);
+	let selectedSectionType = $state<'canvas' | 'hero' | 'contact' | null>(null);
+	let showCanvasPicker = $state(false);
 
-	// Build unified section list from canvases + pages
+	// Build unified section list from canvas sections + pages
 	let sections = $derived.by(() => {
-		const canvasSections: SiteSection[] = canvases
-			.filter((c) => c.included)
-			.map((c) => ({
-				id: c.id,
-				type: 'canvas' as const,
-				name: c.name,
-				slug: c.slug,
-				position: c.position
-			}));
+		const cSections: SiteSection[] = canvasSections.map((cs) => ({
+			id: cs.id,
+			type: 'canvas' as const,
+			name: cs.navLabel || cs.canvasName,
+			canvasId: cs.canvasId,
+			canvasSlug: cs.canvasSlug,
+			position: cs.position
+		}));
 
 		const pageSections: SiteSection[] = sitePages.map((p) => ({
 			id: p.id,
@@ -34,12 +34,11 @@
 			config: p.config
 		}));
 
-		return [...canvasSections, ...pageSections].sort((a, b) => a.position - b.position);
+		return [...cSections, ...pageSections].sort((a, b) => a.position - b.position);
 	});
 
 	function defaultPageName(type: string): string {
 		switch (type) {
-			case 'page': return 'Page';
 			case 'hero': return 'Hero Section';
 			case 'contact': return 'Contact Form';
 			default: return type;
@@ -55,14 +54,14 @@
 		}
 	});
 
-	let previewCanvas = $derived(
+	let selectedCanvasSection = $derived(
 		selectedSectionType === 'canvas'
-			? canvases.find((c) => c.id === selectedSectionId)
+			? canvasSections.find((cs) => cs.id === selectedSectionId)
 			: null
 	);
 
 	let previewUrl = $derived(
-		previewCanvas ? `/@${data.username}/${previewCanvas.slug}` : null
+		selectedCanvasSection ? `/@${data.username}/${selectedCanvasSection.canvasSlug}` : null
 	);
 
 	let selectedPage = $derived(
@@ -71,87 +70,88 @@
 			: null
 	);
 
-	async function saveCanvases() {
-		saving = true;
-		error = null;
-
-		try {
-			const includedIds = canvases
-				.filter((c) => c.included)
-				.sort((a, b) => a.position - b.position)
-				.map((c) => c.id);
-
-			const res = await fetch(`/api/sites/${data.site.id}/canvases`, {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(includedIds)
-			});
-
-			if (!res.ok) {
-				const result = await res.json();
-				error = result.error || 'Failed to save';
-				return;
-			}
-
-			lastSaved = new Date().toLocaleTimeString();
-		} catch (e) {
-			error = 'Failed to save';
-		} finally {
-			saving = false;
-		}
-	}
-
-	function handleCanvasUpdate(updated: typeof canvases) {
-		canvases = updated;
-		saveCanvases();
-	}
-
 	async function handleSectionReorder(reordered: SiteSection[]) {
-		// Update local state
-		const canvasPositionUpdates: { canvas_id: string; position: number }[] = [];
-		const pagePositionUpdates: { id: string; position: number }[] = [];
+		const canvasUpdates: { id: string; position: number }[] = [];
+		const pageUpdates: { id: string; position: number }[] = [];
 
 		for (const section of reordered) {
 			if (section.type === 'canvas') {
-				canvasPositionUpdates.push({ canvas_id: section.id, position: section.position });
-				const idx = canvases.findIndex((c) => c.id === section.id);
-				if (idx !== -1) {
-					canvases[idx] = { ...canvases[idx], position: section.position };
-				}
+				canvasUpdates.push({ id: section.id, position: section.position });
+				const idx = canvasSections.findIndex((cs) => cs.id === section.id);
+				if (idx !== -1) canvasSections[idx] = { ...canvasSections[idx], position: section.position };
 			} else {
-				pagePositionUpdates.push({ id: section.id, position: section.position });
+				pageUpdates.push({ id: section.id, position: section.position });
 				const idx = sitePages.findIndex((p) => p.id === section.id);
-				if (idx !== -1) {
-					sitePages[idx] = { ...sitePages[idx], position: section.position };
-				}
+				if (idx !== -1) sitePages[idx] = { ...sitePages[idx], position: section.position };
 			}
 		}
 
-		canvases = [...canvases];
+		canvasSections = [...canvasSections];
 		sitePages = [...sitePages];
 
-		// Persist canvas positions via PATCH (not RPC, to preserve custom positions)
-		if (canvasPositionUpdates.length > 0) {
+		if (canvasUpdates.length > 0) {
 			await fetch(`/api/sites/${data.site.id}/canvases`, {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(canvasPositionUpdates)
+				body: JSON.stringify(canvasUpdates)
 			});
 		}
 
-		// Persist page positions
-		if (pagePositionUpdates.length > 0) {
+		if (pageUpdates.length > 0) {
 			await fetch(`/api/sites/${data.site.id}/pages`, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(pagePositionUpdates)
+				body: JSON.stringify(pageUpdates)
 			});
 		}
 
 		lastSaved = new Date().toLocaleTimeString();
 	}
 
-	async function handleAddSection(type: 'page' | 'hero' | 'contact') {
+	async function handleAddCanvasSection(canvasId: string) {
+		const canvas = data.availableCanvases.find((c) => c.id === canvasId);
+		if (!canvas) return;
+
+		try {
+			const res = await fetch(`/api/sites/${data.site.id}/canvases`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ canvas_id: canvasId })
+			});
+
+			if (!res.ok) {
+				error = 'Failed to add canvas section';
+				return;
+			}
+
+			const inserted = await res.json();
+			canvasSections = [...canvasSections, {
+				id: inserted.id,
+				canvasId: canvas.id,
+				canvasName: canvas.name,
+				canvasSlug: canvas.slug,
+				position: inserted.position,
+				navLabel: inserted.nav_label,
+				navNoteId: inserted.nav_note_id
+			}];
+			selectedSectionId = inserted.id;
+			selectedSectionType = 'canvas';
+
+			// Load notes for this canvas if not already loaded
+			if (!canvasNotes[canvasId]) {
+				const notesRes = await fetch(`/api/canvases/${canvasId}/notes`);
+				if (notesRes.ok) {
+					canvasNotes[canvasId] = await notesRes.json();
+				}
+			}
+		} catch {
+			error = 'Failed to add canvas section';
+		}
+
+		showCanvasPicker = false;
+	}
+
+	async function handleAddPage(type: 'hero' | 'contact') {
 		const s = sections;
 		const maxPos = s.length > 0 ? Math.max(...s.map((sec) => sec.position)) : 0;
 
@@ -182,16 +182,21 @@
 
 	async function handleRemoveSection(section: SiteSection) {
 		try {
-			const res = await fetch(`/api/sites/${data.site.id}/pages/${section.id}`, {
-				method: 'DELETE'
-			});
-
-			if (!res.ok) {
-				error = 'Failed to remove section';
-				return;
+			if (section.type === 'canvas') {
+				const res = await fetch(`/api/sites/${data.site.id}/canvases`, {
+					method: 'DELETE',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ section_id: section.id })
+				});
+				if (!res.ok) { error = 'Failed to remove section'; return; }
+				canvasSections = canvasSections.filter((cs) => cs.id !== section.id);
+			} else {
+				const res = await fetch(`/api/sites/${data.site.id}/pages/${section.id}`, {
+					method: 'DELETE'
+				});
+				if (!res.ok) { error = 'Failed to remove section'; return; }
+				sitePages = sitePages.filter((p) => p.id !== section.id);
 			}
-
-			sitePages = sitePages.filter((p) => p.id !== section.id);
 		} catch {
 			error = 'Failed to remove section';
 		}
@@ -200,6 +205,38 @@
 	function handleSectionSelect(section: SiteSection) {
 		selectedSectionId = section.id;
 		selectedSectionType = section.type;
+	}
+
+	async function handleNavNoteSave(sectionId: string, navNoteId: string | null) {
+		try {
+			await fetch(`/api/sites/${data.site.id}/canvases`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify([{ id: sectionId, nav_note_id: navNoteId }])
+			});
+			canvasSections = canvasSections.map((cs) =>
+				cs.id === sectionId ? { ...cs, navNoteId: navNoteId } : cs
+			);
+			lastSaved = new Date().toLocaleTimeString();
+		} catch {
+			error = 'Failed to save nav target';
+		}
+	}
+
+	async function handleNavLabelSave(sectionId: string, navLabel: string) {
+		try {
+			await fetch(`/api/sites/${data.site.id}/canvases`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify([{ id: sectionId, nav_label: navLabel || null }])
+			});
+			canvasSections = canvasSections.map((cs) =>
+				cs.id === sectionId ? { ...cs, navLabel: navLabel || null } : cs
+			);
+			lastSaved = new Date().toLocaleTimeString();
+		} catch {
+			error = 'Failed to save nav label';
+		}
 	}
 
 	async function handlePageConfigSave(pageId: string, config: Record<string, unknown>) {
@@ -306,30 +343,78 @@
 				sections={sections}
 				onReorder={handleSectionReorder}
 				onRemove={handleRemoveSection}
-				onAdd={handleAddSection}
+				onAdd={(type) => {
+					if (type === 'canvas') {
+						showCanvasPicker = true;
+					} else {
+						handleAddPage(type);
+					}
+				}}
 				selectedId={selectedSectionId}
 				onSelect={handleSectionSelect}
 			/>
 
-			<div class="divider"></div>
-
-			<CanvasSelector
-				{canvases}
-				onUpdate={handleCanvasUpdate}
-				selectedId={selectedSectionType === 'canvas' ? selectedSectionId : null}
-				onSelect={(id) => { selectedSectionId = id; selectedSectionType = 'canvas'; }}
-			/>
+			{#if showCanvasPicker}
+				<div class="canvas-picker-overlay" onclick={() => showCanvasPicker = false}>
+					<!-- svelte-ignore a11y_click_events_have_key_events -->
+					<!-- svelte-ignore a11y_no_static_element_interactions -->
+					<div class="canvas-picker" onclick={(e) => e.stopPropagation()}>
+						<h4>Add Canvas Section</h4>
+						{#if data.availableCanvases.length === 0}
+							<p class="empty-hint">No canvases yet. Create one first.</p>
+						{:else}
+							<ul class="canvas-list">
+								{#each data.availableCanvases as canvas}
+									<li>
+										<button onclick={() => handleAddCanvasSection(canvas.id)}>
+											{canvas.name}
+										</button>
+									</li>
+								{/each}
+							</ul>
+						{/if}
+					</div>
+				</div>
+			{/if}
 		</aside>
 
 		<main class="preview-area">
-			{#if selectedSectionType === 'canvas' && previewUrl && previewCanvas}
+			{#if selectedSectionType === 'canvas' && previewUrl && selectedCanvasSection}
 				<div class="preview-header">
-					<span class="preview-label">Canvas: {previewCanvas.name}</span>
-					<a href="/@{data.username}/{previewCanvas.slug}" target="_blank" class="open-link">
-						Open in new tab &rarr;
-					</a>
+					<span class="preview-label">Canvas: {selectedCanvasSection.canvasName}</span>
+					<div class="header-controls">
+						<a href="/@{data.username}/{selectedCanvasSection.canvasSlug}" target="_blank" class="open-link">
+							Open in new tab &rarr;
+						</a>
+					</div>
 				</div>
-				{#key previewCanvas.id}
+				<div class="canvas-settings">
+					<div class="setting-row">
+						<label>Nav label:</label>
+						<input
+							type="text"
+							placeholder={selectedCanvasSection.canvasName}
+							value={selectedCanvasSection.navLabel ?? ''}
+							onchange={(e) => handleNavLabelSave(selectedCanvasSection!.id, e.currentTarget.value)}
+						/>
+					</div>
+					<div class="setting-row">
+						<label>Nav links to:</label>
+						<select
+							value={selectedCanvasSection.navNoteId ?? ''}
+							onchange={(e) => handleNavNoteSave(
+								selectedCanvasSection!.id,
+								e.currentTarget.value || null
+							)}
+						>
+							<option value="">Entry point (default)</option>
+							{#each canvasNotes[selectedCanvasSection.canvasId] ?? [] as note}
+								<option value={note.slug}>{note.title || note.slug}</option>
+							{/each}
+						</select>
+					</div>
+				</div>
+				{#key selectedCanvasSection.id}
 					<iframe
 						src={previewUrl}
 						title="Canvas preview"
@@ -522,12 +607,7 @@
 		border-right: 1px solid var(--border-link);
 		overflow-y: auto;
 		background: var(--bg-control);
-	}
-
-	.divider {
-		height: 1px;
-		background: var(--border-link);
-		margin: 1.5rem 0;
+		position: relative;
 	}
 
 	.preview-area {
@@ -551,15 +631,54 @@
 		font-size: 0.9rem;
 	}
 
+	.header-controls {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+	}
+
 	.open-link {
 		color: var(--text-link);
 		text-decoration: none;
 		font-size: 0.85rem;
 		transition: color 0.2s;
+		white-space: nowrap;
 	}
 
 	.open-link:hover {
 		color: var(--text-link-hover);
+	}
+
+	.canvas-settings {
+		padding: 0.75rem 1rem;
+		background: var(--bg-canvas);
+		border-bottom: 1px solid var(--border-link);
+		display: flex;
+		flex-wrap: wrap;
+		gap: 1rem;
+	}
+
+	.setting-row {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-size: 0.85rem;
+		color: var(--text-muted);
+	}
+
+	.setting-row input,
+	.setting-row select {
+		padding: 0.25rem 0.5rem;
+		border: 1px solid var(--border-link);
+		border-radius: 4px;
+		background: var(--bg-canvas);
+		color: var(--text-primary);
+		font-size: 0.85rem;
+		font-family: inherit;
+	}
+
+	.setting-row input {
+		width: 160px;
 	}
 
 	.preview-iframe {
@@ -627,5 +746,69 @@
 		justify-content: center;
 		color: var(--text-muted);
 		font-size: 1.1rem;
+	}
+
+	/* Canvas picker overlay */
+	.canvas-picker-overlay {
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.3);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 100;
+	}
+
+	.canvas-picker {
+		background: var(--bg-canvas);
+		border: 1px solid var(--border-link);
+		border-radius: 8px;
+		padding: 1.5rem;
+		min-width: 300px;
+		max-width: 400px;
+		max-height: 400px;
+		overflow-y: auto;
+		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+	}
+
+	.canvas-picker h4 {
+		margin: 0 0 1rem;
+		font-size: 1rem;
+		color: var(--text-primary);
+	}
+
+	.canvas-picker .empty-hint {
+		color: var(--text-muted);
+		font-size: 0.9rem;
+		font-style: italic;
+	}
+
+	.canvas-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+
+	.canvas-list li {
+		margin: 0;
+	}
+
+	.canvas-list button {
+		display: block;
+		width: 100%;
+		padding: 0.6rem 0.75rem;
+		background: none;
+		border: none;
+		text-align: left;
+		cursor: pointer;
+		font-family: inherit;
+		font-size: 0.95rem;
+		color: var(--text-primary);
+		border-radius: 4px;
+		transition: background 0.15s;
+	}
+
+	.canvas-list button:hover {
+		background: var(--bg-control);
 	}
 </style>

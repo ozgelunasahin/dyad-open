@@ -3,6 +3,8 @@
 		name: string;
 		slug: string;
 		type?: 'canvas' | 'hero' | 'contact';
+		/** The specific card ID to focus when this nav item is clicked */
+		cardId?: string;
 	}
 
 	interface Props {
@@ -23,7 +25,7 @@
 		/** Use ?section= query param instead of path segments */
 		useQueryParam?: boolean;
 		/** Callback for in-page navigation (overrides URL navigation) */
-		onNavigate?: (slug: string) => void;
+		onNavigate?: (slug: string, cardId?: string) => void;
 	}
 
 	let {
@@ -80,7 +82,7 @@
 								<a
 									href={getItemUrl(item.slug)}
 									class:active={item.slug === resolvedCurrentItem}
-									onclick={(e: MouseEvent) => { if (onNavigate) { e.preventDefault(); onNavigate(item.slug); } }}
+									onclick={(e: MouseEvent) => { if (onNavigate) { e.preventDefault(); onNavigate(item.slug, item.cardId); } }}
 								>
 									{item.name}
 								</a>
