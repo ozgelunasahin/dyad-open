@@ -24,7 +24,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		.eq('id', locals.user.id)
 		.single();
 
-	const { vault, savedPositions, navItems, entryPointMap } = await buildLandingCanvasData(locals.supabase, site.id);
+	const { vault, savedPositions, navItems } = await buildLandingCanvasData(locals.supabase, site.id);
 
 	return {
 		user: locals.user,
@@ -32,7 +32,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		site,
 		navItems,
 		vault,
-		savedPositions,
-		entryPointMap
+		savedPositions
 	};
 };

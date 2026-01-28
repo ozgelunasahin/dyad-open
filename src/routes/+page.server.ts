@@ -28,7 +28,7 @@ export const load: PageServerLoad = async ({ locals, setHeaders }) => {
 		.single();
 
 	if (!profile) {
-		return { site: null, navItems: [], vault: null, savedPositions: [], entryPointMap: {}, author: null };
+		return { site: null, navItems: [], vault: null, savedPositions: [], author: null };
 	}
 
 	const { data: site } = await locals.supabase
@@ -40,10 +40,10 @@ export const load: PageServerLoad = async ({ locals, setHeaders }) => {
 		.single();
 
 	if (!site) {
-		return { site: null, navItems: [], vault: null, savedPositions: [], entryPointMap: {}, author: null };
+		return { site: null, navItems: [], vault: null, savedPositions: [], author: null };
 	}
 
-	const { vault, savedPositions, navItems, entryPointMap } = await buildLandingCanvasData(locals.supabase, site.id);
+	const { vault, savedPositions, navItems } = await buildLandingCanvasData(locals.supabase, site.id);
 
 	// Cache for anonymous users — identical for everyone
 	setHeaders({
@@ -55,7 +55,6 @@ export const load: PageServerLoad = async ({ locals, setHeaders }) => {
 		navItems,
 		vault,
 		savedPositions,
-		entryPointMap,
 		author: LANDING_USERNAME
 	};
 };
