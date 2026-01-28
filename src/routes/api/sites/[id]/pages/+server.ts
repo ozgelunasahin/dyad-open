@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
-const VALID_PAGE_TYPES = ['hero', 'contact'];
+const VALID_PAGE_TYPES = ['page', 'hero', 'contact'];
 
 export const GET: RequestHandler = async ({ params, locals }) => {
 	const { data, error: dbError } = await locals.supabase
