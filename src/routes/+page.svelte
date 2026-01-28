@@ -48,200 +48,84 @@
 	<meta name="description" content="Social civic infrastructure for community bridging in Berlin." />
 </svelte:head>
 
-<div class="landing">
-	<!-- Header -->
-	<header class="header">
-		<a href="/" class="logo">dyad.berlin</a>
-		<nav class="nav-links">
-			<button class="theme-toggle" onclick={() => themeStore.toggle()} aria-label="Toggle theme">
-				{#if themeStore.current === 'light'}
-					<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-						<circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5" />
-						<path d="M8 1V2.5M8 13.5V15M1 8H2.5M13.5 8H15M3.05 3.05L4.11 4.11M11.89 11.89L12.95 12.95M3.05 12.95L4.11 11.89M11.89 4.11L12.95 3.05" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-					</svg>
-				{:else}
-					<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-						<path d="M14 8.5A6 6 0 117.5 2a4.5 4.5 0 006.5 6.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-					</svg>
+{#if data.navItems && data.navItems.length > 0}
+	<WebsiteContainer
+		author={data.author ?? ''}
+		navItems={data.navItems}
+		currentItem={data.currentSection ?? undefined}
+		baseUrl="/"
+		useQueryParam={true}
+	>
+		{#if data.canvasUrl}
+			<div class="iframe-wrapper">
+				{#if iframeLoading}
+					<div class="iframe-loading" out:fade={{ duration: 200 }}></div>
 				{/if}
-			</button>
-		</nav>
-	</header>
+				<iframe
+					src={data.canvasUrl}
+					title="Content"
+					class="canvas-iframe"
+					onload={handleIframeLoad}
+				></iframe>
+			</div>
+		{:else if data.currentPage}
+			<div class="page-content">
+				<div class="splash">
+					<h1 class="splash-logo">dyad.berlin</h1>
+					<p class="splash-tagline">Social civic infrastructure for Berlin</p>
 
-	<!-- Sections rendered dynamically from site config -->
-	{#each data.sections ?? [] as section}
-		{#if section.type === 'hero'}
-			<section class="hero">
-				<h1>{section.config?.heading || section.title || 'dyad.berlin'}</h1>
-				{#if section.config?.subtitle}
-					<p class="subtitle">{section.config.subtitle}</p>
-				{/if}
-			</section>
-		{:else if section.type === 'canvas'}
-			{#if data.canvasUrl && data.siteCanvases.length > 0}
-				<section class="content">
-					<WebsiteContainer
-						author={data.author}
-						canvases={data.siteCanvases}
-						currentCanvas={data.currentCanvas}
-						baseUrl="/"
-						useQueryParam={true}
-					>
-						<div class="iframe-wrapper">
-							{#if iframeLoading}
-								<div class="iframe-loading" out:fade={{ duration: 200 }}></div>
+					<div class="splash-signup">
+						{#if contactStatus === 'sent'}
+							<p class="contact-thanks">Thanks — we'll be in touch.</p>
+						{:else}
+							<form class="contact-form" onsubmit={handleContactSubmit}>
+								<input type="text" bind:value={contactName} placeholder="Name" class="contact-input" />
+								<input type="email" bind:value={contactEmail} placeholder="Email" required class="contact-input" />
+								<button type="submit" class="contact-btn" disabled={contactStatus === 'sending'}>
+									{contactStatus === 'sending' ? 'Sending...' : 'Stay in touch'}
+								</button>
+							</form>
+							{#if contactStatus === 'error'}
+								<p class="contact-error">Something went wrong. Please try again.</p>
 							{/if}
-							<iframe
-								src={data.canvasUrl}
-								title="Content"
-								class="canvas-iframe"
-								onload={handleIframeLoad}
-							></iframe>
-						</div>
-					</WebsiteContainer>
-				</section>
-			{/if}
-		{:else if section.type === 'contact'}
-			<section class="contact">
-				<h2>{section.config?.heading || 'Stay in touch'}</h2>
-				{#if contactStatus === 'sent'}
-					<p class="contact-thanks">Thanks — we'll be in touch.</p>
-				{:else}
-					<form class="contact-form" onsubmit={handleContactSubmit}>
-						<input
-							type="text"
-							bind:value={contactName}
-							placeholder="Name"
-							class="contact-input"
-						/>
-						<input
-							type="email"
-							bind:value={contactEmail}
-							placeholder="Email"
-							required
-							class="contact-input"
-						/>
-						<button type="submit" class="contact-btn" disabled={contactStatus === 'sending'}>
-							{contactStatus === 'sending' ? 'Sending...' : 'Submit'}
-						</button>
-					</form>
-					{#if contactStatus === 'error'}
-						<p class="contact-error">Something went wrong. Please try again.</p>
-					{/if}
-				{/if}
-			</section>
-		{/if}
-	{/each}
+						{/if}
+					</div>
+				</div>
 
-	<!-- Fallback: show default content if no sections configured -->
-	{#if !data.sections || data.sections.length === 0}
-		<section class="hero">
-			<h1>dyad.berlin</h1>
-			<p class="subtitle">Social civic infrastructure for Berlin</p>
-		</section>
-		<section class="contact">
-			<h2>Stay in touch</h2>
+				<button class="theme-toggle" onclick={() => themeStore.toggle()} aria-label="Toggle theme">
+					{#if themeStore.current === 'light'}
+						<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+							<circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5" />
+							<path d="M8 1V2.5M8 13.5V15M1 8H2.5M13.5 8H15M3.05 3.05L4.11 4.11M11.89 11.89L12.95 12.95M3.05 12.95L4.11 11.89M11.89 4.11L12.95 3.05" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+						</svg>
+					{:else}
+						<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+							<path d="M14 8.5A6 6 0 117.5 2a4.5 4.5 0 006.5 6.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+						</svg>
+					{/if}
+				</button>
+			</div>
+		{/if}
+	</WebsiteContainer>
+{:else}
+	<!-- Fallback when no site configured -->
+	<div class="fallback">
+		<h1 class="splash-logo">dyad.berlin</h1>
+		<p class="splash-tagline">Social civic infrastructure for Berlin</p>
+		<div class="splash-signup">
 			<form class="contact-form" onsubmit={handleContactSubmit}>
 				<input type="text" bind:value={contactName} placeholder="Name" class="contact-input" />
 				<input type="email" bind:value={contactEmail} placeholder="Email" required class="contact-input" />
 				<button type="submit" class="contact-btn" disabled={contactStatus === 'sending'}>
-					{contactStatus === 'sending' ? 'Sending...' : 'Submit'}
+					{contactStatus === 'sending' ? 'Sending...' : 'Stay in touch'}
 				</button>
 			</form>
-		</section>
-	{/if}
-
-	<!-- Footer -->
-	<footer class="footer">
-		<span>Berlin</span>
-		<span class="footer-sep">·</span>
-		<a href="mailto:hello@dyad.berlin">hello@dyad.berlin</a>
-	</footer>
-</div>
+		</div>
+	</div>
+{/if}
 
 <style>
-	.landing {
-		min-height: 100vh;
-		display: flex;
-		flex-direction: column;
-		background: var(--bg-canvas);
-		color: var(--text-primary);
-	}
-
-	/* Header */
-	.header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: 1.5rem 2rem;
-		max-width: 1000px;
-		width: 100%;
-		margin: 0 auto;
-	}
-
-	.logo {
-		font-family: 'Georgia', serif;
-		font-size: 1.25rem;
-		color: var(--text-primary);
-		text-decoration: none;
-	}
-
-	.nav-links {
-		display: flex;
-		gap: 1.5rem;
-		align-items: center;
-	}
-
-	.theme-toggle {
-		width: 32px;
-		height: 32px;
-		border: none;
-		border-radius: 4px;
-		background: var(--bg-control);
-		cursor: pointer;
-		color: var(--control-color);
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		transition: all 0.2s ease;
-		opacity: 0.4;
-	}
-
-	.theme-toggle:hover {
-		background: var(--bg-control-hover);
-		color: var(--control-color-hover);
-		opacity: 1;
-	}
-
-	/* Hero */
-	.hero {
-		max-width: 700px;
-		margin: 0 auto;
-		padding: 4rem 2rem 3rem;
-		text-align: center;
-	}
-
-	.hero h1 {
-		font-family: 'Georgia', serif;
-		font-size: 2.25rem;
-		font-weight: normal;
-		line-height: 1.3;
-		margin: 0 0 1rem 0;
-	}
-
-	.subtitle {
-		font-size: 1.1rem;
-		line-height: 1.6;
-		color: var(--text-muted);
-		margin: 0;
-	}
-
-	/* Canvas content */
-	.content {
-		flex: 1;
-		min-height: 70vh;
-	}
-
+	/* Canvas iframe */
 	.iframe-wrapper {
 		position: relative;
 		width: 100%;
@@ -261,21 +145,43 @@
 		border: none;
 	}
 
-	/* Contact */
-	.contact {
-		max-width: 500px;
-		margin: 0 auto;
-		padding: 4rem 2rem;
+	/* Page content (splash) */
+	.page-content {
+		width: 100%;
+		height: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: var(--bg-canvas);
+		position: relative;
+	}
+
+	.splash {
 		text-align: center;
+		max-width: 400px;
+		padding: 2rem;
 	}
 
-	.contact h2 {
+	.splash-logo {
 		font-family: 'Georgia', serif;
-		font-size: 1.5rem;
+		font-size: 2.5rem;
 		font-weight: normal;
-		margin: 0 0 1.5rem 0;
+		color: var(--text-primary);
+		margin: 0 0 0.75rem 0;
 	}
 
+	.splash-tagline {
+		font-size: 1.1rem;
+		color: var(--text-muted);
+		margin: 0 0 2.5rem 0;
+		line-height: 1.5;
+	}
+
+	.splash-signup {
+		width: 100%;
+	}
+
+	/* Contact form */
 	.contact-form {
 		display: flex;
 		flex-direction: column;
@@ -328,34 +234,45 @@
 		margin-top: 0.5rem;
 	}
 
-	/* Footer */
-	.footer {
-		padding: 2rem;
-		text-align: center;
-		color: var(--text-muted);
-		font-size: 0.9rem;
+	/* Theme toggle */
+	.theme-toggle {
+		position: fixed;
+		bottom: 24px;
+		right: 24px;
+		width: 32px;
+		height: 32px;
+		border: none;
+		border-radius: 4px;
+		background: var(--bg-control);
+		cursor: pointer;
+		color: var(--control-color);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: all 0.2s ease;
+		opacity: 0.4;
+		z-index: 100;
 	}
 
-	.footer a {
-		color: var(--text-muted);
-		text-decoration: none;
+	.theme-toggle:hover {
+		background: var(--bg-control-hover);
+		color: var(--control-color-hover);
+		opacity: 1;
 	}
 
-	.footer a:hover {
+	/* Fallback */
+	.fallback {
+		min-height: 100vh;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		background: var(--bg-canvas);
 		color: var(--text-primary);
+		padding: 2rem;
 	}
 
-	.footer-sep {
-		margin: 0 0.5rem;
-	}
-
-	@media (max-width: 600px) {
-		.hero h1 {
-			font-size: 1.75rem;
-		}
-
-		.hero {
-			padding: 2rem 1.5rem;
-		}
+	.fallback .splash-signup {
+		max-width: 400px;
 	}
 </style>

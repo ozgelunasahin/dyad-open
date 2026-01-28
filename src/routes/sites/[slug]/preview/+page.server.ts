@@ -6,7 +6,6 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		redirect(302, '/login');
 	}
 
-	// Load the site
 	const { data: site, error: siteError } = await locals.supabase
 		.from('sites')
 		.select('id, name, slug, is_published')
@@ -18,14 +17,13 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		error(404, 'Site not found');
 	}
 
-	// Load user's profile for username
 	const { data: profile } = await locals.supabase
 		.from('profiles')
 		.select('username')
 		.eq('id', locals.user.id)
 		.single();
 
-	// Load site's canvases with details
+	// Load canvases
 	const { data: siteCanvases } = await locals.supabase
 		.from('site_canvases')
 		.select(`
@@ -52,13 +50,48 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		};
 	});
 
-	// Get current canvas from URL or default to first
-	const canvasParam = url.searchParams.get('canvas');
-	const currentCanvas = canvasParam
-		? canvases.find((c) => c.slug === canvasParam)
-		: canvases[0];
+	// Load pages
+	const { data: sitePages } = await locals.supabase
+		.from('site_pages')
+		.select('id, page_type, title, config, position')
+		.eq('site_id', site.id)
+		.order('position', { ascending: true });
 
-	// Load full canvas data if we have a current canvas
+	// Build unified nav items
+	type NavSection = {
+		type: 'canvas' | 'page' | 'hero' | 'contact';
+		slug: string;
+		name: string;
+		position: number;
+		canvasId?: string;
+		config?: Record<string, unknown>;
+	};
+
+	const navItems: NavSection[] = [
+		...canvases.map((c) => ({
+			type: 'canvas' as const,
+			slug: c.slug,
+			name: c.name,
+			position: c.position,
+			canvasId: c.id
+		})),
+		...(sitePages ?? []).map((p) => ({
+			type: p.page_type as 'page' | 'hero' | 'contact',
+			slug: p.id,
+			name: p.title || p.page_type,
+			position: p.position,
+			config: p.config as Record<string, unknown>
+		}))
+	];
+	navItems.sort((a, b) => a.position - b.position);
+
+	// Resolve current section
+	const sectionParam = url.searchParams.get('section');
+	const currentNav = sectionParam
+		? navItems.find((s) => s.slug === sectionParam) ?? navItems[0]
+		: navItems[0];
+
+	// Load canvas data if current section is a canvas
 	let vault = null;
 	let cardPositions: Array<{
 		id: string;
@@ -72,8 +105,11 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		sourceLinkY: number | null;
 	}> = [];
 
+	const currentCanvas = currentNav?.type === 'canvas'
+		? canvases.find((c) => c.slug === currentNav.slug)
+		: null;
+
 	if (currentCanvas) {
-		// Load saved card positions
 		const { data: rawPositions } = await locals.supabase
 			.from('card_positions')
 			.select('id, note_id, x, y, width, height, parent_card_id, source_link_x, source_link_y')
@@ -91,13 +127,11 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 			sourceLinkY: pos.source_link_y ?? null
 		}));
 
-		// Load notes for this canvas
 		const { data: notes } = await locals.supabase
 			.from('notes')
 			.select('slug, title, content, wikilinks, canvas_id')
 			.eq('canvas_id', currentCanvas.id);
 
-		// Build vault object for the canvas store
 		vault = {
 			entryPoint: currentCanvas.entryPointNoteId || (notes?.[0]?.slug ?? ''),
 			notes: Object.fromEntries(
@@ -115,42 +149,20 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		};
 	}
 
-	// Load site pages (hero, contact, etc.)
-	const { data: sitePages } = await locals.supabase
-		.from('site_pages')
-		.select('id, page_type, title, config, position')
-		.eq('site_id', site.id)
-		.order('position', { ascending: true });
-
-	// Build unified sections list
-	type Section =
-		| { type: 'canvas'; slug: string; name: string; position: number }
-		| { type: 'hero' | 'contact'; id: string; title: string; config: Record<string, unknown>; position: number };
-
-	const sections: Section[] = [
-		...canvases.map((c) => ({
-			type: 'canvas' as const,
-			slug: c.slug,
-			name: c.name,
-			position: c.position
-		})),
-		...(sitePages ?? []).map((p) => ({
-			type: p.page_type as 'hero' | 'contact',
-			id: p.id,
-			title: p.title,
-			config: p.config as Record<string, unknown>,
-			position: p.position
-		}))
-	];
-	sections.sort((a, b) => a.position - b.position);
+	// Page data if current section is a page
+	let currentPage: { type: string; config: Record<string, unknown> } | null = null;
+	if (currentNav && currentNav.type !== 'canvas') {
+		currentPage = { type: currentNav.type, config: currentNav.config ?? {} };
+	}
 
 	return {
 		user: locals.user,
 		username: profile?.username ?? '',
 		site,
-		sections,
-		canvases,
+		navItems: navItems.map((n) => ({ type: n.type, slug: n.slug, name: n.name })),
+		currentSection: currentNav?.slug ?? null,
 		currentCanvas: currentCanvas ?? null,
+		currentPage,
 		vault,
 		cardPositions
 	};

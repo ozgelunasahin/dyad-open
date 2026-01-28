@@ -18,9 +18,6 @@
 
 	let currentCanvasId = $derived(data.currentCanvas?.id ?? null);
 
-	// Check if there are any canvas sections
-	let hasCanvasSections = $derived(data.sections.some((s) => s.type === 'canvas'));
-
 	$effect(() => {
 		const vault = data.vault;
 		const canvas = data.currentCanvas;
@@ -89,7 +86,7 @@
 	}
 
 	async function publish() {
-		if (data.sections.length === 0) {
+		if (data.navItems.length === 0) {
 			error = 'Add at least one section before publishing';
 			return;
 		}
@@ -139,65 +136,58 @@
 		<div class="error-banner">{error}</div>
 	{/if}
 
-	{#if data.sections.length === 0}
+	{#if data.navItems.length === 0}
 		<div class="empty-state">
 			<p>No sections in this site yet.</p>
 			<a href="/sites/{data.site.slug}/edit">Add sections in the editor</a>
 		</div>
 	{:else}
 		<div class="preview-content">
-			{#each data.sections as section}
-				{#if section.type === 'hero'}
-					<section class="hero-section">
-						<h1>{section.config?.heading || section.title || 'Heading'}</h1>
-						{#if section.config?.subtitle}
-							<p class="hero-subtitle">{section.config.subtitle}</p>
+			<WebsiteContainer
+				author={data.username}
+				navItems={data.navItems}
+				currentItem={data.currentSection ?? undefined}
+				baseUrl="/sites/{data.site.slug}/preview"
+			>
+				{#if data.currentCanvas && data.vault}
+					<div class="canvas-wrapper">
+						{#if loading || !ready}
+							<div class="canvas-loading" out:fade={{ duration: 300 }}></div>
 						{/if}
-					</section>
-				{:else if section.type === 'contact'}
-					<section class="contact-section">
-						<h2>{section.config?.heading || 'Stay in touch'}</h2>
-						{#if contactStatus === 'sent'}
-							<p class="contact-thanks">Thanks — we'll be in touch.</p>
-						{:else}
-							<form class="contact-form" onsubmit={handleContactSubmit}>
-								<input type="text" bind:value={contactName} placeholder="Name" class="contact-input" />
-								<input type="email" bind:value={contactEmail} placeholder="Email" required class="contact-input" />
-								<button type="submit" class="contact-btn" disabled={contactStatus === 'sending'}>
-									{contactStatus === 'sending' ? 'Sending...' : 'Submit'}
-								</button>
-							</form>
-							{#if contactStatus === 'error'}
-								<p class="contact-error">Something went wrong.</p>
-							{/if}
-						{/if}
-					</section>
-				{:else if section.type === 'canvas'}
-					<section class="canvas-section">
-						{#if hasCanvasSections && data.canvases.length > 0}
-							<WebsiteContainer
-								author={data.username}
-								canvases={data.canvases}
-								currentCanvas={data.currentCanvas?.slug}
-								baseUrl="/sites/{data.site.slug}/preview"
-							>
-								<div class="canvas-wrapper">
-									{#if loading || !ready}
-										<div class="canvas-loading" out:fade={{ duration: 300 }}></div>
-									{/if}
-									{#key currentCanvasId}
-										{#if ready}
-											<div class="canvas-content" in:fade={{ duration: 300, delay: 50 }}>
-												<Canvas readOnly={true} />
-											</div>
-										{/if}
-									{/key}
+						{#key currentCanvasId}
+							{#if ready}
+								<div class="canvas-content" in:fade={{ duration: 300, delay: 50 }}>
+									<Canvas readOnly={true} />
 								</div>
-							</WebsiteContainer>
-						{/if}
-					</section>
+							{/if}
+						{/key}
+					</div>
+				{:else if data.currentPage}
+					<div class="page-content">
+						<div class="splash">
+							<h1 class="splash-logo">dyad.berlin</h1>
+							<p class="splash-tagline">Social civic infrastructure for Berlin</p>
+
+							<div class="splash-signup">
+								{#if contactStatus === 'sent'}
+									<p class="contact-thanks">Thanks — we'll be in touch.</p>
+								{:else}
+									<form class="contact-form" onsubmit={handleContactSubmit}>
+										<input type="text" bind:value={contactName} placeholder="Name" class="contact-input" />
+										<input type="email" bind:value={contactEmail} placeholder="Email" required class="contact-input" />
+										<button type="submit" class="contact-btn" disabled={contactStatus === 'sending'}>
+											{contactStatus === 'sending' ? 'Sending...' : 'Stay in touch'}
+										</button>
+									</form>
+									{#if contactStatus === 'error'}
+										<p class="contact-error">Something went wrong.</p>
+									{/if}
+								{/if}
+							</div>
+						</div>
+					</div>
 				{/if}
-			{/each}
+			</WebsiteContainer>
 		</div>
 
 		<button class="theme-toggle" onclick={() => themeStore.toggle()} aria-label="Toggle theme">
@@ -300,42 +290,10 @@
 
 	.preview-content {
 		flex: 1;
-		overflow-y: auto;
-		display: flex;
-		flex-direction: column;
+		overflow: hidden;
 	}
 
-	/* Hero Section */
-	.hero-section {
-		max-width: 700px;
-		margin: 0 auto;
-		padding: 4rem 2rem 3rem;
-		text-align: center;
-		width: 100%;
-	}
-
-	.hero-section h1 {
-		font-family: 'Georgia', serif;
-		font-size: 2.25rem;
-		font-weight: normal;
-		line-height: 1.3;
-		margin: 0 0 1rem 0;
-		color: var(--text-primary);
-	}
-
-	.hero-subtitle {
-		font-size: 1.1rem;
-		line-height: 1.6;
-		color: var(--text-muted);
-		margin: 0;
-	}
-
-	/* Canvas Section */
-	.canvas-section {
-		flex: 1;
-		min-height: 70vh;
-	}
-
+	/* Canvas */
 	.canvas-wrapper {
 		position: relative;
 		width: 100%;
@@ -354,21 +312,39 @@
 		height: 100%;
 	}
 
-	/* Contact Section */
-	.contact-section {
-		max-width: 500px;
-		margin: 0 auto;
-		padding: 4rem 2rem;
-		text-align: center;
+	/* Page content (splash) */
+	.page-content {
 		width: 100%;
+		height: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: var(--bg-canvas);
 	}
 
-	.contact-section h2 {
+	.splash {
+		text-align: center;
+		max-width: 400px;
+		padding: 2rem;
+	}
+
+	.splash-logo {
 		font-family: 'Georgia', serif;
-		font-size: 1.5rem;
+		font-size: 2.5rem;
 		font-weight: normal;
-		margin: 0 0 1.5rem 0;
 		color: var(--text-primary);
+		margin: 0 0 0.75rem 0;
+	}
+
+	.splash-tagline {
+		font-size: 1.1rem;
+		color: var(--text-muted);
+		margin: 0 0 2.5rem 0;
+		line-height: 1.5;
+	}
+
+	.splash-signup {
+		width: 100%;
 	}
 
 	.contact-form {

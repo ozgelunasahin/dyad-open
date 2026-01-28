@@ -12,7 +12,7 @@
 	let error = $state<string | null>(null);
 	let lastSaved = $state<string | null>(null);
 	let selectedSectionId = $state<string | null>(null);
-	let selectedSectionType = $state<'canvas' | 'hero' | 'contact' | null>(null);
+	let selectedSectionType = $state<'canvas' | 'page' | 'hero' | 'contact' | null>(null);
 
 	// Build unified section list from canvases + pages
 	let sections = $derived.by(() => {
@@ -39,6 +39,7 @@
 
 	function defaultPageName(type: string): string {
 		switch (type) {
+			case 'page': return 'Page';
 			case 'hero': return 'Hero Section';
 			case 'contact': return 'Contact Form';
 			default: return type;
@@ -150,7 +151,7 @@
 		lastSaved = new Date().toLocaleTimeString();
 	}
 
-	async function handleAddSection(type: 'hero' | 'contact') {
+	async function handleAddSection(type: 'page' | 'hero' | 'contact') {
 		const s = sections;
 		const maxPos = s.length > 0 ? Math.max(...s.map((sec) => sec.position)) : 0;
 

@@ -21,7 +21,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	}
 
 	// Non-logged-in users see the landing page
-	// Load the designated site's canvases for navigation
 	const { data: profile } = await locals.supabase
 		.from('profiles')
 		.select('id, username')
@@ -29,7 +28,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		.single();
 
 	if (!profile) {
-		return { site: null, siteCanvases: [], currentCanvas: null, canvasUrl: null, author: null };
+		return { site: null, navItems: [], currentSection: null, canvasUrl: null, currentPage: null, author: null };
 	}
 
 	const { data: site } = await locals.supabase
@@ -41,16 +40,17 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		.single();
 
 	if (!site) {
-		return { site: null, sections: [], siteCanvases: [], currentCanvas: null, canvasUrl: null, author: null };
+		return { site: null, navItems: [], currentSection: null, canvasUrl: null, currentPage: null, author: null };
 	}
 
-	// Load site pages (hero, contact, etc.)
+	// Load site pages
 	const { data: sitePages } = await locals.supabase
 		.from('site_pages')
 		.select('id, page_type, title, config, position')
 		.eq('site_id', site.id)
 		.order('position', { ascending: true });
 
+	// Load site canvases
 	const { data: siteCanvases } = await locals.supabase
 		.from('site_canvases')
 		.select(`
@@ -59,45 +59,58 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			canvases!inner (
 				id,
 				name,
-				slug,
-				entry_point_note_id
+				slug
 			)
 		`)
 		.eq('site_id', site.id)
 		.order('position', { ascending: true });
 
-	const canvases = (siteCanvases ?? []).map((sc) => {
-		const c = sc.canvases as unknown as { name: string; slug: string };
-		return { name: c.name, slug: c.slug, position: sc.position };
-	});
+	// Build unified nav items sorted by position
+	type NavSection = {
+		type: 'canvas' | 'page' | 'hero' | 'contact';
+		slug: string;
+		name: string;
+		position: number;
+		config?: Record<string, unknown>;
+	};
 
-	// Support canvas switching via ?canvas= query param
-	const requestedCanvas = url.searchParams.get('canvas');
-	const currentCanvas = canvases.find((c) => c.slug === requestedCanvas) ?? canvases[0];
-
-	// Build unified section list sorted by position
-	type Section =
-		| { type: 'canvas'; slug: string; name: string; position: number }
-		| { type: 'hero' | 'contact'; id: string; title: string; config: Record<string, unknown>; position: number };
-
-	const sections: Section[] = [
-		...canvases.map((c) => ({ type: 'canvas' as const, slug: c.slug, name: c.name, position: c.position })),
+	const navItems: NavSection[] = [
+		...(siteCanvases ?? []).map((sc) => {
+			const c = sc.canvases as unknown as { name: string; slug: string };
+			return { type: 'canvas' as const, slug: c.slug, name: c.name, position: sc.position };
+		}),
 		...(sitePages ?? []).map((p) => ({
-			type: p.page_type as 'hero' | 'contact',
-			id: p.id,
-			title: p.title,
-			config: p.config as Record<string, unknown>,
-			position: p.position
+			type: p.page_type as 'page' | 'hero' | 'contact',
+			slug: p.id, // pages use their ID as slug for URL
+			name: p.title || p.page_type,
+			position: p.position,
+			config: p.config as Record<string, unknown>
 		}))
 	];
-	sections.sort((a, b) => a.position - b.position);
+	navItems.sort((a, b) => a.position - b.position);
+
+	// Resolve current section from ?section= param
+	const sectionParam = url.searchParams.get('section');
+	const currentSection = sectionParam
+		? navItems.find((s) => s.slug === sectionParam) ?? navItems[0]
+		: navItems[0];
+
+	// Build content data based on current section type
+	let canvasUrl: string | null = null;
+	let currentPage: { type: string; config: Record<string, unknown> } | null = null;
+
+	if (currentSection?.type === 'canvas') {
+		canvasUrl = `/@${LANDING_USERNAME}/${currentSection.slug}?readonly=true`;
+	} else if (currentSection) {
+		currentPage = { type: currentSection.type, config: currentSection.config ?? {} };
+	}
 
 	return {
 		site: { id: site.id, name: site.name, slug: site.slug },
-		sections,
-		siteCanvases: canvases,
-		currentCanvas: currentCanvas?.slug ?? null,
-		canvasUrl: currentCanvas ? `/@${LANDING_USERNAME}/${currentCanvas.slug}?readonly=true` : null,
+		navItems: navItems.map((n) => ({ type: n.type, slug: n.slug, name: n.name })),
+		currentSection: currentSection?.slug ?? null,
+		canvasUrl,
+		currentPage,
 		author: LANDING_USERNAME
 	};
 };
