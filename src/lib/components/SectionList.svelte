@@ -1,7 +1,7 @@
 <script lang="ts">
 	export interface SiteSection {
 		id: string;
-		type: 'canvas' | 'hero' | 'contact';
+		type: 'canvas' | 'page' | 'hero' | 'contact';
 		name: string;
 		slug?: string;
 		position: number;
@@ -14,7 +14,7 @@
 		sections: SiteSection[];
 		onReorder: (sections: SiteSection[]) => void;
 		onRemove: (section: SiteSection) => void;
-		onAdd: (type: 'hero' | 'contact') => void;
+		onAdd: (type: 'page' | 'hero' | 'contact') => void;
 		selectedId?: string | null;
 		onSelect?: (section: SiteSection) => void;
 	}
@@ -68,6 +68,7 @@
 	function getTypeLabel(type: string): string {
 		switch (type) {
 			case 'canvas': return 'Canvas';
+			case 'page': return 'Page';
 			case 'hero': return 'Hero';
 			case 'contact': return 'Contact Form';
 			default: return type;
@@ -77,6 +78,7 @@
 	function getTypeIcon(type: string): string {
 		switch (type) {
 			case 'canvas': return '◇';
+			case 'page': return '▪';
 			case 'hero': return '▲';
 			case 'contact': return '✉';
 			default: return '•';
@@ -93,6 +95,9 @@
 			</button>
 			{#if showAddMenu}
 				<div class="add-menu">
+					<button onclick={() => { onAdd('page'); showAddMenu = false; }}>
+						▪ Page
+					</button>
 					<button onclick={() => { onAdd('hero'); showAddMenu = false; }}>
 						▲ Hero Section
 					</button>

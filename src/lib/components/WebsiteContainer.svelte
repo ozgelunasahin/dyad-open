@@ -1,41 +1,52 @@
 <script lang="ts">
-	interface CanvasLink {
+	export interface NavItem {
 		name: string;
 		slug: string;
+		type?: 'canvas' | 'page' | 'hero' | 'contact';
 	}
 
 	interface Props {
 		/** Author username */
 		author: string;
-		/** List of canvases for navigation */
-		canvases?: CanvasLink[];
-		/** Current canvas slug (for highlighting in nav) */
+		/** Navigation items (canvases and pages) */
+		navItems?: NavItem[];
+		/** Current item slug (for highlighting in nav) */
+		currentItem?: string;
+		/** @deprecated Use navItems instead */
+		canvases?: NavItem[];
+		/** @deprecated Use currentItem instead */
 		currentCanvas?: string;
-		/** Child content (the canvas) */
+		/** Child content */
 		children: import('svelte').Snippet;
-		/** Optional base URL for navigation links (e.g., for preview mode) */
+		/** Optional base URL for navigation links */
 		baseUrl?: string;
-		/** Use ?canvas= query param instead of path segments */
+		/** Use ?section= query param instead of path segments */
 		useQueryParam?: boolean;
 	}
 
 	let {
 		author,
-		canvases = [],
+		navItems = [],
+		currentItem,
+		canvases,
 		currentCanvas,
 		children,
 		baseUrl,
 		useQueryParam = false
 	}: Props = $props();
 
-	function getCanvasUrl(canvasSlug: string): string {
+	// Backward compat: merge old canvases prop into navItems
+	let resolvedNavItems = $derived(navItems.length > 0 ? navItems : (canvases ?? []));
+	let resolvedCurrentItem = $derived(currentItem ?? currentCanvas);
+
+	function getItemUrl(slug: string): string {
 		if (baseUrl) {
 			if (useQueryParam || baseUrl.includes('/preview')) {
-				return `${baseUrl}?canvas=${canvasSlug}`;
+				return `${baseUrl}?section=${slug}`;
 			}
-			return `${baseUrl}/${canvasSlug}`;
+			return `${baseUrl}/${slug}`;
 		}
-		return `/sites/@${author}/${canvasSlug}`;
+		return `/sites/@${author}/${slug}`;
 	}
 
 	let navExpanded = $state(true);
@@ -46,7 +57,7 @@
 </script>
 
 <div class="website-container">
-	{#if canvases.length > 0}
+	{#if resolvedNavItems.length > 0}
 		<aside class="nav-panel" class:collapsed={!navExpanded}>
 			<button class="nav-toggle" onclick={toggleNav} aria-label={navExpanded ? 'Collapse navigation' : 'Expand navigation'}>
 				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -61,13 +72,13 @@
 			{#if navExpanded}
 				<nav class="canvas-nav">
 					<ul>
-						{#each canvases as canvas}
+						{#each resolvedNavItems as item}
 							<li>
 								<a
-									href={getCanvasUrl(canvas.slug)}
-									class:active={canvas.slug === currentCanvas}
+									href={getItemUrl(item.slug)}
+									class:active={item.slug === resolvedCurrentItem}
 								>
-									{canvas.name}
+									{item.name}
 								</a>
 							</li>
 						{/each}
