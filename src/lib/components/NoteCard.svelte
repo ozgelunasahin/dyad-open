@@ -5,6 +5,16 @@
 	import { sanitizeSlug } from '$lib/utils/slug';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import TiptapEditor from './TiptapEditor.svelte';
+	import SectionCard from './SectionCard.svelte';
+
+	// Detect section cards by ID prefix
+	function getSectionType(noteId: string): 'hero' | 'contact' | null {
+		if (!noteId.startsWith('__section:')) return null;
+		const parts = noteId.split(':');
+		if (parts[1] === 'hero') return 'hero';
+		if (parts[1] === 'contact') return 'contact';
+		return null;
+	}
 
 	interface LinkBounds {
 		left: number;
@@ -21,6 +31,9 @@
 	}
 
 	let { card, isActive, onLinkClick, onCardClick, readOnly = false }: Props = $props();
+
+	// Section card detection
+	let sectionType = $derived(getSectionType(card.note.id));
 
 	// Edit state
 	let isEditing = $derived(canvasStore.editingCardId === card.id);
@@ -340,6 +353,9 @@
 	});
 </script>
 
+{#if sectionType}
+	<SectionCard {card} {sectionType} />
+{:else}
 <foreignObject
 	data-note-id={card.id}
 	x={card.position.x}
@@ -388,6 +404,7 @@
 		{/if}
 	</div>
 </foreignObject>
+{/if}
 
 <style>
 	.text-block-container {

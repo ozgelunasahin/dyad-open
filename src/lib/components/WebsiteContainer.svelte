@@ -2,7 +2,7 @@
 	export interface NavItem {
 		name: string;
 		slug: string;
-		type?: 'canvas' | 'page' | 'hero' | 'contact';
+		type?: 'canvas' | 'hero' | 'contact';
 	}
 
 	interface Props {
@@ -22,6 +22,8 @@
 		baseUrl?: string;
 		/** Use ?section= query param instead of path segments */
 		useQueryParam?: boolean;
+		/** Callback for in-page navigation (overrides URL navigation) */
+		onNavigate?: (slug: string) => void;
 	}
 
 	let {
@@ -32,7 +34,8 @@
 		currentCanvas,
 		children,
 		baseUrl,
-		useQueryParam = false
+		useQueryParam = false,
+		onNavigate
 	}: Props = $props();
 
 	// Backward compat: merge old canvases prop into navItems
@@ -77,6 +80,7 @@
 								<a
 									href={getItemUrl(item.slug)}
 									class:active={item.slug === resolvedCurrentItem}
+									onclick={(e: MouseEvent) => { if (onNavigate) { e.preventDefault(); onNavigate(item.slug); } }}
 								>
 									{item.name}
 								</a>
