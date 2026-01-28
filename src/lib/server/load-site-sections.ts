@@ -201,26 +201,68 @@ export async function buildLandingCanvasData(
 				};
 			}
 
-			// Place the entry-point card as a saved position
-			const entryNoteId = canvasData.vault.entryPoint;
-			const prefixedEntryId = `${prefix}/${entryNoteId}`;
-			const entryNote = canvasData.vault.notes[entryNoteId];
+			// Include all saved card positions from the editor, offset by currentY
+			if (canvasData.cardPositions.length > 0) {
+				let minY = Infinity, maxY = -Infinity;
 
-			if (entryNote) {
-				const entryHeight = Math.max(100, estimateContentHeight(entryNote.content, CARD_WIDTH));
-				savedPositions.push({
-					id: prefixedEntryId,
-					noteId: prefixedEntryId,
-					x: 0,
-					y: currentY,
-					width: CARD_WIDTH,
-					height: entryHeight,
-					parentCardId: null,
-					sourceLinkX: null,
-					sourceLinkY: null
-				});
+				// parentCardId in DB is "canvasId-noteSlug" — strip the canvasId prefix
+				const dbPrefix = `${canvasData.canvasId}-`;
+				const stripDbPrefix = (id: string) =>
+					id.startsWith(dbPrefix) ? id.substring(dbPrefix.length) : id;
+
+				for (const pos of canvasData.cardPositions) {
+					const prefixedNoteId = `${prefix}/${pos.noteId}`;
+					if (!mergedNotes[prefixedNoteId]) continue;
+
+					const prefixedParent = pos.parentCardId
+						? `${prefix}/${stripDbPrefix(pos.parentCardId)}`
+						: null;
+
+					savedPositions.push({
+						id: prefixedNoteId,
+						noteId: prefixedNoteId,
+						x: pos.x,
+						y: pos.y + currentY,
+						width: pos.width,
+						height: pos.height,
+						parentCardId: prefixedParent,
+						sourceLinkX: pos.sourceLinkX,
+						sourceLinkY: pos.sourceLinkY !== null ? pos.sourceLinkY + currentY : null
+					});
+
+					minY = Math.min(minY, pos.y);
+					maxY = Math.max(maxY, pos.y + pos.height);
+				}
+
+				// Track entry point for sidebar nav
+				const entryNoteId = canvasData.vault.entryPoint;
+				const prefixedEntryId = `${prefix}/${entryNoteId}`;
 				entryPointMap[canvasData.slug] = prefixedEntryId;
-				currentY += entryHeight + VERTICAL_GAP;
+
+				const sectionHeight = minY === Infinity ? 200 : (maxY - minY);
+				currentY += sectionHeight + VERTICAL_GAP;
+			} else {
+				// No saved positions — place just the entry-point card
+				const entryNoteId = canvasData.vault.entryPoint;
+				const prefixedEntryId = `${prefix}/${entryNoteId}`;
+				const entryNote = canvasData.vault.notes[entryNoteId];
+
+				if (entryNote) {
+					const entryHeight = Math.max(100, estimateContentHeight(entryNote.content, CARD_WIDTH));
+					savedPositions.push({
+						id: prefixedEntryId,
+						noteId: prefixedEntryId,
+						x: 0,
+						y: currentY,
+						width: CARD_WIDTH,
+						height: entryHeight,
+						parentCardId: null,
+						sourceLinkX: null,
+						sourceLinkY: null
+					});
+					entryPointMap[canvasData.slug] = prefixedEntryId;
+					currentY += entryHeight + VERTICAL_GAP;
+				}
 			}
 		} else {
 			// HTML section (hero, contact, etc.) — wide block, arbitrary content

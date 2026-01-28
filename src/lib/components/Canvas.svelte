@@ -118,7 +118,17 @@
 
 			let newY = transform.y - event.deltaY;
 
-			if (focusedCard) {
+			if (readOnly) {
+				// Clamp to full content bounds
+				const bounds = canvasStore.getBoundingBox();
+				if (bounds) {
+					const viewportHeight = svg.clientHeight;
+					const padding = viewportHeight * 0.5;
+					const maxY = padding - bounds.minY * transform.k;
+					const minY = viewportHeight - padding - bounds.maxY * transform.k;
+					newY = Math.max(minY, Math.min(maxY, newY));
+				}
+			} else if (focusedCard) {
 				// Calculate vertical bounds based on focused card
 				const viewportHeight = svg.clientHeight;
 				const cardTop = focusedCard.position.y;
@@ -611,7 +621,17 @@
 
 				let newY = transform.y + dy;
 
-				if (focusedCard) {
+				if (readOnly) {
+					// Clamp to full content bounds
+					const bounds = canvasStore.getBoundingBox();
+					if (bounds) {
+						const viewportHeight = svg.clientHeight;
+						const padding = 100;
+						const maxY = padding - bounds.minY * transform.k;
+						const minY = viewportHeight - padding - bounds.maxY * transform.k;
+						newY = Math.max(minY, Math.min(maxY, newY));
+					}
+				} else if (focusedCard) {
 					// Calculate vertical bounds based on focused card
 					const viewportHeight = svg.clientHeight;
 					const cardTop = focusedCard.position.y;
