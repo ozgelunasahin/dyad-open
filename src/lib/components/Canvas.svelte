@@ -97,6 +97,11 @@
 				if (svg) {
 					canvasStore.clearSavedStateIfNotInReadingZone(svg.clientWidth, svg.clientHeight, 100);
 				}
+
+				// In readOnly mode, auto-focus cards as they scroll into the reading zone
+				if (readOnly) {
+					canvasStore.updateScrollFocus();
+				}
 			});
 
 		const selection = select(svg);

@@ -206,7 +206,8 @@ class CanvasStore {
 		// localStorage is written synchronously during saves, so it's always up-to-date
 		// Server-provided positions may be stale due to sendBeacon race conditions
 		const persisted = loadPersistedState(this.currentCanvasId);
-		if (persisted?.cameraState) {
+		const isSiteLanding = this.currentCanvasId === 'site-landing';
+		if (persisted?.cameraState && !isSiteLanding) {
 			this.camera = persisted.cameraState;
 		}
 
@@ -239,12 +240,19 @@ class CanvasStore {
 				);
 				this.activeChain = (persisted.activeChain || []).filter((id) => validCardIds.has(id));
 
-				// Restore focused card (use persisted value, fallback to last in chain, then first card)
-				const focusedId = persisted.focusedCardId && validCardIds.has(persisted.focusedCardId)
-					? persisted.focusedCardId
-					: this.activeChain[this.activeChain.length - 1] || Array.from(restoredCards.keys())[0];
+				// For site-landing (readOnly), always start at first section (vault entry point)
+				// For regular canvases, restore persisted focus
+				const focusedId = isSiteLanding
+					? (vault.entryPoint && validCardIds.has(vault.entryPoint) ? vault.entryPoint : this.activeChain[0])
+					: (persisted.focusedCardId && validCardIds.has(persisted.focusedCardId)
+						? persisted.focusedCardId
+						: this.activeChain[this.activeChain.length - 1] || Array.from(restoredCards.keys())[0]);
 				if (focusedId) {
-					this.focusCardWithoutAnimation(focusedId);
+					if (isSiteLanding) {
+						this.focusCard(focusedId, true);
+					} else {
+						this.focusCardWithoutAnimation(focusedId);
+					}
 				}
 
 				// Trigger path computation after Canvas component mounts
@@ -310,7 +318,7 @@ class CanvasStore {
 					? vault.entryPoint
 					: this.activeChain[0];
 				if (entryId) {
-					this.focusCard(entryId);
+					this.focusCard(entryId, true);
 				}
 
 				// Trigger path computation after Canvas component mounts
@@ -784,7 +792,7 @@ class CanvasStore {
 					}
 				}));
 			} else {
-				// New card - animate to reading position
+				// New card - animate to reading position (card top near viewport top)
 				window.dispatchEvent(new CustomEvent('canvas-focus', {
 					detail: {
 						x: card.position.x + card.dimensions.width / 2,
@@ -1098,6 +1106,67 @@ class CanvasStore {
 		this.savedCardState = newMap;
 
 		// Debug logging removed - generates too much noise during panning
+	}
+
+	/**
+	 * In readOnly mode, auto-focus the card whose vertical extent overlaps
+	 * the viewport's upper third. This makes focus feel eager — cards gain
+	 * focus as soon as they scroll into the primary reading area.
+	 */
+	updateScrollFocus(): void {
+		if (this.isAnimating) return;
+		if (this.viewportHeight === 0) return;
+
+		// Use the upper third of viewport as the "reading zone" for focus detection
+		const zoom = this.camera.zoom;
+		const readingY = (this.viewportHeight * 0.35 - this.camera.y) / zoom;
+
+		let bestId: string | null = null;
+		let bestDist = Infinity;
+
+		for (const [id, card] of this.cards) {
+			const cardTop = card.position.y;
+			const cardBottom = card.position.y + card.dimensions.height;
+
+			// Card must overlap the reading zone line
+			if (cardTop <= readingY && cardBottom >= readingY) {
+				// Prefer the card whose top is closest to the reading line (most recently scrolled into)
+				const dist = readingY - cardTop;
+				if (dist < bestDist) {
+					bestDist = dist;
+					bestId = id;
+				}
+			}
+		}
+
+		// Fallback: closest card center to reading line
+		if (!bestId) {
+			for (const [id, card] of this.cards) {
+				const cardCenter = card.position.y + card.dimensions.height / 2;
+				const dist = Math.abs(cardCenter - readingY);
+				if (dist < bestDist) {
+					bestDist = dist;
+					bestId = id;
+				}
+			}
+		}
+
+		if (bestId && bestId !== this.focusedCardId) {
+			this.focusedCardId = bestId;
+
+			// Build parent chain from this card to its root
+			const chain: string[] = [];
+			let current: string | null = bestId;
+			const visited = new Set<string>();
+			while (current && !visited.has(current)) {
+				visited.add(current);
+				chain.unshift(current);
+				const c = this.cards.get(current);
+				current = c?.parentId ?? null;
+			}
+			this.activeChain = chain;
+			this.persistState();
+		}
 	}
 
 	// Get saved card state for restoration
