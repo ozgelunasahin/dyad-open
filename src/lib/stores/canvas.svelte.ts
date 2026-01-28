@@ -192,8 +192,13 @@ class CanvasStore {
 		// Pre-compute dimensions for all notes (O(1) lookup during navigation)
 		const newDimensionCache = new Map<string, Dimensions>();
 		for (const [noteId, note] of Object.entries(vault.notes)) {
-			const height = estimateContentHeight(note.content, CARD_WIDTH);
-			newDimensionCache.set(noteId, { width: CARD_WIDTH, height: Math.max(100, height) });
+			if (noteId.startsWith('__section:')) {
+				// Section cards use wider dimensions
+				newDimensionCache.set(noteId, { width: 600, height: 300 });
+			} else {
+				const height = estimateContentHeight(note.content, CARD_WIDTH);
+				newDimensionCache.set(noteId, { width: CARD_WIDTH, height: Math.max(100, height) });
+			}
 		}
 		this.dimensionCache = newDimensionCache;
 
@@ -272,7 +277,7 @@ class CanvasStore {
 						id: pos.noteId,
 						note,
 						position: { x: pos.x, y: pos.y },
-						dimensions: { width: CARD_WIDTH, height: pos.height },
+						dimensions: { width: pos.width || CARD_WIDTH, height: pos.height },
 						parentId: extractNoteId(pos.parentCardId),
 						sourceLink: pos.sourceLinkX !== null && pos.sourceLinkY !== null
 							? { x: pos.sourceLinkX, y: pos.sourceLinkY }
@@ -344,6 +349,9 @@ class CanvasStore {
 	private hasPendingPersist = false;
 
 	private schedulePersist(): void {
+		// Don't persist read-only landing page state
+		if (!this.currentCanvasId || this.currentCanvasId.startsWith('site-')) return;
+
 		this.hasPendingPersist = true;
 		if (this.persistDebounceTimer) {
 			clearTimeout(this.persistDebounceTimer);
@@ -1814,6 +1822,9 @@ class CanvasStore {
 	}
 
 	private persistState(): void {
+		// Don't persist read-only landing page state to localStorage
+		if (!this.currentCanvasId || this.currentCanvasId.startsWith('site-')) return;
+
 		const lastNote = this.activeChain[this.activeChain.length - 1];
 
 		// Serialize cards (without note content, just references)

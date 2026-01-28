@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { fade } from 'svelte/transition';
 	import WebsiteContainer from '$lib/components/WebsiteContainer.svelte';
 	import Canvas from '$lib/components/Canvas.svelte';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
@@ -10,83 +9,26 @@
 	let { data }: { data: PageData } = $props();
 
 	let error = $state<string | null>(null);
-	let loading = $state(true);
-	let ready = $state(false);
-	let contactStatus = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
-	let contactEmail = $state('');
-	let contactName = $state('');
+	let currentSection = $state<string | undefined>(undefined);
 
-	let currentCanvasId = $derived(data.currentCanvas?.id ?? null);
-
-	$effect(() => {
-		const vault = data.vault;
-		const canvas = data.currentCanvas;
-		const positions = data.cardPositions;
-
-		if (!canvas || !vault) {
-			loading = false;
-			return;
-		}
-
-		loading = true;
-		ready = false;
-
-		canvasStore.flushPendingPersist();
-
-		Promise.resolve().then(async () => {
-			try {
-				await canvasStore.initialize(vault, canvas.id, positions);
-				loading = false;
-				requestAnimationFrame(() => {
-					ready = true;
-				});
-			} catch (e) {
-				error = e instanceof Error ? e.message : 'Unknown error';
-				loading = false;
-			}
-		});
-	});
-
+	// Initialize once on mount — NOT in $effect (initialize writes reactive state, causing loops)
 	onMount(() => {
-		return () => {
-			canvasStore.flushPendingPersist();
-		};
+		if (data.vault) {
+			canvasStore.initialize(data.vault, 'site-landing', data.savedPositions);
+		}
 	});
 
-	function handleKeydown(event: KeyboardEvent) {
-		if (event.altKey && event.key === 'ArrowLeft') {
-			event.preventDefault();
-			canvasStore.goBack();
-		}
-		if (event.altKey && event.key === 'ArrowRight') {
-			event.preventDefault();
-			canvasStore.goForward();
-		}
-	}
-
-	async function handleContactSubmit(event: SubmitEvent) {
-		event.preventDefault();
-		contactStatus = 'sending';
-		try {
-			const res = await fetch('/api/contact', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ email: contactEmail, name: contactName })
-			});
-			if (res.ok) {
-				contactStatus = 'sent';
-				contactEmail = '';
-				contactName = '';
-			} else {
-				contactStatus = 'error';
-			}
-		} catch {
-			contactStatus = 'error';
+	function handleNavigate(slug: string) {
+		const map = data.entryPointMap as Record<string, string> | undefined;
+		const cardId = map?.[slug];
+		if (cardId) {
+			canvasStore.focusCard(cardId, true);
+			currentSection = slug;
 		}
 	}
 
 	async function publish() {
-		if (data.navItems.length === 0) {
+		if (!data.vault || Object.keys(data.vault.notes).length === 0) {
 			error = 'Add at least one section before publishing';
 			return;
 		}
@@ -115,8 +57,6 @@
 	<title>Preview: {data.site.name} - dyad.berlin</title>
 </svelte:head>
 
-<svelte:window onkeydown={handleKeydown} />
-
 <div class="preview-page">
 	<div class="preview-banner">
 		<span class="preview-label">Preview Mode</span>
@@ -136,7 +76,7 @@
 		<div class="error-banner">{error}</div>
 	{/if}
 
-	{#if data.navItems.length === 0}
+	{#if !data.vault || Object.keys(data.vault.notes).length === 0}
 		<div class="empty-state">
 			<p>No sections in this site yet.</p>
 			<a href="/sites/{data.site.slug}/edit">Add sections in the editor</a>
@@ -146,63 +86,26 @@
 			<WebsiteContainer
 				author={data.username}
 				navItems={data.navItems}
-				currentItem={data.currentSection ?? undefined}
-				baseUrl="/sites/{data.site.slug}/preview"
+				currentItem={currentSection}
+				onNavigate={handleNavigate}
 			>
-				{#if data.currentCanvas && data.vault}
-					<div class="canvas-wrapper">
-						{#if loading || !ready}
-							<div class="canvas-loading" out:fade={{ duration: 300 }}></div>
-						{/if}
-						{#key currentCanvasId}
-							{#if ready}
-								<div class="canvas-content" in:fade={{ duration: 300, delay: 50 }}>
-									<Canvas readOnly={true} />
-								</div>
-							{/if}
-						{/key}
-					</div>
-				{:else if data.currentPage}
-					<div class="page-content">
-						<div class="splash">
-							<h1 class="splash-logo">dyad.berlin</h1>
-							<p class="splash-tagline">Social civic infrastructure for Berlin</p>
-
-							<div class="splash-signup">
-								{#if contactStatus === 'sent'}
-									<p class="contact-thanks">Thanks — we'll be in touch.</p>
-								{:else}
-									<form class="contact-form" onsubmit={handleContactSubmit}>
-										<input type="text" bind:value={contactName} placeholder="Name" class="contact-input" />
-										<input type="email" bind:value={contactEmail} placeholder="Email" required class="contact-input" />
-										<button type="submit" class="contact-btn" disabled={contactStatus === 'sending'}>
-											{contactStatus === 'sending' ? 'Sending...' : 'Stay in touch'}
-										</button>
-									</form>
-									{#if contactStatus === 'error'}
-										<p class="contact-error">Something went wrong.</p>
-									{/if}
-								{/if}
-							</div>
-						</div>
-					</div>
-				{/if}
+				<Canvas readOnly />
 			</WebsiteContainer>
 		</div>
-
-		<button class="theme-toggle" onclick={() => themeStore.toggle()} aria-label="Toggle theme">
-			{#if themeStore.current === 'light'}
-				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-					<circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5" />
-					<path d="M8 1V2.5M8 13.5V15M1 8H2.5M13.5 8H15M3.05 3.05L4.11 4.11M11.89 11.89L12.95 12.95M3.05 12.95L4.11 11.89M11.89 4.11L12.95 3.05" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-				</svg>
-			{:else}
-				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-					<path d="M14 8.5A6 6 0 117.5 2a4.5 4.5 0 006.5 6.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-				</svg>
-			{/if}
-		</button>
 	{/if}
+
+	<button class="theme-toggle" onclick={() => themeStore.toggle()} aria-label="Toggle theme">
+		{#if themeStore.current === 'light'}
+			<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+				<circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5" />
+				<path d="M8 1V2.5M8 13.5V15M1 8H2.5M13.5 8H15M3.05 3.05L4.11 4.11M11.89 11.89L12.95 12.95M3.05 12.95L4.11 11.89M11.89 4.11L12.95 3.05" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+			</svg>
+		{:else}
+			<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+				<path d="M14 8.5A6 6 0 117.5 2a4.5 4.5 0 006.5 6.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+			</svg>
+		{/if}
+	</button>
 </div>
 
 <style>
@@ -293,107 +196,6 @@
 		overflow: hidden;
 	}
 
-	/* Canvas */
-	.canvas-wrapper {
-		position: relative;
-		width: 100%;
-		height: 100%;
-	}
-
-	.canvas-loading {
-		position: absolute;
-		inset: 0;
-		background: var(--bg-canvas, #faf9f6);
-		z-index: 1;
-	}
-
-	.canvas-content {
-		width: 100%;
-		height: 100%;
-	}
-
-	/* Page content (splash) */
-	.page-content {
-		width: 100%;
-		height: 100%;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: var(--bg-canvas);
-	}
-
-	.splash {
-		text-align: center;
-		max-width: 400px;
-		padding: 2rem;
-	}
-
-	.splash-logo {
-		font-family: 'Georgia', serif;
-		font-size: 2.5rem;
-		font-weight: normal;
-		color: var(--text-primary);
-		margin: 0 0 0.75rem 0;
-	}
-
-	.splash-tagline {
-		font-size: 1.1rem;
-		color: var(--text-muted);
-		margin: 0 0 2.5rem 0;
-		line-height: 1.5;
-	}
-
-	.splash-signup {
-		width: 100%;
-	}
-
-	.contact-form {
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
-	}
-
-	.contact-input {
-		padding: 0.75rem 1rem;
-		border: 1px solid var(--border-link);
-		border-radius: 4px;
-		background: var(--bg-canvas);
-		color: var(--text-primary);
-		font-size: 1rem;
-		font-family: inherit;
-	}
-
-	.contact-input:focus {
-		outline: none;
-		border-color: var(--text-link);
-	}
-
-	.contact-btn {
-		padding: 0.75rem 1.5rem;
-		background: var(--text-primary);
-		color: var(--bg-canvas);
-		border: none;
-		border-radius: 4px;
-		font-size: 1rem;
-		cursor: pointer;
-	}
-
-	.contact-btn:disabled {
-		opacity: 0.5;
-	}
-
-	.contact-thanks {
-		color: var(--text-muted);
-		font-style: italic;
-	}
-
-	.contact-error {
-		color: #dc2626;
-		font-size: 0.9rem;
-		margin-top: 0.5rem;
-	}
-
-	/* Theme toggle */
 	.theme-toggle {
 		position: fixed;
 		bottom: 24px;

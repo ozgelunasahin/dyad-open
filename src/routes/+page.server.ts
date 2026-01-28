@@ -1,11 +1,11 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { buildLandingCanvasData } from '$lib/server/load-site-sections';
 
-// Landing page site configuration
 const LANDING_USERNAME = 'digit';
 const LANDING_SITE_SLUG = 'dyad';
 
-export const load: PageServerLoad = async ({ locals, url }) => {
+export const load: PageServerLoad = async ({ locals, setHeaders }) => {
 	// Logged-in users go to their canvas/dashboard
 	if (locals.user) {
 		const { data: canvases } = await locals.supabase
@@ -28,7 +28,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		.single();
 
 	if (!profile) {
-		return { site: null, navItems: [], currentSection: null, canvasUrl: null, currentPage: null, author: null };
+		return { site: null, navItems: [], vault: null, savedPositions: [], entryPointMap: {}, author: null };
 	}
 
 	const { data: site } = await locals.supabase
@@ -40,77 +40,22 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		.single();
 
 	if (!site) {
-		return { site: null, navItems: [], currentSection: null, canvasUrl: null, currentPage: null, author: null };
+		return { site: null, navItems: [], vault: null, savedPositions: [], entryPointMap: {}, author: null };
 	}
 
-	// Load site pages
-	const { data: sitePages } = await locals.supabase
-		.from('site_pages')
-		.select('id, page_type, title, config, position')
-		.eq('site_id', site.id)
-		.order('position', { ascending: true });
+	const { vault, savedPositions, navItems, entryPointMap } = await buildLandingCanvasData(locals.supabase, site.id);
 
-	// Load site canvases
-	const { data: siteCanvases } = await locals.supabase
-		.from('site_canvases')
-		.select(`
-			canvas_id,
-			position,
-			canvases!inner (
-				id,
-				name,
-				slug
-			)
-		`)
-		.eq('site_id', site.id)
-		.order('position', { ascending: true });
-
-	// Build unified nav items sorted by position
-	type NavSection = {
-		type: 'canvas' | 'page' | 'hero' | 'contact';
-		slug: string;
-		name: string;
-		position: number;
-		config?: Record<string, unknown>;
-	};
-
-	const navItems: NavSection[] = [
-		...(siteCanvases ?? []).map((sc) => {
-			const c = sc.canvases as unknown as { name: string; slug: string };
-			return { type: 'canvas' as const, slug: c.slug, name: c.name, position: sc.position };
-		}),
-		...(sitePages ?? []).map((p) => ({
-			type: p.page_type as 'page' | 'hero' | 'contact',
-			slug: p.id, // pages use their ID as slug for URL
-			name: p.title || p.page_type,
-			position: p.position,
-			config: p.config as Record<string, unknown>
-		}))
-	];
-	navItems.sort((a, b) => a.position - b.position);
-
-	// Resolve current section from ?section= param
-	const sectionParam = url.searchParams.get('section');
-	const currentSection = sectionParam
-		? navItems.find((s) => s.slug === sectionParam) ?? navItems[0]
-		: navItems[0];
-
-	// Build content data based on current section type
-	let canvasUrl: string | null = null;
-	let currentPage: { type: string; config: Record<string, unknown> } | null = null;
-
-	if (currentSection?.type === 'canvas') {
-		canvasUrl = `/@${LANDING_USERNAME}/${currentSection.slug}?readonly=true`;
-	} else if (currentSection) {
-		currentPage = { type: currentSection.type, config: currentSection.config ?? {} };
-	}
+	// Cache for anonymous users — identical for everyone
+	setHeaders({
+		'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300'
+	});
 
 	return {
 		site: { id: site.id, name: site.name, slug: site.slug },
-		navItems: navItems.map((n) => ({ type: n.type, slug: n.slug, name: n.name })),
-		currentSection: currentSection?.slug ?? null,
-		canvasUrl,
-		currentPage,
+		navItems,
+		vault,
+		savedPositions,
+		entryPointMap,
 		author: LANDING_USERNAME
 	};
 };
