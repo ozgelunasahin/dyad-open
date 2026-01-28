@@ -845,12 +845,27 @@ class CanvasStore {
 			return;
 		}
 
-		// Card not open — find a wikilink path and dispatch event for Canvas to open it
+		// Card not open — find a wikilink path from any open root card
 		if (!this.vault) return;
-		const entryPoint = this.vault.entryPoint;
-		if (!entryPoint) return;
 
-		const path = this.findWikilinkPath(entryPoint, cardId);
+		// Try BFS from each open root card (no parentId) — the vault entry point
+		// may be a hero/contact section with no wikilinks to canvas notes
+		let path: string[] | null = null;
+		for (const [id, card] of this.cards) {
+			if (!card.parentId) {
+				path = this.findWikilinkPath(id, cardId);
+				if (path && path.length > 0) break;
+			}
+		}
+
+		// Fallback: try from vault entry point
+		if (!path || path.length === 0) {
+			const entryPoint = this.vault.entryPoint;
+			if (entryPoint) {
+				path = this.findWikilinkPath(entryPoint, cardId);
+			}
+		}
+
 		if (!path || path.length === 0) return;
 
 		// Dispatch event for Canvas.svelte to open the chain using real DOM positions
