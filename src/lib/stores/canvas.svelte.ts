@@ -1207,10 +1207,14 @@ class CanvasStore {
 	navigateLeftInChain(keepOpen: boolean = false): boolean {
 		if (!this.focusedCardId) return false;
 
+		// Only navigate to the parent card (actual link chain), not arbitrary chain neighbors
+		const currentCard = this.cards.get(this.focusedCardId);
+		if (!currentCard?.parentId) return false;
+
 		const currentIndex = this.activeChain.indexOf(this.focusedCardId);
 		if (currentIndex <= 0) return false;
 
-		const targetCardId = this.activeChain[currentIndex - 1];
+		const targetCardId = currentCard.parentId;
 
 		// Default behavior: close the current card AND all downstream cards
 		if (!keepOpen) {
@@ -1244,16 +1248,18 @@ class CanvasStore {
 		return true;
 	}
 
-	// Chain navigation: move right in chain
+	// Chain navigation: move right in chain (only to a child card)
 	navigateRightInChain(): boolean {
 		if (!this.focusedCardId) return false;
 
-		const currentIndex = this.activeChain.indexOf(this.focusedCardId);
-		if (currentIndex < 0 || currentIndex >= this.activeChain.length - 1) {
-			return false;
-		}
+		// Find a child of the focused card in the active chain
+		const children = this.getChildCards(this.focusedCardId);
+		if (children.length === 0) return false;
 
-		const targetCardId = this.activeChain[currentIndex + 1];
+		// Pick the first child that's in the active chain
+		const targetCardId = children.find(c => this.activeChain.includes(c.id))?.id;
+		if (!targetCardId) return false;
+
 		this.focusCard(targetCardId);
 		return true;
 	}
@@ -1535,6 +1541,12 @@ class CanvasStore {
 
 		// Don't allow unopening the entry point
 		if (this.vault && cardId === this.vault.entryPoint) return false;
+
+		// In landing canvas, don't allow closing orphan (root) cards
+		if (this.currentCanvasId?.startsWith('site-')) {
+			const card = this.cards.get(cardId);
+			if (card && !card.parentId) return false;
+		}
 
 		// Collect all descendants (breadth-first) to save as hidden chain
 		const descendants: string[] = [];
