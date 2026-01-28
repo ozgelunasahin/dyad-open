@@ -723,6 +723,37 @@
 		};
 		window.addEventListener('card-content-reflow', handleContentReflow);
 
+		// Listen for chain-open requests (from navigateToCard for unopened cards)
+		const handleOpenChain = (event: Event) => {
+			const { path, target } = (event as CustomEvent<{ path: string[]; target: string }>).detail;
+
+			// Open each step in the path by finding the real wikilink DOM element
+			for (let i = 1; i < path.length; i++) {
+				const noteId = path[i];
+				const parentId = path[i - 1];
+				if (canvasStore.cards.has(noteId)) continue;
+
+				// Find the wikilink element in the parent card's foreignObject
+				const parentFO = svg.querySelector(`foreignObject[data-note-id="${parentId}"]`);
+				const wikilinkEl = parentFO?.querySelector(`.wikilink[data-target="${noteId}"]`) as HTMLElement | null;
+
+				if (wikilinkEl) {
+					const rect = wikilinkEl.getBoundingClientRect();
+					handleLinkClick(noteId, parentId, {
+						left: rect.left,
+						right: rect.right,
+						bottom: rect.bottom
+					});
+				}
+			}
+
+			// Focus the target after all cards are opened
+			if (canvasStore.cards.has(target)) {
+				canvasStore.focusCard(target, true);
+			}
+		};
+		window.addEventListener('canvas-open-chain', handleOpenChain);
+
 		// Listen for compute-paths requests (for programmatic card creation)
 		const handleComputePaths = () => {
 			computeMissingPaths();
@@ -763,6 +794,7 @@
 			window.removeEventListener('canvas-restore', handleRestorePosition);
 			window.removeEventListener('canvas-minimal-pan', handleMinimalPan);
 			window.removeEventListener('canvas-zoom-to-fit', handleZoomToFit);
+			window.removeEventListener('canvas-open-chain', handleOpenChain);
 			window.removeEventListener('canvas-compute-paths', handleComputePaths);
 			window.removeEventListener('canvas-connection-removed', handleConnectionRemoved);
 			window.removeEventListener('card-content-reflow', handleContentReflow);

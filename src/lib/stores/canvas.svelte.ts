@@ -845,7 +845,7 @@ class CanvasStore {
 			return;
 		}
 
-		// Card not open — find a wikilink path from entry point to target and open it
+		// Card not open — find a wikilink path and dispatch event for Canvas to open it
 		if (!this.vault) return;
 		const entryPoint = this.vault.entryPoint;
 		if (!entryPoint) return;
@@ -853,30 +853,11 @@ class CanvasStore {
 		const path = this.findWikilinkPath(entryPoint, cardId);
 		if (!path || path.length === 0) return;
 
-		// Open each note along the path using followLinkToRight for proper positioning
-		for (let i = 0; i < path.length; i++) {
-			const noteId = path[i];
-			const parentId = i > 0 ? path[i - 1] : null;
-			if (!this.cards.has(noteId) && parentId) {
-				const parentCard = this.cards.get(parentId);
-				if (parentCard) {
-					// Synthesize source bounds from the bottom-center of the parent card
-					const cx = parentCard.position.x + (parentCard.dimensions?.width ?? CARD_WIDTH) / 2;
-					const bottom = parentCard.position.y + (parentCard.dimensions?.height ?? 200);
-					const sourceBounds: SourceBounds = {
-						left: cx - 50,
-						right: cx + 50,
-						y: bottom
-					};
-					this.followLinkToRight(noteId, parentId, sourceBounds, 'right');
-				}
-			}
-		}
-
-		// Now focus the target
-		if (this.cards.has(cardId)) {
-			this.focusCard(cardId, true);
-			this.persistState();
+		// Dispatch event for Canvas.svelte to open the chain using real DOM positions
+		if (typeof window !== 'undefined') {
+			window.dispatchEvent(new CustomEvent('canvas-open-chain', {
+				detail: { path, target: cardId }
+			}));
 		}
 	}
 
