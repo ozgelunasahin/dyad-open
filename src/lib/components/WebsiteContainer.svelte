@@ -15,6 +15,8 @@
 		children: import('svelte').Snippet;
 		/** Optional base URL for navigation links (e.g., for preview mode) */
 		baseUrl?: string;
+		/** Use ?canvas= query param instead of path segments */
+		useQueryParam?: boolean;
 	}
 
 	let {
@@ -22,14 +24,13 @@
 		canvases = [],
 		currentCanvas,
 		children,
-		baseUrl
+		baseUrl,
+		useQueryParam = false
 	}: Props = $props();
 
 	function getCanvasUrl(canvasSlug: string): string {
 		if (baseUrl) {
-			// For explicit sites and preview mode, append canvas slug as path segment
-			// Preview uses ?canvas=, sites use /canvas path
-			if (baseUrl.includes('/preview')) {
+			if (useQueryParam || baseUrl.includes('/preview')) {
 				return `${baseUrl}?canvas=${canvasSlug}`;
 			}
 			return `${baseUrl}/${canvasSlug}`;
