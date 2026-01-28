@@ -12,13 +12,16 @@
 	let error = $state<string | null>(null);
 	let loading = $state(true);
 	let ready = $state(false);
+	let contactStatus = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
+	let contactEmail = $state('');
+	let contactName = $state('');
 
-	// Track the current canvas ID for keying
 	let currentCanvasId = $derived(data.currentCanvas?.id ?? null);
 
-	// Initialize canvas when data changes
+	// Check if there are any canvas sections
+	let hasCanvasSections = $derived(data.sections.some((s) => s.type === 'canvas'));
+
 	$effect(() => {
-		// Track dependencies
 		const vault = data.vault;
 		const canvas = data.currentCanvas;
 		const positions = data.cardPositions;
@@ -28,19 +31,15 @@
 			return;
 		}
 
-		// Reset states for transition
 		loading = true;
 		ready = false;
 
-		// Flush any pending saves from previous canvas
 		canvasStore.flushPendingPersist();
 
-		// Initialize after a microtask to allow fade out
 		Promise.resolve().then(async () => {
 			try {
 				await canvasStore.initialize(vault, canvas.id, positions);
 				loading = false;
-				// Small delay before showing to ensure smooth transition
 				requestAnimationFrame(() => {
 					ready = true;
 				});
@@ -68,9 +67,30 @@
 		}
 	}
 
+	async function handleContactSubmit(event: SubmitEvent) {
+		event.preventDefault();
+		contactStatus = 'sending';
+		try {
+			const res = await fetch('/api/contact', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ email: contactEmail, name: contactName })
+			});
+			if (res.ok) {
+				contactStatus = 'sent';
+				contactEmail = '';
+				contactName = '';
+			} else {
+				contactStatus = 'error';
+			}
+		} catch {
+			contactStatus = 'error';
+		}
+	}
+
 	async function publish() {
-		if (data.canvases.length === 0) {
-			error = 'Add at least one canvas before publishing';
+		if (data.sections.length === 0) {
+			error = 'Add at least one section before publishing';
 			return;
 		}
 
@@ -119,57 +139,79 @@
 		<div class="error-banner">{error}</div>
 	{/if}
 
-	{#if data.canvases.length === 0}
+	{#if data.sections.length === 0}
 		<div class="empty-state">
-			<p>No canvases in this site yet.</p>
-			<a href="/sites/{data.site.slug}/edit">Add canvases in the editor</a>
+			<p>No sections in this site yet.</p>
+			<a href="/sites/{data.site.slug}/edit">Add sections in the editor</a>
 		</div>
 	{:else}
 		<div class="preview-content">
-			<WebsiteContainer
-				author={data.username}
-				canvases={data.canvases}
-				currentCanvas={data.currentCanvas?.slug}
-				baseUrl="/sites/{data.site.slug}/preview"
-			>
-				<div class="canvas-wrapper">
-					{#if loading || !ready}
-						<div class="canvas-loading" out:fade={{ duration: 300 }}></div>
-					{/if}
-					{#key currentCanvasId}
-						{#if ready}
-							<div class="canvas-content" in:fade={{ duration: 300, delay: 50 }}>
-								<Canvas readOnly={true} />
-
-								<button class="theme-toggle" onclick={() => themeStore.toggle()} aria-label="Toggle theme">
-									{#if themeStore.current === 'light'}
-										<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-											<circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5" />
-											<path
-												d="M8 1V2.5M8 13.5V15M1 8H2.5M13.5 8H15M3.05 3.05L4.11 4.11M11.89 11.89L12.95 12.95M3.05 12.95L4.11 11.89M11.89 4.11L12.95 3.05"
-												stroke="currentColor"
-												stroke-width="1.5"
-												stroke-linecap="round"
-											/>
-										</svg>
-									{:else}
-										<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-											<path
-												d="M14 8.5A6 6 0 117.5 2a4.5 4.5 0 006.5 6.5z"
-												stroke="currentColor"
-												stroke-width="1.5"
-												stroke-linecap="round"
-												stroke-linejoin="round"
-											/>
-										</svg>
-									{/if}
-								</button>
-							</div>
+			{#each data.sections as section}
+				{#if section.type === 'hero'}
+					<section class="hero-section">
+						<h1>{section.config?.heading || section.title || 'Heading'}</h1>
+						{#if section.config?.subtitle}
+							<p class="hero-subtitle">{section.config.subtitle}</p>
 						{/if}
-					{/key}
-				</div>
-			</WebsiteContainer>
+					</section>
+				{:else if section.type === 'contact'}
+					<section class="contact-section">
+						<h2>{section.config?.heading || 'Stay in touch'}</h2>
+						{#if contactStatus === 'sent'}
+							<p class="contact-thanks">Thanks — we'll be in touch.</p>
+						{:else}
+							<form class="contact-form" onsubmit={handleContactSubmit}>
+								<input type="text" bind:value={contactName} placeholder="Name" class="contact-input" />
+								<input type="email" bind:value={contactEmail} placeholder="Email" required class="contact-input" />
+								<button type="submit" class="contact-btn" disabled={contactStatus === 'sending'}>
+									{contactStatus === 'sending' ? 'Sending...' : 'Submit'}
+								</button>
+							</form>
+							{#if contactStatus === 'error'}
+								<p class="contact-error">Something went wrong.</p>
+							{/if}
+						{/if}
+					</section>
+				{:else if section.type === 'canvas'}
+					<section class="canvas-section">
+						{#if hasCanvasSections && data.canvases.length > 0}
+							<WebsiteContainer
+								author={data.username}
+								canvases={data.canvases}
+								currentCanvas={data.currentCanvas?.slug}
+								baseUrl="/sites/{data.site.slug}/preview"
+							>
+								<div class="canvas-wrapper">
+									{#if loading || !ready}
+										<div class="canvas-loading" out:fade={{ duration: 300 }}></div>
+									{/if}
+									{#key currentCanvasId}
+										{#if ready}
+											<div class="canvas-content" in:fade={{ duration: 300, delay: 50 }}>
+												<Canvas readOnly={true} />
+											</div>
+										{/if}
+									{/key}
+								</div>
+							</WebsiteContainer>
+						{/if}
+					</section>
+				{/if}
+			{/each}
 		</div>
+
+		<button class="theme-toggle" onclick={() => themeStore.toggle()} aria-label="Toggle theme">
+			{#if themeStore.current === 'light'}
+				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+					<circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5" />
+					<path d="M8 1V2.5M8 13.5V15M1 8H2.5M13.5 8H15M3.05 3.05L4.11 4.11M11.89 11.89L12.95 12.95M3.05 12.95L4.11 11.89M11.89 4.11L12.95 3.05" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+				</svg>
+			{:else}
+				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+					<path d="M14 8.5A6 6 0 117.5 2a4.5 4.5 0 006.5 6.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+				</svg>
+			{/if}
+		</button>
 	{/if}
 </div>
 
@@ -188,6 +230,7 @@
 		padding: 0.75rem 1.5rem;
 		background: #fef3cd;
 		border-bottom: 1px solid #ffc107;
+		flex-shrink: 0;
 	}
 
 	.preview-label {
@@ -238,6 +281,7 @@
 		color: #dc3545;
 		padding: 0.5rem 1.5rem;
 		font-size: 0.9rem;
+		flex-shrink: 0;
 	}
 
 	.empty-state {
@@ -256,7 +300,40 @@
 
 	.preview-content {
 		flex: 1;
-		overflow: hidden;
+		overflow-y: auto;
+		display: flex;
+		flex-direction: column;
+	}
+
+	/* Hero Section */
+	.hero-section {
+		max-width: 700px;
+		margin: 0 auto;
+		padding: 4rem 2rem 3rem;
+		text-align: center;
+		width: 100%;
+	}
+
+	.hero-section h1 {
+		font-family: 'Georgia', serif;
+		font-size: 2.25rem;
+		font-weight: normal;
+		line-height: 1.3;
+		margin: 0 0 1rem 0;
+		color: var(--text-primary);
+	}
+
+	.hero-subtitle {
+		font-size: 1.1rem;
+		line-height: 1.6;
+		color: var(--text-muted);
+		margin: 0;
+	}
+
+	/* Canvas Section */
+	.canvas-section {
+		flex: 1;
+		min-height: 70vh;
 	}
 
 	.canvas-wrapper {
@@ -277,6 +354,70 @@
 		height: 100%;
 	}
 
+	/* Contact Section */
+	.contact-section {
+		max-width: 500px;
+		margin: 0 auto;
+		padding: 4rem 2rem;
+		text-align: center;
+		width: 100%;
+	}
+
+	.contact-section h2 {
+		font-family: 'Georgia', serif;
+		font-size: 1.5rem;
+		font-weight: normal;
+		margin: 0 0 1.5rem 0;
+		color: var(--text-primary);
+	}
+
+	.contact-form {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.contact-input {
+		padding: 0.75rem 1rem;
+		border: 1px solid var(--border-link);
+		border-radius: 4px;
+		background: var(--bg-canvas);
+		color: var(--text-primary);
+		font-size: 1rem;
+		font-family: inherit;
+	}
+
+	.contact-input:focus {
+		outline: none;
+		border-color: var(--text-link);
+	}
+
+	.contact-btn {
+		padding: 0.75rem 1.5rem;
+		background: var(--text-primary);
+		color: var(--bg-canvas);
+		border: none;
+		border-radius: 4px;
+		font-size: 1rem;
+		cursor: pointer;
+	}
+
+	.contact-btn:disabled {
+		opacity: 0.5;
+	}
+
+	.contact-thanks {
+		color: var(--text-muted);
+		font-style: italic;
+	}
+
+	.contact-error {
+		color: #dc2626;
+		font-size: 0.9rem;
+		margin-top: 0.5rem;
+	}
+
+	/* Theme toggle */
 	.theme-toggle {
 		position: fixed;
 		bottom: 24px;

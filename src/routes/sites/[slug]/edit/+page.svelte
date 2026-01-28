@@ -61,7 +61,7 @@
 	);
 
 	let previewUrl = $derived(
-		previewCanvas ? `/@${data.username}/${previewCanvas.slug}` : null
+		previewCanvas ? `/@${data.username}/${previewCanvas.slug}?readonly=true` : null
 	);
 
 	let selectedPage = $derived(
