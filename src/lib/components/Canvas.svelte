@@ -665,8 +665,8 @@
 				return;
 			}
 
-			// 'e' key to enter edit mode on focused card
-			if (event.key === 'e' && canvasStore.focusedCardId) {
+			// 'e' key to enter edit mode on focused card (not in readOnly)
+			if (event.key === 'e' && canvasStore.focusedCardId && !readOnly) {
 				event.preventDefault();
 				canvasStore.enterEditMode(canvasStore.focusedCardId);
 			}
