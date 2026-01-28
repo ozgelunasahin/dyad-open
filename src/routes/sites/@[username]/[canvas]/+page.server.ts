@@ -1,8 +1,8 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { buildLandingCanvasData } from '$lib/server/load-site-sections';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
-	// First check if user has sites feature enabled
 	const { data: profile, error: profileError } = await locals.supabase
 		.from('profiles')
 		.select('id, username, can_publish_sites')
@@ -13,15 +13,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		error(404, 'User not found');
 	}
 
-	// Only users with can_publish_sites flag can have public sites
 	if (!profile.can_publish_sites) {
 		error(404, 'Page not found');
 	}
 
-	// Check if current user is the author
 	const isAuthor = locals.user?.id === profile.id;
 
-	// First, check if params.canvas matches an explicit site slug
+	// Check if params.canvas matches an explicit site slug
 	const { data: site } = await locals.supabase
 		.from('sites')
 		.select('id, name, slug, is_published')
@@ -31,57 +29,19 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		.single();
 
 	if (site) {
-		// This is an explicit site - load its canvases
-		const { data: siteCanvases } = await locals.supabase
-			.from('site_canvases')
-			.select(`
-				canvas_id,
-				position,
-				canvases!inner (
-					id,
-					name,
-					slug,
-					entry_point_note_id
-				)
-			`)
-			.eq('site_id', site.id)
-			.order('position', { ascending: true });
-
-		const canvases = (siteCanvases ?? []).map((sc) => ({
-			id: (sc.canvases as { id: string }).id,
-			name: (sc.canvases as { name: string }).name,
-			slug: (sc.canvases as { slug: string }).slug,
-			entryPointNoteId: (sc.canvases as { entry_point_note_id: string | null }).entry_point_note_id
-		}));
-
-		if (canvases.length === 0) {
-			error(404, 'Site has no canvases');
-		}
-
-		const firstCanvas = canvases[0];
+		const { vault, savedPositions, navItems } = await buildLandingCanvasData(
+			locals.supabase,
+			site.id
+		);
 
 		return {
 			mode: 'site' as const,
-			site: {
-				id: site.id,
-				name: site.name,
-				slug: site.slug
-			},
-			canvas: {
-				id: firstCanvas.id,
-				name: firstCanvas.name,
-				slug: firstCanvas.slug,
-				entryPointNoteId: firstCanvas.entryPointNoteId
-			},
-			author: {
-				username: params.username
-			},
+			site: { id: site.id, name: site.name, slug: site.slug },
+			author: { username: params.username },
 			isAuthor,
-			siteCanvases: canvases.map((c) => ({
-				name: c.name,
-				slug: c.slug
-			})),
-			canvasUrl: `/@${params.username}/${firstCanvas.slug}?readonly=true`
+			vault,
+			savedPositions,
+			navItems
 		};
 	}
 
@@ -114,9 +74,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			slug: canvas.slug,
 			entryPointNoteId: canvas.entry_point_note_id
 		},
-		author: {
-			username: params.username
-		},
+		author: { username: params.username },
 		isAuthor,
 		siteCanvases: (allCanvases ?? []).map((c) => ({
 			name: c.name,
