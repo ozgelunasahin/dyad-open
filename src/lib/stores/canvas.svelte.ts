@@ -820,29 +820,83 @@ class CanvasStore {
 	}
 
 	/**
-	 * Navigate to a specific card by building the parent chain from root to target,
-	 * setting it as the activeChain, and focusing/panning to the target.
+	 * Navigate to a specific card by opening the wikilink chain from the
+	 * entry point to the target, then focusing/panning to the target.
+	 * If the card is already open, builds the parent chain and focuses it.
 	 */
 	navigateToCard(cardId: string): void {
-		const card = this.cards.get(cardId);
-		if (!card) return;
+		// If already open, build parent chain and focus
+		if (this.cards.has(cardId)) {
+			const chain: string[] = [];
+			let current: string | null = cardId;
+			const visited = new Set<string>();
+			while (current && !visited.has(current)) {
+				visited.add(current);
+				chain.unshift(current);
+				const c = this.cards.get(current);
+				current = c?.parentId ?? null;
+			}
 
-		// Build chain from target up to root by following parentId
-		const chain: string[] = [];
-		let current: string | null = cardId;
-		const visited = new Set<string>();
-		while (current && !visited.has(current)) {
-			visited.add(current);
-			chain.unshift(current);
-			const c = this.cards.get(current);
-			current = c?.parentId ?? null;
+			this.history.back.push([...this.activeChain]);
+			this.history.forward = [];
+			this.activeChain = chain;
+			this.focusCard(cardId, true);
+			this.persistState();
+			return;
 		}
 
-		this.history.back.push([...this.activeChain]);
-		this.history.forward = [];
-		this.activeChain = chain;
-		this.focusCard(cardId, true);
-		this.persistState();
+		// Card not open — find a wikilink path from entry point to target and open it
+		if (!this.vault) return;
+		const entryPoint = this.vault.entryPoint;
+		if (!entryPoint) return;
+
+		const path = this.findWikilinkPath(entryPoint, cardId);
+		if (!path || path.length === 0) return;
+
+		// Open each note along the path (entry point should already be open)
+		for (let i = 0; i < path.length; i++) {
+			const noteId = path[i];
+			const parentId = i > 0 ? path[i - 1] : null;
+			if (!this.cards.has(noteId)) {
+				this.openNote(noteId, parentId, null);
+			}
+		}
+
+		// Now focus the target
+		if (this.cards.has(cardId)) {
+			this.focusCard(cardId, true);
+			this.persistState();
+		}
+	}
+
+	/**
+	 * BFS through vault wikilinks to find the shortest path from start to target.
+	 */
+	private findWikilinkPath(start: string, target: string): string[] | null {
+		if (!this.vault) return null;
+		if (start === target) return [start];
+
+		const queue: string[][] = [[start]];
+		const visited = new Set<string>([start]);
+
+		while (queue.length > 0) {
+			const path = queue.shift()!;
+			const current = path[path.length - 1];
+			const note = this.vault.notes[current];
+			if (!note) continue;
+
+			for (const link of note.wikilinks) {
+				if (visited.has(link)) continue;
+				visited.add(link);
+				const newPath = [...path, link];
+				if (link === target) return newPath;
+				if (this.vault.notes[link]) {
+					queue.push(newPath);
+				}
+			}
+		}
+
+		return null;
 	}
 
 	/**
