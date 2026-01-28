@@ -853,12 +853,23 @@ class CanvasStore {
 		const path = this.findWikilinkPath(entryPoint, cardId);
 		if (!path || path.length === 0) return;
 
-		// Open each note along the path (entry point should already be open)
+		// Open each note along the path using followLinkToRight for proper positioning
 		for (let i = 0; i < path.length; i++) {
 			const noteId = path[i];
 			const parentId = i > 0 ? path[i - 1] : null;
-			if (!this.cards.has(noteId)) {
-				this.openNote(noteId, parentId, null);
+			if (!this.cards.has(noteId) && parentId) {
+				const parentCard = this.cards.get(parentId);
+				if (parentCard) {
+					// Synthesize source bounds from the bottom-center of the parent card
+					const cx = parentCard.position.x + (parentCard.dimensions?.width ?? CARD_WIDTH) / 2;
+					const bottom = parentCard.position.y + (parentCard.dimensions?.height ?? 200);
+					const sourceBounds: SourceBounds = {
+						left: cx - 50,
+						right: cx + 50,
+						y: bottom
+					};
+					this.followLinkToRight(noteId, parentId, sourceBounds, 'right');
+				}
 			}
 		}
 
