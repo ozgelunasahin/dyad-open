@@ -68,7 +68,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const canvases = (siteCanvases ?? []).map((sc) => {
 		const c = sc.canvases as unknown as { name: string; slug: string };
-		return { name: c.name, slug: c.slug };
+		return { name: c.name, slug: c.slug, position: sc.position };
 	});
 
 	// Support canvas switching via ?canvas= query param
@@ -81,7 +81,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		| { type: 'hero' | 'contact'; id: string; title: string; config: Record<string, unknown>; position: number };
 
 	const sections: Section[] = [
-		...canvases.map((c) => ({ type: 'canvas' as const, slug: c.slug, name: c.name, position: 0 })),
+		...canvases.map((c) => ({ type: 'canvas' as const, slug: c.slug, name: c.name, position: c.position })),
 		...(sitePages ?? []).map((p) => ({
 			type: p.page_type as 'hero' | 'contact',
 			id: p.id,
@@ -90,16 +90,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			position: p.position
 		}))
 	];
-
-	// Assign canvas positions from site_canvases order
-	let canvasIdx = 0;
-	const canvasPositions = (siteCanvases ?? []).map((sc) => sc.position);
-	for (const s of sections) {
-		if (s.type === 'canvas' && canvasIdx < canvasPositions.length) {
-			s.position = canvasPositions[canvasIdx++];
-		}
-	}
-
 	sections.sort((a, b) => a.position - b.position);
 
 	return {

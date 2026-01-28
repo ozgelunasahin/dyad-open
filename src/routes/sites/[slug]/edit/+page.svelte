@@ -106,19 +106,19 @@
 	}
 
 	async function handleSectionReorder(reordered: SiteSection[]) {
-		// Update positions for all sections
-		// Canvas positions update via saveCanvases, page positions via pages API
-		const canvasUpdates: typeof canvases = [...canvases];
-		const pageUpdates: { id: string; position: number }[] = [];
+		// Update local state
+		const canvasPositionUpdates: { canvas_id: string; position: number }[] = [];
+		const pagePositionUpdates: { id: string; position: number }[] = [];
 
 		for (const section of reordered) {
 			if (section.type === 'canvas') {
-				const idx = canvasUpdates.findIndex((c) => c.id === section.id);
+				canvasPositionUpdates.push({ canvas_id: section.id, position: section.position });
+				const idx = canvases.findIndex((c) => c.id === section.id);
 				if (idx !== -1) {
-					canvasUpdates[idx] = { ...canvasUpdates[idx], position: section.position };
+					canvases[idx] = { ...canvases[idx], position: section.position };
 				}
 			} else {
-				pageUpdates.push({ id: section.id, position: section.position });
+				pagePositionUpdates.push({ id: section.id, position: section.position });
 				const idx = sitePages.findIndex((p) => p.id === section.id);
 				if (idx !== -1) {
 					sitePages[idx] = { ...sitePages[idx], position: section.position };
@@ -126,16 +126,28 @@
 			}
 		}
 
-		canvases = canvasUpdates;
-		saveCanvases();
+		canvases = [...canvases];
+		sitePages = [...sitePages];
 
-		if (pageUpdates.length > 0) {
+		// Persist canvas positions via PATCH (not RPC, to preserve custom positions)
+		if (canvasPositionUpdates.length > 0) {
+			await fetch(`/api/sites/${data.site.id}/canvases`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(canvasPositionUpdates)
+			});
+		}
+
+		// Persist page positions
+		if (pagePositionUpdates.length > 0) {
 			await fetch(`/api/sites/${data.site.id}/pages`, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(pageUpdates)
+				body: JSON.stringify(pagePositionUpdates)
 			});
 		}
+
+		lastSaved = new Date().toLocaleTimeString();
 	}
 
 	async function handleAddSection(type: 'hero' | 'contact') {

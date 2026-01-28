@@ -113,3 +113,37 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
 
 	return json(result ?? { success: true, count: uniqueCanvasIds.length });
 };
+
+// PATCH /api/sites/[id]/canvases - Update positions only (for reordering with pages)
+export const PATCH: RequestHandler = async ({ locals, params, request }) => {
+	if (!locals.user) {
+		return json({ error: 'Unauthorized' }, { status: 401 });
+	}
+
+	const { data: site } = await locals.supabase
+		.from('sites')
+		.select('id')
+		.eq('id', params.id)
+		.eq('user_id', locals.user.id)
+		.single();
+
+	if (!site) {
+		return json({ error: 'Site not found' }, { status: 404 });
+	}
+
+	const updates: { canvas_id: string; position: number }[] = await request.json();
+
+	for (const u of updates) {
+		const { error } = await locals.supabase
+			.from('site_canvases')
+			.update({ position: u.position })
+			.eq('site_id', params.id)
+			.eq('canvas_id', u.canvas_id);
+
+		if (error) {
+			return json({ error: error.message }, { status: 500 });
+		}
+	}
+
+	return json({ ok: true });
+};

@@ -41,12 +41,16 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		.eq('site_id', site.id)
 		.order('position', { ascending: true });
 
-	const canvases = (siteCanvases ?? []).map((sc) => ({
-		id: (sc.canvases as { id: string }).id,
-		name: (sc.canvases as { name: string }).name,
-		slug: (sc.canvases as { slug: string }).slug,
-		entryPointNoteId: (sc.canvases as { entry_point_note_id: string | null }).entry_point_note_id
-	}));
+	const canvases = (siteCanvases ?? []).map((sc) => {
+		const c = sc.canvases as unknown as { id: string; name: string; slug: string; entry_point_note_id: string | null };
+		return {
+			id: c.id,
+			name: c.name,
+			slug: c.slug,
+			entryPointNoteId: c.entry_point_note_id,
+			position: sc.position
+		};
+	});
 
 	// Get current canvas from URL or default to first
 	const canvasParam = url.searchParams.get('canvas');
@@ -124,11 +128,11 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		| { type: 'hero' | 'contact'; id: string; title: string; config: Record<string, unknown>; position: number };
 
 	const sections: Section[] = [
-		...canvases.map((c, i) => ({
+		...canvases.map((c) => ({
 			type: 'canvas' as const,
 			slug: c.slug,
 			name: c.name,
-			position: (siteCanvases ?? [])[i]?.position ?? i + 1
+			position: c.position
 		})),
 		...(sitePages ?? []).map((p) => ({
 			type: p.page_type as 'hero' | 'contact',
