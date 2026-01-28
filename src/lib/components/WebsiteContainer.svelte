@@ -79,13 +79,21 @@
 					<ul>
 						{#each resolvedNavItems as item}
 							<li>
-								<a
-									href={getItemUrl(item.slug)}
-									class:active={item.slug === resolvedCurrentItem}
-									onclick={(e: MouseEvent) => { if (onNavigate) { e.preventDefault(); onNavigate(item.slug, item.cardId); } }}
-								>
-									{item.name}
-								</a>
+								{#if onNavigate}
+									<button
+										class:active={item.slug === resolvedCurrentItem}
+										onclick={() => onNavigate(item.slug, item.cardId)}
+									>
+										{item.name}
+									</button>
+								{:else}
+									<a
+										href={getItemUrl(item.slug)}
+										class:active={item.slug === resolvedCurrentItem}
+									>
+										{item.name}
+									</a>
+								{/if}
 							</li>
 						{/each}
 					</ul>
@@ -167,7 +175,8 @@
 		margin: 0 0 8px;
 	}
 
-	.canvas-nav a {
+	.canvas-nav a,
+	.canvas-nav button {
 		display: block;
 		padding: 4px 0;
 		font-family: 'Georgia', serif;
@@ -177,20 +186,27 @@
 		text-decoration-color: rgba(139, 115, 85, 0.4);
 		text-underline-offset: 3px;
 		transition: color 0.15s, text-decoration-color 0.15s;
+		background: none;
+		border: none;
+		cursor: pointer;
+		text-align: left;
 	}
 
-	.canvas-nav a:hover {
+	.canvas-nav a:hover,
+	.canvas-nav button:hover {
 		color: #5a4a3a;
 		text-decoration-color: #5a4a3a;
 	}
 
-	.canvas-nav a.active {
+	.canvas-nav a.active,
+	.canvas-nav button.active {
 		color: #1a1a1a;
 		font-weight: 500;
 		text-decoration-color: rgba(26, 26, 26, 0.3);
 	}
 
-	.canvas-nav a.active:hover {
+	.canvas-nav a.active:hover,
+	.canvas-nav button.active:hover {
 		text-decoration-color: #1a1a1a;
 	}
 
