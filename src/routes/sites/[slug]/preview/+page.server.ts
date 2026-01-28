@@ -111,10 +111,40 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		};
 	}
 
+	// Load site pages (hero, contact, etc.)
+	const { data: sitePages } = await locals.supabase
+		.from('site_pages')
+		.select('id, page_type, title, config, position')
+		.eq('site_id', site.id)
+		.order('position', { ascending: true });
+
+	// Build unified sections list
+	type Section =
+		| { type: 'canvas'; slug: string; name: string; position: number }
+		| { type: 'hero' | 'contact'; id: string; title: string; config: Record<string, unknown>; position: number };
+
+	const sections: Section[] = [
+		...canvases.map((c, i) => ({
+			type: 'canvas' as const,
+			slug: c.slug,
+			name: c.name,
+			position: (siteCanvases ?? [])[i]?.position ?? i + 1
+		})),
+		...(sitePages ?? []).map((p) => ({
+			type: p.page_type as 'hero' | 'contact',
+			id: p.id,
+			title: p.title,
+			config: p.config as Record<string, unknown>,
+			position: p.position
+		}))
+	];
+	sections.sort((a, b) => a.position - b.position);
+
 	return {
 		user: locals.user,
 		username: profile?.username ?? '',
 		site,
+		sections,
 		canvases,
 		currentCanvas: currentCanvas ?? null,
 		vault,
