@@ -41,8 +41,15 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		.single();
 
 	if (!site) {
-		return { site: null, siteCanvases: [], currentCanvas: null, canvasUrl: null, author: null };
+		return { site: null, sections: [], siteCanvases: [], currentCanvas: null, canvasUrl: null, author: null };
 	}
+
+	// Load site pages (hero, contact, etc.)
+	const { data: sitePages } = await locals.supabase
+		.from('site_pages')
+		.select('id, page_type, title, config, position')
+		.eq('site_id', site.id)
+		.order('position', { ascending: true });
 
 	const { data: siteCanvases } = await locals.supabase
 		.from('site_canvases')
@@ -68,8 +75,36 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const requestedCanvas = url.searchParams.get('canvas');
 	const currentCanvas = canvases.find((c) => c.slug === requestedCanvas) ?? canvases[0];
 
+	// Build unified section list sorted by position
+	type Section =
+		| { type: 'canvas'; slug: string; name: string; position: number }
+		| { type: 'hero' | 'contact'; id: string; title: string; config: Record<string, unknown>; position: number };
+
+	const sections: Section[] = [
+		...canvases.map((c) => ({ type: 'canvas' as const, slug: c.slug, name: c.name, position: 0 })),
+		...(sitePages ?? []).map((p) => ({
+			type: p.page_type as 'hero' | 'contact',
+			id: p.id,
+			title: p.title,
+			config: p.config as Record<string, unknown>,
+			position: p.position
+		}))
+	];
+
+	// Assign canvas positions from site_canvases order
+	let canvasIdx = 0;
+	const canvasPositions = (siteCanvases ?? []).map((sc) => sc.position);
+	for (const s of sections) {
+		if (s.type === 'canvas' && canvasIdx < canvasPositions.length) {
+			s.position = canvasPositions[canvasIdx++];
+		}
+	}
+
+	sections.sort((a, b) => a.position - b.position);
+
 	return {
 		site: { id: site.id, name: site.name, slug: site.slug },
+		sections,
 		siteCanvases: canvases,
 		currentCanvas: currentCanvas?.slug ?? null,
 		canvasUrl: currentCanvas ? `/@${LANDING_USERNAME}/${currentCanvas.slug}?readonly=true` : null,
