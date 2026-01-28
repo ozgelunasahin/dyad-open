@@ -68,68 +68,88 @@
 		</nav>
 	</header>
 
-	<!-- Hero -->
-	<section class="hero">
-		<h1>Social civic infrastructure for Berlin</h1>
-		<p class="subtitle">
-			Community bridging through events, research, and shared practice.
-		</p>
-	</section>
-
-	<!-- Canvas Content -->
-	{#if data.canvasUrl && data.siteCanvases.length > 0}
-		<section class="content">
-			<WebsiteContainer
-				author={data.author}
-				canvases={data.siteCanvases}
-				currentCanvas={data.currentCanvas}
-				baseUrl="/"
-			useQueryParam={true}
-			>
-				<div class="iframe-wrapper">
-					{#if iframeLoading}
-						<div class="iframe-loading" out:fade={{ duration: 200 }}></div>
+	<!-- Sections rendered dynamically from site config -->
+	{#each data.sections ?? [] as section}
+		{#if section.type === 'hero'}
+			<section class="hero">
+				<h1>{section.config?.heading || section.title || 'dyad.berlin'}</h1>
+				{#if section.config?.subtitle}
+					<p class="subtitle">{section.config.subtitle}</p>
+				{/if}
+			</section>
+		{:else if section.type === 'canvas'}
+			{#if data.canvasUrl && data.siteCanvases.length > 0}
+				<section class="content">
+					<WebsiteContainer
+						author={data.author}
+						canvases={data.siteCanvases}
+						currentCanvas={data.currentCanvas}
+						baseUrl="/"
+						useQueryParam={true}
+					>
+						<div class="iframe-wrapper">
+							{#if iframeLoading}
+								<div class="iframe-loading" out:fade={{ duration: 200 }}></div>
+							{/if}
+							<iframe
+								src={data.canvasUrl}
+								title="Content"
+								class="canvas-iframe"
+								onload={handleIframeLoad}
+							></iframe>
+						</div>
+					</WebsiteContainer>
+				</section>
+			{/if}
+		{:else if section.type === 'contact'}
+			<section class="contact">
+				<h2>{section.config?.heading || 'Stay in touch'}</h2>
+				{#if contactStatus === 'sent'}
+					<p class="contact-thanks">Thanks — we'll be in touch.</p>
+				{:else}
+					<form class="contact-form" onsubmit={handleContactSubmit}>
+						<input
+							type="text"
+							bind:value={contactName}
+							placeholder="Name"
+							class="contact-input"
+						/>
+						<input
+							type="email"
+							bind:value={contactEmail}
+							placeholder="Email"
+							required
+							class="contact-input"
+						/>
+						<button type="submit" class="contact-btn" disabled={contactStatus === 'sending'}>
+							{contactStatus === 'sending' ? 'Sending...' : 'Submit'}
+						</button>
+					</form>
+					{#if contactStatus === 'error'}
+						<p class="contact-error">Something went wrong. Please try again.</p>
 					{/if}
-					<iframe
-						src={data.canvasUrl}
-						title="Content"
-						class="canvas-iframe"
-						onload={handleIframeLoad}
-					></iframe>
-				</div>
-			</WebsiteContainer>
-		</section>
-	{/if}
+				{/if}
+			</section>
+		{/if}
+	{/each}
 
-	<!-- Stay in Touch -->
-	<section class="contact">
-		<h2>Stay in touch</h2>
-		{#if contactStatus === 'sent'}
-			<p class="contact-thanks">Thanks — we'll be in touch.</p>
-		{:else}
+	<!-- Fallback: show default content if no sections configured -->
+	{#if !data.sections || data.sections.length === 0}
+		<section class="hero">
+			<h1>dyad.berlin</h1>
+			<p class="subtitle">Social civic infrastructure for Berlin</p>
+		</section>
+		<section class="contact">
+			<h2>Stay in touch</h2>
 			<form class="contact-form" onsubmit={handleContactSubmit}>
-				<input
-					type="text"
-					bind:value={contactName}
-					placeholder="Name"
-					class="contact-input"
-				/>
-				<input
-					type="email"
-					bind:value={contactEmail}
-					placeholder="Email"
-					required
-					class="contact-input"
-				/>
+				<input type="text" bind:value={contactName} placeholder="Name" class="contact-input" />
+				<input type="email" bind:value={contactEmail} placeholder="Email" required class="contact-input" />
 				<button type="submit" class="contact-btn" disabled={contactStatus === 'sending'}>
 					{contactStatus === 'sending' ? 'Sending...' : 'Submit'}
 				</button>
 			</form>
-			{#if contactStatus === 'error'}
-				<p class="contact-error">Something went wrong. Please try again.</p>
-			{/if}
-		{/if}
-	</section>
+		</section>
+	{/if}
 
 	<!-- Footer -->
 	<footer class="footer">

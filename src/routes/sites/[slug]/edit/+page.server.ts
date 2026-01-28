@@ -59,10 +59,18 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		return a.position - b.position;
 	});
 
+	// Load site pages (hero, contact, etc.)
+	const { data: sitePages } = await locals.supabase
+		.from('site_pages')
+		.select('id, page_type, title, config, position')
+		.eq('site_id', site.id)
+		.order('position', { ascending: true });
+
 	return {
 		user: locals.user,
 		username: profile?.username ?? '',
 		site,
-		canvases
+		canvases,
+		sitePages: sitePages ?? []
 	};
 };
