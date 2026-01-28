@@ -1109,63 +1109,45 @@ class CanvasStore {
 	}
 
 	/**
-	 * In readOnly mode, auto-focus the card whose vertical extent overlaps
-	 * the viewport's upper third. This makes focus feel eager — cards gain
-	 * focus as soon as they scroll into the primary reading area.
+	 * In readOnly mode, auto-focus the card being read.
+	 * Only considers cards whose column (left and right edges) is fully
+	 * within the viewport horizontally. Among those, picks the card with
+	 * the most vertical overlap with the reading area.
 	 */
 	updateScrollFocus(): void {
 		if (this.isAnimating) return;
 		if (this.viewportHeight === 0) return;
 
-		// Use the upper third of viewport as the "reading zone" for focus detection
+		const area = this.calculateActiveArea();
 		const zoom = this.camera.zoom;
-		const readingY = (this.viewportHeight * 0.35 - this.camera.y) / zoom;
+		const readingTop = area.top;
+		const readingBottom = this.viewportHeight - area.bottom;
 
 		let bestId: string | null = null;
-		let bestDist = Infinity;
+		let bestOverlap = 0;
 
 		for (const [id, card] of this.cards) {
-			const cardTop = card.position.y;
-			const cardBottom = card.position.y + card.dimensions.height;
+			const screenLeft = card.position.x * zoom + this.camera.x;
+			const screenRight = screenLeft + card.dimensions.width * zoom;
 
-			// Card must overlap the reading zone line
-			if (cardTop <= readingY && cardBottom >= readingY) {
-				// Prefer the card whose top is closest to the reading line (most recently scrolled into)
-				const dist = readingY - cardTop;
-				if (dist < bestDist) {
-					bestDist = dist;
-					bestId = id;
-				}
-			}
-		}
+			// Card must be fully within viewport horizontally
+			if (screenLeft < 0 || screenRight > this.viewportWidth) continue;
 
-		// Fallback: closest card center to reading line
-		if (!bestId) {
-			for (const [id, card] of this.cards) {
-				const cardCenter = card.position.y + card.dimensions.height / 2;
-				const dist = Math.abs(cardCenter - readingY);
-				if (dist < bestDist) {
-					bestDist = dist;
-					bestId = id;
-				}
+			const screenTop = card.position.y * zoom + this.camera.y;
+			const screenBottom = screenTop + card.dimensions.height * zoom;
+
+			const overlapTop = Math.max(screenTop, readingTop);
+			const overlapBottom = Math.min(screenBottom, readingBottom);
+			const overlap = overlapBottom - overlapTop;
+
+			if (overlap > bestOverlap) {
+				bestOverlap = overlap;
+				bestId = id;
 			}
 		}
 
 		if (bestId && bestId !== this.focusedCardId) {
 			this.focusedCardId = bestId;
-
-			// Build parent chain from this card to its root
-			const chain: string[] = [];
-			let current: string | null = bestId;
-			const visited = new Set<string>();
-			while (current && !visited.has(current)) {
-				visited.add(current);
-				chain.unshift(current);
-				const c = this.cards.get(current);
-				current = c?.parentId ?? null;
-			}
-			this.activeChain = chain;
-			this.persistState();
 		}
 	}
 
