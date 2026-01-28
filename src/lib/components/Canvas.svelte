@@ -1331,6 +1331,11 @@
 		// Check if this note is already open as a direct child of the clicked card
 		const existingCard = canvasStore.cards.get(noteId);
 		if (existingCard && existingCard.parentId === fromCardId) {
+			if (readOnly) {
+				// In readOnly mode, focus the existing child card instead of closing it
+				canvasStore.navigateToCard(noteId);
+				return;
+			}
 			// Toggle behavior: close the child card
 			canvasStore.unopenCard(noteId);
 			return;
