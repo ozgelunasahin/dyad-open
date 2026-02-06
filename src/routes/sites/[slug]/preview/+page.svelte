@@ -16,9 +16,6 @@
 	let activeCanvasSection = $state<string | null>(null);
 	let lastScrollY = $state(0);
 
-	// Canvas activation timers (for debounced auto-activation)
-	let activationTimers = new Map<string, ReturnType<typeof setTimeout>>();
-
 	// Contact form state
 	let contactStatus = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
 	let contactEmail = $state('');
@@ -48,55 +45,26 @@
 			{ root: scrollContainer, threshold: 0.5 }
 		);
 
-		// Canvas auto-activation observer
-		const canvasObserver = new IntersectionObserver(
-			(entries) => {
-				for (const entry of entries) {
-					const sectionId = entry.target.getAttribute('data-canvas-section');
-					if (!sectionId) continue;
-
-					if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
-						if (!activationTimers.has(sectionId)) {
-							const timer = setTimeout(() => {
-								activationTimers.delete(sectionId);
-								activateCanvas(sectionId);
-							}, 300);
-							activationTimers.set(sectionId, timer);
-						}
-					} else {
-						const timer = activationTimers.get(sectionId);
-						if (timer) {
-							clearTimeout(timer);
-							activationTimers.delete(sectionId);
-						}
-						if (activeCanvasSection === sectionId) {
-							deactivateCanvas();
-						}
-					}
-				}
-			},
-			{
-				root: scrollContainer,
-				threshold: [0, 0.3, 0.6, 1.0]
-			}
-		);
-
 		for (const el of Object.values(sectionEls)) {
 			if (el) navObserver.observe(el);
 		}
 
-		for (const section of data.sections ?? []) {
-			if (section.type === 'canvas') {
-				const el = sectionEls[getSectionSlug(section)];
-				if (el) canvasObserver.observe(el);
-			}
-		}
-
 		return () => {
 			navObserver.disconnect();
-			canvasObserver.disconnect();
-			for (const timer of activationTimers.values()) clearTimeout(timer);
 		};
+	});
+
+	// Canvas auto-activation: react to activeSlug changes
+	$effect(() => {
+		if (!data.sections) return;
+
+		const currentSection = data.sections.find((s) => getSectionSlug(s) === activeSlug);
+
+		if (currentSection?.type === 'canvas' && currentSection.sectionId) {
+			activateCanvas(currentSection.sectionId);
+		} else if (activeCanvasSection) {
+			deactivateCanvas();
+		}
 	});
 
 	function handleScroll(e: Event) {
@@ -279,7 +247,7 @@
 					class="snap-section"
 					class:canvas-active={isCanvasActive}
 					data-section-slug={slug}
-					data-canvas-section={section.type === 'canvas' ? section.sectionId : undefined}
+
 					bind:this={sectionEls[slug]}
 				>
 					{#if section.type === 'hero'}
