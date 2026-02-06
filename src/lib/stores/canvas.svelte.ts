@@ -15,6 +15,22 @@ export interface StoredPath {
 	failed: boolean;
 }
 
+/** Snapshot of canvas state for suspend/resume between section switches. */
+interface SuspendedCanvas {
+	cards: Map<string, Card>;
+	connections: Connection[];
+	storedPaths: Map<string, StoredPath>;
+	activeChain: string[];
+	history: { back: string[][]; forward: string[][] };
+	focusedCardId: string | null;
+	savedCardState: Map<string, { focusY: number; linkTarget?: string; linkFocusActive?: boolean; wasEditing?: boolean }>;
+	hiddenChains: Map<string, { cardIds: string[]; connections: Connection[] }>;
+	camera: Camera;
+	dimensionCache: Map<string, Dimensions>;
+	brokenLinks: Set<string>;
+	vault: Vault;
+}
+
 const STORAGE_KEY_PREFIX = 'spatial-reader-state';
 
 interface PersistedState {
@@ -149,6 +165,9 @@ class CanvasStore {
 
 	// Generation token: incremented on each initialize/teardown to detect stale async work
 	private initGeneration = 0;
+
+	// Per-canvas state snapshots for suspend/resume (avoids expensive re-init on section switch)
+	private suspendedState = new Map<string, SuspendedCanvas>();
 
 	cardList = $derived(Array.from(this.cards.values()));
 	canGoBack = $derived(this.history.back.length > 0);
@@ -2077,6 +2096,58 @@ class CanvasStore {
 		this.currentCanvasId = null;
 		this.dimensionCache = new Map();
 		this.brokenLinks = new Set();
+	}
+
+	/**
+	 * Snapshot current canvas state for later resume, then teardown.
+	 * Used when switching between canvas sections to avoid expensive re-initialization.
+	 */
+	suspend(): void {
+		if (this.currentCanvasId && this.vault) {
+			this.suspendedState.set(this.currentCanvasId, {
+				cards: this.cards,
+				connections: this.connections,
+				storedPaths: this.storedPaths,
+				activeChain: this.activeChain,
+				history: this.history,
+				focusedCardId: this.focusedCardId,
+				savedCardState: this.savedCardState,
+				hiddenChains: this.hiddenChains,
+				camera: this.camera,
+				dimensionCache: this.dimensionCache,
+				brokenLinks: this.brokenLinks,
+				vault: this.vault
+			});
+		}
+		this.teardown();
+	}
+
+	/**
+	 * Restore a previously suspended canvas state.
+	 * Returns true if state was restored, false if no snapshot exists (caller should initialize).
+	 */
+	resume(canvasId: string): boolean {
+		const snapshot = this.suspendedState.get(canvasId);
+		if (!snapshot) return false;
+
+		this.initGeneration++;
+		this.suspendedState.delete(canvasId);
+
+		this.currentCanvasId = canvasId;
+		this.vault = snapshot.vault;
+		this.cards = snapshot.cards;
+		this.connections = snapshot.connections;
+		this.storedPaths = snapshot.storedPaths;
+		this.activeChain = snapshot.activeChain;
+		this.history = snapshot.history;
+		this.focusedCardId = snapshot.focusedCardId;
+		this.savedCardState = snapshot.savedCardState;
+		this.hiddenChains = snapshot.hiddenChains;
+		this.camera = snapshot.camera;
+		this.dimensionCache = snapshot.dimensionCache;
+		this.brokenLinks = snapshot.brokenLinks;
+
+		return true;
 	}
 
 	/**
