@@ -6,7 +6,6 @@
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import { fade } from 'svelte/transition';
 	import type { PageData } from './$types';
-	import type { CanvasSectionData } from '$lib/server/load-site-sections';
 
 	let { data }: { data: PageData } = $props();
 
@@ -14,8 +13,11 @@
 	let scrollContainer = $state<HTMLElement>(null!);
 	let sectionEls: Record<string, HTMLElement> = {};
 	let activeSlug = $state('');
-	let exploringSection = $state<string | null>(null);
+	let activeCanvasSection = $state<string | null>(null);
 	let lastScrollY = $state(0);
+
+	// Canvas activation timers (for debounced auto-activation)
+	let activationTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 	// Contact form state
 	let contactStatus = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
@@ -33,7 +35,8 @@
 			activeSlug = getSectionSlug(data.sections[0]);
 		}
 
-		const observer = new IntersectionObserver(
+		// Nav section tracking observer
+		const navObserver = new IntersectionObserver(
 			(entries) => {
 				for (const entry of entries) {
 					if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
@@ -45,11 +48,55 @@
 			{ root: scrollContainer, threshold: 0.5 }
 		);
 
+		// Canvas auto-activation observer
+		const canvasObserver = new IntersectionObserver(
+			(entries) => {
+				for (const entry of entries) {
+					const sectionId = entry.target.getAttribute('data-canvas-section');
+					if (!sectionId) continue;
+
+					if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
+						if (!activationTimers.has(sectionId)) {
+							const timer = setTimeout(() => {
+								activationTimers.delete(sectionId);
+								activateCanvas(sectionId);
+							}, 300);
+							activationTimers.set(sectionId, timer);
+						}
+					} else {
+						const timer = activationTimers.get(sectionId);
+						if (timer) {
+							clearTimeout(timer);
+							activationTimers.delete(sectionId);
+						}
+						if (activeCanvasSection === sectionId) {
+							deactivateCanvas();
+						}
+					}
+				}
+			},
+			{
+				root: scrollContainer,
+				threshold: [0, 0.3, 0.6, 1.0]
+			}
+		);
+
 		for (const el of Object.values(sectionEls)) {
-			if (el) observer.observe(el);
+			if (el) navObserver.observe(el);
 		}
 
-		return () => observer.disconnect();
+		for (const section of data.sections ?? []) {
+			if (section.type === 'canvas') {
+				const el = sectionEls[getSectionSlug(section)];
+				if (el) canvasObserver.observe(el);
+			}
+		}
+
+		return () => {
+			navObserver.disconnect();
+			canvasObserver.disconnect();
+			for (const timer of activationTimers.values()) clearTimeout(timer);
+		};
 	});
 
 	function handleScroll(e: Event) {
@@ -63,38 +110,40 @@
 		if (el) el.scrollIntoView({ behavior: 'smooth' });
 	}
 
-	function scrollToSection(slug: string) {
-		const el = sectionEls[slug];
-		if (!el || !scrollContainer) return;
-		scrollContainer.style.scrollSnapType = 'none';
-		el.scrollIntoView({ block: 'start' });
-		requestAnimationFrame(() => {
-			if (scrollContainer) scrollContainer.style.scrollSnapType = '';
-		});
-	}
+	// --- Canvas auto-activation ---
 
-	async function enterExploreMode(section: CanvasSectionData & { type: 'canvas' }) {
-		exploringSection = section.sectionId;
+	async function activateCanvas(sectionId: string) {
+		if (activeCanvasSection === sectionId) return; // Already active
+
+		const section = data.sections?.find(
+			(s) => s.type === 'canvas' && s.sectionId === sectionId
+		);
+		if (!section || section.type !== 'canvas') return;
+
+		if (activeCanvasSection && activeCanvasSection !== sectionId) {
+			canvasStore.teardown();
+		}
+
+		activeCanvasSection = sectionId;
 		canvasStore.initialize(section.vault, `site-${section.canvasId}`, section.cardPositions);
 		await tick();
-		scrollToSection(section.sectionId);
+
+		if (scrollContainer) scrollContainer.style.scrollSnapType = 'none';
 	}
 
-	async function exitExploreMode() {
-		const slug = exploringSection;
-		exploringSection = null;
+	function deactivateCanvas() {
+		activeCanvasSection = null;
 		canvasStore.teardown();
-		await tick();
-		if (slug) scrollToSection(slug);
+
+		if (scrollContainer) {
+			requestAnimationFrame(() => {
+				if (scrollContainer) scrollContainer.style.scrollSnapType = '';
+			});
+		}
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape' && exploringSection) {
-			exitExploreMode();
-			return;
-		}
-
-		if (!exploringSection && data.sections) {
+		if (data.sections) {
 			const slugs = data.sections.map(getSectionSlug);
 			const currentIdx = slugs.indexOf(activeSlug);
 
@@ -206,12 +255,13 @@
 		>
 			{#each data.sections as section}
 				{@const slug = getSectionSlug(section)}
-				{@const isExploring = exploringSection === slug}
+				{@const isCanvasActive = activeCanvasSection === slug}
 
 				<section
 					class="snap-section"
-					class:exploring={isExploring}
+					class:canvas-active={isCanvasActive}
 					data-section-slug={slug}
+					data-canvas-section={section.type === 'canvas' ? section.sectionId : undefined}
 					bind:this={sectionEls[slug]}
 				>
 					{#if section.type === 'hero'}
@@ -242,39 +292,13 @@
 						</div>
 
 					{:else if section.type === 'canvas'}
-						{#if isExploring}
-							<div class="canvas-explore" transition:fade={{ duration: 200 }}>
+						{#if isCanvasActive}
+							<div class="canvas-frame" transition:fade={{ duration: 200 }}>
 								<Canvas readOnly />
-								<button class="explore-back" onclick={exitExploreMode} aria-label="Back to overview">
-									<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-										<path d="M1 1L13 13M13 1L1 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-									</svg>
-									Back to overview
-								</button>
 							</div>
 						{:else}
-							<!-- svelte-ignore a11y_click_events_have_key_events -->
-							<!-- svelte-ignore a11y_no_static_element_interactions -->
-							<div class="canvas-preview" onclick={() => enterExploreMode(section)}>
-								<div class="preview-cards">
-									{#each section.cardPositions as pos}
-										{@const rendered = section.renderedNotes?.[pos.noteId]}
-										{#if rendered}
-											<div
-												class="preview-card"
-												style="left: {pos.x}px; top: {pos.y}px; width: {pos.width}px; height: {pos.height}px;"
-											>
-												<h3 class="preview-card-title">{rendered.title}</h3>
-												<div class="preview-card-content">
-													{@html rendered.html}
-												</div>
-											</div>
-										{/if}
-									{/each}
-								</div>
-								<div class="preview-vignette">
-									<span class="explore-cta">Explore →</span>
-								</div>
+							<div class="canvas-placeholder">
+								<h2 class="placeholder-title">{section.navLabel || section.name}</h2>
 							</div>
 						{/if}
 					{/if}
@@ -401,7 +425,7 @@
 		contain-intrinsic-size: auto 100vh;
 	}
 
-	.snap-section.exploring {
+	.snap-section.canvas-active {
 		scroll-snap-align: none;
 	}
 
@@ -494,116 +518,34 @@
 		text-align: center;
 	}
 
-	/* === Canvas Preview (Static) === */
-	.canvas-preview {
-		position: relative;
-		width: 100%;
-		height: 100%;
-		min-height: calc(100vh - 48px);
-		overflow: hidden;
-		cursor: zoom-in;
-	}
-
-	.preview-cards {
-		position: relative;
-		width: 100%;
-		height: 100%;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-
-	.preview-card {
-		position: absolute;
-		background: var(--bg-canvas, #faf9f6);
-		border: 1px solid var(--border-link, rgba(139, 115, 85, 0.15));
-		border-radius: 6px;
-		padding: 16px 20px;
-		overflow: hidden;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-	}
-
-	.preview-card-title {
-		font-family: 'Georgia', serif;
-		font-size: 14px;
-		font-weight: 600;
-		color: var(--text-primary, #1a1a1a);
-		margin: 0 0 8px 0;
-		letter-spacing: -0.01em;
-	}
-
-	.preview-card-content {
-		font-family: 'Georgia', serif;
-		font-size: 12px;
-		line-height: 1.6;
-		color: var(--text-secondary, #4a4a4a);
-		overflow: hidden;
-	}
-
-	.preview-vignette {
-		position: absolute;
-		inset: 0;
-		background: radial-gradient(
-			ellipse at center,
-			transparent 30%,
-			rgba(250, 249, 246, 0.7) 70%,
-			rgba(250, 249, 246, 0.95) 100%
-		);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		pointer-events: none;
-	}
-
-	.explore-cta {
-		font-family: 'Georgia', serif;
-		font-size: 1.1rem;
-		color: var(--text-muted, #8b7355);
-		background: rgba(250, 249, 246, 0.85);
-		padding: 10px 24px;
-		border-radius: 6px;
-		border: 1px solid rgba(139, 115, 85, 0.2);
-		pointer-events: auto;
-		transition: all 0.2s ease;
-	}
-
-	.canvas-preview:hover .explore-cta {
-		color: var(--text-primary, #1a1a1a);
-		border-color: rgba(139, 115, 85, 0.4);
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-	}
-
-	/* === Interactive Canvas Mode === */
-	.canvas-explore {
+	/* === Canvas Frame (interactive, bounded) === */
+	.canvas-frame {
 		width: 100%;
 		height: calc(100vh - 48px);
 		position: relative;
+		overflow: hidden;
+		touch-action: none;
+		overscroll-behavior: contain;
 	}
 
-	.explore-back {
-		position: absolute;
-		top: 16px;
-		left: 16px;
-		z-index: 50;
+	/* === Canvas Placeholder (shown when canvas not active) === */
+	.canvas-placeholder {
 		display: flex;
+		flex-direction: column;
 		align-items: center;
-		gap: 8px;
-		padding: 8px 16px;
-		background: rgba(250, 249, 246, 0.92);
-		backdrop-filter: blur(8px);
-		-webkit-backdrop-filter: blur(8px);
-		border: 1px solid rgba(139, 115, 85, 0.2);
-		border-radius: 6px;
-		font-family: 'Georgia', serif;
-		font-size: 13px;
+		justify-content: center;
+		width: 100%;
+		min-height: calc(100vh - 48px);
 		color: var(--text-muted, #8b7355);
-		cursor: pointer;
-		transition: all 0.2s ease;
 	}
 
-	.explore-back:hover {
+	.placeholder-title {
+		font-family: 'Georgia', serif;
+		font-size: clamp(1.5rem, 3vw, 2rem);
+		font-weight: normal;
 		color: var(--text-primary, #1a1a1a);
-		border-color: rgba(139, 115, 85, 0.4);
+		margin: 0;
+		opacity: 0.4;
 	}
 
 	/* === Theme toggle === */
@@ -636,28 +578,6 @@
 	@media (max-width: 768px) {
 		.scroll-container {
 			scroll-snap-type: y proximity;
-		}
-	}
-
-	/* === Dark mode === */
-	@media (prefers-color-scheme: dark) {
-		.preview-vignette {
-			background: radial-gradient(
-				ellipse at center,
-				transparent 30%,
-				rgba(26, 26, 26, 0.7) 70%,
-				rgba(26, 26, 26, 0.95) 100%
-			);
-		}
-
-		.explore-cta {
-			background: rgba(26, 26, 26, 0.85);
-			border-color: rgba(139, 115, 85, 0.3);
-		}
-
-		.explore-back {
-			background: rgba(26, 26, 26, 0.92);
-			border-color: rgba(139, 115, 85, 0.3);
 		}
 	}
 

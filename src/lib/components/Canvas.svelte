@@ -110,12 +110,22 @@
 		// Disable double-click zoom (prevents accidental zoom when clicking on cards)
 		selection.on('dblclick.zoom', null);
 
+		// Wrap d3-zoom's wheel handler to stop propagation (prevents scroll-snap from firing)
+		const originalZoomWheel = selection.on('wheel.zoom');
+		if (originalZoomWheel) {
+			selection.on('wheel.zoom', function (this: SVGSVGElement, event: Event) {
+				event.stopPropagation();
+				originalZoomWheel.call(this, event);
+			});
+		}
+
 		// Handle regular scroll for vertical panning within focused card
 		function handleWheel(event: WheelEvent) {
 			// Skip if Ctrl is held (let d3-zoom handle it for zooming)
 			if (event.ctrlKey) return;
 
 			event.preventDefault();
+			event.stopPropagation(); // Prevent scroll-snap container from receiving wheel events
 
 			const focusedCard = canvasStore.focusedCardId
 				? canvasStore.cards.get(canvasStore.focusedCardId)

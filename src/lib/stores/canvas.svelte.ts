@@ -270,14 +270,19 @@ class CanvasStore {
 			const restoredCards = new Map<string, Card>();
 
 			// Helper to extract noteId from parent reference (strip canvasId prefix)
+			// DB stores parentCardId as "rawCanvasId-noteId" but currentCanvasId may have
+			// a "site-" prefix (e.g., "site-ABC123"), so try both prefixes
 			const canvasIdPrefix = `${this.currentCanvasId}-`;
+			const rawCanvasId = canvasId?.startsWith('site-') ? canvasId.substring(5) : canvasId;
+			const rawPrefix = rawCanvasId ? `${rawCanvasId}-` : null;
 			const extractNoteId = (parentCardId: string | null): string | null => {
 				if (!parentCardId) return null;
-				// parentCardId format is "canvasId-noteId", strip the known canvasId prefix
 				if (parentCardId.startsWith(canvasIdPrefix)) {
 					return parentCardId.substring(canvasIdPrefix.length);
 				}
-				// Fallback: return as-is if prefix doesn't match
+				if (rawPrefix && parentCardId.startsWith(rawPrefix)) {
+					return parentCardId.substring(rawPrefix.length);
+				}
 				return parentCardId;
 			};
 
