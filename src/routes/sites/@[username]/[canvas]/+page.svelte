@@ -19,9 +19,6 @@
 	let lastScrollY = $state(0);
 	let iframeLoading = $state(true);
 
-	// Canvas activation timers (for debounced auto-activation)
-	let activationTimers = new Map<string, ReturnType<typeof setTimeout>>();
-
 	// Contact form state
 	let contactStatus = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
 	let contactEmail = $state('');
@@ -40,7 +37,7 @@
 			: (section.id ?? '');
 	}
 
-	// IntersectionObserver for active section tracking + canvas auto-activation
+	// IntersectionObserver for active section tracking
 	onMount(() => {
 		if (data.mode !== 'site') return;
 
@@ -65,60 +62,27 @@
 			}
 		);
 
-		// Canvas auto-activation observer
-		const canvasObserver = new IntersectionObserver(
-			(entries) => {
-				for (const entry of entries) {
-					const sectionId = entry.target.getAttribute('data-canvas-section');
-					if (!sectionId) continue;
-
-					if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
-						// Schedule activation with delay to prevent rapid-scroll thrashing
-						if (!activationTimers.has(sectionId)) {
-							const timer = setTimeout(() => {
-								activationTimers.delete(sectionId);
-								activateCanvas(sectionId);
-							}, 300);
-							activationTimers.set(sectionId, timer);
-						}
-					} else {
-						// Cancel pending activation
-						const timer = activationTimers.get(sectionId);
-						if (timer) {
-							clearTimeout(timer);
-							activationTimers.delete(sectionId);
-						}
-						// Teardown if this was the active canvas
-						if (activeCanvasSection === sectionId) {
-							deactivateCanvas();
-						}
-					}
-				}
-			},
-			{
-				root: scrollContainer,
-				threshold: [0, 0.3, 0.6, 1.0]
-			}
-		);
-
 		// Observe all section elements
 		for (const el of Object.values(sectionEls)) {
 			if (el) navObserver.observe(el);
 		}
 
-		// Observe canvas sections for auto-activation
-		for (const section of data.sections ?? []) {
-			if (section.type === 'canvas') {
-				const el = sectionEls[getSectionSlug(section)];
-				if (el) canvasObserver.observe(el);
-			}
-		}
-
 		return () => {
 			navObserver.disconnect();
-			canvasObserver.disconnect();
-			for (const timer of activationTimers.values()) clearTimeout(timer);
 		};
+	});
+
+	// Canvas auto-activation: react to activeSlug changes
+	$effect(() => {
+		if (data.mode !== 'site' || !data.sections) return;
+
+		const currentSection = data.sections.find((s) => getSectionSlug(s) === activeSlug);
+
+		if (currentSection?.type === 'canvas' && currentSection.sectionId) {
+			activateCanvas(currentSection.sectionId);
+		} else if (activeCanvasSection) {
+			deactivateCanvas();
+		}
 	});
 
 	// Scroll handler for nav auto-hide
@@ -281,7 +245,7 @@
 				class="snap-section"
 				class:canvas-active={isCanvasActive}
 				data-section-slug={slug}
-				data-canvas-section={section.type === 'canvas' ? section.sectionId : undefined}
+
 				bind:this={sectionEls[slug]}
 			>
 				{#if section.type === 'hero'}
