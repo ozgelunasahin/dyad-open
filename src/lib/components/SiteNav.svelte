@@ -9,31 +9,11 @@
 		items: NavItem[];
 		activeSlug: string;
 		siteName: string;
+		hidden?: boolean;
 		onNavigate: (slug: string) => void;
 	}
 
-	let { items, activeSlug, siteName, onNavigate }: Props = $props();
-
-	let hidden = $state(false);
-	let lastScrollY = $state(0);
-
-	function handleScroll(e: Event) {
-		const target = e.target as HTMLElement;
-		const y = target.scrollTop;
-		// Hide nav on scroll down (past threshold), show on scroll up
-		if (y > lastScrollY && y > 80) {
-			hidden = true;
-		} else if (y < lastScrollY) {
-			hidden = false;
-		}
-		lastScrollY = y;
-	}
-
-	/**
-	 * Attach this to the scroll container from the parent.
-	 * Call SiteNav.handleScroll from the parent's scroll event.
-	 */
-	export { handleScroll };
+	let { items, activeSlug, siteName, hidden = false, onNavigate }: Props = $props();
 </script>
 
 <nav class="site-nav" class:hidden aria-label="Site navigation">

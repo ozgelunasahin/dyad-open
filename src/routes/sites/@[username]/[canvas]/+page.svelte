@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { tick } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import type { PageData } from './$types';
 	import WebsiteContainer from '$lib/components/WebsiteContainer.svelte';
@@ -11,13 +11,17 @@
 	let { data }: { data: PageData } = $props();
 
 	// --- Site mode state ---
-	let scrollContainer = $state<HTMLElement>(null!);
+	// Fix #4: plain let for bind:this (not $state — avoids reactive proxy issues)
+	let scrollContainer: HTMLElement | null = $state(null);
 	let sectionEls: Record<string, HTMLElement> = {};
 	let activeSlug = $state('');
 	let activeCanvasSection = $state<string | null>(null);
 	let navHidden = $state(false);
-	let lastScrollY = $state(0);
+	let lastScrollY = 0;
 	let iframeLoading = $state(true);
+
+	// Fix #3: component-level generation counter for canvas activation
+	let activationGeneration = 0;
 
 	// Contact form state
 	let contactStatus = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
@@ -37,16 +41,21 @@
 			: (section.id ?? '');
 	}
 
-	// IntersectionObserver for active section tracking
-	onMount(() => {
+	// Set initial active section
+	$effect(() => {
 		if (data.mode !== 'site') return;
-
-		// Set initial active section
-		if (data.sections?.length > 0) {
+		if (activeSlug === '' && data.sections?.length > 0) {
 			activeSlug = getSectionSlug(data.sections[0]);
 		}
+	});
 
-		// Nav section tracking observer
+	// Fix #2: IntersectionObserver in $effect (not onMount) so bind:this refs are populated
+	$effect(() => {
+		if (data.mode !== 'site' || !scrollContainer) return;
+
+		const els = Object.values(sectionEls).filter(Boolean);
+		if (els.length === 0) return;
+
 		const navObserver = new IntersectionObserver(
 			(entries) => {
 				for (const entry of entries) {
@@ -62,9 +71,8 @@
 			}
 		);
 
-		// Observe all section elements
-		for (const el of Object.values(sectionEls)) {
-			if (el) navObserver.observe(el);
+		for (const el of els) {
+			navObserver.observe(el);
 		}
 
 		return () => {
@@ -85,7 +93,7 @@
 		}
 	});
 
-	// Scroll handler for nav auto-hide
+	// Fix #1: Scroll handler drives nav auto-hide (passed to SiteNav as hidden prop)
 	function handleScroll(e: Event) {
 		const target = e.target as HTMLElement;
 		const y = target.scrollTop;
@@ -111,6 +119,9 @@
 		if (data.mode !== 'site' || !data.sections) return;
 		if (activeCanvasSection === sectionId) return; // Already active
 
+		// Fix #3: generation counter prevents stale async work from corrupting state
+		const myGeneration = ++activationGeneration;
+
 		const section = data.sections.find(
 			(s) => s.type === 'canvas' && s.sectionId === sectionId
 		);
@@ -125,18 +136,24 @@
 		canvasStore.initialize(section.vault, `site-${section.canvasId}`, section.cardPositions);
 		await tick();
 
+		// Bail if a newer activation started while we were waiting
+		if (activationGeneration !== myGeneration) return;
+
 		// Disable scroll-snap while canvas is active
 		if (scrollContainer) scrollContainer.style.scrollSnapType = 'none';
 	}
 
 	function deactivateCanvas() {
+		activationGeneration++;
 		activeCanvasSection = null;
 		canvasStore.teardown();
 
-		// Re-enable scroll-snap
+		// Fix #5: Re-enable scroll-snap, but only if no new canvas was activated
 		if (scrollContainer) {
 			requestAnimationFrame(() => {
-				if (scrollContainer) scrollContainer.style.scrollSnapType = '';
+				if (scrollContainer && activeCanvasSection === null) {
+					scrollContainer.style.scrollSnapType = '';
+				}
 			});
 		}
 	}
@@ -229,6 +246,7 @@
 		items={data.navItems}
 		{activeSlug}
 		siteName={data.site.name}
+		hidden={navHidden}
 		onNavigate={handleNavClick}
 	/>
 

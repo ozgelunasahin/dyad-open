@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { tick } from 'svelte';
 	import SiteNav from '$lib/components/SiteNav.svelte';
 	import Canvas from '$lib/components/Canvas.svelte';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
@@ -10,11 +10,15 @@
 	let { data }: { data: PageData } = $props();
 
 	let publishError = $state<string | null>(null);
-	let scrollContainer = $state<HTMLElement>(null!);
+	let scrollContainer: HTMLElement | null = $state(null);
 	let sectionEls: Record<string, HTMLElement> = {};
 	let activeSlug = $state('');
 	let activeCanvasSection = $state<string | null>(null);
-	let lastScrollY = $state(0);
+	let navHidden = $state(false);
+	let lastScrollY = 0;
+
+	// Component-level generation counter for canvas activation
+	let activationGeneration = 0;
 
 	// Contact form state
 	let contactStatus = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
@@ -27,12 +31,20 @@
 			: (section.id ?? '');
 	}
 
-	onMount(() => {
-		if (data.sections?.length > 0) {
+	// Set initial active section
+	$effect(() => {
+		if (activeSlug === '' && data.sections?.length > 0) {
 			activeSlug = getSectionSlug(data.sections[0]);
 		}
+	});
 
-		// Nav section tracking observer
+	// IntersectionObserver in $effect so bind:this refs are populated
+	$effect(() => {
+		if (!scrollContainer) return;
+
+		const els = Object.values(sectionEls).filter(Boolean);
+		if (els.length === 0) return;
+
 		const navObserver = new IntersectionObserver(
 			(entries) => {
 				for (const entry of entries) {
@@ -45,8 +57,8 @@
 			{ root: scrollContainer, threshold: 0.5 }
 		);
 
-		for (const el of Object.values(sectionEls)) {
-			if (el) navObserver.observe(el);
+		for (const el of els) {
+			navObserver.observe(el);
 		}
 
 		return () => {
@@ -67,9 +79,15 @@
 		}
 	});
 
+	// Scroll handler drives nav auto-hide
 	function handleScroll(e: Event) {
 		const target = e.target as HTMLElement;
 		const y = target.scrollTop;
+		if (y > lastScrollY && y > 80) {
+			navHidden = true;
+		} else if (y < lastScrollY) {
+			navHidden = false;
+		}
 		lastScrollY = y;
 	}
 
@@ -82,6 +100,8 @@
 
 	async function activateCanvas(sectionId: string) {
 		if (activeCanvasSection === sectionId) return; // Already active
+
+		const myGeneration = ++activationGeneration;
 
 		const section = data.sections?.find(
 			(s) => s.type === 'canvas' && s.sectionId === sectionId
@@ -96,16 +116,22 @@
 		canvasStore.initialize(section.vault, `site-${section.canvasId}`, section.cardPositions);
 		await tick();
 
+		// Bail if a newer activation started while we were waiting
+		if (activationGeneration !== myGeneration) return;
+
 		if (scrollContainer) scrollContainer.style.scrollSnapType = 'none';
 	}
 
 	function deactivateCanvas() {
+		activationGeneration++;
 		activeCanvasSection = null;
 		canvasStore.teardown();
 
 		if (scrollContainer) {
 			requestAnimationFrame(() => {
-				if (scrollContainer) scrollContainer.style.scrollSnapType = '';
+				if (scrollContainer && activeCanvasSection === null) {
+					scrollContainer.style.scrollSnapType = '';
+				}
 			});
 		}
 	}
@@ -231,6 +257,7 @@
 			items={data.navItems}
 			{activeSlug}
 			siteName={data.site.name}
+			hidden={navHidden}
 			onNavigate={handleNavClick}
 		/>
 
