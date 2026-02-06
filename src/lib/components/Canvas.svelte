@@ -794,6 +794,8 @@
 			animationGeneration++;
 			canvasStore.setAnimating(false);
 			clearTimeout(mountPathsTimer);
+			// Detach d3-zoom handlers to prevent ghost zoom events on remount
+			select(svg).on('.zoom', null);
 			window.removeEventListener('canvas-focus', handleFocusAnimation);
 			window.removeEventListener('canvas-focus-instant', handleInstantFocus);
 			window.removeEventListener('canvas-restore', handleRestorePosition);
