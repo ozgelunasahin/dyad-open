@@ -17,9 +17,10 @@
 
 	interface Props {
 		readOnly?: boolean;
+		onBoundaryExit?: (direction: 'up' | 'down') => void;
 	}
 
-	let { readOnly = false }: Props = $props();
+	let { readOnly = false, onBoundaryExit }: Props = $props();
 
 	let svg: SVGSVGElement;
 	let transform = $state({ x: 0, y: 0, k: 1 });
@@ -37,6 +38,12 @@
 
 	// Pending link restoration to apply after animation completes
 	let pendingLinkRestoration: CardRestoration | null = null;
+
+	// Scroll boundary pass-through: track consecutive wheel events at canvas scroll limits
+	// After BOUNDARY_HITS_THRESHOLD consecutive boundary hits, let events propagate to parent
+	const BOUNDARY_HITS_THRESHOLD = 3;
+	let boundaryHits = 0;
+	let lastBoundaryDirection: 'up' | 'down' | null = null;
 
 	onMount(() => {
 		zoomBehavior = zoom<SVGSVGElement, unknown>()
@@ -124,14 +131,14 @@
 			// Skip if Ctrl is held (let d3-zoom handle it for zooming)
 			if (event.ctrlKey) return;
 
-			event.preventDefault();
-			event.stopPropagation(); // Prevent scroll-snap container from receiving wheel events
+			const scrollDirection = event.deltaY > 0 ? 'down' : 'up';
 
 			const focusedCard = canvasStore.focusedCardId
 				? canvasStore.cards.get(canvasStore.focusedCardId)
 				: null;
 
 			let newY = transform.y - event.deltaY;
+			let atBoundary = false;
 
 			if (readOnly) {
 				// Clamp to full content bounds
@@ -141,7 +148,9 @@
 					const padding = viewportHeight * 0.5;
 					const maxY = padding - bounds.minY * transform.k;
 					const minY = viewportHeight - padding - bounds.maxY * transform.k;
-					newY = Math.max(minY, Math.min(maxY, newY));
+					const clampedY = Math.max(minY, Math.min(maxY, newY));
+					atBoundary = clampedY !== newY;
+					newY = clampedY;
 				}
 			} else if (focusedCard) {
 				// Calculate vertical bounds based on focused card
@@ -153,9 +162,40 @@
 				const maxY = viewportHeight / 2 - cardTop * transform.k + 100;
 				const minY = viewportHeight / 2 - cardBottom * transform.k - 100;
 
-				// Apply bounds
-				newY = Math.max(minY, Math.min(maxY, newY));
+				const clampedY = Math.max(minY, Math.min(maxY, newY));
+				atBoundary = clampedY !== newY;
+				newY = clampedY;
 			}
+
+			// Track consecutive boundary hits in the same direction
+			if (atBoundary && scrollDirection === lastBoundaryDirection) {
+				boundaryHits++;
+			} else if (atBoundary) {
+				// Changed direction at boundary — reset counter
+				boundaryHits = 1;
+				lastBoundaryDirection = scrollDirection;
+			} else {
+				// Not at boundary — reset
+				boundaryHits = 0;
+				lastBoundaryDirection = null;
+			}
+
+			// If we've hit the boundary enough times, signal the parent to scroll
+			// to the next/previous section
+			if (boundaryHits >= BOUNDARY_HITS_THRESHOLD) {
+				event.preventDefault();
+				event.stopPropagation();
+				if (onBoundaryExit && lastBoundaryDirection) {
+					onBoundaryExit(lastBoundaryDirection);
+				}
+				// Reset so we don't fire repeatedly
+				boundaryHits = 0;
+				lastBoundaryDirection = null;
+				return;
+			}
+
+			event.preventDefault();
+			event.stopPropagation();
 
 			const newTransform = zoomIdentity.translate(transform.x, newY).scale(transform.k);
 			zoomBehavior.transform(selection, newTransform);
