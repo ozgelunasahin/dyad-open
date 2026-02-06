@@ -151,12 +151,17 @@
 		);
 		if (!section || section.type !== 'canvas') return;
 
+		// Suspend previous canvas (snapshot state for fast resume later)
 		if (activeCanvasSection && activeCanvasSection !== sectionId) {
-			canvasStore.teardown();
+			canvasStore.suspend();
 		}
 
 		activeCanvasSection = sectionId;
-		canvasStore.initialize(section.vault, `site-${section.canvasId}`, section.cardPositions);
+		const canvasStoreId = `site-${section.canvasId}`;
+		const resumed = canvasStore.resume(canvasStoreId);
+		if (!resumed) {
+			canvasStore.initialize(section.vault, canvasStoreId, section.cardPositions);
+		}
 		await tick();
 
 		if (activationGeneration !== myGeneration) return;
@@ -167,7 +172,7 @@
 	function deactivateCanvas() {
 		activationGeneration++;
 		activeCanvasSection = null;
-		canvasStore.teardown();
+		canvasStore.suspend();
 
 		if (scrollContainer) {
 			requestAnimationFrame(() => {
