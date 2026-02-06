@@ -166,21 +166,12 @@
 
 		if (activationGeneration !== myGeneration) return;
 
-		if (scrollContainer) scrollContainer.style.scrollSnapType = 'none';
 	}
 
 	function deactivateCanvas() {
 		activationGeneration++;
 		activeCanvasSection = null;
 		canvasStore.suspend();
-
-		if (scrollContainer) {
-			requestAnimationFrame(() => {
-				if (scrollContainer && activeCanvasSection === null) {
-					scrollContainer.style.scrollSnapType = '';
-				}
-			});
-		}
 	}
 
 	function handleBoundaryExit(direction: 'up' | 'down') {
@@ -250,7 +241,6 @@
 
 		<section
 			class="snap-section"
-			class:canvas-active={isCanvasActive}
 			data-section-slug={slug}
 			bind:this={sectionEls[slug]}
 		>
@@ -282,13 +272,10 @@
 				</div>
 
 			{:else if section.type === 'canvas'}
+				<div class="canvas-placeholder"></div>
 				{#if isCanvasActive}
-					<div class="canvas-frame" transition:fade={{ duration: 200 }}>
-						<Canvas readOnly onBoundaryExit={handleBoundaryExit} />
-					</div>
-				{:else}
-					<div class="canvas-placeholder">
-						<h2 class="placeholder-title">{section.navLabel || section.name}</h2>
+					<div class="canvas-frame" transition:fade={{ duration: 300 }}>
+						<Canvas readOnly captureWheel={false} onBoundaryExit={handleBoundaryExit} />
 					</div>
 				{/if}
 			{/if}
@@ -314,7 +301,6 @@
 	.scroll-container {
 		flex: 1;
 		overflow-y: auto;
-		scroll-snap-type: y mandatory;
 		scroll-behavior: smooth;
 	}
 
@@ -324,7 +310,6 @@
 
 	.snap-section {
 		min-height: 100vh;
-		scroll-snap-align: start;
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -332,10 +317,6 @@
 		padding-top: 48px; /* nav height */
 		content-visibility: auto;
 		contain-intrinsic-size: auto 100vh;
-	}
-
-	.snap-section.canvas-active {
-		scroll-snap-align: none;
 	}
 
 	/* === Hero Section === */
@@ -429,12 +410,11 @@
 
 	/* === Canvas Frame (interactive, bounded) === */
 	.canvas-frame {
-		width: calc(100% - 128px);
-		height: calc(100vh - 176px);
-		margin: 64px;
-		position: relative;
+		position: absolute;
+		inset: 64px;
+		top: 112px; /* 64px + 48px nav height */
 		overflow: hidden;
-		touch-action: none;
+		touch-action: auto;
 		overscroll-behavior: contain;
 		border-radius: 16px;
 		border: 1px solid var(--border-link, rgba(0, 0, 0, 0.1));
@@ -489,11 +469,6 @@
 
 	/* === Responsive === */
 	@media (max-width: 768px) {
-		.scroll-container {
-			/* Use proximity on mobile to avoid fast-flick trapping */
-			scroll-snap-type: y proximity;
-		}
-
 		.snap-section {
 			padding-top: 48px;
 		}
