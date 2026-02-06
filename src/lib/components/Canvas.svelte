@@ -17,10 +17,12 @@
 
 	interface Props {
 		readOnly?: boolean;
+		interactive?: boolean;
+		captureWheel?: boolean;
 		onBoundaryExit?: (direction: 'up' | 'down') => void;
 	}
 
-	let { readOnly = false, onBoundaryExit }: Props = $props();
+	let { readOnly = false, interactive = true, captureWheel = true, onBoundaryExit }: Props = $props();
 
 	let svg: SVGSVGElement;
 	let transform = $state({ x: 0, y: 0, k: 1 });
@@ -54,6 +56,8 @@
 			})
 			// Only allow zoom on Ctrl+wheel, allow drag panning
 			.filter((event) => {
+				// Block all d3-zoom events when not interactive (defense-in-depth)
+				if (!interactive) return false;
 				// For wheel events, only zoom if Ctrl is held
 				if (event.type === 'wheel') {
 					return event.ctrlKey;
@@ -121,6 +125,7 @@
 		const originalZoomWheel = selection.on('wheel.zoom');
 		if (originalZoomWheel) {
 			selection.on('wheel.zoom', function (this: SVGSVGElement, event: Event) {
+				if (!interactive) return;
 				event.stopPropagation();
 				originalZoomWheel.call(this, event);
 			});
@@ -128,6 +133,8 @@
 
 		// Handle regular scroll for vertical panning within focused card
 		function handleWheel(event: WheelEvent) {
+			// Skip all handling when not interactive or wheel capture disabled
+			if (!interactive || !captureWheel) return;
 			// Skip if Ctrl is held (let d3-zoom handle it for zooming)
 			if (event.ctrlKey) return;
 
