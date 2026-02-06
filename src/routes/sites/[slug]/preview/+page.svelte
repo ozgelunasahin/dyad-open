@@ -142,6 +142,24 @@
 		}
 	}
 
+	// Canvas boundary exit → scroll to next/previous section
+	function handleBoundaryExit(direction: 'up' | 'down') {
+		if (!data.sections) return;
+		const slugs = data.sections.map(getSectionSlug);
+		const currentIdx = slugs.indexOf(activeSlug);
+		if (currentIdx === -1) return;
+
+		const targetIdx =
+			direction === 'down'
+				? Math.min(currentIdx + 1, slugs.length - 1)
+				: Math.max(currentIdx - 1, 0);
+
+		if (targetIdx !== currentIdx) {
+			deactivateCanvas();
+			handleNavClick(slugs[targetIdx]);
+		}
+	}
+
 	function handleKeydown(e: KeyboardEvent) {
 		if (data.sections) {
 			const slugs = data.sections.map(getSectionSlug);
@@ -294,7 +312,7 @@
 					{:else if section.type === 'canvas'}
 						{#if isCanvasActive}
 							<div class="canvas-frame" transition:fade={{ duration: 200 }}>
-								<Canvas readOnly />
+								<Canvas readOnly onBoundaryExit={handleBoundaryExit} />
 							</div>
 						{:else}
 							<div class="canvas-placeholder">
