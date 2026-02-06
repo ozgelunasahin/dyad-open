@@ -443,12 +443,16 @@
 
 	/* === Canvas Frame (interactive, bounded) === */
 	.canvas-frame {
-		width: 100%;
-		height: calc(100vh - 48px);
+		width: calc(100% - 128px);
+		height: calc(100vh - 176px);
+		margin: 64px;
 		position: relative;
 		overflow: hidden;
 		touch-action: none;
 		overscroll-behavior: contain;
+		border-radius: 16px;
+		border: 1px solid var(--border-link, rgba(0, 0, 0, 0.1));
+		box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 	}
 
 	/* === Canvas Placeholder (shown when canvas not active) === */
