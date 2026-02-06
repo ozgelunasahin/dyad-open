@@ -1,6 +1,8 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { buildLandingCanvasData } from '$lib/server/load-site-sections';
+import { loadSiteSections, buildLandingCanvasData } from '$lib/server/load-site-sections';
+import { renderTiptapToHtml } from '$lib/utils/tiptap-html';
+import type { JSONContent } from '@tiptap/core';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const { data: profile, error: profileError } = await locals.supabase
@@ -29,16 +31,47 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		.single();
 
 	if (site) {
-		const { vault, savedPositions, navItems } = await buildLandingCanvasData(
+		// Load sections for paginated SPA view
+		const { allSections } = await loadSiteSections(locals.supabase, site.id);
+
+		// Also load merged canvas data for click-to-explore interactive mode
+		const { vault, savedPositions } = await buildLandingCanvasData(
 			locals.supabase,
 			site.id
 		);
+
+		// Build nav items from sections
+		const navItems = allSections.map((section) => ({
+			slug: section.type === 'canvas' ? section.sectionId : section.id,
+			name: section.type === 'canvas' ? (section.navLabel || section.name) : section.name,
+			type: section.type
+		}));
+
+		// Pre-render canvas note content as sanitized HTML (server-side only)
+		const renderedSections = allSections.map((section) => {
+			if (section.type !== 'canvas') return section;
+
+			const renderedNotes: Record<string, { title: string; html: string }> = {};
+			for (const [slug, note] of Object.entries(section.vault.notes)) {
+				renderedNotes[slug] = {
+					title: note.title,
+					html: renderTiptapToHtml(note.content as JSONContent)
+				};
+			}
+
+			return {
+				...section,
+				renderedNotes
+			};
+		});
 
 		return {
 			mode: 'site' as const,
 			site: { id: site.id, name: site.name, slug: site.slug },
 			author: { username: params.username },
 			isAuthor,
+			sections: renderedSections,
+			// For interactive mode (click-to-explore)
 			vault,
 			savedPositions,
 			navItems

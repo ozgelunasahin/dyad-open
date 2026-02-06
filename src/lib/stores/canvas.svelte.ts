@@ -147,6 +147,9 @@ class CanvasStore {
 	private vault: Vault | null = null;
 	private brokenLinks = $state<Set<string>>(new Set());
 
+	// Generation token: incremented on each initialize/teardown to detect stale async work
+	private initGeneration = 0;
+
 	cardList = $derived(Array.from(this.cards.values()));
 	canGoBack = $derived(this.history.back.length > 0);
 	canGoForward = $derived(this.history.forward.length > 0);
@@ -163,6 +166,7 @@ class CanvasStore {
 
 	async initialize(vault: Vault, canvasId?: string, savedPositions?: SavedPosition[]): Promise<void> {
 		console.log('[Store] initialize called');
+		const gen = ++this.initGeneration;
 		this.vault = vault;
 		this.currentCanvasId = canvasId ?? null;
 
@@ -326,6 +330,9 @@ class CanvasStore {
 				return;
 			}
 		}
+
+		// Bail if a newer initialize was called while we were processing
+		if (gen !== this.initGeneration) return;
 
 		// Fallback: Open the entry note
 		console.log('[Store] Opening entry note');
@@ -2041,6 +2048,30 @@ class CanvasStore {
 				this.openNote(entry.id, null, null);
 			}
 		}
+	}
+
+	/**
+	 * Lightweight state teardown for exiting interactive mode.
+	 * Clears all in-memory state without making API calls or touching localStorage.
+	 * Use this instead of hardReset() on read-only sites.
+	 */
+	teardown(): void {
+		this.initGeneration++;
+		this.cards = new Map();
+		this.connections = [];
+		this.storedPaths = new Map();
+		this.activeChain = [];
+		this.history = { back: [], forward: [] };
+		this.focusedCardId = null;
+		this.editingCardId = null;
+		this.focusedLinkIndex = null;
+		this.savedCardState = new Map();
+		this.hiddenChains = new Map();
+		this.camera = { x: 0, y: 0, zoom: 1 };
+		this.vault = null;
+		this.currentCanvasId = null;
+		this.dimensionCache = new Map();
+		this.brokenLinks = new Set();
 	}
 
 	/**
