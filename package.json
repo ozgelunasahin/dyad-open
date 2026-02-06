@@ -4,9 +4,8 @@
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
-		"build:vault": "npx tsx scripts/build-vault.ts",
-		"dev": "npm run build:vault && vite dev",
-		"build": "npm run build:vault && vite build",
+		"dev": "vite dev",
+		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
@@ -41,14 +40,10 @@
 		"@tiptap/html": "^3.18.0",
 		"@tiptap/pm": "^3.15.3",
 		"@tiptap/starter-kit": "^3.18.0",
-		"@types/turndown": "^5.0.6",
 		"@vite-pwa/sveltekit": "^1.1.0",
 		"d3-selection": "^3.0.0",
 		"d3-zoom": "^3.0.0",
-		"gray-matter": "^4.0.3",
 		"isomorphic-dompurify": "^2.35.0",
-		"marked": "^17.0.1",
-		"nanoid": "^5.1.6",
-		"turndown": "^7.2.2"
+		"nanoid": "^5.1.6"
 	}
 }

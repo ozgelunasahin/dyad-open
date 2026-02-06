@@ -37,54 +37,6 @@ export function jsonToPlainText(content: JSONContent): string {
 }
 
 /**
- * Check if JSON content has code blocks.
- */
-export function hasCodeBlocks(content: JSONContent): boolean {
-	if (!content) return false;
-	if (content.type === 'codeBlock') return true;
-	if (content.content) {
-		return content.content.some(hasCodeBlocks);
-	}
-	return false;
-}
-
-/**
- * Check if JSON content has headings.
- */
-export function hasHeadings(content: JSONContent): boolean {
-	if (!content) return false;
-	if (content.type === 'heading') return true;
-	if (content.content) {
-		return content.content.some(hasHeadings);
-	}
-	return false;
-}
-
-/**
- * Check if JSON content has lists.
- */
-export function hasLists(content: JSONContent): boolean {
-	if (!content) return false;
-	if (content.type === 'bulletList' || content.type === 'orderedList') return true;
-	if (content.content) {
-		return content.content.some(hasLists);
-	}
-	return false;
-}
-
-/**
- * Check if JSON content has blockquotes.
- */
-export function hasBlockquotes(content: JSONContent): boolean {
-	if (!content) return false;
-	if (content.type === 'blockquote') return true;
-	if (content.content) {
-		return content.content.some(hasBlockquotes);
-	}
-	return false;
-}
-
-/**
  * Extract wikilinks from JSON content.
  */
 export function extractWikilinksFromJson(content: JSONContent): string[] {
@@ -103,59 +55,6 @@ export function extractWikilinksFromJson(content: JSONContent): string[] {
 
 	walk(content);
 	return [...new Set(links)];
-}
-
-/**
- * Calculate optimal card width based on JSON content characteristics.
- */
-export function calculateOptimalWidthFromJson(
-	content: JSONContent,
-	minWidth: number,
-	maxWidth: number
-): number {
-	// Handle string content (legacy) - return default width
-	if (!content || typeof content !== 'object') {
-		return 320;
-	}
-
-	const plainText = jsonToPlainText(content);
-	const charCount = plainText.length;
-	const lines = plainText.split('\n').filter((l) => l.trim());
-	const lineCount = lines.length;
-	const avgLineLength = lineCount > 0 ? charCount / lineCount : charCount;
-	const hasLongLines = lines.some((line) => line.length > 80);
-
-	let targetWidth: number;
-
-	if (hasCodeBlocks(content)) {
-		targetWidth = 420;
-	} else if (hasHeadings(content) && charCount > 800) {
-		targetWidth = 380;
-	} else if (hasLists(content) && charCount > 400) {
-		targetWidth = 340;
-	} else if (hasBlockquotes(content)) {
-		targetWidth = 320;
-	} else if (avgLineLength < 40 && lineCount > 3) {
-		targetWidth = 260;
-	} else if (charCount < 150) {
-		targetWidth = 220;
-	} else if (charCount < 300) {
-		targetWidth = 260;
-	} else if (charCount < 500) {
-		targetWidth = 300;
-	} else if (charCount < 800) {
-		targetWidth = 340;
-	} else if (charCount < 1200) {
-		targetWidth = 370;
-	} else {
-		targetWidth = 400;
-	}
-
-	if (hasLongLines) {
-		targetWidth = Math.max(targetWidth, 380);
-	}
-
-	return Math.max(minWidth, Math.min(maxWidth, targetWidth));
 }
 
 /**

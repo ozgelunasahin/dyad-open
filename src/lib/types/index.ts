@@ -69,11 +69,6 @@ export const ACTIVE_AREA_MARGINS = {
 	right: 0.20   // 20% - larger, users don't focus here; room for child cards
 };
 
-export interface NavigationHistory {
-	back: string[][];
-	forward: string[][];
-}
-
 export interface Vault {
 	notes: Record<string, Note>;
 	entryPoint: string;
@@ -82,12 +77,7 @@ export interface Vault {
 // Card sizing - fixed column width for visual consistency
 export const CARD_WIDTH = 440;
 export const CARD_SPACING = 100;
-export const CARD_SPACING_VERTICAL = 40;
 export const MAX_CARDS = 50;
-
-// Pathfinding grid
-export const GRID_CELL_SIZE = 10;
-export const OBSTACLE_PADDING = 20; // Keep small so paths can use gaps
 
 // Layout types
 export type LinkSide = 'left' | 'right';
