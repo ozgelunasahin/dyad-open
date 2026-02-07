@@ -64,6 +64,17 @@ Without this, ghost event handlers persist after unmount.
 
 The store communicates with `Canvas.svelte` via `window.dispatchEvent(new CustomEvent(...))`. Event names are string literals (not centrally typed). Key events: `canvas-focus`, `canvas-compute-paths`, `canvas-zoom-to-fit`, `canvas-open-chain`, `card-content-reflow`. All listeners are cleaned up in `Canvas.svelte`'s unmount.
 
+## Landing Page (`/`)
+
+The root route displays a published site for anonymous visitors (logged-in users are redirected to their dashboard). The site owner and slug are hardcoded in `src/routes/+page.server.ts`:
+
+```typescript
+const LANDING_USERNAME = 'digit';
+const LANDING_SITE_SLUG = 'dyad';
+```
+
+To change which site appears on the landing page, update these two constants to match the desired user's `profiles.username` and `sites.slug`. The site must have `is_published = true` in the database.
+
 ## Two Site Rendering Approaches
 
 There are two distinct rendering paths for published sites:

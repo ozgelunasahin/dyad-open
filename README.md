@@ -43,6 +43,22 @@ PUBLIC_SUPABASE_URL=your-supabase-url
 PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
+## Landing Page
+
+The root URL (`/`) shows a published site to anonymous visitors. Which site is displayed is controlled by two constants in `src/routes/+page.server.ts`:
+
+```typescript
+const LANDING_USERNAME = 'digit';
+const LANDING_SITE_SLUG = 'dyad';
+```
+
+To publish your own site to the landing page:
+1. Create and publish a site in the app (set `is_published = true`)
+2. Update `LANDING_USERNAME` to your `profiles.username`
+3. Update `LANDING_SITE_SLUG` to your `sites.slug`
+
+Logged-in users are redirected to their dashboard and never see the landing page.
+
 ## Deployment
 
 The app is deployed to **Cloudflare Pages** using `@sveltejs/adapter-cloudflare`.
