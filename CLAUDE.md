@@ -124,6 +124,10 @@ src/
 - `svelte-check` has pre-existing errors (Supabase type widening, Cache-Control type).
 - `DOMPurify` import: use `import DOMPurify from 'isomorphic-dompurify'` (default import).
 
-## Todos
+## Todos & Plans
 
 The `todos/` directory contains prioritized findings from code reviews. Files follow the pattern `{NNN}-{priority}-{description}.md` with YAML frontmatter. Completed items are in `todos/archive/`.
+
+The `plans/` directory contains implementation plans. Completed plans should be moved to `plans/archive/`.
+
+When resolving a todo or completing a plan, always move the file to the corresponding `archive/` subdirectory rather than deleting it.

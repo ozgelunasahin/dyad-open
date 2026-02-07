@@ -1,9 +1,5 @@
 <script lang="ts">
-	interface NavItem {
-		slug: string;
-		name: string;
-		type: string;
-	}
+	import type { NavItem } from '$lib/server/load-site-sections';
 
 	interface Props {
 		items: NavItem[];

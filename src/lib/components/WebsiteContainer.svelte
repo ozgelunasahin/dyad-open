@@ -1,11 +1,5 @@
 <script lang="ts">
-	export interface NavItem {
-		name: string;
-		slug: string;
-		type?: 'canvas' | 'hero' | 'contact';
-		/** The specific card ID to focus when this nav item is clicked */
-		cardId?: string;
-	}
+	import type { NavItem } from '$lib/server/load-site-sections';
 
 	interface Props {
 		/** Author username */
@@ -14,10 +8,6 @@
 		navItems?: NavItem[];
 		/** Current item slug (for highlighting in nav) */
 		currentItem?: string;
-		/** @deprecated Use navItems instead */
-		canvases?: NavItem[];
-		/** @deprecated Use currentItem instead */
-		currentCanvas?: string;
 		/** Child content */
 		children: import('svelte').Snippet;
 		/** Optional base URL for navigation links */
@@ -32,17 +22,11 @@
 		author,
 		navItems = [],
 		currentItem,
-		canvases,
-		currentCanvas,
 		children,
 		baseUrl,
 		useQueryParam = false,
 		onNavigate
 	}: Props = $props();
-
-	// Backward compat: merge old canvases prop into navItems
-	let resolvedNavItems = $derived(navItems.length > 0 ? navItems : (canvases ?? []));
-	let resolvedCurrentItem = $derived(currentItem ?? currentCanvas);
 
 	function getItemUrl(slug: string): string {
 		if (baseUrl) {
@@ -62,7 +46,7 @@
 </script>
 
 <div class="website-container">
-	{#if resolvedNavItems.length > 0}
+	{#if navItems.length > 0}
 		<aside class="nav-panel" class:collapsed={!navExpanded}>
 			<button class="nav-toggle" onclick={toggleNav} aria-label={navExpanded ? 'Collapse navigation' : 'Expand navigation'}>
 				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -77,11 +61,11 @@
 			{#if navExpanded}
 				<nav class="canvas-nav">
 					<ul>
-						{#each resolvedNavItems as item}
+						{#each navItems as item}
 							<li>
 								{#if onNavigate}
 									<button
-										class:active={item.slug === resolvedCurrentItem}
+										class:active={item.slug === currentItem}
 										onclick={() => onNavigate(item.slug, item.cardId)}
 									>
 										{item.name}
@@ -89,7 +73,7 @@
 								{:else}
 									<a
 										href={getItemUrl(item.slug)}
-										class:active={item.slug === resolvedCurrentItem}
+										class:active={item.slug === currentItem}
 									>
 										{item.name}
 									</a>

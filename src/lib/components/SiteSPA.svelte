@@ -5,13 +5,7 @@
 	import SiteNav from '$lib/components/SiteNav.svelte';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import { themeStore } from '$lib/stores/theme.svelte';
-	import type { SectionData } from '$lib/server/load-site-sections';
-
-	interface NavItem {
-		slug: string;
-		name: string;
-		type: string;
-	}
+	import type { SectionData, NavItem } from '$lib/server/load-site-sections';
 
 	interface Props {
 		sections: SectionData[];

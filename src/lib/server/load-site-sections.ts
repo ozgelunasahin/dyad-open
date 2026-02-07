@@ -5,11 +5,11 @@ import { CARD_WIDTH } from '$lib/types';
 import { estimateContentHeight } from '$lib/utils/json-content';
 
 export interface NavItem {
-	type: 'canvas' | 'hero' | 'contact';
+	type?: 'canvas' | 'hero' | 'contact';
 	slug: string;
 	name: string;
 	/** The specific card ID to focus when this nav item is clicked */
-	cardId: string;
+	cardId?: string;
 }
 
 // Canvas section data — one per site_canvases row (same canvas can appear multiple times)
