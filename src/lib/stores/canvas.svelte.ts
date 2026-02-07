@@ -1,4 +1,4 @@
-import type { Card, Connection, Camera, Point, Vault, Dimensions, LinkSide, SourceBounds, ActiveArea, CardRestoration } from '$lib/types';
+import type { Card, Connection, Camera, Point, Vault, Dimensions, SourceBounds, ActiveArea, CardRestoration } from '$lib/types';
 import type { JSONContent } from '@tiptap/core';
 import { MAX_CARDS, CARD_WIDTH, ACTIVE_AREA_MARGINS } from '$lib/types';
 import { calculateNewCardPosition } from '$lib/utils/layout';
@@ -32,6 +32,9 @@ interface SuspendedCanvas {
 }
 
 const STORAGE_KEY_PREFIX = 'spatial-reader-state';
+
+/** Y offset from card top-left for synthetic link positions (e.g., openAllLinks). */
+const LINK_LABEL_Y_OFFSET = 50;
 
 interface PersistedState {
 	lastViewedNoteId: string | null;
@@ -1440,8 +1443,7 @@ class CanvasStore {
 	followLinkToRight(
 		noteId: string,
 		fromCardId: string,
-		sourceBounds: SourceBounds,
-		linkSide?: LinkSide
+		sourceBounds: SourceBounds
 	): boolean {
 		// Check if there's a hidden chain to restore
 		const chainKey = `${fromCardId}-${noteId}`;
@@ -2313,8 +2315,8 @@ class CanvasStore {
 
 					// Simulate clicking the link - use synthetic bounds
 					// For programmatic opening, left=right since we don't have actual link width
-					const syntheticX = card.position.x + 50;
-					const syntheticY = card.position.y + 50 + (links.indexOf(linkTarget) * 20);
+					const syntheticX = card.position.x + LINK_LABEL_Y_OFFSET;
+					const syntheticY = card.position.y + LINK_LABEL_Y_OFFSET + (links.indexOf(linkTarget) * 20);
 					const sourceBounds: SourceBounds = {
 						left: syntheticX,
 						right: syntheticX,

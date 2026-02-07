@@ -29,8 +29,8 @@
 
 <WebsiteContainer
 	author={data.author.username}
-	canvases={data.siteCanvases}
-	currentCanvas={data.canvas.slug}
+	navItems={data.siteCanvases}
+	currentItem={data.canvas.slug}
 	baseUrl={siteBaseUrl}
 >
 	<div class="iframe-wrapper">

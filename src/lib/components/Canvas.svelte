@@ -560,7 +560,7 @@
 
 						canvasStore.addNoteToVault(safeNoteId, title, content);
 						canvasStore.exitLinkFocusMode();
-						canvasStore.followLinkToRight(safeNoteId, currentFocusedCard, canvasBounds, linkSide);
+						canvasStore.followLinkToRight(safeNoteId, currentFocusedCard, canvasBounds);
 
 						// Compute and store path for new connection
 						if (canvasStore.cards.has(safeNoteId)) {
@@ -583,7 +583,7 @@
 
 				canvasStore.exitLinkFocusMode();
 				const noteAlreadyOpen = canvasStore.cards.has(target);
-				canvasStore.followLinkToRight(target, currentFocusedCard, canvasBounds, linkSide);
+				canvasStore.followLinkToRight(target, currentFocusedCard, canvasBounds);
 
 				// Compute and store path for new connection if card was created
 				if (!noteAlreadyOpen && canvasStore.cards.has(target)) {
@@ -1472,7 +1472,7 @@
 		const noteAlreadyOpen = canvasStore.cards.has(noteId);
 
 		// Use followLinkToRight for consistent chain behavior with keyboard nav
-		canvasStore.followLinkToRight(noteId, fromCardId, canvasBounds, linkSide);
+		canvasStore.followLinkToRight(noteId, fromCardId, canvasBounds);
 
 		// Compute and store path for new connection
 		if (!noteAlreadyOpen && canvasStore.cards.has(noteId)) {

@@ -43,8 +43,8 @@
 	<!-- Backward compat: single canvas mode -->
 	<WebsiteContainer
 		author={data.author.username}
-		canvases={data.siteCanvases}
-		currentCanvas={data.canvas.slug}
+		navItems={data.siteCanvases}
+		currentItem={data.canvas.slug}
 	>
 		<div class="iframe-wrapper">
 			{#if iframeLoading}

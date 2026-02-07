@@ -99,8 +99,7 @@ const PURIFY_CONFIG = {
 		'span',
 		'img'
 	],
-	ALLOWED_ATTR: ['class', 'data-target', 'src', 'alt', 'title'],
-	ALLOW_DATA_ATTR: true
+	ALLOWED_ATTR: ['class', 'data-target', 'src', 'alt', 'title']
 };
 
 /**

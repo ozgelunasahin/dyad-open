@@ -69,7 +69,12 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		return json({ error: 'Site not found' }, { status: 404 });
 	}
 
-	const body = await request.json();
+	let body: unknown;
+	try {
+		body = await request.json();
+	} catch {
+		return json({ error: 'Invalid JSON' }, { status: 400 });
+	}
 	const { canvas_id, nav_label, nav_note_id, position } = body as {
 		canvas_id: string;
 		nav_label?: string;
@@ -128,7 +133,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		.single();
 
 	if (error) {
-		return json({ error: error.message }, { status: 500 });
+		return json({ error: 'Failed to create canvas section' }, { status: 500 });
 	}
 
 	return json(inserted, { status: 201 });
@@ -151,9 +156,18 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		return json({ error: 'Site not found' }, { status: 404 });
 	}
 
-	const updates: { id: string; position?: number; nav_note_id?: string | null; nav_label?: string | null }[] = await request.json();
+	let updates: unknown;
+	try {
+		updates = await request.json();
+	} catch {
+		return json({ error: 'Invalid JSON' }, { status: 400 });
+	}
 
-	for (const u of updates) {
+	if (!Array.isArray(updates)) {
+		return json({ error: 'Expected an array of updates' }, { status: 400 });
+	}
+
+	for (const u of updates as { id: string; position?: number; nav_note_id?: string | null; nav_label?: string | null }[]) {
 		const patch: Record<string, unknown> = {};
 		if (u.position !== undefined) patch.position = u.position;
 		if ('nav_note_id' in u) patch.nav_note_id = u.nav_note_id;
@@ -168,7 +182,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 			.eq('site_id', params.id);
 
 		if (error) {
-			return json({ error: error.message }, { status: 500 });
+			return json({ error: 'Failed to update canvas sections' }, { status: 500 });
 		}
 	}
 
@@ -192,7 +206,13 @@ export const DELETE: RequestHandler = async ({ locals, params, request }) => {
 		return json({ error: 'Site not found' }, { status: 404 });
 	}
 
-	const { section_id } = await request.json() as { section_id: string };
+	let body: unknown;
+	try {
+		body = await request.json();
+	} catch {
+		return json({ error: 'Invalid JSON' }, { status: 400 });
+	}
+	const { section_id } = body as { section_id: string };
 
 	if (!section_id) {
 		return json({ error: 'section_id is required' }, { status: 400 });
@@ -205,7 +225,7 @@ export const DELETE: RequestHandler = async ({ locals, params, request }) => {
 		.eq('site_id', params.id);
 
 	if (error) {
-		return json({ error: error.message }, { status: 500 });
+		return json({ error: 'Failed to delete canvas section' }, { status: 500 });
 	}
 
 	return json({ ok: true });

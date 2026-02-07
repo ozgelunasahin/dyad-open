@@ -228,7 +228,6 @@ export function routeConnection(
 				cards,
 				sourceCard,
 				targetCard,
-				existingPaths,
 				start.y // Pass source link Y for offset calculation
 			);
 		}
@@ -286,7 +285,6 @@ function findVerticalRoutingX(
 	cards: Card[],
 	sourceCard: Card,
 	targetCard: Card,
-	_existingPaths: Point[][],
 	sourceY?: number
 ): number {
 	// Find all gaps between card columns in the routing region
