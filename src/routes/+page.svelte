@@ -1,43 +1,207 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { tick } from 'svelte';
+	import { fade } from 'svelte/transition';
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
-	import WebsiteContainer from '$lib/components/WebsiteContainer.svelte';
 	import Canvas from '$lib/components/Canvas.svelte';
+	import SiteNav from '$lib/components/SiteNav.svelte';
 
 	let { data } = $props();
 
-	let currentSection = $state<string | undefined>(undefined);
+	// Scroll and section state
+	let scrollContainer: HTMLElement | null = $state(null);
+	let sectionEls: Record<string, HTMLElement> = {};
+	let activeSlug = $state('');
+	let activeCanvasSection = $state<string | null>(null);
+	let navHidden = $state(false);
+	let lastScrollY = 0;
 
-	// Initialize once on mount — NOT in $effect (initialize writes reactive state, causing loops)
-	onMount(() => {
-		if (data.vault) {
-			canvasStore.initialize(data.vault, 'site-landing', data.savedPositions);
+	// Generation counter prevents stale async canvas activation
+	let activationGeneration = 0;
+
+	// Set initial active section
+	$effect(() => {
+		if (activeSlug === '' && data.sections?.length > 0) {
+			activeSlug = data.sections[0].sectionId ?? '';
 		}
 	});
 
-	function handleNavigate(slug: string, cardId?: string) {
-		if (cardId) {
-			canvasStore.navigateToCard(cardId);
-			currentSection = slug;
+	// IntersectionObserver to track active section
+	$effect(() => {
+		if (!scrollContainer) return;
+
+		const els = Object.values(sectionEls).filter(Boolean);
+		if (els.length === 0) return;
+
+		const navObserver = new IntersectionObserver(
+			(entries) => {
+				for (const entry of entries) {
+					if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
+						const slug = entry.target.getAttribute('data-section-slug');
+						if (slug) activeSlug = slug;
+					}
+				}
+			},
+			{
+				root: scrollContainer,
+				threshold: 0.5
+			}
+		);
+
+		for (const el of els) {
+			navObserver.observe(el);
+		}
+
+		return () => {
+			navObserver.disconnect();
+		};
+	});
+
+	// Canvas auto-activation: react to activeSlug changes
+	$effect(() => {
+		if (!data.sections) return;
+
+		const currentSection = data.sections.find((s) => s.sectionId === activeSlug);
+
+		if (currentSection?.type === 'canvas' && currentSection.sectionId) {
+			activateCanvas(currentSection.sectionId);
+		} else if (activeCanvasSection) {
+			deactivateCanvas();
+		}
+	});
+
+	// Event handlers
+	function handleScroll(e: Event) {
+		const target = e.target as HTMLElement;
+		const y = target.scrollTop;
+		if (y > lastScrollY && y > 80) {
+			navHidden = true;
+		} else if (y < lastScrollY) {
+			navHidden = false;
+		}
+		lastScrollY = y;
+	}
+
+	function handleNavClick(slug: string) {
+		const el = sectionEls[slug];
+		if (el) {
+			el.scrollIntoView({ behavior: 'smooth' });
+		}
+	}
+
+	function handleKeydown(e: KeyboardEvent) {
+		if (data.sections) {
+			const slugs = data.sections.map(s => s.sectionId ?? '');
+			const currentIdx = slugs.indexOf(activeSlug);
+
+			if (e.key === 'PageDown' || e.key === 'ArrowDown') {
+				const nextIdx = Math.min(currentIdx + 1, slugs.length - 1);
+				if (nextIdx !== currentIdx) {
+					e.preventDefault();
+					handleNavClick(slugs[nextIdx]);
+				}
+			} else if (e.key === 'PageUp' || e.key === 'ArrowUp') {
+				const prevIdx = Math.max(currentIdx - 1, 0);
+				if (prevIdx !== currentIdx) {
+					e.preventDefault();
+					handleNavClick(slugs[prevIdx]);
+				}
+			}
+		}
+	}
+
+	// Canvas lifecycle
+	async function activateCanvas(sectionId: string) {
+		if (activeCanvasSection === sectionId) return;
+
+		const myGeneration = ++activationGeneration;
+
+		const section = data.sections?.find(
+			(s) => s.type === 'canvas' && s.sectionId === sectionId
+		);
+		if (!section || section.type !== 'canvas') return;
+
+		// Suspend previous canvas (snapshot state for fast resume later)
+		if (activeCanvasSection && activeCanvasSection !== sectionId) {
+			canvasStore.suspend();
+		}
+
+		activeCanvasSection = sectionId;
+		const canvasStoreId = `landing-${section.canvasId}`;
+		const resumed = canvasStore.resume(canvasStoreId);
+		if (!resumed) {
+			canvasStore.initialize(section.vault, canvasStoreId, section.cardPositions);
+		}
+		await tick();
+
+		if (activationGeneration !== myGeneration) return;
+	}
+
+	function deactivateCanvas() {
+		activationGeneration++;
+		activeCanvasSection = null;
+		canvasStore.suspend();
+	}
+
+	function handleBoundaryExit(direction: 'up' | 'down') {
+		if (!data.sections) return;
+		const slugs = data.sections.map(s => s.sectionId ?? '');
+		const currentIdx = slugs.indexOf(activeSlug);
+		if (currentIdx === -1) return;
+
+		const targetIdx =
+			direction === 'down'
+				? Math.min(currentIdx + 1, slugs.length - 1)
+				: Math.max(currentIdx - 1, 0);
+
+		if (targetIdx !== currentIdx) {
+			deactivateCanvas();
+			handleNavClick(slugs[targetIdx]);
 		}
 	}
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 <svelte:head>
 	<title>dyad.berlin — social civic infrastructure</title>
 	<meta name="description" content="Social civic infrastructure for community bridging in Berlin." />
 </svelte:head>
 
-{#if data.vault && Object.keys(data.vault.notes).length > 0}
-	<WebsiteContainer
-		author={data.author ?? ''}
-		navItems={data.navItems}
-		currentItem={currentSection}
-		onNavigate={handleNavigate}
+{#if data.sections && data.sections.length > 0}
+	<SiteNav
+		items={data.navItems}
+		activeSlug={activeSlug}
+		siteName="dyad.berlin"
+		hidden={navHidden}
+		onNavigate={handleNavClick}
+	/>
+
+	<div
+		class="scroll-container"
+		bind:this={scrollContainer}
+		onscroll={handleScroll}
 	>
-		<Canvas readOnly />
-	</WebsiteContainer>
+		{#each data.sections as section}
+			{@const slug = section.sectionId ?? ''}
+			{@const isCanvasActive = activeCanvasSection === slug}
+
+			<section
+				class="snap-section"
+				data-section-slug={slug}
+				bind:this={sectionEls[slug]}
+			>
+				{#if section.type === 'canvas'}
+					<div class="canvas-placeholder"></div>
+					{#if isCanvasActive}
+						<div class="canvas-frame" transition:fade={{ duration: 300 }}>
+							<Canvas readOnly captureWheel={false} onBoundaryExit={handleBoundaryExit} />
+						</div>
+					{/if}
+				{/if}
+			</section>
+		{/each}
+	</div>
 
 	<button class="theme-toggle" onclick={() => themeStore.toggle()} aria-label="Toggle theme">
 		{#if themeStore.current === 'light'}
@@ -52,7 +216,7 @@
 		{/if}
 	</button>
 {:else}
-	<!-- Fallback when no site configured -->
+	<!-- Fallback -->
 	<div class="fallback">
 		<h1 class="splash-logo">dyad.berlin</h1>
 		<p class="splash-tagline">Social civic infrastructure for Berlin</p>
@@ -60,6 +224,52 @@
 {/if}
 
 <style>
+	/* === Scroll-Snap Container === */
+	.scroll-container {
+		height: 100vh;
+		overflow-y: auto;
+		scroll-behavior: smooth;
+		scroll-snap-type: y mandatory;
+	}
+
+	.snap-section {
+		min-height: 100vh;
+		scroll-snap-align: start;
+		scroll-snap-stop: always;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		position: relative;
+		padding-top: 48px; /* nav height */
+		content-visibility: auto;
+		contain-intrinsic-size: auto 100vh;
+	}
+
+	/* === Canvas Frame (interactive, bounded) === */
+	.canvas-frame {
+		position: absolute;
+		inset: 64px;
+		top: 112px; /* 64px + 48px nav height */
+		overflow: hidden;
+		touch-action: auto;
+		overscroll-behavior: contain;
+		border-radius: 16px;
+		border: 1px solid var(--border-link, rgba(0, 0, 0, 0.1));
+		box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+	}
+
+	/* === Canvas Placeholder (shown when canvas not active) === */
+	.canvas-placeholder {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		width: 100%;
+		min-height: calc(100vh - 48px);
+		color: var(--text-muted, #8b7355);
+	}
+
+	/* === Theme toggle === */
 	.theme-toggle {
 		position: fixed;
 		bottom: 24px;
@@ -68,9 +278,9 @@
 		height: 32px;
 		border: none;
 		border-radius: 4px;
-		background: var(--bg-control);
+		background: var(--bg-control, rgba(0, 0, 0, 0.04));
 		cursor: pointer;
-		color: var(--control-color);
+		color: var(--control-color, #8b7355);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -80,11 +290,12 @@
 	}
 
 	.theme-toggle:hover {
-		background: var(--bg-control-hover);
-		color: var(--control-color-hover);
+		background: var(--bg-control-hover, rgba(0, 0, 0, 0.08));
+		color: var(--control-color-hover, #1a1a1a);
 		opacity: 1;
 	}
 
+	/* Fallback */
 	.fallback {
 		min-height: 100vh;
 		display: flex;
@@ -108,5 +319,19 @@
 		font-size: 1.1rem;
 		color: var(--text-muted);
 		margin: 0;
+	}
+
+	/* === Responsive === */
+	@media (max-width: 768px) {
+		.snap-section {
+			padding-top: 48px;
+		}
+	}
+
+	/* === Reduced motion === */
+	@media (prefers-reduced-motion: reduce) {
+		.scroll-container {
+			scroll-behavior: auto;
+		}
 	}
 </style>

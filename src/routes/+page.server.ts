@@ -1,9 +1,5 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { buildLandingCanvasData } from '$lib/server/load-site-sections';
-
-const LANDING_USERNAME = 'digit';
-const LANDING_SITE_SLUG = 'dyad';
 
 export const load: PageServerLoad = async ({ locals, setHeaders }) => {
 	// Logged-in users go to their canvas/dashboard
@@ -21,40 +17,79 @@ export const load: PageServerLoad = async ({ locals, setHeaders }) => {
 	}
 
 	// Non-logged-in users see the landing page
-	const { data: profile } = await locals.supabase
-		.from('profiles')
-		.select('id, username')
-		.eq('username', LANDING_USERNAME)
-		.single();
-
-	if (!profile) {
-		return { site: null, navItems: [], vault: null, savedPositions: [], author: null };
-	}
-
-	const { data: site } = await locals.supabase
-		.from('sites')
-		.select('id, name, slug')
-		.eq('user_id', profile.id)
-		.eq('slug', LANDING_SITE_SLUG)
+	// Load published "dyad" and "tetrad" canvases directly by slug
+	const { data: canvases } = await locals.supabase
+		.from('canvases')
+		.select('id, name, slug, entry_point_note_id, user_id')
 		.eq('is_published', true)
-		.single();
+		.in('slug', ['dyad', 'tetrad'])
+		.order('slug', { ascending: true }); // dyad first, then tetrad
 
-	if (!site) {
-		return { site: null, navItems: [], vault: null, savedPositions: [], author: null };
+	if (!canvases || canvases.length === 0) {
+		return { sections: [], navItems: [] };
 	}
 
-	const { vault, savedPositions, navItems } = await buildLandingCanvasData(locals.supabase, site.id);
+	// Build sections and navItems
+	const sections = [];
+	const navItems = [];
 
-	// Cache for anonymous users — identical for everyone
+	for (const canvas of canvases) {
+		// Load all notes and positions for each canvas
+		const [notesResult, positionsResult] = await Promise.all([
+			locals.supabase
+				.from('notes')
+				.select('slug, title, content, wikilinks')
+				.eq('canvas_id', canvas.id),
+			locals.supabase
+				.from('card_positions')
+				.select('*')
+				.eq('canvas_id', canvas.id)
+		]);
+
+		const vault = {
+			notes: Object.fromEntries(
+				(notesResult.data || []).map(n => [n.slug, {
+					id: n.slug,
+					canvasId: canvas.id,
+					title: n.title,
+					content: n.content,
+					wikilinks: n.wikilinks || []
+				}])
+			),
+			entryPoint: canvas.entry_point_note_id || (notesResult.data?.[0]?.slug || '')
+		};
+
+		const cardPositions = (positionsResult.data || []).map(pos => ({
+			id: pos.id,
+			noteId: pos.note_id,
+			x: pos.x,
+			y: pos.y,
+			width: pos.width,
+			height: pos.height,
+			parentCardId: pos.parent_card_id ?? null,
+			sourceLinkX: pos.source_link_x ?? null,
+			sourceLinkY: pos.source_link_y ?? null
+		}));
+
+		sections.push({
+			type: 'canvas',
+			sectionId: canvas.slug,
+			name: canvas.name,
+			canvasId: canvas.id,
+			vault,
+			cardPositions
+		});
+
+		navItems.push({
+			name: canvas.name,
+			slug: canvas.slug
+		});
+	}
+
+	// Cache for anonymous users
 	setHeaders({
 		'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300'
 	});
 
-	return {
-		site: { id: site.id, name: site.name, slug: site.slug },
-		navItems,
-		vault,
-		savedPositions,
-		author: LANDING_USERNAME
-	};
+	return { sections, navItems };
 };
