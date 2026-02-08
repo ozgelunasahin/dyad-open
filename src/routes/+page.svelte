@@ -128,10 +128,9 @@
 
 		activeCanvasSection = sectionId;
 		const canvasStoreId = `landing-${section.canvasId}`;
-		const resumed = canvasStore.resume(canvasStoreId);
-		if (!resumed) {
-			canvasStore.initialize(section.vault, canvasStoreId, section.cardPositions);
-		}
+		// Always initialize fresh on landing page (don't resume from cache)
+		// This ensures users see the latest published content
+		canvasStore.initialize(section.vault, canvasStoreId, section.cardPositions);
 		await tick();
 
 		if (activationGeneration !== myGeneration) return;
