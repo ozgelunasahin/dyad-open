@@ -46,6 +46,8 @@ export const load: PageServerLoad = async ({ locals, setHeaders }) => {
 				.eq('canvas_id', canvas.id)
 		]);
 
+		const entryPointSlug = canvas.entry_point_note_id || (notesResult.data?.[0]?.slug || '');
+
 		const vault = {
 			notes: Object.fromEntries(
 				(notesResult.data || []).map(n => [n.slug, {
@@ -56,7 +58,7 @@ export const load: PageServerLoad = async ({ locals, setHeaders }) => {
 					wikilinks: n.wikilinks || []
 				}])
 			),
-			entryPoint: canvas.entry_point_note_id || (notesResult.data?.[0]?.slug || '')
+			entryPoint: entryPointSlug
 		};
 
 		const cardPositions = (positionsResult.data || []).map(pos => ({
@@ -92,6 +94,43 @@ export const load: PageServerLoad = async ({ locals, setHeaders }) => {
 					if (coverImageUrl) break;
 				}
 			}
+		}
+
+		// Strip the first image from the entry point note so it doesn't
+		// render inside the canvas card (it's already the hero image)
+		if (coverImageUrl && vault.notes[entryPointSlug]) {
+			const note = vault.notes[entryPointSlug];
+			if (note.content?.content) {
+				let removed = false;
+				const stripFirstImage = (nodes: any[]): any[] =>
+					nodes.reduce((acc: any[], node: any) => {
+						if (removed) {
+							acc.push(node);
+							return acc;
+						}
+						// Remove a paragraph/node that contains only an image
+						if (node.type === 'paragraph' && node.content?.length === 1 && node.content[0].type === 'image') {
+							removed = true;
+							return acc; // skip entire paragraph
+						}
+						// Remove a bare image node
+						if (node.type === 'image') {
+							removed = true;
+							return acc;
+						}
+						// Recurse into children
+						if (node.content) {
+							acc.push({ ...node, content: stripFirstImage(node.content) });
+						} else {
+							acc.push(node);
+						}
+						return acc;
+					}, []);
+				note.content = { ...note.content, content: stripFirstImage(note.content.content) };
+				console.log(`[Landing] Stripped first image from ${entryPointSlug}: removed=${removed}`);
+			}
+		} else {
+			console.log(`[Landing] No stripping for ${canvas.slug}: coverImageUrl=${!!coverImageUrl}, entryNote=${!!vault.notes[entryPointSlug]}, entryPointSlug=${entryPointSlug}`);
 		}
 
 		sections.push({

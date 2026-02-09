@@ -283,6 +283,11 @@
 		box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 	}
 
+	/* Hide the cover image inside canvas cards when hero is shown */
+	.canvas-frame.with-hero :global(img) {
+		display: none !important;
+	}
+
 	/* Canvas frame overlaid on hero image — smaller, bottom-left */
 	.canvas-frame.with-hero {
 		inset: auto;
