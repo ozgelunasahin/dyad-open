@@ -191,22 +191,20 @@
 				bind:this={sectionEls[slug]}
 			>
 				{#if section.type === 'canvas'}
-					{#if section.coverImageUrl}
-						<div class="section-hero-image">
-							<img src={section.coverImageUrl} alt="" />
-						</div>
-					{/if}
-					{#if isCanvasActive}
-						<div
-							class="canvas-frame"
-							class:with-hero={section.coverImageUrl}
-							transition:fade={{ duration: 300 }}
-						>
-							<Canvas readOnly captureWheel={false} onBoundaryExit={handleBoundaryExit} />
-						</div>
-					{:else if !section.coverImageUrl}
-						<div class="canvas-placeholder"></div>
-					{/if}
+					<div class="section-card">
+						{#if section.coverImageUrl}
+							<div class="section-cover">
+								<img src={section.coverImageUrl} alt="" />
+							</div>
+						{/if}
+						{#if isCanvasActive}
+							<div class="canvas-frame" transition:fade={{ duration: 300 }}>
+								<Canvas readOnly captureWheel={false} onBoundaryExit={handleBoundaryExit} />
+							</div>
+						{:else}
+							<div class="canvas-placeholder"></div>
+						{/if}
+					</div>
 				{/if}
 			</section>
 		{/each}
@@ -254,20 +252,46 @@
 		contain-intrinsic-size: auto 100vh;
 	}
 
-	/* === Section Hero Image (Emergence Magazine style) === */
-	.section-hero-image {
-		position: absolute;
-		inset: 48px;
-		top: 80px;
-		border-radius: 12px;
-		overflow: hidden;
+	/* === Section Card (wraps cover image + canvas) === */
+	.section-card {
+		width: 100%;
+		height: 100%;
+		display: flex;
+		flex-direction: column;
 	}
 
-	.section-hero-image img {
+	/* Cover image — framed with soft edges */
+	.section-cover {
+		flex: 1;
+		min-height: 0;
+		overflow: hidden;
+		margin: 24px 24px 0 24px;
+		border-radius: 12px;
+	}
+
+	.section-cover img {
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
 		display: block;
+	}
+
+	/* Canvas frame inside section card — tangent at bottom */
+	.section-card .canvas-frame {
+		position: relative;
+		inset: unset;
+		flex-shrink: 0;
+		height: 25vh;
+		min-height: 160px;
+		border-radius: 0;
+		border: none;
+		border-top: 1px solid var(--border-link, rgba(0, 0, 0, 0.06));
+		box-shadow: none;
+	}
+
+	/* Hide duplicate image inside canvas */
+	.section-card :global(.canvas img) {
+		display: none !important;
 	}
 
 	/* === Canvas Frame (interactive, bounded) === */
@@ -283,25 +307,6 @@
 		box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 	}
 
-	/* Hide the cover image inside canvas cards when hero is shown */
-	.canvas-frame.with-hero :global(img) {
-		display: none !important;
-	}
-
-	/* Canvas frame overlaid on hero image — smaller, bottom-left */
-	.canvas-frame.with-hero {
-		inset: auto;
-		bottom: 48px;
-		left: 48px;
-		width: min(58%, 680px);
-		height: 45%;
-		min-height: 260px;
-		background: var(--bg-canvas, rgba(250, 249, 246, 0.97));
-		z-index: 1;
-		border-radius: 12px;
-		border: none;
-		box-shadow: 0 4px 32px rgba(0, 0, 0, 0.12);
-	}
 
 	/* === Canvas Placeholder (shown when canvas not active) === */
 	.canvas-placeholder {
@@ -312,6 +317,13 @@
 		width: 100%;
 		min-height: calc(100vh - 48px);
 		color: var(--text-muted, #8b7355);
+	}
+
+	.section-card .canvas-placeholder {
+		height: 25vh;
+		min-height: 160px;
+		background: var(--bg-canvas, #faf9f6);
+		border-top: 1px solid var(--border-link, rgba(0, 0, 0, 0.06));
 	}
 
 	/* === Theme toggle === */
@@ -377,11 +389,8 @@
 			top: 64px;
 		}
 
-		.canvas-frame.with-hero {
-			bottom: 16px;
-			left: 16px;
-			width: calc(100% - 32px);
-			height: 40%;
+		.section-card .canvas-frame {
+			height: 30vh;
 		}
 	}
 
