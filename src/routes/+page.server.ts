@@ -1,5 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { renderTiptapToHtml } from '$lib/utils/tiptap-html';
 
 export const load: PageServerLoad = async ({ locals, setHeaders }) => {
 	// Logged-in users go to their canvas/dashboard
@@ -133,6 +134,12 @@ export const load: PageServerLoad = async ({ locals, setHeaders }) => {
 			console.log(`[Landing] No stripping for ${canvas.slug}: coverImageUrl=${!!coverImageUrl}, entryNote=${!!vault.notes[entryPointSlug]}, entryPointSlug=${entryPointSlug}`);
 		}
 
+		// Render entry point note as HTML for hero overlay text
+		let coverHtml = '';
+		if (coverImageUrl && vault.notes[entryPointSlug]) {
+			coverHtml = renderTiptapToHtml(vault.notes[entryPointSlug].content);
+		}
+
 		sections.push({
 			type: 'canvas',
 			sectionId: canvas.slug,
@@ -140,7 +147,8 @@ export const load: PageServerLoad = async ({ locals, setHeaders }) => {
 			canvasId: canvas.id,
 			vault,
 			cardPositions,
-			coverImageUrl
+			coverImageUrl,
+			coverHtml
 		});
 
 		navItems.push({
