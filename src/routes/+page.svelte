@@ -193,9 +193,7 @@
 				{#if section.type === 'canvas'}
 					<div class="section-card">
 						{#if section.coverImageUrl}
-							<div class="section-cover">
-								<img src={section.coverImageUrl} alt="" />
-							</div>
+							<img class="section-bg" src={section.coverImageUrl} alt="" />
 						{/if}
 						{#if isCanvasActive}
 							<div class="canvas-frame" transition:fade={{ duration: 300 }}>
@@ -240,53 +238,48 @@
 	}
 
 	.snap-section {
-		min-height: 100vh;
+		height: 100vh;
 		scroll-snap-align: start;
 		scroll-snap-stop: always;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		position: relative;
-		padding-top: 48px; /* nav height */
-		content-visibility: auto;
-		contain-intrinsic-size: auto 100vh;
+		box-sizing: border-box;
+		overflow: hidden;
 	}
 
-	/* === Section Card (wraps cover image + canvas) === */
+	/* === Section Card (positioning context for bg + canvas) === */
 	.section-card {
 		width: 100%;
 		height: 100%;
-		display: flex;
-		flex-direction: column;
-	}
-
-	/* Cover image — framed with soft edges */
-	.section-cover {
-		flex: 1;
-		min-height: 0;
+		position: relative;
 		overflow: hidden;
-		margin: 24px 24px 0 24px;
-		border-radius: 12px;
 	}
 
-	.section-cover img {
+	/* Cover image — fills the entire section as background */
+	.section-bg {
+		position: absolute;
+		inset: 0;
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
 		display: block;
 	}
 
-	/* Canvas frame inside section card — tangent at bottom */
+	/* Canvas frame — nested within the background, bottom 25% */
 	.section-card .canvas-frame {
-		position: relative;
-		inset: unset;
-		flex-shrink: 0;
+		position: absolute;
+		bottom: 0;
+		left: 0;
+		right: 0;
 		height: 25vh;
-		min-height: 160px;
 		border-radius: 0;
 		border: none;
-		border-top: 1px solid var(--border-link, rgba(0, 0, 0, 0.06));
-		box-shadow: none;
+		border-top: 1px solid rgba(255, 255, 255, 0.2);
+		box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.08);
+		overflow: hidden;
+		z-index: 1;
 	}
 
 	/* Hide duplicate image inside canvas */
@@ -294,36 +287,13 @@
 		display: none !important;
 	}
 
-	/* === Canvas Frame (interactive, bounded) === */
-	.canvas-frame {
-		position: absolute;
-		inset: 64px;
-		top: 112px; /* 64px + 48px nav height */
-		overflow: hidden;
-		touch-action: auto;
-		overscroll-behavior: contain;
-		border-radius: 16px;
-		border: 1px solid var(--border-link, rgba(0, 0, 0, 0.1));
-		box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-	}
-
-
 	/* === Canvas Placeholder (shown when canvas not active) === */
 	.canvas-placeholder {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		width: 100%;
-		min-height: calc(100vh - 48px);
-		color: var(--text-muted, #8b7355);
-	}
-
-	.section-card .canvas-placeholder {
+		position: absolute;
+		bottom: 0;
+		left: 0;
+		right: 0;
 		height: 25vh;
-		min-height: 160px;
-		background: var(--bg-canvas, #faf9f6);
-		border-top: 1px solid var(--border-link, rgba(0, 0, 0, 0.06));
 	}
 
 	/* === Theme toggle === */
@@ -380,15 +350,6 @@
 
 	/* === Responsive === */
 	@media (max-width: 768px) {
-		.snap-section {
-			padding-top: 48px;
-		}
-
-		.section-hero-image {
-			inset: 16px;
-			top: 64px;
-		}
-
 		.section-card .canvas-frame {
 			height: 30vh;
 		}
