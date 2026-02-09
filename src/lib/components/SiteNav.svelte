@@ -31,7 +31,7 @@
 			<button class="coming-soon">field notes</button>
 		</li>
 	</ul>
-	<a href="/login" class="login-link">Log in</a>
+	<a href="/login" class="login-link">log in</a>
 </nav>
 
 <style>
@@ -46,11 +46,11 @@
 		gap: 20px;
 		padding: 0 24px;
 		height: 44px;
-		background: rgba(255, 255, 255, 0.95);
+		background: rgba(30, 30, 30, 0.9);
 		backdrop-filter: blur(16px);
 		-webkit-backdrop-filter: blur(16px);
 		border-radius: 24px;
-		box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
+		box-shadow: 0 2px 16px rgba(0, 0, 0, 0.2);
 		transition: transform 0.3s ease, opacity 0.3s ease;
 	}
 
@@ -58,7 +58,7 @@
 		margin-left: auto;
 		font-family: 'Georgia', serif;
 		font-size: 13px;
-		color: #8b7355;
+		color: rgba(255, 255, 255, 0.7);
 		text-decoration: none;
 		padding: 6px 12px;
 		border-radius: 4px;
@@ -66,8 +66,8 @@
 	}
 
 	.login-link:hover {
-		color: #5a4a3a;
-		background: rgba(139, 115, 85, 0.08);
+		color: #fff;
+		background: rgba(255, 255, 255, 0.1);
 	}
 
 	.site-nav.hidden {
@@ -112,7 +112,7 @@
 	button {
 		font-family: 'Georgia', serif;
 		font-size: 13px;
-		color: #8b7355;
+		color: rgba(255, 255, 255, 0.7);
 		background: none;
 		border: none;
 		padding: 6px 12px;
@@ -123,54 +123,21 @@
 	}
 
 	button:hover {
-		color: #5a4a3a;
-		background: rgba(139, 115, 85, 0.08);
+		color: #fff;
+		background: rgba(255, 255, 255, 0.1);
 	}
 
 	button.active {
-		color: #1a1a1a;
+		color: #fff;
 		font-weight: 500;
-		background: rgba(0, 0, 0, 0.04);
+		background: rgba(255, 255, 255, 0.12);
 	}
 
 	button.coming-soon {
-		opacity: 0.45;
 		cursor: default;
 	}
 
-	@media (prefers-color-scheme: dark) {
-		.site-nav {
-			background: rgba(26, 26, 26, 0.95);
-			box-shadow: 0 2px 16px rgba(0, 0, 0, 0.3);
-		}
-
-		.site-logo {
-			/* keep original logo color in dark mode */
-		}
-
-		button {
-			color: #a89070;
-		}
-
-		button:hover {
-			color: #c4a882;
-			background: rgba(139, 115, 85, 0.12);
-		}
-
-		button.active {
-			color: #e5e5e5;
-			background: rgba(255, 255, 255, 0.06);
-		}
-
-		.login-link {
-			color: #a89070;
-		}
-
-		.login-link:hover {
-			color: #c4a882;
-			background: rgba(139, 115, 85, 0.12);
-		}
-	}
+	/* Nav is always dark — no separate dark-mode overrides needed */
 
 	@media (max-width: 768px) {
 		.site-nav {
