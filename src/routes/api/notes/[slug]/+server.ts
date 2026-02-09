@@ -253,6 +253,42 @@ export const PUT: RequestHandler = async ({ locals, params, request, url }) => {
 		return json({ error: 'Failed to save note' }, { status: 500 });
 	}
 
+	// Auto-update canvas cover image if this note is the entry point
+	const { data: canvas } = await locals.supabase
+		.from('canvases')
+		.select('id, entry_point_note_id')
+		.eq('id', canvasId)
+		.single();
+
+	if (canvas && canvas.entry_point_note_id === slug) {
+		// Extract first image from content
+		const findFirstImage = (node: JSONContent): string | null => {
+			if (node.type === 'image' && node.attrs?.src) {
+				return node.attrs.src;
+			}
+			if (node.content && Array.isArray(node.content)) {
+				for (const child of node.content) {
+					const imageUrl = findFirstImage(child);
+					if (imageUrl) return imageUrl;
+				}
+			}
+			return null;
+		};
+
+		const coverImageUrl = findFirstImage(content);
+
+		// Update canvas cover_image
+		await locals.supabase
+			.from('canvases')
+			.update({
+				cover_image_url: coverImageUrl,
+				updated_at: new Date().toISOString()
+			})
+			.eq('id', canvasId);
+
+		console.log(`[API] Auto-updated cover image for canvas ${canvasId}: ${coverImageUrl}`);
+	}
+
 	return json({ success: true, saved: new Date().toISOString() });
 };
 

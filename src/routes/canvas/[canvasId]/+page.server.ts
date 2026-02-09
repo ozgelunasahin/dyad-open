@@ -10,7 +10,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const [canvasResult, profileResult] = await Promise.all([
 		locals.supabase
 			.from('canvases')
-			.select('id, name, slug, is_published, entry_point_note_id, created_at, updated_at')
+			.select('id, name, slug, is_published, entry_point_note_id, cover_image_url, created_at, updated_at')
 			.eq('id', params.canvasId)
 			.single(),
 		locals.supabase
