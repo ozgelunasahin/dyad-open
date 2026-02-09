@@ -13,9 +13,11 @@
 </script>
 
 <nav class="site-nav" class:hidden aria-label="Site navigation">
-	<span class="site-name">{siteName}</span>
+	<button class="logo-btn" onclick={() => onNavigate(items[0]?.slug ?? '')} aria-label={siteName}>
+		<img src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/logo.png" alt={siteName} class="site-logo" />
+	</button>
 	<ul>
-		{#each items as item}
+		{#each items.slice(1) as item}
 			<li>
 				<button
 					class:active={item.slug === activeSlug}
@@ -25,6 +27,9 @@
 				</button>
 			</li>
 		{/each}
+		<li>
+			<button class="coming-soon">field notes</button>
+		</li>
 	</ul>
 	<a href="/login" class="login-link">Log in</a>
 </nav>
@@ -32,21 +37,21 @@
 <style>
 	.site-nav {
 		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
+		top: 12px;
+		left: 50%;
+		transform: translateX(-50%);
 		z-index: 100;
 		display: flex;
 		align-items: center;
-		gap: 24px;
+		gap: 20px;
 		padding: 0 24px;
-		height: 48px;
-		background: rgba(255, 255, 255, 0.92);
-		backdrop-filter: blur(12px);
-		-webkit-backdrop-filter: blur(12px);
-		border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-		transform: translateY(0);
-		transition: transform 0.3s ease;
+		height: 44px;
+		background: rgba(255, 255, 255, 0.95);
+		backdrop-filter: blur(16px);
+		-webkit-backdrop-filter: blur(16px);
+		border-radius: 24px;
+		box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
+		transition: transform 0.3s ease, opacity 0.3s ease;
 	}
 
 	.login-link {
@@ -66,16 +71,23 @@
 	}
 
 	.site-nav.hidden {
-		transform: translateY(-100%);
+		transform: translateX(-50%) translateY(-120%);
+		opacity: 0;
 	}
 
-	.site-name {
-		font-family: 'Georgia', serif;
-		font-size: 14px;
-		font-weight: 600;
-		color: #1a1a1a;
-		white-space: nowrap;
-		letter-spacing: -0.01em;
+	.logo-btn {
+		background: none;
+		border: none;
+		padding: 0;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		flex-shrink: 0;
+	}
+
+	.site-logo {
+		height: 22px;
+		width: auto;
 	}
 
 	ul {
@@ -121,14 +133,19 @@
 		background: rgba(0, 0, 0, 0.04);
 	}
 
+	button.coming-soon {
+		opacity: 0.45;
+		cursor: default;
+	}
+
 	@media (prefers-color-scheme: dark) {
 		.site-nav {
-			background: rgba(26, 26, 26, 0.92);
-			border-bottom-color: rgba(255, 255, 255, 0.06);
+			background: rgba(26, 26, 26, 0.95);
+			box-shadow: 0 2px 16px rgba(0, 0, 0, 0.3);
 		}
 
-		.site-name {
-			color: #e5e5e5;
+		.site-logo {
+			/* keep original logo color in dark mode */
 		}
 
 		button {
@@ -161,8 +178,8 @@
 			gap: 16px;
 		}
 
-		.site-name {
-			font-size: 13px;
+		.site-logo {
+			height: 18px;
 		}
 
 		button {
