@@ -26,6 +26,7 @@
 			</li>
 		{/each}
 	</ul>
+	<a href="/login" class="login-link">Log in</a>
 </nav>
 
 <style>
@@ -46,6 +47,22 @@
 		border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 		transform: translateY(0);
 		transition: transform 0.3s ease;
+	}
+
+	.login-link {
+		margin-left: auto;
+		font-family: 'Georgia', serif;
+		font-size: 13px;
+		color: #8b7355;
+		text-decoration: none;
+		padding: 6px 12px;
+		border-radius: 4px;
+		transition: color 0.15s, background 0.15s;
+	}
+
+	.login-link:hover {
+		color: #5a4a3a;
+		background: rgba(139, 115, 85, 0.08);
 	}
 
 	.site-nav.hidden {
@@ -126,6 +143,15 @@
 		button.active {
 			color: #e5e5e5;
 			background: rgba(255, 255, 255, 0.06);
+		}
+
+		.login-link {
+			color: #a89070;
+		}
+
+		.login-link:hover {
+			color: #c4a882;
+			background: rgba(139, 115, 85, 0.12);
 		}
 	}
 

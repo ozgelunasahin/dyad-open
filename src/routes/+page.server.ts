@@ -20,7 +20,7 @@ export const load: PageServerLoad = async ({ locals, setHeaders }) => {
 	// Load published "dyad" and "tetrad" canvases directly by slug
 	const { data: canvases } = await locals.supabase
 		.from('canvases')
-		.select('id, name, slug, entry_point_note_id, user_id')
+		.select('id, name, slug, entry_point_note_id, user_id, cover_image_url')
 		.eq('is_published', true)
 		.in('slug', ['dyad', 'tetrad'])
 		.order('slug', { ascending: true }); // dyad first, then tetrad
@@ -71,13 +71,37 @@ export const load: PageServerLoad = async ({ locals, setHeaders }) => {
 			sourceLinkY: pos.source_link_y ?? null
 		}));
 
+		// Extract first image from any note if cover_image not set
+		let coverImageUrl = canvas.cover_image_url;
+		if (!coverImageUrl && notesResult.data) {
+			for (const note of notesResult.data) {
+				if (note.content && typeof note.content === 'object') {
+					const findFirstImage = (node: any): string | null => {
+						if (node.type === 'image' && node.attrs?.src) {
+							return node.attrs.src;
+						}
+						if (node.content && Array.isArray(node.content)) {
+							for (const child of node.content) {
+								const imageUrl = findFirstImage(child);
+								if (imageUrl) return imageUrl;
+							}
+						}
+						return null;
+					};
+					coverImageUrl = findFirstImage(note.content);
+					if (coverImageUrl) break;
+				}
+			}
+		}
+
 		sections.push({
 			type: 'canvas',
 			sectionId: canvas.slug,
 			name: canvas.name,
 			canvasId: canvas.id,
 			vault,
-			cardPositions
+			cardPositions,
+			coverImageUrl
 		});
 
 		navItems.push({

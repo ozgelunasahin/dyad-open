@@ -191,11 +191,21 @@
 				bind:this={sectionEls[slug]}
 			>
 				{#if section.type === 'canvas'}
-					<div class="canvas-placeholder"></div>
+					{#if section.coverImageUrl}
+						<div class="section-hero-image">
+							<img src={section.coverImageUrl} alt="" />
+						</div>
+					{/if}
 					{#if isCanvasActive}
-						<div class="canvas-frame" transition:fade={{ duration: 300 }}>
+						<div
+							class="canvas-frame"
+							class:with-hero={section.coverImageUrl}
+							transition:fade={{ duration: 300 }}
+						>
 							<Canvas readOnly captureWheel={false} onBoundaryExit={handleBoundaryExit} />
 						</div>
+					{:else if !section.coverImageUrl}
+						<div class="canvas-placeholder"></div>
 					{/if}
 				{/if}
 			</section>
@@ -244,6 +254,22 @@
 		contain-intrinsic-size: auto 100vh;
 	}
 
+	/* === Section Hero Image (Emergence Magazine style) === */
+	.section-hero-image {
+		position: absolute;
+		inset: 48px;
+		top: 80px;
+		border-radius: 12px;
+		overflow: hidden;
+	}
+
+	.section-hero-image img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		display: block;
+	}
+
 	/* === Canvas Frame (interactive, bounded) === */
 	.canvas-frame {
 		position: absolute;
@@ -255,6 +281,21 @@
 		border-radius: 16px;
 		border: 1px solid var(--border-link, rgba(0, 0, 0, 0.1));
 		box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+	}
+
+	/* Canvas frame overlaid on hero image — smaller, bottom-left */
+	.canvas-frame.with-hero {
+		inset: auto;
+		bottom: 48px;
+		left: 48px;
+		width: min(58%, 680px);
+		height: 45%;
+		min-height: 260px;
+		background: var(--bg-canvas, rgba(250, 249, 246, 0.97));
+		z-index: 1;
+		border-radius: 12px;
+		border: none;
+		box-shadow: 0 4px 32px rgba(0, 0, 0, 0.12);
 	}
 
 	/* === Canvas Placeholder (shown when canvas not active) === */
@@ -324,6 +365,18 @@
 	@media (max-width: 768px) {
 		.snap-section {
 			padding-top: 48px;
+		}
+
+		.section-hero-image {
+			inset: 16px;
+			top: 64px;
+		}
+
+		.canvas-frame.with-hero {
+			bottom: 16px;
+			left: 16px;
+			width: calc(100% - 32px);
+			height: 40%;
 		}
 	}
 
