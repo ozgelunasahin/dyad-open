@@ -1,3 +1,36 @@
+/* SangBleu Sunrise font faces */
+@font-face {
+	font-family: 'SangBleu Sunrise';
+	src: url('/fonts/SangBleuSunrise-Light-WebXL.woff2') format('woff2');
+	font-weight: 300;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'SangBleu Sunrise';
+	src: url('/fonts/SangBleuSunrise-Regular-WebXL.woff2') format('woff2');
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'SangBleu Sunrise';
+	src: url('/fonts/SangBleuSunrise-Medium-WebXL.woff2') format('woff2');
+	font-weight: 500;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'SangBleu Sunrise';
+	src: url('/fonts/SangBleuSunrise-Bold-WebXL.woff2') format('woff2');
+	font-weight: 700;
+	font-style: normal;
+	font-display: swap;
+}
+
 /* Theme variables */
 :root {
 	/* Light mode (default) */
@@ -63,7 +96,7 @@
 body {
 	margin: 0;
 	padding: 0;
-	font-family: 'Georgia', 'Times New Roman', serif;
+	font-family: 'SangBleu Sunrise', Georgia, 'Times New Roman', serif;
 	overflow: hidden;
 	background: var(--bg-canvas);
 }

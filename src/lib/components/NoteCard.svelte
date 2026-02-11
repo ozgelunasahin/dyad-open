@@ -414,7 +414,7 @@
 	.text-block {
 		position: relative;
 		min-height: 100%;
-		font-family: 'Georgia', 'Times New Roman', 'Noto Serif', serif;
+		font-family: 'SangBleu Sunrise', Georgia, 'Times New Roman', serif;
 		font-size: 14px;
 		line-height: 1.7;
 		color: var(--text-secondary);
