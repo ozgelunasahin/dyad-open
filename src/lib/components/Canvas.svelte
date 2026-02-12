@@ -3,6 +3,7 @@
 	import { zoom, zoomIdentity, type ZoomBehavior } from 'd3-zoom';
 	import { select } from 'd3-selection';
 	import 'd3-transition'; // Adds .transition() method to selections
+	import { CARD_WIDTH } from '$lib/types';
 	import type { Point, LinkSide, SourceBounds, CardRestoration } from '$lib/types';
 	import { isHTMLElement } from '$lib/utils/type-guards';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
@@ -46,6 +47,29 @@
 	const BOUNDARY_HITS_THRESHOLD = 3;
 	let boundaryHits = 0;
 	let lastBoundaryDirection: 'up' | 'down' | null = null;
+
+	/**
+	 * Compute the viewport X offset to place a card's center in the reading zone.
+	 * On wide screens: card center at 35% of viewport (left-biased reading).
+	 * On narrow screens (mobile): card left edge at a small margin so full width is visible.
+	 */
+	function readingZoneX(viewportWidth: number, zoomLevel: number): number {
+		const cardScreenWidth = CARD_WIDTH * zoomLevel;
+		const mobileMargin = 12;
+
+		// Callers do: translateX = rzX - cardCenterX * zoom
+		// Card left edge on screen = rzX - cardScreenWidth/2
+		// So to place left edge at mobileMargin: rzX = mobileMargin + cardScreenWidth/2
+
+		// Check if centering at 35% would clip the card's left edge
+		const centeredLeft = viewportWidth * 0.35 - cardScreenWidth / 2;
+		if (centeredLeft < mobileMargin) {
+			// Would clip — position card left edge at margin instead
+			return mobileMargin + cardScreenWidth / 2;
+		}
+
+		return viewportWidth * 0.35;
+	}
 
 	onMount(() => {
 		zoomBehavior = zoom<SVGSVGElement, unknown>()
@@ -270,12 +294,12 @@
 				const width = svg.clientWidth;
 				const height = svg.clientHeight;
 				const topMargin = height * 0.15;
-				const readingZoneX = width * 0.35;
 				const targetX = card.position.x + card.dimensions.width / 2;
 				const targetY = card.position.y;
 				const zoomLevel = storedCamera.zoom !== 1 ? storedCamera.zoom : 1;
+				const rzX = readingZoneX(width, zoomLevel);
 				const initialTransform = zoomIdentity
-					.translate(readingZoneX - targetX * zoomLevel, topMargin - targetY * zoomLevel)
+					.translate(rzX - targetX * zoomLevel, topMargin - targetY * zoomLevel)
 					.scale(zoomLevel);
 				selection.call(zoomBehavior.transform, initialTransform);
 			}
@@ -981,11 +1005,11 @@
 		const zoomLevel = transform.k;
 
 		// Reading view: place card in left-biased reading zone, top near viewport top
-		// Reading zone spans 5%-80% of viewport width; position card around 35% for left-bias
+		// On mobile, aligns card left edge to viewport for readability
 		// Always preserve current zoom level
 		const topMargin = height * 0.15;
-		const readingZoneX = width * 0.35;
-		const endX = readingZoneX - targetX * zoomLevel;
+		const rzX = readingZoneX(width, zoomLevel);
+		const endX = rzX - targetX * zoomLevel;
 		const endY = topMargin - targetY * zoomLevel;
 
 		const startX = transform.x;
@@ -1043,9 +1067,8 @@
 
 		// Compute target camera position to show focusPoint in reading zone
 		// Using CURRENT zoom level - never change zoom during navigation
-		// Use same reading zone X (35%) as animateToCenter for consistency
-		const readingZoneX = width * 0.35;
-		const targetX = readingZoneX - focusPoint.x * zoomLevel;
+		const rzX = readingZoneX(width, zoomLevel);
+		const targetX = rzX - focusPoint.x * zoomLevel;
 		const targetY = height / 2 - focusPoint.y * zoomLevel;
 
 		const startX = transform.x;
