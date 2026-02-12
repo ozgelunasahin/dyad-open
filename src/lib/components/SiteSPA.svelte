@@ -321,7 +321,7 @@
 	}
 
 	.hero-title {
-		font-family: 'Georgia', serif;
+		font-family: 'SangBleu Sunrise', Georgia, 'Times New Roman', serif;
 		font-size: clamp(2rem, 5vw, 3.5rem);
 		font-weight: normal;
 		color: var(--text-primary, #1a1a1a);
@@ -331,7 +331,7 @@
 	}
 
 	.hero-tagline {
-		font-family: 'Georgia', serif;
+		font-family: 'SangBleu Sunrise', Georgia, 'Times New Roman', serif;
 		font-size: clamp(1rem, 2.5vw, 1.25rem);
 		color: var(--text-muted, #8b7355);
 		margin: 0;
@@ -346,7 +346,7 @@
 	}
 
 	.contact-title {
-		font-family: 'Georgia', serif;
+		font-family: 'SangBleu Sunrise', Georgia, 'Times New Roman', serif;
 		font-size: 1.5rem;
 		font-weight: normal;
 		color: var(--text-primary, #1a1a1a);
@@ -427,7 +427,7 @@
 	}
 
 	.placeholder-title {
-		font-family: 'Georgia', serif;
+		font-family: 'SangBleu Sunrise', Georgia, 'Times New Roman', serif;
 		font-size: clamp(1.5rem, 3vw, 2rem);
 		font-weight: normal;
 		color: var(--text-primary, #1a1a1a);

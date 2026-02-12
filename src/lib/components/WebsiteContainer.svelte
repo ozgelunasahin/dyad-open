@@ -163,7 +163,7 @@
 	.canvas-nav button {
 		display: block;
 		padding: 4px 0;
-		font-family: 'Georgia', serif;
+		font-family: 'SangBleu Sunrise', Georgia, 'Times New Roman', serif;
 		font-size: 1.2rem;
 		color: #8b7355;
 		text-decoration: underline;

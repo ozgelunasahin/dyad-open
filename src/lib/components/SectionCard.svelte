@@ -99,7 +99,7 @@
 	}
 
 	.hero-title {
-		font-family: 'Georgia', serif;
+		font-family: 'SangBleu Sunrise', Georgia, 'Times New Roman', serif;
 		font-size: 2.5rem;
 		font-weight: normal;
 		color: var(--text-primary);
@@ -121,7 +121,7 @@
 	}
 
 	.contact-title {
-		font-family: 'Georgia', serif;
+		font-family: 'SangBleu Sunrise', Georgia, 'Times New Roman', serif;
 		font-size: 1.5rem;
 		font-weight: normal;
 		color: var(--text-primary);
