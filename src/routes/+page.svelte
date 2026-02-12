@@ -285,6 +285,7 @@
 	}
 
 	.snap-section {
+		height: 100vh;
 		min-height: 100vh;
 		scroll-snap-align: start;
 		scroll-snap-stop: always;
@@ -297,9 +298,9 @@
 	/* === Section Card — vertical flow: image then canvas === */
 	.section-card {
 		width: 100%;
-		display: flex;
-		flex-direction: column;
-		flex: 1;
+		height: 100%;
+		position: relative;
+		overflow: hidden;
 	}
 
 	/* Cover image — proportional scaling, no forced crop */
@@ -312,28 +313,28 @@
 	.section-cover img {
 		width: 100%;
 		height: auto;
-		max-height: 80vh;
-		object-fit: cover;
 		display: block;
 	}
 
-	/* Canvas/text area — flows below image, fills remaining space */
+	/* Canvas/text area — absolute from bottom, animates up on expand */
 	.canvas-area {
-		flex: 1;
-		position: relative;
-		min-height: 120px;
+		position: absolute;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		height: 20%;
+		z-index: 2;
+		transition: height 0.6s ease;
 	}
 
-	/* When expanded, canvas overlays the full section */
+	/* When expanded, canvas takes the full section */
 	.canvas-area.expanded {
-		position: absolute;
-		inset: 0;
-		z-index: 2;
+		height: 100%;
 	}
 
 	.canvas-frame {
-		position: absolute;
-		inset: 0;
+		width: 100%;
+		height: 100%;
 		overflow: hidden;
 		touch-action: none;
 	}
@@ -427,11 +428,9 @@
 		margin: 0;
 	}
 
-	/* === Footer section — own snap stop === */
+	/* === Footer section === */
 	.footer-section {
-		height: 100vh;
-		scroll-snap-align: start;
-		scroll-snap-stop: always;
+		scroll-snap-align: end;
 		display: flex;
 		align-items: flex-end;
 		justify-content: stretch;
@@ -454,12 +453,18 @@
 			scroll-snap-stop: normal;
 		}
 
+		.section-card {
+			height: auto;
+			overflow: visible;
+		}
+
 		.section-cover {
 			margin: 12px 12px 0;
 		}
 
 		.canvas-area {
-			flex: none;
+			position: relative;
+			height: auto;
 		}
 
 		.mobile-entry-text {
@@ -467,11 +472,7 @@
 		}
 
 		.footer-section {
-			height: auto;
-			min-height: 0;
 			scroll-snap-align: none;
-			scroll-snap-stop: normal;
-			align-items: flex-end;
 			padding-top: 40px;
 		}
 	}

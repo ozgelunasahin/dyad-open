@@ -209,7 +209,10 @@
 
 		.site-logo {
 			height: 24px;
-			/* On mobile, nav is transparent over cover image — keep logo white */
+			filter: brightness(0);
+		}
+
+		:global([data-theme='dark']) .site-logo {
 			filter: none;
 		}
 
@@ -217,7 +220,7 @@
 			display: flex;
 			align-items: center;
 			justify-content: center;
-			color: #fff;
+			color: var(--text-primary, #1a1a1a);
 		}
 
 		.mobile-menu {
