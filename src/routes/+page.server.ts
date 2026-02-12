@@ -187,11 +187,13 @@ export const load: PageServerLoad = async ({ locals, setHeaders, url }) => {
 		.select('*')
 		.order('position', { ascending: true });
 
-	// Add field-notes to nav
-	navItems.push({
-		name: 'field notes',
-		slug: 'field-notes'
-	});
+	// Add field-notes to nav only if there are highlights
+	if (highlights && highlights.length > 0) {
+		navItems.push({
+			name: 'field notes',
+			slug: 'field-notes'
+		});
+	}
 
 	// Cache for anonymous users (skip in edit mode)
 	if (!isEditMode) {

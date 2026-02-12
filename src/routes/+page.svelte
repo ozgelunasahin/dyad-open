@@ -183,7 +183,7 @@
 <svelte:window onkeydown={handleKeydown} />
 
 <svelte:head>
-	<title>dyad.berlin — social civic infrastructure</title>
+	<title>dyad. cultivating a culture of conversation</title>
 	<meta name="description" content="Social civic infrastructure for community bridging in Berlin." />
 </svelte:head>
 

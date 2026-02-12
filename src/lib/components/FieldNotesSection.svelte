@@ -24,7 +24,7 @@
 		items = [...highlights];
 	});
 
-	// Drag-and-drop handlers
+	// Drag-and-drop handlers for edit mode
 	function handleDragOver(e: DragEvent, id: string) {
 		e.preventDefault();
 		if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
@@ -47,14 +47,12 @@
 
 		saving = id;
 		try {
-			// Upload to /api/upload
 			const formData = new FormData();
 			formData.append('file', file);
 			const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
 			if (!uploadRes.ok) throw new Error('Upload failed');
 			const { url } = await uploadRes.json();
 
-			// Update highlight with image URL
 			const putRes = await fetch('/api/landing-highlights', {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
@@ -158,86 +156,101 @@
 	}
 </script>
 
-<div class="field-notes" class:has-1={items.length === 1} class:has-2={items.length === 2} class:has-3={items.length >= 3}>
-	<div class="grid" class:grid-1={items.length === 1} class:grid-2={items.length === 2} class:grid-3={items.length >= 3}>
-		{#each items as item (item.id)}
-			{@const isSaving = saving === item.id}
-			<div class="card">
-				<!-- Image area -->
-				{#if isEditMode}
-					<div
-						class="image-area drop-zone"
-						class:drag-over={dragOverId === item.id}
-						ondragover={(e) => handleDragOver(e, item.id)}
-						ondragleave={() => handleDragLeave(item.id)}
-						ondrop={(e) => handleDrop(e, item.id)}
-						role="button"
-						tabindex="0"
-					>
-						{#if item.image_url}
-							<img src={item.image_url} alt={item.title} />
+<!-- Emergence Magazine "Listen" layout: label left, cards right -->
+<div class="field-notes">
+	<div class="layout">
+		<div class="label-col">
+			<span class="section-label">Field notes:</span>
+		</div>
+		<div class="cards-col">
+			{#each items as item (item.id)}
+				{@const isSaving = saving === item.id}
+				<div class="card">
+					<!-- Image area -->
+					{#if isEditMode}
+						<div
+							class="image-area drop-zone"
+							class:drag-over={dragOverId === item.id}
+							ondragover={(e) => handleDragOver(e, item.id)}
+							ondragleave={() => handleDragLeave(item.id)}
+							ondrop={(e) => handleDrop(e, item.id)}
+							role="button"
+							tabindex="0"
+						>
+							{#if item.image_url}
+								<img src={item.image_url} alt={item.title} />
+							{:else}
+								<div class="drop-placeholder">
+									<span>drop image</span>
+								</div>
+							{/if}
+							{#if isSaving}
+								<div class="saving-overlay">saving...</div>
+							{/if}
+						</div>
+					{:else}
+						{@const hasImage = !!item.image_url}
+						{#if item.link}
+							<a href={item.link} class="image-area" class:placeholder-bg={!hasImage}>
+								{#if hasImage}
+									<img src={item.image_url} alt={item.title} />
+								{:else}
+									<div class="placeholder-text">{item.title}</div>
+								{/if}
+							</a>
 						{:else}
-							<div class="drop-placeholder">
-								<span>drop image</span>
+							<div class="image-area" class:placeholder-bg={!hasImage}>
+								{#if hasImage}
+									<img src={item.image_url} alt={item.title} />
+								{:else}
+									<div class="placeholder-text">{item.title}</div>
+								{/if}
 							</div>
 						{/if}
-						{#if isSaving}
-							<div class="saving-overlay">saving...</div>
-						{/if}
-					</div>
-				{:else if item.image_url}
-					{#if item.link}
-						<a href={item.link} class="image-area">
-							<img src={item.image_url} alt={item.title} />
-						</a>
+					{/if}
+
+					<!-- Title -->
+					{#if isEditMode}
+						<h3
+							class="card-title"
+							contenteditable="true"
+							oninput={(e) => handleTitleInput(item.id, e)}
+							role="textbox"
+						>{item.title}</h3>
+					{:else if item.link}
+						<a href={item.link} class="card-title-link"><h3 class="card-title">{item.title}</h3></a>
 					{:else}
-						<div class="image-area">
-							<img src={item.image_url} alt={item.title} />
+						<h3 class="card-title">{item.title}</h3>
+					{/if}
+
+					<!-- Subtitle -->
+					{#if isEditMode}
+						<p
+							class="card-subtitle"
+							contenteditable="true"
+							oninput={(e) => handleSubtitleInput(item.id, e)}
+							role="textbox"
+						>{item.subtitle || ''}</p>
+					{:else if item.subtitle}
+						<p class="card-subtitle">{item.subtitle}</p>
+					{/if}
+
+					<!-- Edit mode controls -->
+					{#if isEditMode}
+						<div class="card-controls">
+							<input
+								type="text"
+								class="link-input"
+								placeholder="Link URL"
+								value={item.link || ''}
+								oninput={(e) => handleLinkInput(item.id, e)}
+							/>
+							<button class="remove-btn" onclick={() => removeHighlight(item.id)}>remove</button>
 						</div>
 					{/if}
-				{/if}
-
-				<!-- Title -->
-				{#if isEditMode}
-					<h3
-						class="card-title"
-						contenteditable="true"
-						oninput={(e) => handleTitleInput(item.id, e)}
-						role="textbox"
-					>{item.title}</h3>
-				{:else if item.link}
-					<a href={item.link} class="card-title-link"><h3 class="card-title">{item.title}</h3></a>
-				{:else}
-					<h3 class="card-title">{item.title}</h3>
-				{/if}
-
-				<!-- Subtitle -->
-				{#if isEditMode}
-					<p
-						class="card-subtitle"
-						contenteditable="true"
-						oninput={(e) => handleSubtitleInput(item.id, e)}
-						role="textbox"
-					>{item.subtitle || ''}</p>
-				{:else if item.subtitle}
-					<p class="card-subtitle">{item.subtitle}</p>
-				{/if}
-
-				<!-- Edit mode controls -->
-				{#if isEditMode}
-					<div class="card-controls">
-						<input
-							type="text"
-							class="link-input"
-							placeholder="Link URL"
-							value={item.link || ''}
-							oninput={(e) => handleLinkInput(item.id, e)}
-						/>
-						<button class="remove-btn" onclick={() => removeHighlight(item.id)}>remove</button>
-					</div>
-				{/if}
-			</div>
-		{/each}
+				</div>
+			{/each}
+		</div>
 	</div>
 
 	{#if isEditMode && items.length < 3}
@@ -254,44 +267,38 @@
 		display: flex;
 		flex-direction: column;
 		justify-content: center;
-		align-items: center;
-		padding: 16px;
+		align-items: flex-end;
+		padding: 40px 16px;
 		box-sizing: border-box;
 	}
 
-	/* === Grid layout === */
-	.grid {
+	/* === Emergence-style layout: 4-col grid === */
+	.layout {
 		display: grid;
-		gap: 16px;
+		grid-template-columns: 1fr 3fr;
+		gap: 32px;
 		width: 100%;
-		max-width: 1200px;
+		max-width: 1400px;
+		align-items: start;
 	}
 
-	/* 3 items: full 3-column grid */
-	.grid-3 {
+	/* Left column: label */
+	.label-col {
+		padding-top: 8px;
+	}
+
+	.section-label {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 1.25rem;
+		color: var(--text-primary, #1a1a1a);
+		font-weight: normal;
+	}
+
+	/* Right column: 3 cards in a row */
+	.cards-col {
+		display: grid;
 		grid-template-columns: repeat(3, 1fr);
-	}
-
-	/* 2 items: 3-column grid, items in columns 2 and 3 */
-	.grid-2 {
-		grid-template-columns: repeat(3, 1fr);
-	}
-
-	.grid-2 .card:first-child {
-		grid-column: 2;
-	}
-
-	.grid-2 .card:nth-child(2) {
-		grid-column: 3;
-	}
-
-	/* 1 item: 3-column grid, item in column 3 */
-	.grid-1 {
-		grid-template-columns: repeat(3, 1fr);
-	}
-
-	.grid-1 .card {
-		grid-column: 3;
+		gap: 24px;
 	}
 
 	/* === Card === */
@@ -300,13 +307,14 @@
 		flex-direction: column;
 	}
 
-	/* Image area — tall portrait aspect ratio */
+	/* Image area — tall portrait aspect ratio like Emergence */
 	.image-area {
 		position: relative;
 		aspect-ratio: 3 / 4;
-		border-radius: 8px;
 		overflow: hidden;
 		background: var(--bg-control, rgba(0, 0, 0, 0.04));
+		display: block;
+		border-radius: 8px;
 	}
 
 	.image-area img {
@@ -314,25 +322,38 @@
 		height: 100%;
 		object-fit: cover;
 		display: block;
+		border-radius: 8px;
 	}
 
 	a.image-area {
 		text-decoration: none;
 	}
 
-	/* Drag-drop zone */
+	/* When no image, show title as placeholder inside the card area */
+	.placeholder-bg {
+		background: var(--bg-control, rgba(0, 0, 0, 0.04));
+		display: flex;
+		align-items: flex-end;
+		justify-content: flex-start;
+	}
+
+	.placeholder-text {
+		padding: 20px;
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 1rem;
+		color: var(--text-muted, #666);
+		line-height: 1.4;
+	}
+
+	/* Drag-drop zone (edit mode) */
 	.drop-zone {
 		cursor: pointer;
 		transition: border-color 0.15s;
-		border: 2px dashed transparent;
+		border: 2px dashed var(--border-link, rgba(0, 0, 0, 0.1));
 	}
 
 	.drop-zone.drag-over {
 		border-color: var(--text-muted, #666);
-	}
-
-	.drop-zone:not(.drag-over) {
-		border-color: var(--border-link, rgba(0, 0, 0, 0.1));
 	}
 
 	.drop-placeholder {
@@ -361,11 +382,11 @@
 	/* Title */
 	.card-title {
 		font-family: 'SangBleu Sunrise', Georgia, serif;
-		font-size: 16px;
+		font-size: 15px;
 		font-weight: normal;
 		color: var(--text-primary, #1a1a1a);
-		margin: 10px 0 0;
-		line-height: 1.3;
+		margin: 12px 0 0;
+		line-height: 1.35;
 	}
 
 	.card-title[contenteditable] {
@@ -461,12 +482,13 @@
 
 	/* === Mobile === */
 	@media (max-width: 768px) {
-		.grid {
-			grid-template-columns: 1fr !important;
+		.layout {
+			grid-template-columns: 1fr;
+			gap: 16px;
 		}
 
-		.grid .card {
-			grid-column: auto !important;
+		.cards-col {
+			grid-template-columns: 1fr;
 		}
 	}
 </style>
