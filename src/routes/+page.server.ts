@@ -2,9 +2,11 @@ import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { renderTiptapToHtml } from '$lib/utils/tiptap-html';
 
-export const load: PageServerLoad = async ({ locals, setHeaders }) => {
-	// Logged-in users go to their canvas/dashboard
-	if (locals.user) {
+export const load: PageServerLoad = async ({ locals, setHeaders, url }) => {
+	const isEditMode = url.searchParams.has('edit') && !!locals.user;
+
+	// Logged-in users go to their canvas/dashboard (unless ?edit mode)
+	if (locals.user && !isEditMode) {
 		const { data: canvases } = await locals.supabase
 			.from('canvases')
 			.select('id')
@@ -87,10 +89,16 @@ export const load: PageServerLoad = async ({ locals, setHeaders }) => {
 			sourceLinkY: pos.source_link_y ?? null
 		}));
 
-		// Extract first image from any note if cover_image not set
-		let coverImageUrl = canvas.cover_image_url;
-		if (!coverImageUrl && notesResult.data) {
-			for (const note of notesResult.data) {
+		// Extract first image from entry point note content, fall back to cover_image_url
+		let coverImageUrl: string | null = null;
+		if (notesResult.data) {
+			// Check entry point note first, then other notes
+			const entryNote = notesResult.data.find(n => n.slug === entryPointSlug);
+			const orderedNotes = entryNote
+				? [entryNote, ...notesResult.data.filter(n => n.slug !== entryPointSlug)]
+				: notesResult.data;
+
+			for (const note of orderedNotes) {
 				if (note.content && typeof note.content === 'object') {
 					const findFirstImage = (node: any): string | null => {
 						if (node.type === 'image' && node.attrs?.src) {
@@ -108,6 +116,9 @@ export const load: PageServerLoad = async ({ locals, setHeaders }) => {
 					if (coverImageUrl) break;
 				}
 			}
+		}
+		if (!coverImageUrl) {
+			coverImageUrl = canvas.cover_image_url;
 		}
 
 		// Strip the first image from the entry point note so it doesn't
@@ -170,10 +181,24 @@ export const load: PageServerLoad = async ({ locals, setHeaders }) => {
 		});
 	}
 
-	// Cache for anonymous users
-	setHeaders({
-		'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300'
+	// Load landing highlights
+	const { data: highlights } = await locals.supabase
+		.from('landing_highlights')
+		.select('*')
+		.order('position', { ascending: true });
+
+	// Add field-notes to nav
+	navItems.push({
+		name: 'field notes',
+		slug: 'field-notes'
 	});
 
-	return { sections, navItems };
+	// Cache for anonymous users (skip in edit mode)
+	if (!isEditMode) {
+		setHeaders({
+			'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300'
+		});
+	}
+
+	return { sections, navItems, highlights: highlights || [], isEditMode };
 };

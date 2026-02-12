@@ -29,7 +29,10 @@
 				{item.name}
 			</button>
 		{/each}
-		<button class="coming-soon">field notes</button>
+		<button
+			class:active={'field-notes' === activeSlug}
+			onclick={() => onNavigate('field-notes')}
+		>field notes</button>
 	</div>
 
 	<!-- Right: user icon links to login (desktop) -->
@@ -62,7 +65,7 @@
 				{item.name}
 			</button>
 		{/each}
-		<button class="coming-soon" onclick={() => mobileMenuOpen = false}>field notes</button>
+		<button onclick={() => { onNavigate('field-notes'); mobileMenuOpen = false; }}>field notes</button>
 		<hr />
 		<a href="/signup" class="mobile-link" onclick={() => mobileMenuOpen = false}>sign up</a>
 		<a href="/login" class="mobile-link" onclick={() => mobileMenuOpen = false}>log in</a>
@@ -133,7 +136,7 @@
 	}
 
 	.site-logo {
-		height: 30px;
+		height: 34px;
 		width: auto;
 		/* Logo is white on transparent — darken it in light mode */
 		filter: brightness(0);
@@ -166,11 +169,6 @@
 	button.active {
 		color: var(--text-primary, #1a1a1a);
 	}
-
-	button.coming-soon {
-		cursor: default;
-	}
-
 
 	/* Mobile hamburger — hidden on desktop */
 	.menu-btn {
