@@ -6,6 +6,7 @@
 	import Canvas from '$lib/components/Canvas.svelte';
 	import SiteNav from '$lib/components/SiteNav.svelte';
 	import ExpandableContent from '$lib/components/ExpandableContent.svelte';
+	import SiteFooter from '$lib/components/SiteFooter.svelte';
 
 	let { data } = $props();
 
@@ -249,6 +250,9 @@
 				{/if}
 			</section>
 		{/each}
+		<section class="footer-section">
+			<SiteFooter />
+		</section>
 	</div>
 
 	<button class="theme-toggle" onclick={() => themeStore.toggle()} aria-label="Toggle theme">
@@ -281,70 +285,55 @@
 	}
 
 	.snap-section {
-		height: 100vh;
+		min-height: 100vh;
 		scroll-snap-align: start;
 		scroll-snap-stop: always;
 		display: flex;
-		align-items: center;
-		justify-content: center;
+		flex-direction: column;
 		position: relative;
 		box-sizing: border-box;
-		overflow: hidden;
 	}
 
-	/* First section — image starts flush at the top, nav overlays it */
-	.snap-section:first-child {
-		padding-top: 0;
-	}
-
-	/* === Section Card — flexbox: image then canvas === */
+	/* === Section Card — vertical flow: image then canvas === */
 	.section-card {
 		width: 100%;
-		height: 100%;
 		display: flex;
 		flex-direction: column;
-		overflow: hidden;
+		flex: 1;
 	}
 
-	/* Cover image — fills top portion, canvas sits at bottom */
+	/* Cover image — proportional scaling, no forced crop */
 	.section-cover {
-		position: absolute;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 30%;
+		margin: 16px 16px 0;
+		border-radius: 8px;
 		overflow: hidden;
 	}
 
 	.section-cover img {
 		width: 100%;
-		height: 100%;
+		height: auto;
+		max-height: 80vh;
 		object-fit: cover;
 		display: block;
 	}
 
-	/* Canvas area — fills remaining space below the image */
+	/* Canvas/text area — flows below image, fills remaining space */
 	.canvas-area {
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		top: auto;
-		height: 30%;
-		z-index: 2;
-		border-top: 1px solid var(--border-link, rgba(0, 0, 0, 0.06));
-		transition: height 0.6s ease, border-top-color 0.6s ease;
+		flex: 1;
+		position: relative;
+		min-height: 120px;
 	}
 
-	/* When expanded, canvas takes the full section */
+	/* When expanded, canvas overlays the full section */
 	.canvas-area.expanded {
-		height: 100%;
-		border-top-color: transparent;
+		position: absolute;
+		inset: 0;
+		z-index: 2;
 	}
 
 	.canvas-frame {
-		width: 100%;
-		height: 100%;
+		position: absolute;
+		inset: 0;
 		overflow: hidden;
 		touch-action: none;
 	}
@@ -352,9 +341,6 @@
 	/* Mobile entry text — replaces canvas on mobile */
 	.mobile-entry-text {
 		width: 100%;
-		height: 100%;
-		overflow-y: auto;
-		-webkit-overflow-scrolling: touch;
 		background: var(--bg-canvas);
 		padding: 16px 14px 80px;
 		box-sizing: border-box;
@@ -441,6 +427,21 @@
 		margin: 0;
 	}
 
+	/* === Footer section — own snap stop === */
+	.footer-section {
+		height: 100vh;
+		scroll-snap-align: start;
+		scroll-snap-stop: always;
+		display: flex;
+		align-items: flex-end;
+		justify-content: stretch;
+		background: var(--bg-canvas);
+	}
+
+	.footer-section :global(.site-footer) {
+		width: 100%;
+	}
+
 	/* === Mobile — free-scrolling article layout === */
 	@media (max-width: 768px) {
 		.scroll-container {
@@ -448,41 +449,30 @@
 		}
 
 		.snap-section {
+			min-height: 0;
+			scroll-snap-align: none;
+			scroll-snap-stop: normal;
+		}
+
+		.section-cover {
+			margin: 12px 12px 0;
+		}
+
+		.canvas-area {
+			flex: none;
+		}
+
+		.mobile-entry-text {
+			padding: 16px 14px 40px;
+		}
+
+		.footer-section {
 			height: auto;
 			min-height: 0;
 			scroll-snap-align: none;
 			scroll-snap-stop: normal;
-			overflow: visible;
-		}
-
-		.section-card {
-			height: auto;
-			overflow: visible;
-		}
-
-		.section-cover {
-			position: relative;
-			top: auto;
-			left: auto;
-			right: auto;
-			bottom: auto;
-			width: 100%;
-			height: 60vh;
-		}
-
-		.canvas-area {
-			position: relative;
-			bottom: auto;
-			left: auto;
-			right: auto;
-			top: auto;
-			height: auto;
-			border-top: none;
-		}
-
-		.mobile-entry-text {
-			height: auto;
-			overflow: visible;
+			align-items: flex-end;
+			padding-top: 40px;
 		}
 	}
 

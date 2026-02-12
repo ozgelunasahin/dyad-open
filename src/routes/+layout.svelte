@@ -1,6 +1,6 @@
 <script lang="ts">
 	import '../app.css';
-	import favicon from '$lib/assets/favicon.svg';
+	// favicon.png is in static/ — referenced directly
 	import { onMount } from 'svelte';
 	import { themeStore } from '$lib/stores/theme.svelte';
 
@@ -58,7 +58,7 @@
 </script>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
+	<link rel="icon" href="/favicon.png" type="image/png" />
 </svelte:head>
 
 {@render children()}

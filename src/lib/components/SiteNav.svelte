@@ -73,7 +73,7 @@
 <style>
 	.site-nav {
 		position: fixed;
-		top: 16px;
+		top: 24px;
 		left: 50%;
 		transform: translateX(-50%);
 		z-index: 100;
@@ -82,12 +82,12 @@
 		gap: 20px;
 		padding: 0 28px;
 		height: 48px;
-		background: rgba(30, 30, 30, 0.9);
+		background: color-mix(in srgb, var(--bg-canvas, #f5f3f0) 92%, transparent);
 		backdrop-filter: blur(16px);
 		-webkit-backdrop-filter: blur(16px);
-		border-radius: 28px;
-		box-shadow: 0 2px 16px rgba(0, 0, 0, 0.2);
-		transition: transform 0.3s ease, opacity 0.3s ease;
+		border-radius: 8px;
+		box-shadow: 0 1px 12px var(--bg-control, rgba(0, 0, 0, 0.08));
+		transition: transform 0.3s ease, opacity 0.3s ease, background-color 0.2s ease;
 	}
 
 	.site-nav.hidden {
@@ -107,13 +107,13 @@
 	.user-link {
 		display: flex;
 		align-items: center;
-		color: rgba(255, 255, 255, 0.8);
+		color: var(--text-muted, #666);
 		padding: 4px;
 		transition: color 0.15s;
 	}
 
 	.user-link:hover {
-		color: #fff;
+		color: var(--text-primary, #1a1a1a);
 	}
 
 	/* Mobile menu (hidden on desktop) */
@@ -135,6 +135,13 @@
 	.site-logo {
 		height: 30px;
 		width: auto;
+		/* Logo is white on transparent — darken it in light mode */
+		filter: brightness(0);
+		transition: filter 0.2s ease;
+	}
+
+	:global([data-theme='dark']) .site-logo {
+		filter: none;
 	}
 
 	/* Nav buttons */
@@ -142,7 +149,7 @@
 		font-family: 'SangBleu Sunrise', Georgia, serif;
 		font-size: 14px;
 		font-weight: 500;
-		color: rgba(255, 255, 255, 0.8);
+		color: var(--text-muted, #666);
 		background: none;
 		border: none;
 		padding: 6px 12px;
@@ -153,11 +160,11 @@
 	}
 
 	button:hover {
-		color: #fff;
+		color: var(--text-primary, #1a1a1a);
 	}
 
 	button.active {
-		color: #fff;
+		color: var(--text-primary, #1a1a1a);
 	}
 
 	button.coming-soon {
@@ -169,7 +176,7 @@
 	.menu-btn {
 		display: none;
 		padding: 4px;
-		color: rgba(255, 255, 255, 0.9);
+		color: var(--text-primary, #1a1a1a);
 	}
 
 	/* === Mobile === */
@@ -202,12 +209,15 @@
 
 		.site-logo {
 			height: 24px;
+			/* On mobile, nav is transparent over cover image — keep logo white */
+			filter: none;
 		}
 
 		.menu-btn {
 			display: flex;
 			align-items: center;
 			justify-content: center;
+			color: #fff;
 		}
 
 		.mobile-menu {
@@ -218,19 +228,19 @@
 			left: 20px;
 			right: 20px;
 			z-index: 99;
-			background: rgba(30, 30, 30, 0.95);
+			background: color-mix(in srgb, var(--bg-canvas, #f5f3f0) 95%, transparent);
 			backdrop-filter: blur(16px);
 			-webkit-backdrop-filter: blur(16px);
 			border-radius: 16px;
 			padding: 12px 8px;
-			box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+			box-shadow: 0 4px 24px var(--bg-control, rgba(0, 0, 0, 0.1));
 		}
 
 		.mobile-menu button, .mobile-menu .mobile-link {
 			font-family: 'SangBleu Sunrise', Georgia, serif;
 			font-size: 16px;
 			font-weight: 500;
-			color: rgba(255, 255, 255, 0.85);
+			color: var(--text-secondary, #333);
 			background: none;
 			border: none;
 			padding: 12px 16px;
@@ -239,17 +249,17 @@
 			text-decoration: none;
 			display: block;
 			border-radius: 8px;
-			transition: background 0.15s;
+			transition: background 0.15s, color 0.15s;
 		}
 
 		.mobile-menu button:hover, .mobile-menu .mobile-link:hover {
-			background: rgba(255, 255, 255, 0.08);
-			color: #fff;
+			background: var(--bg-control, rgba(0, 0, 0, 0.05));
+			color: var(--text-primary, #1a1a1a);
 		}
 
 		.mobile-menu hr {
 			border: none;
-			border-top: 1px solid rgba(255, 255, 255, 0.1);
+			border-top: 1px solid var(--border-link, rgba(0, 0, 0, 0.1));
 			margin: 4px 16px;
 		}
 	}
