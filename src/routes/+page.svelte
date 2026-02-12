@@ -7,6 +7,7 @@
 	import SiteNav from '$lib/components/SiteNav.svelte';
 	import ExpandableContent from '$lib/components/ExpandableContent.svelte';
 	import SiteFooter from '$lib/components/SiteFooter.svelte';
+	import FieldNotesSection from '$lib/components/FieldNotesSection.svelte';
 
 	let { data } = $props();
 
@@ -250,6 +251,18 @@
 				{/if}
 			</section>
 		{/each}
+
+		<!-- Field Notes section -->
+		{#if data.highlights && data.highlights.length > 0 || data.isEditMode}
+			<section
+				class="snap-section field-notes-section"
+				data-section-slug="field-notes"
+				bind:this={sectionEls['field-notes']}
+			>
+				<FieldNotesSection highlights={data.highlights || []} isEditMode={data.isEditMode} />
+			</section>
+		{/if}
+
 		<section class="footer-section">
 			<SiteFooter />
 		</section>
@@ -303,9 +316,10 @@
 		overflow: hidden;
 	}
 
-	/* Cover image — proportional scaling, no forced crop */
+	/* Cover image — centered, proportional, full photo visible */
 	.section-cover {
 		margin: 16px 16px 0;
+		max-height: 75vh;
 		border-radius: 8px;
 		overflow: hidden;
 	}
@@ -314,6 +328,7 @@
 		width: 100%;
 		height: auto;
 		display: block;
+		border-radius: 8px;
 	}
 
 	/* Canvas/text area — absolute from bottom, animates up on expand */
@@ -428,9 +443,14 @@
 		margin: 0;
 	}
 
-	/* === Footer section === */
+	/* === Field Notes section === */
+	.field-notes-section {
+		background: var(--bg-canvas);
+	}
+
+	/* === Footer section — no snap to prevent overlap === */
 	.footer-section {
-		scroll-snap-align: end;
+		scroll-snap-align: none;
 		display: flex;
 		align-items: flex-end;
 		justify-content: stretch;
@@ -471,8 +491,13 @@
 			padding: 16px 14px 40px;
 		}
 
-		.footer-section {
+		.field-notes-section {
+			min-height: auto;
 			scroll-snap-align: none;
+			padding: 40px 0;
+		}
+
+		.footer-section {
 			padding-top: 40px;
 		}
 	}
