@@ -130,6 +130,19 @@ export async function loadSiteSections(
 		const notes = notesByCanvas.get(row.canvasId) ?? [];
 		const rawPositions = positionsByCanvas.get(row.canvasId) ?? [];
 
+		// Derive entry point: explicit setting > primary card on canvas > first note
+		const entryPoint = row.entryPointNoteId || (() => {
+			if (rawPositions.length > 0) {
+				const primary = rawPositions.reduce((best, pos) => {
+					const distBest = best.x * best.x + best.y * best.y;
+					const distPos = pos.x * pos.x + pos.y * pos.y;
+					return distPos < distBest ? pos : best;
+				});
+				return primary.note_id;
+			}
+			return notes[0]?.slug ?? '';
+		})();
+
 		return {
 			type: 'canvas' as const,
 			sectionId: row.sectionId,
@@ -139,7 +152,7 @@ export async function loadSiteSections(
 			navLabel: row.navLabel,
 			position: row.position,
 			vault: {
-				entryPoint: row.entryPointNoteId || (notes[0]?.slug ?? ''),
+				entryPoint,
 				notes: Object.fromEntries(
 					notes.map((n) => [
 						n.slug,

@@ -47,7 +47,20 @@ export const load: PageServerLoad = async ({ locals, setHeaders }) => {
 				.eq('canvas_id', canvas.id)
 		]);
 
-		const entryPointSlug = canvas.entry_point_note_id || (notesResult.data?.[0]?.slug || '');
+		// Derive entry point: explicit setting > primary card on canvas > first note
+		const entryPointSlug = canvas.entry_point_note_id || (() => {
+			const positions = positionsResult.data;
+			if (positions && positions.length > 0) {
+				// Primary card = closest to canvas origin (0,0)
+				const primary = positions.reduce((best, pos) => {
+					const distBest = best.x * best.x + best.y * best.y;
+					const distPos = pos.x * pos.x + pos.y * pos.y;
+					return distPos < distBest ? pos : best;
+				});
+				return primary.note_id;
+			}
+			return notesResult.data?.[0]?.slug || '';
+		})();
 
 		const vault = {
 			notes: Object.fromEntries(

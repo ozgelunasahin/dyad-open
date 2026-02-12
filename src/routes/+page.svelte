@@ -1,12 +1,24 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { tick, onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import Canvas from '$lib/components/Canvas.svelte';
 	import SiteNav from '$lib/components/SiteNav.svelte';
+	import ExpandableContent from '$lib/components/ExpandableContent.svelte';
 
 	let { data } = $props();
+
+	// Mobile detection
+	let isMobile = $state(false);
+
+	onMount(() => {
+		const mq = window.matchMedia('(max-width: 768px)');
+		isMobile = mq.matches;
+		const mqHandler = (e: MediaQueryListEvent) => { isMobile = e.matches; };
+		mq.addEventListener('change', mqHandler);
+		return () => mq.removeEventListener('change', mqHandler);
+	});
 
 	// Scroll and section state
 	let scrollContainer: HTMLElement | null = $state(null);
@@ -64,9 +76,9 @@
 		};
 	});
 
-	// Canvas auto-activation: react to activeSlug changes
+	// Canvas auto-activation: only on desktop
 	$effect(() => {
-		if (!data.sections) return;
+		if (isMobile || !data.sections) return;
 
 		const currentSection = data.sections.find((s) => s.sectionId === activeSlug);
 
@@ -117,8 +129,9 @@
 		}
 	}
 
-	// Canvas lifecycle
+	// Canvas lifecycle — desktop only
 	async function activateCanvas(sectionId: string) {
+		if (isMobile) return;
 		if (activeCanvasSection === sectionId) return;
 
 		const myGeneration = ++activationGeneration;
@@ -135,8 +148,6 @@
 
 		activeCanvasSection = sectionId;
 		const canvasStoreId = `landing-${section.canvasId}`;
-		// Always initialize fresh on landing page (don't resume from cache)
-		// This ensures users see the latest published content
 		canvasStore.initialize(section.vault, canvasStoreId, section.cardPositions);
 		await tick();
 
@@ -205,22 +216,34 @@
 							</div>
 						{/if}
 						<div class="canvas-area" class:expanded={expandedCanvas === slug}>
-							{#if isCanvasActive}
-								<div class="canvas-frame" transition:fade={{ duration: 300 }}>
-									<Canvas readOnly captureWheel={false} onBoundaryExit={handleBoundaryExit} />
-								</div>
-							{/if}
-							<button class="expand-btn" onclick={() => toggleExpand(slug)} aria-label={expandedCanvas === slug ? 'Collapse canvas' : 'Expand canvas'}>
-								{#if expandedCanvas === slug}
-									<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-										<path d="M9 1h4v4M5 13H1V9M13 1L8.5 5.5M1 13l4.5-4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-									</svg>
-								{:else}
-									<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-										<path d="M1 5V1h4M13 9v4H9M1 1l4.5 4.5M13 13L8.5 8.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-									</svg>
+							{#if isMobile}
+								{@const entryNote = section.vault?.notes?.[section.vault?.entryPoint]}
+								{#if entryNote}
+									<div class="mobile-entry-text">
+										<ExpandableContent
+											content={entryNote.content}
+											vault={section.vault}
+										/>
+									</div>
 								{/if}
-							</button>
+							{:else}
+								{#if isCanvasActive}
+									<div class="canvas-frame" transition:fade={{ duration: 300 }}>
+										<Canvas readOnly captureWheel={false} onBoundaryExit={handleBoundaryExit} />
+									</div>
+								{/if}
+								<button class="expand-btn" onclick={() => toggleExpand(slug)} aria-label={expandedCanvas === slug ? 'Collapse canvas' : 'Expand canvas'}>
+									{#if expandedCanvas === slug}
+										<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+											<path d="M9 1h4v4M5 13H1V9M13 1L8.5 5.5M1 13l4.5-4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+										</svg>
+									{:else}
+										<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+											<path d="M1 5V1h4M13 9v4H9M1 1l4.5 4.5M13 13L8.5 8.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+										</svg>
+									{/if}
+								</button>
+							{/if}
 						</div>
 					</div>
 				{/if}
@@ -323,6 +346,18 @@
 		width: 100%;
 		height: 100%;
 		overflow: hidden;
+		touch-action: none;
+	}
+
+	/* Mobile entry text — replaces canvas on mobile */
+	.mobile-entry-text {
+		width: 100%;
+		height: 100%;
+		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
+		background: var(--bg-canvas);
+		padding: 16px 14px 80px;
+		box-sizing: border-box;
 	}
 
 	/* Expand/collapse button */
@@ -406,14 +441,48 @@
 		margin: 0;
 	}
 
-	/* === Responsive === */
+	/* === Mobile — free-scrolling article layout === */
 	@media (max-width: 768px) {
-		.canvas-area {
-			height: 40%;
+		.scroll-container {
+			scroll-snap-type: none;
+		}
+
+		.snap-section {
+			height: auto;
+			min-height: 0;
+			scroll-snap-align: none;
+			scroll-snap-stop: normal;
+			overflow: visible;
+		}
+
+		.section-card {
+			height: auto;
+			overflow: visible;
 		}
 
 		.section-cover {
-			bottom: 40%;
+			position: relative;
+			top: auto;
+			left: auto;
+			right: auto;
+			bottom: auto;
+			width: 100%;
+			height: 60vh;
+		}
+
+		.canvas-area {
+			position: relative;
+			bottom: auto;
+			left: auto;
+			right: auto;
+			top: auto;
+			height: auto;
+			border-top: none;
+		}
+
+		.mobile-entry-text {
+			height: auto;
+			overflow: visible;
 		}
 	}
 

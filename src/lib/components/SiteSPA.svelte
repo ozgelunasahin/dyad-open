@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { tick, type Snippet } from 'svelte';
+	import { tick, onMount, type Snippet } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import Canvas from '$lib/components/Canvas.svelte';
 	import SiteNav from '$lib/components/SiteNav.svelte';
+	import ExpandableContent from '$lib/components/ExpandableContent.svelte';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import type { SectionData, NavItem } from '$lib/server/load-site-sections';
@@ -16,6 +17,17 @@
 	}
 
 	let { sections, navItems, siteName, fullHeight = false, header }: Props = $props();
+
+	// Mobile detection
+	let isMobile = $state(false);
+
+	onMount(() => {
+		const mq = window.matchMedia('(max-width: 768px)');
+		isMobile = mq.matches;
+		const mqHandler = (e: MediaQueryListEvent) => { isMobile = e.matches; };
+		mq.addEventListener('change', mqHandler);
+		return () => mq.removeEventListener('change', mqHandler);
+	});
 
 	// --- Scroll / section state ---
 	let scrollContainer: HTMLElement | null = $state(null);
@@ -79,9 +91,9 @@
 		};
 	});
 
-	// Canvas auto-activation: react to activeSlug changes
+	// Canvas auto-activation: only on desktop
 	$effect(() => {
-		if (!sections) return;
+		if (isMobile || !sections) return;
 
 		const currentSection = sections.find((s) => getSectionSlug(s) === activeSlug);
 
@@ -133,9 +145,10 @@
 		}
 	}
 
-	// --- Canvas lifecycle ---
+	// --- Canvas lifecycle — desktop only ---
 
 	async function activateCanvas(sectionId: string) {
+		if (isMobile) return;
 		if (activeCanvasSection === sectionId) return;
 
 		const myGeneration = ++activationGeneration;
@@ -266,11 +279,23 @@
 				</div>
 
 			{:else if section.type === 'canvas'}
-				<div class="canvas-placeholder"></div>
-				{#if isCanvasActive}
-					<div class="canvas-frame" transition:fade={{ duration: 300 }}>
-						<Canvas readOnly captureWheel={false} onBoundaryExit={handleBoundaryExit} />
+				{#if isMobile}
+					{@const entryNote = section.vault?.notes?.[section.vault?.entryPoint]}
+					<div class="mobile-canvas-section">
+						{#if entryNote}
+							<ExpandableContent
+								content={entryNote.content}
+								vault={section.vault}
+							/>
+						{/if}
 					</div>
+				{:else}
+					<div class="canvas-placeholder"></div>
+					{#if isCanvasActive}
+						<div class="canvas-frame" transition:fade={{ duration: 300 }}>
+							<Canvas readOnly captureWheel={false} onBoundaryExit={handleBoundaryExit} />
+						</div>
+					{/if}
 				{/if}
 			{/if}
 		</section>
@@ -408,7 +433,7 @@
 		inset: 64px;
 		top: 112px; /* 64px + 48px nav height */
 		overflow: hidden;
-		touch-action: auto;
+		touch-action: none;
 		overscroll-behavior: contain;
 		border-radius: 16px;
 		border: 1px solid var(--border-link, rgba(0, 0, 0, 0.1));
@@ -433,6 +458,19 @@
 		color: var(--text-primary, #1a1a1a);
 		margin: 0;
 		opacity: 0.4;
+	}
+
+	/* === Mobile canvas section — full-width readable text === */
+	.mobile-canvas-section {
+		width: 100%;
+		min-height: calc(100vh - 48px);
+		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
+		background: var(--bg-canvas);
+		display: flex;
+		align-items: center;
+		padding: 16px 14px;
+		box-sizing: border-box;
 	}
 
 	/* === Theme toggle === */

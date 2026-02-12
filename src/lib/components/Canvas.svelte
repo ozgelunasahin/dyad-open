@@ -49,13 +49,29 @@
 	let lastBoundaryDirection: 'up' | 'down' | null = null;
 
 	/**
+	 * Compute the zoom level that fits a card within the viewport on narrow screens.
+	 * On wide screens (card fits at zoom=1), returns the requested zoom unchanged.
+	 * On narrow screens (mobile), returns a reduced zoom so the card fits with margins.
+	 */
+	function mobileAutoZoom(viewportWidth: number, requestedZoom: number): number {
+		const margin = 16;
+		const available = viewportWidth - 2 * margin;
+		const maxZoomToFit = available / CARD_WIDTH;
+		// Only scale down, never up — and only when card would overflow
+		if (CARD_WIDTH * requestedZoom > available) {
+			return Math.min(requestedZoom, maxZoomToFit);
+		}
+		return requestedZoom;
+	}
+
+	/**
 	 * Compute the viewport X offset to place a card's center in the reading zone.
 	 * On wide screens: card center at 35% of viewport (left-biased reading).
 	 * On narrow screens (mobile): card left edge at a small margin so full width is visible.
 	 */
 	function readingZoneX(viewportWidth: number, zoomLevel: number): number {
 		const cardScreenWidth = CARD_WIDTH * zoomLevel;
-		const mobileMargin = 12;
+		const mobileMargin = 16;
 
 		// Callers do: translateX = rzX - cardCenterX * zoom
 		// Card left edge on screen = rzX - cardScreenWidth/2
@@ -101,7 +117,8 @@
 							return false;
 						}
 						// Non-focused card: capture for panning, but track for click detection
-						dragStartPos = { x: event.clientX, y: event.clientY };
+						const touch = (event as TouchEvent).touches?.[0];
+						dragStartPos = { x: touch?.clientX ?? event.clientX, y: touch?.clientY ?? event.clientY };
 						dragStartTarget = event.target;
 						return true;
 					}
@@ -234,14 +251,14 @@
 
 		svg.addEventListener('wheel', handleWheel, { passive: false });
 
-		// Click-vs-drag detection: mouseup handler to detect if drag was actually a click
-		function handleMouseUp(event: MouseEvent) {
+		// Click-vs-drag detection: shared handler for mouseup and touchend
+		function handlePointerUp(clientX: number, clientY: number) {
 			if (!dragStartPos || !dragStartTarget) {
 				return;
 			}
 
-			const dx = event.clientX - dragStartPos.x;
-			const dy = event.clientY - dragStartPos.y;
+			const dx = clientX - dragStartPos.x;
+			const dy = clientY - dragStartPos.y;
 			const distance = Math.sqrt(dx * dx + dy * dy);
 
 			// Reset state before potentially triggering handlers
@@ -282,8 +299,20 @@
 			}
 		}
 
-		// Listen on document to catch mouseup even if mouse moves off the card
+		function handleMouseUp(event: MouseEvent) {
+			handlePointerUp(event.clientX, event.clientY);
+		}
+
+		function handleTouchEnd(event: TouchEvent) {
+			const touch = event.changedTouches[0];
+			if (touch) {
+				handlePointerUp(touch.clientX, touch.clientY);
+			}
+		}
+
+		// Listen on document to catch mouseup/touchend even if pointer moves off the card
 		document.addEventListener('mouseup', handleMouseUp);
+		document.addEventListener('touchend', handleTouchEnd);
 
 		// Position camera: focused card in reading zone, or restore stored position
 		const storedCamera = canvasStore.camera;
@@ -296,7 +325,8 @@
 				const topMargin = height * 0.15;
 				const targetX = card.position.x + card.dimensions.width / 2;
 				const targetY = card.position.y;
-				const zoomLevel = storedCamera.zoom !== 1 ? storedCamera.zoom : 1;
+				const baseZoom = storedCamera.zoom !== 1 ? storedCamera.zoom : 1;
+				const zoomLevel = readOnly ? mobileAutoZoom(width, baseZoom) : baseZoom;
 				const rzX = readingZoneX(width, zoomLevel);
 				const initialTransform = zoomIdentity
 					.translate(rzX - targetX * zoomLevel, topMargin - targetY * zoomLevel)
@@ -888,6 +918,7 @@
 			window.removeEventListener('card-content-reflow', handleContentReflow);
 			window.removeEventListener('keydown', handleKeyDown);
 			document.removeEventListener('mouseup', handleMouseUp);
+			document.removeEventListener('touchend', handleTouchEnd);
 			svg.removeEventListener('wheel', handleWheel);
 			resizeObserver.disconnect();
 		};
@@ -1002,11 +1033,11 @@
 		const height = svg.clientHeight;
 
 		// Capture zoom at start to prevent race conditions if zoom changes mid-animation
-		const zoomLevel = transform.k;
+		// On narrow screens in readOnly mode, scale down so cards fit the viewport
+		const zoomLevel = readOnly ? mobileAutoZoom(width, transform.k) : transform.k;
 
 		// Reading view: place card in left-biased reading zone, top near viewport top
 		// On mobile, aligns card left edge to viewport for readability
-		// Always preserve current zoom level
 		const topMargin = height * 0.15;
 		const rzX = readingZoneX(width, zoomLevel);
 		const endX = rzX - targetX * zoomLevel;
@@ -1063,10 +1094,10 @@
 		const height = svg.clientHeight;
 
 		// Capture zoom at start to prevent race conditions if zoom changes mid-animation
-		const zoomLevel = transform.k;
+		// On narrow screens in readOnly mode, scale down so cards fit the viewport
+		const zoomLevel = readOnly ? mobileAutoZoom(width, transform.k) : transform.k;
 
 		// Compute target camera position to show focusPoint in reading zone
-		// Using CURRENT zoom level - never change zoom during navigation
 		const rzX = readingZoneX(width, zoomLevel);
 		const targetX = rzX - focusPoint.x * zoomLevel;
 		const targetY = height / 2 - focusPoint.y * zoomLevel;
@@ -1691,6 +1722,7 @@
 		background: var(--bg-canvas);
 		cursor: grab;
 		transition: background 0.3s ease;
+		touch-action: none;
 	}
 
 	.canvas:active {
