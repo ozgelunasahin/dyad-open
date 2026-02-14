@@ -305,7 +305,7 @@
 </script>
 
 <svelte:head>
-	<title>Edit {data.site.name} - dyad.berlin</title>
+	<title>edit {data.site.name} - dyad. cultivating a culture of conversation</title>
 </svelte:head>
 
 <div class="editor">

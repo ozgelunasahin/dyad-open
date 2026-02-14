@@ -10,11 +10,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const userId = locals.user.id;
 
-	// Load user's canvases, profile, and published canvases from others in parallel
-	const [canvasesResult, profileResult, publishedCanvasesResult] = await Promise.all([
+	// Load user's canvases, profile, published canvases, sites, and highlights in parallel
+	const [canvasesResult, profileResult, publishedCanvasesResult, sitesResult, highlightsResult] = await Promise.all([
 		locals.supabase
 			.from('canvases')
-			.select('id, name, slug, is_published, entry_point_note_id, created_at, updated_at')
+			.select('id, name, slug, is_published, entry_point_note_id, created_at, updated_at, cover_image_url')
 			.eq('user_id', userId)
 			.order('updated_at', { ascending: false }),
 		locals.supabase
@@ -28,7 +28,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.eq('is_published', true)
 			.neq('user_id', userId)
 			.order('updated_at', { ascending: false })
-			.limit(20)
+			.limit(20),
+		locals.supabase
+			.from('sites')
+			.select(`id, name, slug, is_published, created_at, updated_at, site_canvases (count)`)
+			.eq('user_id', userId)
+			.order('updated_at', { ascending: false }),
+		locals.supabase
+			.from('landing_highlights')
+			.select('*')
+			.order('position', { ascending: true })
 	]);
 
 	// Fetch usernames for published canvases (separate query since no direct FK)
@@ -63,6 +72,21 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const isOnboarded = profileResult.data?.onboarded ?? false;
 	const username = profileResult.data?.username ?? '';
 	const canPublishSites = profileResult.data?.can_publish_sites ?? false;
+
+	// Transform sites to include canvas count
+	const sites = (sitesResult.data ?? []).map((site) => ({
+		id: site.id,
+		name: site.name,
+		slug: site.slug,
+		is_published: site.is_published,
+		created_at: site.created_at,
+		updated_at: site.updated_at,
+		canvas_count: Array.isArray(site.site_canvases)
+			? site.site_canvases.length
+			: (site.site_canvases as { count: number })?.count ?? 0
+	}));
+
+	const highlights = highlightsResult.data ?? [];
 
 	// Seed starter canvas for users who haven't been onboarded and don't have it yet
 	const hasGettingStarted = canvases.some((c) => c.slug === 'getting-started');
@@ -116,7 +140,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 			username,
 			canvases: newCanvases ?? [],
 			publishedCanvases,
-			canPublishSites
+			canPublishSites,
+			sites,
+			highlights
 		};
 	}
 
@@ -125,7 +151,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 		username,
 		canvases: canvases ?? [],
 		publishedCanvases,
-		canPublishSites
+		canPublishSites,
+		sites,
+		highlights
 	};
 };
 

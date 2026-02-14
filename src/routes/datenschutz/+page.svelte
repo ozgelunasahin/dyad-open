@@ -1,5 +1,5 @@
 <svelte:head>
-	<title>Datenschutz — dyad.berlin</title>
+	<title>datenschutz - dyad. cultivating a culture of conversation</title>
 </svelte:head>
 
 <main class="legal-page">

@@ -157,6 +157,35 @@ export const actions: Actions = {
 		return { success: true };
 	},
 
+	setCoverImage: async ({ request, locals, params }) => {
+		if (!locals.user) {
+			redirect(302, '/login');
+		}
+
+		const data = await request.formData();
+		const coverImageUrl = data.get('coverImageUrl');
+
+		const { error: updateError } = await locals.supabase
+			.from('canvases')
+			.update({
+				cover_image_url: typeof coverImageUrl === 'string' && coverImageUrl ? coverImageUrl : null,
+				updated_at: new Date().toISOString()
+			})
+			.eq('id', params.canvasId);
+
+		if (updateError) {
+			return fail(500, { error: 'Failed to set cover image' });
+		}
+
+		// Also update any landing highlights that reference this canvas
+		await locals.supabase
+			.from('landing_highlights')
+			.update({ image_url: coverImageUrl || null, updated_at: new Date().toISOString() })
+			.eq('canvas_id', params.canvasId);
+
+		return { success: true };
+	},
+
 	setEntryPoint: async ({ request, locals, params }) => {
 		if (!locals.user) {
 			redirect(302, '/login');

@@ -33,7 +33,7 @@
 </script>
 
 <svelte:head>
-	<title>Preview: {data.site.name} - dyad.berlin</title>
+	<title>preview: {data.site.name} - dyad. cultivating a culture of conversation</title>
 </svelte:head>
 
 <div class="preview-page">

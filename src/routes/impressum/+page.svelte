@@ -1,5 +1,5 @@
 <svelte:head>
-	<title>Impressum — dyad.berlin</title>
+	<title>impressum - dyad. cultivating a culture of conversation</title>
 </svelte:head>
 
 <main class="legal-page">

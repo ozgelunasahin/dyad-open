@@ -29,10 +29,6 @@
 				{item.name}
 			</button>
 		{/each}
-		<button
-			class:active={'field-notes' === activeSlug}
-			onclick={() => onNavigate('field-notes')}
-		>field notes</button>
 	</div>
 
 	<!-- Right: user icon links to login (desktop) -->
@@ -65,7 +61,6 @@
 				{item.name}
 			</button>
 		{/each}
-		<button onclick={() => { onNavigate('field-notes'); mobileMenuOpen = false; }}>field notes</button>
 		<hr />
 		<a href="/signup" class="mobile-link" onclick={() => mobileMenuOpen = false}>sign up</a>
 		<a href="/login" class="mobile-link" onclick={() => mobileMenuOpen = false}>log in</a>

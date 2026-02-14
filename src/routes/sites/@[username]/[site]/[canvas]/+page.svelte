@@ -23,7 +23,7 @@
 </script>
 
 <svelte:head>
-	<title>{data.canvas.name} - {data.site.name} by @{data.author.username}</title>
+	<title>{data.canvas.name} - dyad. cultivating a culture of conversation</title>
 	<meta name="description" content="{data.site.name} by @{data.author.username}" />
 </svelte:head>
 

@@ -8,7 +8,7 @@
 </script>
 
 <svelte:head>
-	<title>{mode === 'login' ? 'Login' : mode === 'signup' ? 'Sign Up' : mode === 'reset' ? 'Reset Password' : 'Set New Password'} - dyad.berlin</title>
+	<title>{mode === 'login' ? 'login' : mode === 'signup' ? 'sign up' : mode === 'reset' ? 'reset password' : 'set new password'} - dyad. cultivating a culture of conversation</title>
 </svelte:head>
 
 <div class="auth-container">

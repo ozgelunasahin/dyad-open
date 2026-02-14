@@ -22,6 +22,54 @@
 	let newNoteName = $state('');
 	let showHelp = $state(false);
 	let showFeedbackModal = $state(false);
+	let coverImageUrl = $state(data.canvas.cover_image_url || '');
+	let uploadingCover = $state(false);
+	let dragOverCover = $state(false);
+
+	async function handleCoverDrop(e: DragEvent) {
+		e.preventDefault();
+		dragOverCover = false;
+		const files = e.dataTransfer?.files;
+		if (!files || files.length === 0) return;
+		const file = files[0];
+		if (!file.type.startsWith('image/')) return;
+
+		uploadingCover = true;
+		try {
+			const formData = new FormData();
+			formData.append('file', file);
+			const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
+			if (!uploadRes.ok) throw new Error('Upload failed');
+			const { url } = await uploadRes.json();
+
+			// Save via form action
+			const saveForm = new FormData();
+			saveForm.append('coverImageUrl', url);
+			const saveRes = await fetch('?/setCoverImage', { method: 'POST', body: saveForm });
+			if (!saveRes.ok) throw new Error('Save failed');
+
+			coverImageUrl = url;
+		} catch (err) {
+			console.error('Cover image upload failed:', err);
+		} finally {
+			uploadingCover = false;
+		}
+	}
+
+	async function removeCoverImage() {
+		uploadingCover = true;
+		try {
+			const saveForm = new FormData();
+			saveForm.append('coverImageUrl', '');
+			const saveRes = await fetch('?/setCoverImage', { method: 'POST', body: saveForm });
+			if (!saveRes.ok) throw new Error('Remove failed');
+			coverImageUrl = '';
+		} catch (err) {
+			console.error('Cover image remove failed:', err);
+		} finally {
+			uploadingCover = false;
+		}
+	}
 
 	async function createOrphanNote() {
 		if (!newNoteName.trim()) return;
@@ -378,6 +426,32 @@
 					{/if}
 				</div>
 			{/if}
+
+				<div class="setting-group">
+					<label>Cover Image</label>
+					<p class="hint">Used on landing page highlights. Drop an image below.</p>
+					<!-- svelte-ignore a11y_no_static_element_interactions -->
+					<div
+						class="cover-drop-zone"
+						class:drag-over={dragOverCover}
+						class:has-image={!!coverImageUrl}
+						ondragover={(e) => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; dragOverCover = true; }}
+						ondragleave={() => { dragOverCover = false; }}
+						ondrop={handleCoverDrop}
+					>
+						{#if uploadingCover}
+							<span class="cover-status">uploading...</span>
+						{:else if coverImageUrl}
+							<img src={coverImageUrl} alt="Cover" class="cover-preview" />
+							<span class="cover-overlay">drop to replace</span>
+						{:else}
+							<span class="cover-placeholder">drop image here</span>
+						{/if}
+					</div>
+					{#if coverImageUrl && !uploadingCover}
+						<button class="remove-cover-btn" onclick={removeCoverImage}>remove cover image</button>
+					{/if}
+				</div>
 
 				<button class="close-btn" onclick={() => (showSettingsPanel = false)}>close</button>
 			</div>
@@ -834,6 +908,75 @@
 		border-radius: 4px;
 		margin-bottom: 16px;
 		font-size: 0.85rem;
+	}
+
+	/* Cover image drop zone */
+	.cover-drop-zone {
+		width: 100%;
+		aspect-ratio: 3 / 2;
+		border: 2px dashed var(--border-link, rgba(0, 0, 0, 0.1));
+		border-radius: 6px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		position: relative;
+		overflow: hidden;
+		margin-top: 8px;
+		cursor: default;
+		transition: border-color 0.15s;
+	}
+
+	.cover-drop-zone.drag-over {
+		border-color: var(--text-primary);
+		background: var(--bg-control);
+	}
+
+	.cover-drop-zone.has-image {
+		border-style: solid;
+	}
+
+	.cover-preview {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		display: block;
+	}
+
+	.cover-overlay {
+		position: absolute;
+		inset: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: rgba(0, 0, 0, 0.5);
+		color: white;
+		font-size: 0.8rem;
+		opacity: 0;
+		transition: opacity 0.2s;
+	}
+
+	.cover-drop-zone.has-image:hover .cover-overlay {
+		opacity: 1;
+	}
+
+	.cover-placeholder, .cover-status {
+		font-size: 0.8rem;
+		color: var(--text-muted);
+	}
+
+	.remove-cover-btn {
+		margin-top: 6px;
+		background: none;
+		border: none;
+		color: var(--text-muted);
+		font-size: 0.8rem;
+		font-family: inherit;
+		cursor: pointer;
+		padding: 2px 0;
+	}
+
+	.remove-cover-btn:hover {
+		color: #dc3545;
 	}
 
 	.close-btn {

@@ -3,7 +3,7 @@
 </script>
 
 <svelte:head>
-	<title>{$page.status} - dyad.berlin</title>
+	<title>{$page.status} - dyad. cultivating a culture of conversation</title>
 </svelte:head>
 
 <div class="error-container">

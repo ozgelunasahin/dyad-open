@@ -91,7 +91,7 @@
 </script>
 
 <svelte:head>
-	<title>Sites - dyad.berlin</title>
+	<title>sites - dyad. cultivating a culture of conversation</title>
 </svelte:head>
 
 <div class="dashboard">

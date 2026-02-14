@@ -5,7 +5,7 @@
 </script>
 
 <svelte:head>
-	<title>@{data.user.username}'s Site - dyad.berlin</title>
+	<title>@{data.user.username} - dyad. cultivating a culture of conversation</title>
 	<meta name="description" content="Explore published canvases by @{data.user.username}" />
 </svelte:head>
 
