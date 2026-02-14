@@ -44,7 +44,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 		return json({ error: 'Invalid JSON body' }, { status: 400 });
 	}
 
-	const { email, name } = body as Record<string, unknown>;
+	const { email, name, freewrite } = body as Record<string, unknown>;
 
 	if (!email || typeof email !== 'string') {
 		error(400, 'Email is required');
@@ -67,11 +67,27 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 		error(400, 'Name is too long');
 	}
 
+	if (!freewrite || typeof freewrite !== 'string' || !freewrite.trim()) {
+		return json({ error: 'Please share your thoughts before joining.' }, { status: 400 });
+	}
+
+	if (freewrite.length > 2000) {
+		return json({ error: 'Freewrite is too long' }, { status: 400 });
+	}
+
 	const { error: dbError } = await locals.supabase
 		.from('contacts')
-		.insert({ email: email.trim(), name: (typeof name === 'string' ? name.trim() : null) || null });
+		.insert({
+			email: email.trim(),
+			name: (typeof name === 'string' ? name.trim() : null) || null,
+			freewrite: (typeof freewrite === 'string' ? freewrite.trim() : null) || null
+		});
 
 	if (dbError) {
+		if (dbError.code === '23505') {
+			// Unique constraint violation — already on the waitlist
+			return json({ error: 'This email is already on the waitlist.' }, { status: 409 });
+		}
 		console.error('Failed to save contact:', dbError);
 		error(500, 'Failed to save contact');
 	}

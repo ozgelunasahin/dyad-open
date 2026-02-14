@@ -1,6 +1,7 @@
 <script lang="ts">
 	let name = $state('');
 	let email = $state('');
+	let freewrite = $state('');
 	let status = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
 	let errorMsg = $state('');
 
@@ -8,12 +9,18 @@
 		e.preventDefault();
 		if (!email) return;
 
+		if (!freewrite.trim()) {
+			errorMsg = 'Please share your thoughts before joining.';
+			status = 'error';
+			return;
+		}
+
 		status = 'sending';
 		try {
 			const res = await fetch('/api/contact', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ email: email.trim(), name: name.trim() || undefined })
+				body: JSON.stringify({ email: email.trim(), name: name.trim() || undefined, freewrite: freewrite.trim() || undefined })
 			});
 
 			if (!res.ok) {
@@ -40,6 +47,17 @@
 			{:else}
 				<p class="description">For all free thinkers who want company.</p>
 				<form onsubmit={handleSubmit}>
+					<div class="freewrite-group">
+						<label for="freewrite" class="freewrite-label">What's in a conversation?</label>
+						<textarea
+							id="freewrite"
+							placeholder="Write freely..."
+							bind:value={freewrite}
+							disabled={status === 'sending'}
+							maxlength={2000}
+							rows={4}
+						></textarea>
+					</div>
 					<div class="form-row">
 						<input
 							type="text"
@@ -101,6 +119,48 @@
 		margin: 0 0 20px;
 		line-height: 1.5;
 		max-width: 480px;
+	}
+
+	.freewrite-group {
+		margin-bottom: 20px;
+		max-width: 560px;
+	}
+
+	.freewrite-label {
+		display: block;
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 14px;
+		color: var(--text-muted, #666);
+		margin-bottom: 8px;
+		font-style: italic;
+	}
+
+	textarea {
+		width: 100%;
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 14px;
+		padding: 10px 14px;
+		border: 1px solid var(--border-link, rgba(0, 0, 0, 0.12));
+		border-radius: 6px;
+		background: transparent;
+		color: var(--text-primary, #1a1a1a);
+		transition: border-color 0.15s;
+		resize: vertical;
+		line-height: 1.6;
+		box-sizing: border-box;
+	}
+
+	textarea::placeholder {
+		color: var(--text-muted, #999);
+	}
+
+	textarea:focus {
+		outline: none;
+		border-color: var(--text-muted, #666);
+	}
+
+	textarea:disabled {
+		opacity: 0.6;
 	}
 
 	.form-row {

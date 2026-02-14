@@ -1,12 +1,68 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import type { PageData, ActionData } from './$types';
-
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	let showCreateModal = $state(false);
 	let showDeleteModal = $state<string | null>(null);
 	let creating = $state(false);
 	let deleting = $state(false);
+
+	// Tab state
+	let activeTab = $state<string>('canvases');
+
+	// Conversations state
+	let showCreateConversationModal = $state(false);
+	let togglingConversation = $state<string | null>(null);
+
+	// Waitlist state
+	let invitingEmail = $state<string | null>(null);
+	let inviteError = $state<string | null>(null);
+	let waitlistSearch = $state('');
+	let waitlistFilter = $state<'all' | 'pending' | 'invited'>('all');
+
+	let filteredWaitlist = $derived(() => {
+		const list = data.waitlist ?? [];
+		let filtered = list;
+		if (waitlistFilter === 'pending') filtered = filtered.filter((c) => !c.invited);
+		if (waitlistFilter === 'invited') filtered = filtered.filter((c) => c.invited);
+		if (waitlistSearch.trim()) {
+			const q = waitlistSearch.toLowerCase();
+			filtered = filtered.filter(
+				(c) =>
+					c.email.toLowerCase().includes(q) ||
+					(c.name && c.name.toLowerCase().includes(q)) ||
+					(c.freewrite && c.freewrite.toLowerCase().includes(q))
+			);
+		}
+		return filtered;
+	});
+
+	async function sendInvite(email: string, name: string | null) {
+		invitingEmail = email;
+		inviteError = null;
+		try {
+			const res = await fetch('/api/invites', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ email, name })
+			});
+			const result = await res.json();
+			if (!res.ok) {
+				inviteError = result.error || 'Failed to send invite';
+				return;
+			}
+			// Mark as invited in local state
+			const contact = data.waitlist?.find((c) => c.email === email);
+			if (contact) {
+				contact.invited = true;
+				data.waitlist = [...(data.waitlist ?? [])];
+			}
+		} catch {
+			inviteError = 'Failed to send invite';
+		} finally {
+			invitingEmail = null;
+		}
+	}
 
 	// Sites state
 	let showCreateSiteModal = $state(false);
@@ -230,6 +286,17 @@
 		</div>
 	</header>
 
+	<nav class="tabs">
+		<button class="tab" class:active={activeTab === 'canvases'} onclick={() => (activeTab = 'canvases')}>Canvases</button>
+		<button class="tab" class:active={activeTab === 'conversations'} onclick={() => (activeTab = 'conversations')}>Conversations</button>
+		{#if data.canPublishSites}
+			<button class="tab" class:active={activeTab === 'sites'} onclick={() => (activeTab = 'sites')}>Sites</button>
+			<button class="tab" class:active={activeTab === 'highlights'} onclick={() => (activeTab = 'highlights')}>Highlights</button>
+			<button class="tab" class:active={activeTab === 'waitlist'} onclick={() => (activeTab = 'waitlist')}>Waitlist <span class="tab-count">{data.waitlist?.length ?? 0}</span></button>
+			<button class="tab" class:active={activeTab === 'members'} onclick={() => (activeTab = 'members')}>Members <span class="tab-count">{data.members?.length ?? 0}</span></button>
+		{/if}
+	</nav>
+
 	{#if form?.error}
 		<div class="error-message">{form.error}</div>
 	{/if}
@@ -239,51 +306,112 @@
 
 	<div class="content">
 		<!-- ============ CANVASES ============ -->
-		<section class="section">
-			<div class="section-header">
-				<h2 class="section-title">Canvases</h2>
-				<button class="create-btn" onclick={() => (showCreateModal = true)}>
-					+ new canvas
-				</button>
-			</div>
+		{#if activeTab === 'canvases'}
+			<section class="section">
+				<div class="section-header">
+					<h2 class="section-title">Canvases</h2>
+					<button class="create-btn" onclick={() => (showCreateModal = true)}>
+						+ new canvas
+					</button>
+				</div>
 
-			{#if data.canvases.length === 0}
-				<div class="empty-state">
-					<p>You don't have any canvases yet.</p>
+				{#if data.canvases.length === 0}
+					<div class="empty-state">
+						<p>You don't have any canvases yet.</p>
+					</div>
+				{:else}
+					<div class="canvas-grid">
+						{#each data.canvases as canvas}
+							<a href="/canvas/{canvas.id}" class="canvas-card">
+								<div class="canvas-header">
+									<h3>{canvas.name}</h3>
+									{#if canvas.is_published}
+										<span class="published-badge">Published</span>
+									{/if}
+								</div>
+								<div class="canvas-meta">
+									<span class="slug">/@{data.username}/{canvas.slug}</span>
+									<span class="date">{formatDate(canvas.updated_at)}</span>
+								</div>
+								<button
+									class="delete-btn"
+									onclick={(e) => {
+										e.preventDefault();
+										e.stopPropagation();
+										showDeleteModal = canvas.id;
+									}}
+								>
+									delete
+								</button>
+							</a>
+						{/each}
+					</div>
+				{/if}
+			</section>
+		{/if}
+
+		<!-- ============ CONVERSATIONS ============ -->
+		{#if activeTab === 'conversations'}
+			<section class="section">
+				<div class="section-header">
+					<h2 class="section-title">Your Conversations</h2>
+					<button class="create-btn" onclick={() => (showCreateConversationModal = true)}>
+						+ new conversation
+					</button>
 				</div>
-			{:else}
-				<div class="canvas-grid">
-					{#each data.canvases as canvas}
-						<a href="/canvas/{canvas.id}" class="canvas-card">
-							<div class="canvas-header">
-								<h3>{canvas.name}</h3>
-								{#if canvas.is_published}
-									<span class="published-badge">Published</span>
-								{/if}
+
+				{#if data.conversations.length === 0}
+					<div class="empty-state">
+						<p>Start a conversation topic for the community.</p>
+					</div>
+				{:else}
+					<div class="canvas-grid">
+						{#each data.conversations as conversation}
+							<div class="canvas-card conversation-card">
+								<a href="/canvas/{conversation.id}" class="conversation-link">
+									<div class="canvas-header">
+										<h3>{conversation.name}</h3>
+										{#if conversation.active_this_week}
+											<span class="published-badge-green">Active</span>
+										{/if}
+									</div>
+									<div class="canvas-meta">
+										<span class="slug">/@{data.username}/{conversation.slug}</span>
+										<span class="date">{formatDate(conversation.updated_at)}</span>
+									</div>
+								</a>
+								<div class="conversation-actions">
+									<form
+										method="POST"
+										action="?/toggleActiveThisWeek"
+										use:enhance={() => {
+											togglingConversation = conversation.id;
+											return async ({ update }) => {
+												togglingConversation = null;
+												await update();
+											};
+										}}
+									>
+										<input type="hidden" name="canvasId" value={conversation.id} />
+										<button
+											type="submit"
+											class="toggle-btn"
+											class:active={conversation.active_this_week}
+											disabled={togglingConversation === conversation.id}
+										>
+											{conversation.active_this_week ? 'Active this week' : 'Inactive'}
+										</button>
+									</form>
+								</div>
 							</div>
-							<div class="canvas-meta">
-								<span class="slug">/@{data.username}/{canvas.slug}</span>
-								<span class="date">{formatDate(canvas.updated_at)}</span>
-							</div>
-							<button
-								class="delete-btn"
-								onclick={(e) => {
-									e.preventDefault();
-									e.stopPropagation();
-									showDeleteModal = canvas.id;
-								}}
-							>
-								delete
-							</button>
-						</a>
-					{/each}
-				</div>
-			{/if}
-		</section>
+						{/each}
+					</div>
+				{/if}
+			</section>
+		{/if}
 
 		<!-- ============ SITES (admin only) ============ -->
-		{#if data.canPublishSites}
-			<hr class="section-divider" />
+		{#if activeTab === 'sites'}
 			<section class="section">
 				<div class="section-header">
 					<h2 class="section-title">Sites</h2>
@@ -330,9 +458,10 @@
 					</div>
 				{/if}
 			</section>
+		{/if}
 
-			<!-- ============ LANDING HIGHLIGHTS (admin only) ============ -->
-			<hr class="section-divider" />
+		<!-- ============ LANDING HIGHLIGHTS (admin only) ============ -->
+		{#if activeTab === 'highlights'}
 			<section class="section">
 				<div class="section-header">
 					<h2 class="section-title">Landing Highlights</h2>
@@ -379,7 +508,6 @@
 										{/if}
 									</div>
 								</button>
-								<!-- Drop zone for cover image (only for highlighted canvases) -->
 								{#if isHighlighted}
 									<!-- svelte-ignore a11y_no_static_element_interactions -->
 									<div
@@ -407,24 +535,108 @@
 			</section>
 		{/if}
 
-		<!-- ============ DISCOVER ============ -->
-		{#if data.canPublishSites && data.publishedCanvases.length > 0}
-			<hr class="section-divider" />
+		<!-- ============ WAITLIST (admin only) ============ -->
+		{#if activeTab === 'waitlist'}
+			{@const allWaitlist = data.waitlist ?? []}
+			{@const pendingCount = allWaitlist.filter((c) => !c.invited).length}
+			{@const invitedCount = allWaitlist.filter((c) => c.invited).length}
 			<section class="section">
-				<h2 class="section-title">Discover</h2>
-				<div class="canvas-grid">
-					{#each data.publishedCanvases as canvas}
-						<a href="/@{canvas.username}/{canvas.slug}" class="canvas-card">
-							<div class="canvas-header">
-								<h3>{canvas.name}</h3>
-							</div>
-							<div class="canvas-meta">
-								<span class="slug">/@{canvas.username}/{canvas.slug}</span>
-								<span class="date">{formatDate(canvas.updated_at)}</span>
-							</div>
-						</a>
-					{/each}
+				<div class="section-header">
+					<h2 class="section-title">Waitlist</h2>
+					<span class="waitlist-count">{allWaitlist.length} total &middot; {pendingCount} pending &middot; {invitedCount} invited</span>
 				</div>
+
+				{#if inviteError}
+					<div class="error-message">{inviteError}</div>
+				{/if}
+
+				{#if allWaitlist.length > 0}
+					<div class="waitlist-controls">
+						<input
+							type="text"
+							class="waitlist-search"
+							placeholder="Search by name, email, or freewrite..."
+							bind:value={waitlistSearch}
+						/>
+						<div class="waitlist-filters">
+							<button class="filter-btn" class:active={waitlistFilter === 'all'} onclick={() => (waitlistFilter = 'all')}>All</button>
+							<button class="filter-btn" class:active={waitlistFilter === 'pending'} onclick={() => (waitlistFilter = 'pending')}>Pending</button>
+							<button class="filter-btn" class:active={waitlistFilter === 'invited'} onclick={() => (waitlistFilter = 'invited')}>Invited</button>
+						</div>
+					</div>
+				{/if}
+
+				{#if allWaitlist.length === 0}
+					<div class="empty-state">
+						<p>No one on the waitlist yet.</p>
+					</div>
+				{:else if filteredWaitlist().length === 0}
+					<div class="empty-state">
+						<p>No matches.</p>
+					</div>
+				{:else}
+					<div class="waitlist-list">
+						{#each filteredWaitlist() as contact}
+							<div class="waitlist-item">
+								<div class="waitlist-info">
+									<div class="waitlist-header-row">
+										<span class="waitlist-name">{contact.name || 'Anonymous'}</span>
+										<span class="waitlist-email">{contact.email}</span>
+										<span class="waitlist-date">{formatDate(contact.created_at)}</span>
+									</div>
+									{#if contact.freewrite}
+										<p class="waitlist-freewrite">{contact.freewrite}</p>
+									{/if}
+								</div>
+								<div class="waitlist-action">
+									{#if contact.invited}
+										<span class="invited-badge">Invited</span>
+									{:else}
+										<button
+											class="invite-btn"
+											disabled={invitingEmail === contact.email}
+											onclick={() => sendInvite(contact.email, contact.name)}
+										>
+											{invitingEmail === contact.email ? 'Sending...' : 'Invite'}
+										</button>
+									{/if}
+								</div>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</section>
+		{/if}
+
+		<!-- ============ MEMBERS (admin only) ============ -->
+		{#if activeTab === 'members'}
+			<section class="section">
+				<div class="section-header">
+					<h2 class="section-title">Members</h2>
+					<span class="waitlist-count">{data.members?.length ?? 0} users</span>
+				</div>
+
+				{#if !data.members || data.members.length === 0}
+					<div class="empty-state">
+						<p>No members yet.</p>
+					</div>
+				{:else}
+					<div class="waitlist-list">
+						{#each data.members as member}
+							<div class="waitlist-item">
+								<div class="waitlist-info">
+									<div class="waitlist-header-row">
+										<span class="waitlist-name">@{member.username}</span>
+										{#if member.berlin_based}
+											<span class="berlin-badge">Berlin</span>
+										{/if}
+										<span class="waitlist-date">{formatDate(member.created_at)}</span>
+									</div>
+								</div>
+							</div>
+						{/each}
+					</div>
+				{/if}
 			</section>
 		{/if}
 	</div>
@@ -527,6 +739,47 @@
 					</button>
 					<button type="submit" class="submit-btn" disabled={creatingSite || !newSiteName.trim()}>
 						{creatingSite ? 'creating...' : 'create site'}
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- Create Conversation Modal -->
+{#if showCreateConversationModal}
+	<div class="modal-overlay" onclick={() => (showCreateConversationModal = false)}>
+		<div class="modal" onclick={(e) => e.stopPropagation()}>
+			<h2>Start a Conversation</h2>
+			<p>Give your conversation a topic. Others in the community will be able to read and engage with it.</p>
+			<form
+				method="POST"
+				action="?/createConversation"
+				use:enhance={() => {
+					creating = true;
+					return async ({ update }) => {
+						creating = false;
+						await update();
+						showCreateConversationModal = false;
+					};
+				}}
+			>
+				<input
+					type="text"
+					id="conversationName"
+					name="name"
+					required
+					maxlength="100"
+					placeholder="Conversation topic"
+					disabled={creating}
+					autofocus
+				/>
+				<div class="modal-actions">
+					<button type="button" class="cancel-btn" onclick={() => (showCreateConversationModal = false)}>
+						cancel
+					</button>
+					<button type="submit" class="submit-btn" disabled={creating}>
+						{creating ? 'creating...' : 'start conversation'}
 					</button>
 				</div>
 			</form>
@@ -656,10 +909,41 @@
 		margin: -0.5rem 0 1.5rem 0;
 	}
 
-	.section-divider {
+	.tabs {
+		display: flex;
+		gap: 0;
+		max-width: 1200px;
+		margin: 0 auto 2rem;
+		border-bottom: 1px solid var(--border-link);
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	.tab {
+		padding: 0.6rem 1.1rem;
+		background: none;
 		border: none;
-		border-top: 1px solid var(--border-link);
-		margin: 2.5rem 0 2rem 0;
+		border-bottom: 2px solid transparent;
+		color: var(--text-muted);
+		font-size: 0.95rem;
+		font-family: inherit;
+		cursor: pointer;
+		white-space: nowrap;
+		transition: color 0.15s, border-color 0.15s;
+	}
+
+	.tab:hover {
+		color: var(--text-primary);
+	}
+
+	.tab.active {
+		color: var(--text-primary);
+		border-bottom-color: var(--text-primary);
+	}
+
+	.tab-count {
+		font-size: 0.8rem;
+		opacity: 0.6;
 	}
 
 	.create-btn {
@@ -789,6 +1073,49 @@
 
 	.delete-btn:hover {
 		color: #dc3545;
+	}
+
+	/* === Conversation card === */
+	.conversation-card {
+		display: block;
+		position: relative;
+	}
+
+	.conversation-link {
+		display: block;
+		text-decoration: none;
+	}
+
+	.conversation-actions {
+		margin-top: 0.75rem;
+	}
+
+	.toggle-btn {
+		padding: 0.35rem 0.65rem;
+		background: none;
+		border: 1px solid var(--border-link);
+		border-radius: 4px;
+		color: var(--text-muted);
+		font-size: 0.8rem;
+		font-family: inherit;
+		cursor: pointer;
+		transition: border-color 0.2s, color 0.2s, background 0.2s;
+	}
+
+	.toggle-btn:hover {
+		border-color: var(--border-link-hover);
+		color: var(--text-primary);
+	}
+
+	.toggle-btn.active {
+		background: rgba(40, 167, 69, 0.1);
+		border-color: rgba(40, 167, 69, 0.4);
+		color: #28a745;
+	}
+
+	.toggle-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
 	}
 
 	/* === Site card === */
@@ -1104,5 +1431,168 @@
 	.delete-confirm-btn:disabled {
 		opacity: 0.6;
 		cursor: not-allowed;
+	}
+
+	/* === Waitlist & Members === */
+	.waitlist-count {
+		color: var(--text-muted);
+		font-size: 0.9rem;
+	}
+
+	.waitlist-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0;
+	}
+
+	.waitlist-item {
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
+		gap: 1rem;
+		padding: 1rem 0;
+		border-bottom: 1px solid var(--border-link);
+	}
+
+	.waitlist-item:last-child {
+		border-bottom: none;
+	}
+
+	.waitlist-info {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.waitlist-header-row {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		flex-wrap: wrap;
+	}
+
+	.waitlist-name {
+		font-weight: 500;
+		color: var(--text-primary);
+		font-size: 0.95rem;
+	}
+
+	.waitlist-email {
+		color: var(--text-muted);
+		font-size: 0.85rem;
+		font-family: monospace;
+	}
+
+	.waitlist-date {
+		color: var(--text-muted);
+		font-size: 0.8rem;
+		margin-left: auto;
+	}
+
+	.waitlist-freewrite {
+		margin: 0.5rem 0 0;
+		color: var(--text-secondary);
+		font-size: 0.9rem;
+		line-height: 1.5;
+		font-style: italic;
+		white-space: pre-wrap;
+	}
+
+	.waitlist-action {
+		flex-shrink: 0;
+		padding-top: 2px;
+	}
+
+	.invite-btn {
+		padding: 0.4rem 0.85rem;
+		background: var(--text-primary);
+		color: var(--bg-canvas);
+		border: none;
+		border-radius: 4px;
+		font-size: 0.85rem;
+		font-family: inherit;
+		cursor: pointer;
+		transition: opacity 0.2s;
+	}
+
+	.invite-btn:hover:not(:disabled) {
+		opacity: 0.9;
+	}
+
+	.invite-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.invited-badge {
+		padding: 0.35rem 0.65rem;
+		background: rgba(40, 167, 69, 0.1);
+		color: #28a745;
+		border-radius: 4px;
+		font-size: 0.8rem;
+	}
+
+	.waitlist-controls {
+		display: flex;
+		gap: 0.75rem;
+		align-items: center;
+		margin-bottom: 1rem;
+		flex-wrap: wrap;
+	}
+
+	.waitlist-search {
+		flex: 1;
+		min-width: 200px;
+		padding: 0.5rem 0.75rem;
+		border: 1px solid var(--border-link);
+		border-radius: 4px;
+		font-size: 0.9rem;
+		font-family: inherit;
+		background: var(--bg-canvas);
+		color: var(--text-primary);
+	}
+
+	.waitlist-search:focus {
+		outline: none;
+		border-color: var(--text-link-hover);
+	}
+
+	.waitlist-search::placeholder {
+		color: var(--text-muted);
+	}
+
+	.waitlist-filters {
+		display: flex;
+		gap: 0.25rem;
+	}
+
+	.filter-btn {
+		padding: 0.4rem 0.7rem;
+		background: none;
+		border: 1px solid var(--border-link);
+		border-radius: 4px;
+		color: var(--text-muted);
+		font-size: 0.8rem;
+		font-family: inherit;
+		cursor: pointer;
+		transition: border-color 0.2s, color 0.2s, background 0.2s;
+	}
+
+	.filter-btn:hover {
+		border-color: var(--border-link-hover);
+		color: var(--text-primary);
+	}
+
+	.filter-btn.active {
+		background: var(--text-primary);
+		color: var(--bg-canvas);
+		border-color: var(--text-primary);
+	}
+
+	.berlin-badge {
+		padding: 0.15rem 0.45rem;
+		background: rgba(0, 123, 255, 0.1);
+		color: #007bff;
+		border-radius: 3px;
+		font-size: 0.75rem;
 	}
 </style>

@@ -4,14 +4,13 @@
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	let loading = $state(false);
-	let mode = $state<'login' | 'reset' | 'update'>(data.mode === 'update' ? 'update' : 'login');
 </script>
 
 <svelte:head>
-	<title>{mode === 'login' ? 'login' : mode === 'reset' ? 'reset password' : 'set new password'} - dyad. cultivating a culture of conversation</title>
+	<title>Join dyad. - cultivating a culture of conversation</title>
 </svelte:head>
 
-<nav class="login-nav">
+<nav class="join-nav">
 	<a href="/" class="logo-link" aria-label="Back to home">
 		<img src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/logo.png" alt="dyad" class="site-logo" />
 	</a>
@@ -19,89 +18,106 @@
 
 <div class="auth-container">
 	<div class="auth-card">
-		<h1>
-			{#if mode === 'login'}Welcome back{:else if mode === 'reset'}Reset password{:else}Set new password{/if}
-		</h1>
-		<p class="subtitle">
-			{#if mode === 'login'}Sign in to continue to your canvases{:else if mode === 'reset'}Enter your email to receive a reset link{:else}Choose a new password for your account{/if}
-		</p>
+		{#if !data.valid}
+			<h1>Invitation expired</h1>
+			<p class="subtitle">This invitation link is no longer valid. It may have expired or already been used.</p>
+			<a href="/" class="back-link">Back to home</a>
+		{:else if form?.success}
+			<h1>Welcome to dyad.</h1>
+			<p class="subtitle">{form.message}</p>
+			<a href="/login" class="submit-btn" style="display: inline-block; text-align: center; text-decoration: none;">Sign in</a>
+		{:else}
+			<h1>You're invited</h1>
+			<p class="subtitle">Create your account to join the conversation.</p>
 
-		{#if form?.error}
-			<div class="error-message">{form.error}</div>
-		{/if}
+			{#if form?.error}
+				<div class="error-message">{form.error}</div>
+			{/if}
 
-		{#if form?.success}
-			<div class="success-message">{form.message}</div>
-		{/if}
+			<form
+				method="POST"
+				action="?/signup"
+				use:enhance={() => {
+					loading = true;
+					return async ({ update }) => {
+						loading = false;
+						await update();
+					};
+				}}
+			>
+				<input type="hidden" name="token" value={data.token} />
 
-		<form
-			method="POST"
-			action="?/{mode === 'reset' ? 'resetPassword' : mode === 'update' ? 'updatePassword' : mode}"
-			use:enhance={() => {
-				loading = true;
-				return async ({ update }) => {
-					loading = false;
-					await update();
-				};
-			}}
-		>
-			{#if mode !== 'update'}
 				<div class="form-group">
 					<label for="email">Email</label>
 					<input
 						type="email"
 						id="email"
 						name="email"
-						value={form?.email ?? ''}
-						required
+						value={data.email}
+						readonly
 						autocomplete="email"
-						disabled={loading}
 					/>
 				</div>
-			{/if}
 
-			{#if mode !== 'reset'}
 				<div class="form-group">
-					<label for="password">{mode === 'update' ? 'New password' : 'Password'}</label>
+					<label for="username">Username</label>
+					<input
+						type="text"
+						id="username"
+						name="username"
+						value={form?.username ?? ''}
+						required
+						autocomplete="username"
+						disabled={loading}
+						minlength={3}
+						maxlength={30}
+						pattern="[a-z0-9_-]+"
+						title="Lowercase letters, numbers, underscores, and hyphens only"
+					/>
+					<p class="hint">This will be your public URL: dyad.berlin/<strong>@username</strong></p>
+				</div>
+
+				<div class="form-group">
+					<label for="password">Password</label>
 					<input
 						type="password"
 						id="password"
 						name="password"
 						required
-						autocomplete={mode === 'login' ? 'current-password' : 'new-password'}
+						autocomplete="new-password"
 						disabled={loading}
-						minlength={mode === 'update' ? 6 : undefined}
+						minlength={6}
 					/>
-					{#if mode === 'update'}
-						<p class="hint">At least 6 characters</p>
-					{/if}
+					<p class="hint">At least 6 characters</p>
 				</div>
-			{/if}
 
-			<button type="submit" class="submit-btn" disabled={loading}>
-				{#if loading}
-					{#if mode === 'login'}Signing in...{:else if mode === 'reset'}Sending...{:else}Updating...{/if}
-				{:else}
-					{#if mode === 'login'}Sign in{:else if mode === 'reset'}Send reset link{:else}Update password{/if}
-				{/if}
-			</button>
-		</form>
+				<div class="form-group checkbox-group">
+					<label class="checkbox-label">
+						<input
+							type="checkbox"
+							name="berlin_based"
+							checked
+							disabled={loading}
+						/>
+						<span>I'm based in Berlin</span>
+					</label>
+				</div>
 
-		<p class="switch-auth">
-			{#if mode === 'login'}
-				<button type="button" class="link-btn" onclick={() => (mode = 'reset')}>Forgot password?</button>
-			{:else if mode === 'reset'}
-				Remember your password?
-				<button type="button" class="link-btn" onclick={() => (mode = 'login')}>Sign in</button>
-			{:else}
-				<a href="/dashboard" class="link-btn">Go to dashboard</a>
-			{/if}
-		</p>
+				<button type="submit" class="submit-btn" disabled={loading}>
+					{loading ? 'Creating account...' : 'Create account'}
+				</button>
+			</form>
+
+			<p class="switch-auth">
+				Already have an account?
+				<a href="/login" class="link-btn">Sign in</a>
+			</p>
+		{/if}
 	</div>
 </div>
 
 <style>
-	.login-nav {
+	.join-nav {
 		position: fixed;
 		top: 24px;
 		left: 50%;
@@ -176,16 +192,6 @@
 		font-size: 0.9rem;
 	}
 
-	.success-message {
-		background: rgba(25, 135, 84, 0.1);
-		border: 1px solid rgba(25, 135, 84, 0.3);
-		color: #198754;
-		padding: 0.75rem 1rem;
-		border-radius: 4px;
-		margin-bottom: 1.5rem;
-		font-size: 0.9rem;
-	}
-
 	.form-group {
 		margin-bottom: 1.25rem;
 	}
@@ -197,7 +203,9 @@
 		font-size: 0.95rem;
 	}
 
-	input {
+	input[type='text'],
+	input[type='email'],
+	input[type='password'] {
 		width: 100%;
 		padding: 0.75rem;
 		border: 1px solid var(--border-link);
@@ -207,6 +215,7 @@
 		background: var(--bg-canvas);
 		color: var(--text-primary);
 		transition: border-color 0.2s;
+		box-sizing: border-box;
 	}
 
 	input:focus {
@@ -214,7 +223,8 @@
 		border-color: var(--text-link-hover);
 	}
 
-	input:disabled {
+	input:disabled,
+	input[readonly] {
 		opacity: 0.6;
 		cursor: not-allowed;
 	}
@@ -223,6 +233,25 @@
 		margin: 0.5rem 0 0 0;
 		font-size: 0.85rem;
 		color: var(--text-muted);
+	}
+
+	.checkbox-group {
+		margin-top: 0.5rem;
+	}
+
+	.checkbox-label {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		cursor: pointer;
+		font-size: 0.95rem;
+		color: var(--text-primary);
+	}
+
+	.checkbox-label input[type='checkbox'] {
+		width: auto;
+		margin: 0;
+		cursor: pointer;
 	}
 
 	.submit-btn {
@@ -255,18 +284,17 @@
 		font-size: 0.95rem;
 	}
 
-	.link-btn {
-		background: none;
-		border: none;
-		padding: 0;
+	.link-btn,
+	.back-link {
 		color: var(--text-link);
 		font: inherit;
-		cursor: pointer;
 		border-bottom: 1px solid var(--border-link);
 		transition: border-color 0.2s, color 0.2s;
+		text-decoration: none;
 	}
 
-	.link-btn:hover {
+	.link-btn:hover,
+	.back-link:hover {
 		color: var(--text-link-hover);
 		border-color: var(--border-link-hover);
 	}
