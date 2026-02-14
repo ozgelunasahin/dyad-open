@@ -1,5 +1,9 @@
 import { json, error } from '@sveltejs/kit';
+import { Resend } from 'resend';
+import { RESEND_API_KEY } from '$env/static/private';
 import type { RequestHandler } from './$types';
+
+const resend = new Resend(RESEND_API_KEY);
 
 // Simple in-memory rate limiter (per-process; sufficient for single-instance deploys)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -71,6 +75,27 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 		console.error('Failed to save contact:', dbError);
 		error(500, 'Failed to save contact');
 	}
+
+	// Send welcome email (fire-and-forget — don't block the response)
+	const displayName = (typeof name === 'string' && name.trim()) || 'there';
+	resend.emails.send({
+		from: 'dyad. <onboarding@resend.dev>',
+		to: email.trim(),
+		subject: "What's in a conversation?",
+		html: `
+			<div style="font-family: Georgia, serif; max-width: 520px; margin: 0 auto; padding: 40px 20px; color: #1a1a1a; line-height: 1.7;">
+				<p>Hi ${displayName},</p>
+				<p>This is Luna, one of the makers of Dyad.</p>
+				<p>Dyad is a community of independent, critical thinkers who want company on shared questions, ideas, experiences and all that can be the start of a conversation. All conversations are in person, and we create the digital experience to minimize the time you spend online, and have it a joyful, ad-free and free roaming experience.</p>
+				<p>Since we started with the ugly duckling version of this work, we met so many people who genuinely share our feelings for the lack of contact and connection, the way it feels meaningful, human. In conversation with these people, we are building the first full version and in the meanwhile, found other ways to experience the kind of conversations we have been looking for. This comes into life this spring in Berlin. More on that very, very soon.</p>
+				<p>In the meanwhile, we welcome you with genuine joy. In a time where there is so much pressure to keep us separated, we take such joy to build other ways to come together, and contribute to oral culture as counter practice.</p>
+				<p>Welcome.</p>
+				<p style="margin-top: 32px;">With care,<br/>Luna</p>
+				<hr style="border: none; border-top: 1px solid #e0ddd8; margin: 32px 0 16px;" />
+				<p style="font-size: 12px; color: #999;">dyad.berlin — cultivating a culture of conversation</p>
+			</div>
+		`
+	}).catch(err => console.error('Failed to send welcome email:', err));
 
 	return json({ ok: true });
 };

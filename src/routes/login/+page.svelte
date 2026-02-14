@@ -11,6 +11,12 @@
 	<title>{mode === 'login' ? 'login' : mode === 'signup' ? 'sign up' : mode === 'reset' ? 'reset password' : 'set new password'} - dyad. cultivating a culture of conversation</title>
 </svelte:head>
 
+<nav class="login-nav">
+	<a href="/" class="logo-link" aria-label="Back to home">
+		<img src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/logo.png" alt="dyad" class="site-logo" />
+	</a>
+</nav>
+
 <div class="auth-container">
 	<div class="auth-card">
 		<h1>
@@ -121,6 +127,40 @@
 </div>
 
 <style>
+	.login-nav {
+		position: fixed;
+		top: 24px;
+		left: 50%;
+		transform: translateX(-50%);
+		z-index: 100;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0 28px;
+		height: 48px;
+		background: color-mix(in srgb, var(--bg-canvas, #f5f3f0) 92%, transparent);
+		backdrop-filter: blur(16px);
+		-webkit-backdrop-filter: blur(16px);
+		border-radius: 8px;
+		box-shadow: 0 1px 12px var(--bg-control, rgba(0, 0, 0, 0.08));
+	}
+
+	.logo-link {
+		display: flex;
+		align-items: center;
+	}
+
+	.site-logo {
+		height: 34px;
+		width: auto;
+		filter: brightness(0);
+		transition: filter 0.2s ease;
+	}
+
+	:global([data-theme='dark']) .site-logo {
+		filter: none;
+	}
+
 	.auth-container {
 		min-height: 100vh;
 		display: flex;

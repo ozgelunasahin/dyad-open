@@ -8,6 +8,7 @@
 	import ExpandableContent from '$lib/components/ExpandableContent.svelte';
 	import SiteFooter from '$lib/components/SiteFooter.svelte';
 	import FieldNotesSection from '$lib/components/FieldNotesSection.svelte';
+	import JoinSection from '$lib/components/JoinSection.svelte';
 
 	let { data } = $props();
 
@@ -252,7 +253,7 @@
 			</section>
 		{/each}
 
-		<!-- Field Notes section -->
+		<!-- Field Notes + Footer section -->
 		{#if data.highlights && data.highlights.length > 0 || data.isEditMode}
 			<section
 				class="snap-section field-notes-section"
@@ -260,12 +261,18 @@
 				bind:this={sectionEls['field-notes']}
 			>
 				<FieldNotesSection highlights={data.highlights || []} isEditMode={data.isEditMode} />
+				<JoinSection />
+				<div class="footer-area">
+					<SiteFooter />
+				</div>
+			</section>
+		{:else}
+			<section class="snap-section footer-only-section">
+				<div class="footer-area">
+					<SiteFooter />
+				</div>
 			</section>
 		{/if}
-
-		<section class="footer-section">
-			<SiteFooter />
-		</section>
 	</div>
 
 	<button class="theme-toggle" onclick={() => themeStore.toggle()} aria-label="Toggle theme">
@@ -319,14 +326,16 @@
 	/* Cover image — centered, proportional, full photo visible */
 	.section-cover {
 		margin: 16px 16px 0;
-		max-height: 75vh;
+		height: 75vh;
 		border-radius: 8px;
 		overflow: hidden;
 	}
 
 	.section-cover img {
 		width: 100%;
-		height: auto;
+		height: 100%;
+		object-fit: cover;
+		object-position: center bottom;
 		display: block;
 		border-radius: 8px;
 	}
@@ -446,18 +455,20 @@
 	/* === Field Notes section === */
 	.field-notes-section {
 		background: var(--bg-canvas);
+		height: auto;
+		min-height: 100vh;
+		display: flex;
+		flex-direction: column;
 	}
 
-	/* === Footer section — no snap to prevent overlap === */
-	.footer-section {
-		scroll-snap-align: none;
+	.footer-only-section {
+		background: var(--bg-canvas);
 		display: flex;
 		align-items: flex-end;
-		justify-content: stretch;
-		background: var(--bg-canvas);
 	}
 
-	.footer-section :global(.site-footer) {
+	.footer-area {
+		margin-top: auto;
 		width: 100%;
 	}
 
