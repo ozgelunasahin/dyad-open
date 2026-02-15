@@ -11,12 +11,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const userId = locals.user.id;
 
 	// Load user's canvases, profile, published canvases, sites, highlights, and conversations in parallel
-	const [canvasesResult, profileResult, publishedCanvasesResult, sitesResult, highlightsResult, conversationsResult] = await Promise.all([
+	const [canvasesResult, profileResult, publishedCanvasesResult, sitesResult, highlightsResult, conversationsResult, archivedResult] = await Promise.all([
 		locals.supabase
 			.from('canvases')
 			.select('id, name, slug, is_published, entry_point_note_id, created_at, updated_at, cover_image_url')
 			.eq('user_id', userId)
 			.eq('is_conversation', false)
+			.neq('is_archived', true)
 			.order('updated_at', { ascending: false }),
 		locals.supabase
 			.from('profiles')
@@ -41,9 +42,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.order('position', { ascending: true }),
 		locals.supabase
 			.from('canvases')
-			.select('id, name, slug, is_published, active_this_week, created_at, updated_at')
+			.select('id, name, slug, is_published, active_this_week, preferred_location, preferred_time_slots, created_at, updated_at')
 			.eq('user_id', userId)
 			.eq('is_conversation', true)
+			.neq('is_archived', true)
+			.order('updated_at', { ascending: false }),
+		locals.supabase
+			.from('canvases')
+			.select('id, name, slug, is_published, is_conversation, active_this_week, created_at, updated_at')
+			.eq('user_id', userId)
+			.eq('is_archived', true)
 			.order('updated_at', { ascending: false })
 	]);
 
@@ -95,6 +103,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const highlights = highlightsResult.data ?? [];
 	const conversations = conversationsResult.data ?? [];
+	const archived = archivedResult.data ?? [];
 
 	// Load waitlist contacts and existing members for admin users
 	let waitlist: Array<{ id: string; email: string; name: string | null; freewrite: string | null; created_at: string; invited: boolean }> = [];
@@ -204,6 +213,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			sites,
 			highlights,
 			conversations,
+			archived,
 			waitlist,
 			members
 		};
@@ -218,6 +228,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		sites,
 		highlights,
 		conversations,
+		archived,
 		waitlist,
 		members
 	};
@@ -268,55 +279,36 @@ export const actions: Actions = {
 		redirect(302, `/canvas/${id}`);
 	},
 
-	createConversation: async ({ request, locals }) => {
+	createConversation: async ({ locals }) => {
 		if (!locals.user) {
 			redirect(302, '/login');
 		}
 
-		const data = await request.formData();
-		const name = data.get('name');
-
-		if (typeof name !== 'string' || name.length < 1 || name.length > 100) {
-			return fail(400, { error: 'Conversation name must be between 1 and 100 characters' });
-		}
-
-		const slug = name
-			.toLowerCase()
-			.replace(/[^a-z0-9]+/g, '-')
-			.replace(/^-|-$/g, '')
-			.substring(0, 50);
-
-		if (!slug) {
-			return fail(400, { error: 'Invalid conversation name' });
-		}
-
 		const id = nanoid();
+		const slug = `conversation-${id.slice(0, 8)}`;
 
 		// Create conversation canvas (published by default with a starter note)
 		const { error: canvasError } = await locals.supabase.from('canvases').insert({
 			id,
 			user_id: locals.user.id,
-			name,
+			name: 'Untitled',
 			slug,
 			is_conversation: true,
 			is_published: true
 		});
 
 		if (canvasError) {
-			if (canvasError.code === '23505') {
-				return fail(400, { error: 'A canvas with this name already exists' });
-			}
 			console.error('Create conversation error:', canvasError);
 			return fail(500, { error: 'Failed to create conversation' });
 		}
 
-		// Insert a starter note
+		// Insert a starter note with empty title (user fills it in)
 		const starterSlug = 'start';
 		await locals.supabase.from('notes').insert({
 			canvas_id: id,
 			user_id: locals.user.id,
 			slug: starterSlug,
-			title: name,
+			title: '',
 			content: { type: 'doc', content: [{ type: 'paragraph' }] },
 			wikilinks: []
 		});
@@ -327,7 +319,7 @@ export const actions: Actions = {
 			.update({ entry_point_note_id: starterSlug })
 			.eq('id', id);
 
-		redirect(302, `/canvas/${id}`);
+		redirect(302, `/canvas/${id}?edit=start`);
 	},
 
 	toggleActiveThisWeek: async ({ request, locals }) => {
@@ -337,12 +329,13 @@ export const actions: Actions = {
 
 		const data = await request.formData();
 		const canvasId = data.get('canvasId');
+		const action = data.get('action'); // 'activate' or 'deactivate'
 
 		if (typeof canvasId !== 'string') {
 			return fail(400, { error: 'Invalid canvas ID' });
 		}
 
-		// Get current state
+		// Verify conversation exists and belongs to user
 		const { data: canvas } = await locals.supabase
 			.from('canvases')
 			.select('active_this_week')
@@ -354,16 +347,76 @@ export const actions: Actions = {
 			return fail(404, { error: 'Conversation not found' });
 		}
 
+		if (action === 'activate') {
+			// Parse calendar dates, time range, and locations
+			const dates = (data.get('dates') as string)?.split(',').filter(Boolean) ?? [];
+			const startTime = data.get('startTime') as string;
+			const durationVal = parseInt(data.get('duration') as string, 10) || 60;
+			const locations: string[] = [];
+			for (let i = 0; i < 3; i++) {
+				const loc = data.get(`location_${i}`);
+				if (typeof loc === 'string' && loc.trim()) locations.push(loc.trim());
+			}
+
+			if (dates.length === 0 || !startTime || locations.length === 0) {
+				return fail(400, { error: 'Select at least 1 day, a time, and 1 location' });
+			}
+
+			const { error: updateError } = await locals.supabase
+				.from('canvases')
+				.update({
+					active_this_week: true,
+					preferred_time_slots: JSON.stringify({ dates, startTime, duration: durationVal }),
+					preferred_location: JSON.stringify(locations),
+					updated_at: new Date().toISOString()
+				})
+				.eq('id', canvasId);
+
+			if (updateError) {
+				return fail(500, { error: 'Failed to activate conversation' });
+			}
+		} else {
+			// Deactivate — keep stored availability for next time
+			const { error: updateError } = await locals.supabase
+				.from('canvases')
+				.update({
+					active_this_week: false,
+					updated_at: new Date().toISOString()
+				})
+				.eq('id', canvasId);
+
+			if (updateError) {
+				return fail(500, { error: 'Failed to deactivate conversation' });
+			}
+		}
+
+		return { success: true };
+	},
+
+	toggleArchive: async ({ request, locals }) => {
+		if (!locals.user) {
+			redirect(302, '/login');
+		}
+
+		const data = await request.formData();
+		const canvasId = data.get('canvasId');
+		const archive = data.get('archive') === 'true';
+
+		if (typeof canvasId !== 'string') {
+			return fail(400, { error: 'Invalid canvas ID' });
+		}
+
 		const { error: updateError } = await locals.supabase
 			.from('canvases')
 			.update({
-				active_this_week: !canvas.active_this_week,
+				is_archived: archive,
+				active_this_week: archive ? false : undefined, // deactivate when archiving
 				updated_at: new Date().toISOString()
 			})
 			.eq('id', canvasId);
 
 		if (updateError) {
-			return fail(500, { error: 'Failed to toggle active status' });
+			return fail(500, { error: 'Failed to update archive status' });
 		}
 
 		return { success: true };

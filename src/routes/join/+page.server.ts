@@ -97,8 +97,11 @@ export const actions: Actions = {
 			return fail(400, { username, error: signUpError.message });
 		}
 
-		// Mark the invitation as used
-		await locals.supabase.rpc('use_invitation', { invite_token: token });
+		// Mark the invitation as used and auto-confirm email (invite-only, already validated)
+		await Promise.all([
+			locals.supabase.rpc('use_invitation', { invite_token: token }),
+			locals.supabase.rpc('confirm_user_email', { user_email: email })
+		]);
 
 		// Sign in immediately so the user doesn't have to log in again
 		const { error: signInError } = await locals.supabase.auth.signInWithPassword({

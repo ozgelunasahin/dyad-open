@@ -253,10 +253,10 @@ export const PUT: RequestHandler = async ({ locals, params, request, url }) => {
 		return json({ error: 'Failed to save note' }, { status: 500 });
 	}
 
-	// Auto-update canvas cover image if this note is the entry point
+	// Auto-update canvas cover image and name if this note is the entry point
 	const { data: canvas } = await locals.supabase
 		.from('canvases')
-		.select('id, entry_point_note_id')
+		.select('id, name, entry_point_note_id, is_conversation')
 		.eq('id', canvasId)
 		.single();
 
@@ -277,16 +277,45 @@ export const PUT: RequestHandler = async ({ locals, params, request, url }) => {
 
 		const coverImageUrl = findFirstImage(content);
 
-		// Update canvas cover_image
+		// Build update payload
+		const updatePayload: Record<string, unknown> = {
+			cover_image_url: coverImageUrl,
+			updated_at: new Date().toISOString()
+		};
+
+		// Auto-name conversations: if still "Untitled", derive from title or first text in content
+		if (canvas.is_conversation && canvas.name === 'Untitled') {
+			let autoName = title.trim();
+			if (!autoName) {
+				// Extract first meaningful text from content body
+				const extractFirstText = (node: JSONContent): string => {
+					if (node.type === 'text' && node.text) return node.text;
+					if (node.content) {
+						for (const child of node.content) {
+							const t = extractFirstText(child);
+							if (t) return t;
+						}
+					}
+					return '';
+				};
+				autoName = extractFirstText(content).trim();
+			}
+			if (autoName) {
+				const newName = autoName.slice(0, 100);
+				const newSlug = newName
+					.toLowerCase()
+					.replace(/[^a-z0-9]+/g, '-')
+					.replace(/^-|-$/g, '')
+					.substring(0, 50);
+				updatePayload.name = newName;
+				if (newSlug) updatePayload.slug = newSlug;
+			}
+		}
+
 		await locals.supabase
 			.from('canvases')
-			.update({
-				cover_image_url: coverImageUrl,
-				updated_at: new Date().toISOString()
-			})
+			.update(updatePayload)
 			.eq('id', canvasId);
-
-		console.log(`[API] Auto-updated cover image for canvas ${canvasId}: ${coverImageUrl}`);
 	}
 
 	return json({ success: true, saved: new Date().toISOString() });

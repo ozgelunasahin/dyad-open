@@ -8,11 +8,148 @@
 	let deleting = $state(false);
 
 	// Tab state
-	let activeTab = $state<string>('canvases');
+	let activeTab = $state<string>('conversations');
 
 	// Conversations state
-	let showCreateConversationModal = $state(false);
 	let togglingConversation = $state<string | null>(null);
+	let showAvailabilityModal = $state<string | null>(null);
+	let activating = $state(false);
+
+	// Week calendar helpers
+	function getCurrentWeekDates() {
+		const today = new Date();
+		const monday = new Date(today);
+		monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+		const todayStr = today.toISOString().split('T')[0];
+		return Array.from({ length: 7 }, (_, i) => {
+			const d = new Date(monday);
+			d.setDate(monday.getDate() + i);
+			const dateStr = d.toISOString().split('T')[0];
+			return {
+				date: dateStr,
+				dayShort: d.toLocaleDateString('en-US', { weekday: 'short' }),
+				dayNum: d.getDate(),
+				isPast: dateStr < todayStr
+			};
+		});
+	}
+
+	const weekDates = getCurrentWeekDates();
+
+	const TIME_OPTIONS = (() => {
+		const opts: Array<{ value: string; label: string }> = [];
+		for (let h = 8; h <= 22; h++) {
+			for (const m of ['00', '30']) {
+				if (h === 22 && m === '30') continue;
+				const value = `${h.toString().padStart(2, '0')}:${m}`;
+				const d = new Date(2000, 0, 1, h, parseInt(m));
+				const label = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+				opts.push({ value, label });
+			}
+		}
+		return opts;
+	})();
+
+	const DURATION_OPTIONS = [
+		{ value: 30, label: '30 min' },
+		{ value: 60, label: '1 hour' },
+		{ value: 90, label: '1.5 hours' },
+		{ value: 120, label: '2 hours' },
+		{ value: 180, label: '3 hours' },
+	];
+
+	const BERLIN_LOCATIONS = [
+		'Café Cinema, Kreuzberg',
+		'Betahaus, Kreuzberg',
+		'St. Oberholz, Mitte',
+		'Bonanza Coffee, Prenzlauer Berg',
+		'Five Elephant, Kreuzberg',
+		'The Barn, Mitte',
+		'Silo Coffee, Friedrichshain',
+		'Neukölln Library',
+		'Amerika-Gedenkbibliothek, Kreuzberg',
+		'Tempelhofer Feld',
+		'Viktoriapark, Kreuzberg',
+		'Görlitzer Park, Kreuzberg',
+		'Mauerpark, Prenzlauer Berg',
+		'Factory Berlin, Mitte',
+		'Impact Hub, Kreuzberg',
+	];
+
+	let selectedDates = $state<Set<string>>(new Set());
+	let startTime = $state('');
+	let duration = $state(60);
+	let availLocations = $state<string[]>(['']);
+	let locationQueries = $state<string[]>(['']);
+
+	function locationSuggestions(query: string): string[] {
+		if (!query.trim()) return BERLIN_LOCATIONS;
+		const q = query.toLowerCase();
+		return BERLIN_LOCATIONS.filter(l => l.toLowerCase().includes(q));
+	}
+
+	function openAvailabilityModal(conversationId: string, existingTimes?: string | null, existingLocations?: string | null) {
+		showAvailabilityModal = conversationId;
+		let dates = new Set<string>();
+		let st = '';
+		let dur = 60;
+		let locations: string[] = [''];
+		try {
+			if (existingTimes) {
+				const parsed = JSON.parse(existingTimes);
+				if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+					if (Array.isArray(parsed.dates)) dates = new Set(parsed.dates);
+					st = parsed.startTime ?? '';
+					dur = parsed.duration ?? 60;
+				}
+			}
+			if (existingLocations) {
+				const parsed = JSON.parse(existingLocations);
+				if (Array.isArray(parsed) && parsed.length > 0) locations = parsed;
+			}
+		} catch { /* ignore */ }
+		selectedDates = dates;
+		startTime = st;
+		duration = dur;
+		availLocations = locations;
+		locationQueries = locations.map(() => '');
+		activating = false;
+	}
+
+	function parseJsonArray(val: string | null | undefined): string[] {
+		if (!val) return [];
+		try { const parsed = JSON.parse(val); return Array.isArray(parsed) ? parsed : []; }
+		catch { return []; }
+	}
+
+	function parseAvailability(val: string | null | undefined): { dates: string[]; startTime: string; duration: number } | null {
+		if (!val) return null;
+		try {
+			const parsed = JSON.parse(val);
+			if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+				return {
+					dates: Array.isArray(parsed.dates) ? parsed.dates : [],
+					startTime: parsed.startTime ?? '',
+					duration: parsed.duration ?? 60
+				};
+			}
+		} catch { /* ignore */ }
+		return null;
+	}
+
+	function formatTimeRange(st: string, dur: number): string {
+		if (!st) return '';
+		const [h, m] = st.split(':').map(Number);
+		const start = new Date(2000, 0, 1, h, m);
+		const end = new Date(start.getTime() + dur * 60000);
+		const fmt = (d: Date) => d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+		return `${fmt(start)} – ${fmt(end)}`;
+	}
+
+	function formatDateShort(dateStr: string): string {
+		const d = new Date(dateStr + 'T12:00:00');
+		return d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
+	}
 
 	// Waitlist state
 	let invitingEmail = $state<string | null>(null);
@@ -272,115 +409,93 @@
 </script>
 
 <svelte:head>
-	<title>Dashboard - dyad.berlin</title>
+	<title>On My Mind - dyad.berlin</title>
 </svelte:head>
 
-<div class="dashboard">
-	<header class="header">
-		<div class="header-left">
-			<h1>Dashboard</h1>
+<div class="app-layout">
+	<aside class="sidebar">
+		<a href="/" class="sidebar-logo">
+			<img src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/logo.png" alt="dyad" class="sidebar-logo-img" />
+		</a>
+		<nav class="sidebar-nav">
+			<a href="/discover" class="sidebar-link">Discover</a>
+			<a href="/dashboard" class="sidebar-link active">Profile</a>
+		</nav>
+		<div class="sidebar-bottom">
+			<span class="sidebar-username">@{data.username}</span>
+			<a href="/logout" class="sidebar-logout">sign out</a>
 		</div>
-		<div class="header-right">
-			<span class="username">{data.user.email}</span>
-			<a href="/logout" class="logout-btn">sign out</a>
-		</div>
-	</header>
+	</aside>
 
-	<nav class="tabs">
-		<button class="tab" class:active={activeTab === 'canvases'} onclick={() => (activeTab = 'canvases')}>Canvases</button>
-		<button class="tab" class:active={activeTab === 'conversations'} onclick={() => (activeTab = 'conversations')}>Conversations</button>
-		{#if data.canPublishSites}
-			<button class="tab" class:active={activeTab === 'sites'} onclick={() => (activeTab = 'sites')}>Sites</button>
-			<button class="tab" class:active={activeTab === 'highlights'} onclick={() => (activeTab = 'highlights')}>Highlights</button>
-			<button class="tab" class:active={activeTab === 'waitlist'} onclick={() => (activeTab = 'waitlist')}>Waitlist <span class="tab-count">{data.waitlist?.length ?? 0}</span></button>
-			<button class="tab" class:active={activeTab === 'members'} onclick={() => (activeTab = 'members')}>Members <span class="tab-count">{data.members?.length ?? 0}</span></button>
+	<main class="main-content">
+		<header class="page-header">
+			<h1>On My Mind</h1>
+		</header>
+
+		{#if form?.error}
+			<div class="error-message">{form.error}</div>
 		{/if}
-	</nav>
+		{#if siteError}
+			<div class="error-message">{siteError}</div>
+		{/if}
 
-	{#if form?.error}
-		<div class="error-message">{form.error}</div>
-	{/if}
-	{#if siteError}
-		<div class="error-message">{siteError}</div>
-	{/if}
-
-	<div class="content">
-		<!-- ============ CANVASES ============ -->
-		{#if activeTab === 'canvases'}
-			<section class="section">
-				<div class="section-header">
-					<h2 class="section-title">Canvases</h2>
-					<button class="create-btn" onclick={() => (showCreateModal = true)}>
-						+ new canvas
+		<div class="content">
+		<!-- ============ CONVERSATIONS ============ -->
+		<section class="section">
+			<div class="section-header">
+				<h2 class="section-title">Conversations</h2>
+				<form method="POST" action="?/createConversation" use:enhance={() => {
+					creating = true;
+					return async ({ update }) => {
+						creating = false;
+						await update();
+					};
+				}}>
+					<button type="submit" class="create-btn" disabled={creating}>
+						{creating ? 'creating...' : '+ new conversation'}
 					</button>
-				</div>
+				</form>
+			</div>
 
-				{#if data.canvases.length === 0}
-					<div class="empty-state">
-						<p>You don't have any canvases yet.</p>
-					</div>
-				{:else}
-					<div class="canvas-grid">
-						{#each data.canvases as canvas}
-							<a href="/canvas/{canvas.id}" class="canvas-card">
+			{#if data.conversations.length === 0}
+				<div class="empty-state">
+					<p>Start a conversation topic for the community.</p>
+				</div>
+			{:else}
+				<div class="canvas-grid">
+					{#each data.conversations as conversation}
+						{@const avail = parseAvailability(conversation.preferred_time_slots)}
+						{@const locations = parseJsonArray(conversation.preferred_location)}
+						<div class="canvas-card conversation-card">
+							<a href="/canvas/{conversation.id}" class="conversation-link">
 								<div class="canvas-header">
-									<h3>{canvas.name}</h3>
-									{#if canvas.is_published}
-										<span class="published-badge">Published</span>
+									<h3 class:untitled={conversation.name === 'Untitled'}>{conversation.name === 'Untitled' ? 'Untitled conversation' : conversation.name}</h3>
+									{#if conversation.active_this_week}
+										<span class="published-badge-green">Active</span>
 									{/if}
 								</div>
 								<div class="canvas-meta">
-									<span class="slug">/@{data.username}/{canvas.slug}</span>
-									<span class="date">{formatDate(canvas.updated_at)}</span>
+									<span class="slug">/@{data.username}/{conversation.slug}</span>
+									<span class="date">{formatDate(conversation.updated_at)}</span>
 								</div>
-								<button
-									class="delete-btn"
-									onclick={(e) => {
-										e.preventDefault();
-										e.stopPropagation();
-										showDeleteModal = canvas.id;
-									}}
-								>
-									delete
-								</button>
 							</a>
-						{/each}
-					</div>
-				{/if}
-			</section>
-		{/if}
-
-		<!-- ============ CONVERSATIONS ============ -->
-		{#if activeTab === 'conversations'}
-			<section class="section">
-				<div class="section-header">
-					<h2 class="section-title">Your Conversations</h2>
-					<button class="create-btn" onclick={() => (showCreateConversationModal = true)}>
-						+ new conversation
-					</button>
-				</div>
-
-				{#if data.conversations.length === 0}
-					<div class="empty-state">
-						<p>Start a conversation topic for the community.</p>
-					</div>
-				{:else}
-					<div class="canvas-grid">
-						{#each data.conversations as conversation}
-							<div class="canvas-card conversation-card">
-								<a href="/canvas/{conversation.id}" class="conversation-link">
-									<div class="canvas-header">
-										<h3>{conversation.name}</h3>
-										{#if conversation.active_this_week}
-											<span class="published-badge-green">Active</span>
+							{#if conversation.active_this_week && (avail || locations.length > 0)}
+								<div class="availability-tags">
+									{#if avail}
+										{#each avail.dates as d}
+											<span class="avail-tag avail-time">{formatDateShort(d)}</span>
+										{/each}
+										{#if avail.startTime}
+											<span class="avail-tag avail-time">{formatTimeRange(avail.startTime, avail.duration)}</span>
 										{/if}
-									</div>
-									<div class="canvas-meta">
-										<span class="slug">/@{data.username}/{conversation.slug}</span>
-										<span class="date">{formatDate(conversation.updated_at)}</span>
-									</div>
-								</a>
-								<div class="conversation-actions">
+									{/if}
+									{#each locations as loc}
+										<span class="avail-tag avail-location">{loc}</span>
+									{/each}
+								</div>
+							{/if}
+							<div class="conversation-actions">
+								{#if conversation.active_this_week}
 									<form
 										method="POST"
 										action="?/toggleActiveThisWeek"
@@ -393,25 +508,128 @@
 										}}
 									>
 										<input type="hidden" name="canvasId" value={conversation.id} />
+										<input type="hidden" name="action" value="deactivate" />
 										<button
 											type="submit"
-											class="toggle-btn"
-											class:active={conversation.active_this_week}
+											class="toggle-btn active"
 											disabled={togglingConversation === conversation.id}
 										>
-											{conversation.active_this_week ? 'Active this week' : 'Inactive'}
+											Active this week
 										</button>
 									</form>
-								</div>
+								{:else}
+									<button
+										class="toggle-btn"
+										onclick={(e) => { e.preventDefault(); e.stopPropagation(); openAvailabilityModal(conversation.id, conversation.preferred_time_slots, conversation.preferred_location); }}
+									>
+										Inactive
+									</button>
+								{/if}
+								<form method="POST" action="?/toggleArchive" use:enhance>
+									<input type="hidden" name="canvasId" value={conversation.id} />
+									<input type="hidden" name="archive" value="true" />
+									<button type="submit" class="archive-btn">archive</button>
+								</form>
 							</div>
-						{/each}
-					</div>
-				{/if}
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</section>
+
+		<!-- ============ WRITING ============ -->
+		<section class="section">
+			<div class="section-header">
+				<h2 class="section-title">Writing</h2>
+				<button class="create-btn" onclick={() => (showCreateModal = true)}>
+					+ new canvas
+				</button>
+			</div>
+
+			{#if data.canvases.length === 0}
+				<div class="empty-state-subtle">
+					<p>Private writing — not for discussion.</p>
+				</div>
+			{:else}
+				<div class="canvas-grid">
+					{#each data.canvases as canvas}
+						<div class="canvas-card">
+							<a href="/canvas/{canvas.id}" class="conversation-link">
+								<div class="canvas-header">
+									<h3>{canvas.name}</h3>
+									{#if canvas.is_published}
+										<span class="published-badge">Published</span>
+									{/if}
+								</div>
+								<div class="canvas-meta">
+									<span class="slug">/@{data.username}/{canvas.slug}</span>
+									<span class="date">{formatDate(canvas.updated_at)}</span>
+								</div>
+							</a>
+							<div class="conversation-actions">
+								<form method="POST" action="?/toggleArchive" use:enhance>
+									<input type="hidden" name="canvasId" value={canvas.id} />
+									<input type="hidden" name="archive" value="true" />
+									<button type="submit" class="archive-btn">archive</button>
+								</form>
+							</div>
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</section>
+
+		<!-- ============ ARCHIVE ============ -->
+		{#if (data.archived ?? []).length > 0}
+			<section class="section section-muted">
+				<div class="section-header">
+					<h2 class="section-title section-title-muted">Archive</h2>
+				</div>
+
+				<div class="canvas-grid">
+					{#each data.archived ?? [] as item}
+						<div class="canvas-card archived-card">
+							<a href="/canvas/{item.id}" class="conversation-link">
+								<div class="canvas-header">
+									<h3>{item.name}</h3>
+									<span class="archived-type">{item.is_conversation ? 'conversation' : 'writing'}</span>
+								</div>
+								<div class="canvas-meta">
+									<span class="date">{formatDate(item.updated_at)}</span>
+								</div>
+							</a>
+							<div class="conversation-actions">
+								<form method="POST" action="?/toggleArchive" use:enhance>
+									<input type="hidden" name="canvasId" value={item.id} />
+									<input type="hidden" name="archive" value="false" />
+									<button type="submit" class="archive-btn">unarchive</button>
+								</form>
+								<button
+									class="delete-btn-inline"
+									onclick={(e) => { e.stopPropagation(); showDeleteModal = item.id; }}
+								>
+									delete
+								</button>
+							</div>
+						</div>
+					{/each}
+				</div>
 			</section>
 		{/if}
 
+		<!-- ============ ADMIN TABS ============ -->
+		{#if data.canPublishSites}
+			<hr class="admin-divider" />
+			<nav class="tabs">
+				<button class="tab" class:active={activeTab === 'sites'} onclick={() => (activeTab = 'sites')}>Sites</button>
+				<button class="tab" class:active={activeTab === 'highlights'} onclick={() => (activeTab = 'highlights')}>Highlights</button>
+				<button class="tab" class:active={activeTab === 'waitlist'} onclick={() => (activeTab = 'waitlist')}>Waitlist <span class="tab-count">{data.waitlist?.length ?? 0}</span></button>
+				<button class="tab" class:active={activeTab === 'members'} onclick={() => (activeTab = 'members')}>Members <span class="tab-count">{data.members?.length ?? 0}</span></button>
+			</nav>
+		{/if}
+
 		<!-- ============ SITES (admin only) ============ -->
-		{#if activeTab === 'sites'}
+		{#if data.canPublishSites && activeTab === 'sites'}
 			<section class="section">
 				<div class="section-header">
 					<h2 class="section-title">Sites</h2>
@@ -461,7 +679,7 @@
 		{/if}
 
 		<!-- ============ LANDING HIGHLIGHTS (admin only) ============ -->
-		{#if activeTab === 'highlights'}
+		{#if data.canPublishSites && activeTab === 'highlights'}
 			<section class="section">
 				<div class="section-header">
 					<h2 class="section-title">Landing Highlights</h2>
@@ -536,7 +754,7 @@
 		{/if}
 
 		<!-- ============ WAITLIST (admin only) ============ -->
-		{#if activeTab === 'waitlist'}
+		{#if data.canPublishSites && activeTab === 'waitlist'}
 			{@const allWaitlist = (data.waitlist ?? []).map((c) => ({ ...c, invited: c.invited || invitedOverrides.has(c.email) }))}
 			{@const pendingCount = allWaitlist.filter((c) => !c.invited).length}
 			{@const invitedCount = allWaitlist.filter((c) => c.invited).length}
@@ -609,7 +827,7 @@
 		{/if}
 
 		<!-- ============ MEMBERS (admin only) ============ -->
-		{#if activeTab === 'members'}
+		{#if data.canPublishSites && activeTab === 'members'}
 			<section class="section">
 				<div class="section-header">
 					<h2 class="section-title">Members</h2>
@@ -640,6 +858,7 @@
 			</section>
 		{/if}
 	</div>
+	</main>
 </div>
 
 <!-- Create Canvas Modal -->
@@ -684,7 +903,7 @@
 
 <!-- Delete Canvas Modal -->
 {#if showDeleteModal}
-	{@const canvasToDelete = data.canvases.find((c) => c.id === showDeleteModal)}
+	{@const canvasToDelete = data.canvases.find((c) => c.id === showDeleteModal) ?? (data.archived ?? []).find((c) => c.id === showDeleteModal) ?? data.conversations.find((c) => c.id === showDeleteModal)}
 	<div class="modal-overlay" onclick={() => (showDeleteModal = null)}>
 		<div class="modal" onclick={(e) => e.stopPropagation()}>
 			<h2>Delete Canvas</h2>
@@ -746,46 +965,6 @@
 	</div>
 {/if}
 
-<!-- Create Conversation Modal -->
-{#if showCreateConversationModal}
-	<div class="modal-overlay" onclick={() => (showCreateConversationModal = false)}>
-		<div class="modal" onclick={(e) => e.stopPropagation()}>
-			<h2>Start a Conversation</h2>
-			<p>Give your conversation a topic. Others in the community will be able to read and engage with it.</p>
-			<form
-				method="POST"
-				action="?/createConversation"
-				use:enhance={() => {
-					creating = true;
-					return async ({ update }) => {
-						creating = false;
-						await update();
-						showCreateConversationModal = false;
-					};
-				}}
-			>
-				<input
-					type="text"
-					id="conversationName"
-					name="name"
-					required
-					maxlength="100"
-					placeholder="Conversation topic"
-					disabled={creating}
-					autofocus
-				/>
-				<div class="modal-actions">
-					<button type="button" class="cancel-btn" onclick={() => (showCreateConversationModal = false)}>
-						cancel
-					</button>
-					<button type="submit" class="submit-btn" disabled={creating}>
-						{creating ? 'creating...' : 'start conversation'}
-					</button>
-				</div>
-			</form>
-		</div>
-	</div>
-{/if}
 
 <!-- Delete Site Modal -->
 {#if showDeleteSiteModal}
@@ -814,61 +993,268 @@
 	</div>
 {/if}
 
+<!-- Availability Modal -->
+{#if showAvailabilityModal}
+	<div class="modal-overlay" onclick={() => (showAvailabilityModal = null)}>
+		<div class="modal modal-wide" onclick={(e) => e.stopPropagation()}>
+			<h2>Set Availability</h2>
+			<p>When and where can you meet this week?</p>
+			<form
+				method="POST"
+				action="?/toggleActiveThisWeek"
+				use:enhance={() => {
+					activating = true;
+					return async ({ update }) => {
+						activating = false;
+						showAvailabilityModal = null;
+						await update();
+					};
+				}}
+			>
+				<input type="hidden" name="canvasId" value={showAvailabilityModal} />
+				<input type="hidden" name="action" value="activate" />
+
+				<div class="avail-section">
+					<label class="avail-label">When <span class="avail-hint">(select days)</span></label>
+					<div class="week-calendar">
+						{#each weekDates as day}
+							<button
+								type="button"
+								class="day-cell"
+								class:selected={selectedDates.has(day.date)}
+								class:past={day.isPast}
+								disabled={day.isPast}
+								onclick={() => {
+									const next = new Set(selectedDates);
+									if (next.has(day.date)) next.delete(day.date);
+									else next.add(day.date);
+									selectedDates = next;
+								}}
+							>
+								<span class="day-name">{day.dayShort}</span>
+								<span class="day-num">{day.dayNum}</span>
+							</button>
+						{/each}
+					</div>
+					<input type="hidden" name="dates" value={[...selectedDates].join(',')} />
+
+					<label class="avail-label" style="margin-top: 0.75rem;">Time range</label>
+					<div class="time-range-row">
+						<select bind:value={startTime} name="startTime" class="time-select">
+							<option value="">Start time...</option>
+							{#each TIME_OPTIONS as t}
+								<option value={t.value}>{t.label}</option>
+							{/each}
+						</select>
+						<span class="range-sep">for</span>
+						<select bind:value={duration} name="duration" class="time-select">
+							{#each DURATION_OPTIONS as opt}
+								<option value={opt.value}>{opt.label}</option>
+							{/each}
+						</select>
+					</div>
+				</div>
+
+				<div class="avail-section">
+					<label class="avail-label">Where <span class="avail-hint">(1-3 locations)</span></label>
+					{#each availLocations as loc, i}
+						<div class="location-field">
+							<input
+								type="text"
+								name="location_{i}"
+								value={loc}
+								placeholder="Start typing a location..."
+								oninput={(e) => {
+									const val = (e.target as HTMLInputElement).value;
+									availLocations = availLocations.map((l, j) => j === i ? val : l);
+									locationQueries = locationQueries.map((q, j) => j === i ? val : q);
+								}}
+								onfocus={() => { locationQueries = locationQueries.map((q, j) => j === i ? (availLocations[i] || ' ') : q); }}
+								onblur={() => { setTimeout(() => { locationQueries = locationQueries.map((q, j) => j === i ? '' : q); }, 150); }}
+							/>
+							{#if locationQueries[i]}
+								{@const suggestions = locationSuggestions(locationQueries[i])}
+								{#if suggestions.length > 0}
+									<div class="location-dropdown">
+										{#each suggestions as suggestion}
+											<button
+												type="button"
+												class="location-option"
+												onmousedown={(e) => {
+													e.preventDefault();
+													availLocations = availLocations.map((l, j) => j === i ? suggestion : l);
+													locationQueries = locationQueries.map((q, j) => j === i ? '' : q);
+												}}
+											>
+												{suggestion}
+											</button>
+										{/each}
+									</div>
+								{/if}
+							{/if}
+						</div>
+					{/each}
+					{#if availLocations.length < 3}
+						<button type="button" class="add-field-btn" onclick={() => { availLocations = [...availLocations, '']; locationQueries = [...locationQueries, '']; }}>+ add location</button>
+					{/if}
+				</div>
+
+				<div class="modal-actions">
+					<button type="button" class="cancel-btn" onclick={() => (showAvailabilityModal = null)}>cancel</button>
+					<button type="submit" class="submit-btn" disabled={activating || selectedDates.size === 0 || !startTime || !availLocations.some(l => l.trim())}>
+						{activating ? 'activating...' : 'Activate'}
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
+
 <style>
 	:global(body) {
 		overflow: auto !important;
 	}
 
-	.dashboard {
+	/* === App layout with sidebar === */
+	.app-layout {
+		display: flex;
 		min-height: 100vh;
 		background: var(--bg-canvas);
-		padding: 2rem;
 	}
 
-	.header {
+	.sidebar {
+		width: 180px;
+		flex-shrink: 0;
 		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 2rem;
-		max-width: 1200px;
-		margin-left: auto;
-		margin-right: auto;
+		flex-direction: column;
+		padding: 1.5rem 1.25rem;
+		border-right: 1px solid var(--border-link);
+		position: sticky;
+		top: 0;
+		height: 100vh;
+		box-sizing: border-box;
 	}
 
-	.header h1 {
-		margin: 0;
-		font-size: 1.75rem;
-		font-weight: normal;
+	.sidebar-logo {
+		display: block;
+		margin-bottom: 1.25rem;
+		padding: 0 0.65rem;
+	}
+
+	.sidebar-logo-img {
+		width: 22px;
+		height: auto;
+		object-fit: contain;
+		opacity: 0.5;
+	}
+
+	.sidebar-nav {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+	}
+
+	.sidebar-link {
+		display: block;
+		padding: 0.5rem 0.65rem;
+		color: var(--text-muted);
+		text-decoration: none;
+		font-size: 0.9rem;
+		border-radius: 4px;
+		transition: color 0.15s, background 0.15s;
+	}
+
+	.sidebar-link:hover {
+		color: var(--text-primary);
+		background: var(--bg-control, rgba(0, 0, 0, 0.03));
+	}
+
+	.sidebar-link.active {
+		color: var(--text-primary);
+		font-weight: 500;
+	}
+
+	.sidebar-bottom {
+		margin-top: auto;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.sidebar-username {
+		color: var(--text-muted);
+		font-size: 0.8rem;
+		font-family: monospace;
+	}
+
+	.sidebar-logout {
+		color: var(--text-muted);
+		text-decoration: none;
+		font-size: 0.8rem;
+		transition: color 0.2s;
+	}
+
+	.sidebar-logout:hover {
 		color: var(--text-primary);
 	}
 
-	.header-right {
-		display: flex;
-		align-items: center;
-		gap: 1.5rem;
+	.main-content {
+		flex: 1;
+		min-width: 0;
+		padding: 2rem;
 	}
 
-	.username {
+	.page-header {
+		margin-bottom: 2rem;
+		max-width: 1200px;
+	}
+
+	.page-header h1 {
+		margin: 0;
+		font-size: 1.25rem;
+		font-weight: normal;
 		color: var(--text-muted);
-		font-size: 0.95rem;
-	}
-
-	.logout-btn {
-		color: var(--text-link);
-		text-decoration: none;
-		font-size: 0.95rem;
-		border-bottom: 1px solid var(--border-link);
-		transition: border-color 0.2s, color 0.2s;
-	}
-
-	.logout-btn:hover {
-		color: var(--text-link-hover);
-		border-color: var(--border-link-hover);
+		letter-spacing: 0.02em;
 	}
 
 	.content {
 		max-width: 1200px;
-		margin: 0 auto;
+	}
+
+	/* Mobile: sidebar becomes top bar */
+	@media (max-width: 768px) {
+		.app-layout {
+			flex-direction: column;
+		}
+
+		.sidebar {
+			width: 100%;
+			height: auto;
+			position: static;
+			flex-direction: row;
+			align-items: center;
+			padding: 0.75rem 1rem;
+			border-right: none;
+			border-bottom: 1px solid var(--border-link);
+			gap: 1rem;
+		}
+
+		.sidebar-logo {
+			margin-bottom: 0;
+		}
+
+		.sidebar-nav {
+			flex-direction: row;
+			gap: 0.5rem;
+		}
+
+		.sidebar-bottom {
+			margin-top: 0;
+			margin-left: auto;
+			flex-direction: row;
+			align-items: center;
+			gap: 0.75rem;
+		}
 	}
 
 	.error-message {
@@ -1084,10 +1470,6 @@
 	.conversation-link {
 		display: block;
 		text-decoration: none;
-	}
-
-	.conversation-actions {
-		margin-top: 0.75rem;
 	}
 
 	.toggle-btn {
@@ -1594,5 +1976,297 @@
 		color: #007bff;
 		border-radius: 3px;
 		font-size: 0.75rem;
+	}
+
+	/* === Availability tags on conversation cards === */
+	.availability-tags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.35rem;
+		margin-top: 0.5rem;
+		padding: 0 0 0.25rem;
+	}
+
+	.avail-tag {
+		padding: 0.15rem 0.5rem;
+		border-radius: 3px;
+		font-size: 0.75rem;
+	}
+
+	.avail-time {
+		background: rgba(0, 123, 255, 0.1);
+		color: #007bff;
+	}
+
+	.avail-location {
+		background: rgba(40, 167, 69, 0.1);
+		color: #28a745;
+	}
+
+	/* === Availability modal === */
+	.modal-wide {
+		max-width: 480px;
+	}
+
+	.avail-section {
+		margin-bottom: 1.25rem;
+	}
+
+	.avail-label {
+		display: block;
+		font-size: 0.9rem;
+		color: var(--text-primary);
+		margin-bottom: 0.5rem;
+	}
+
+	.avail-hint {
+		color: var(--text-muted);
+		font-size: 0.8rem;
+	}
+
+	.avail-section input[type='text'] {
+		width: 100%;
+		padding: 0.6rem 0.75rem;
+		border: 1px solid var(--border-link);
+		border-radius: 4px;
+		font-size: 0.9rem;
+		font-family: inherit;
+		background: var(--bg-canvas);
+		color: var(--text-primary);
+		margin-bottom: 0.4rem;
+		box-sizing: border-box;
+	}
+
+	.avail-section input[type='text']:focus {
+		outline: none;
+		border-color: var(--text-link-hover);
+	}
+
+	.add-field-btn {
+		background: none;
+		border: none;
+		color: var(--text-link);
+		font-size: 0.85rem;
+		font-family: inherit;
+		cursor: pointer;
+		padding: 0.25rem 0;
+	}
+
+	.add-field-btn:hover {
+		color: var(--text-link-hover);
+	}
+
+	/* Week calendar */
+	.week-calendar {
+		display: flex;
+		gap: 0.3rem;
+		margin-bottom: 0.75rem;
+	}
+
+	.day-cell {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.1rem;
+		padding: 0.45rem 0.2rem;
+		background: none;
+		border: 1px solid var(--border-link);
+		border-radius: 6px;
+		cursor: pointer;
+		font-family: inherit;
+		transition: border-color 0.15s, background 0.15s, color 0.15s;
+		color: var(--text-primary);
+	}
+
+	.day-cell:hover:not(:disabled) {
+		border-color: var(--border-link-hover);
+	}
+
+	.day-cell.selected {
+		background: var(--text-primary);
+		border-color: var(--text-primary);
+		color: var(--bg-canvas);
+	}
+
+	.day-cell.past {
+		opacity: 0.25;
+		cursor: not-allowed;
+	}
+
+	.day-name {
+		font-size: 0.65rem;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+	}
+
+	.day-num {
+		font-size: 0.95rem;
+		font-weight: 500;
+	}
+
+	/* Time range row */
+	.time-range-row {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.range-sep {
+		color: var(--text-muted);
+		font-size: 0.85rem;
+		flex-shrink: 0;
+	}
+
+	.time-select {
+		flex: 1;
+		padding: 0.6rem 0.75rem;
+		border: 1px solid var(--border-link);
+		border-radius: 4px;
+		font-size: 0.9rem;
+		font-family: inherit;
+		background: var(--bg-canvas);
+		color: var(--text-primary);
+		cursor: pointer;
+		appearance: none;
+		background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+		background-repeat: no-repeat;
+		background-position: right 0.75rem center;
+		padding-right: 2rem;
+	}
+
+	.time-select:focus {
+		outline: none;
+		border-color: var(--text-link-hover);
+	}
+
+	/* Location field with dropdown */
+	.location-field {
+		position: relative;
+		margin-bottom: 0.4rem;
+	}
+
+	.location-dropdown {
+		position: absolute;
+		top: 100%;
+		left: 0;
+		right: 0;
+		background: var(--bg-canvas);
+		border: 1px solid var(--border-link);
+		border-top: none;
+		border-radius: 0 0 4px 4px;
+		max-height: 180px;
+		overflow-y: auto;
+		z-index: 10;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+	}
+
+	.location-option {
+		display: block;
+		width: 100%;
+		text-align: left;
+		padding: 0.5rem 0.75rem;
+		background: none;
+		border: none;
+		border-bottom: 1px solid var(--border-link);
+		font-size: 0.88rem;
+		font-family: inherit;
+		color: var(--text-primary);
+		cursor: pointer;
+	}
+
+	.location-option:last-child {
+		border-bottom: none;
+	}
+
+	.location-option:hover {
+		background: var(--bg-control, rgba(0, 0, 0, 0.03));
+	}
+
+	/* === Archive & section variants === */
+	.admin-divider {
+		border: none;
+		border-top: 1px solid var(--border-link);
+		margin: 2rem 0 1.5rem;
+		opacity: 0.5;
+	}
+
+	.section-muted {
+		opacity: 0.7;
+	}
+
+	.section-title-muted {
+		color: var(--text-muted);
+		font-size: 1.25rem;
+	}
+
+	.archived-card {
+		opacity: 0.65;
+		border-style: dashed;
+	}
+
+	.archived-card:hover {
+		opacity: 0.85;
+	}
+
+	.archived-type {
+		color: var(--text-muted);
+		font-size: 0.75rem;
+		padding: 0.15rem 0.45rem;
+		background: var(--bg-control);
+		border-radius: 3px;
+		flex-shrink: 0;
+	}
+
+	.empty-state-subtle {
+		padding: 1rem 0;
+		color: var(--text-muted);
+		font-size: 0.9rem;
+	}
+
+	.empty-state-subtle p {
+		margin: 0;
+	}
+
+	.archive-btn {
+		background: none;
+		border: none;
+		color: var(--text-muted);
+		font-size: 0.8rem;
+		font-family: inherit;
+		cursor: pointer;
+		padding: 0.35rem 0.5rem;
+		transition: color 0.2s;
+	}
+
+	.archive-btn:hover {
+		color: var(--text-primary);
+	}
+
+	.delete-btn-inline {
+		background: none;
+		border: none;
+		color: var(--text-muted);
+		font-size: 0.8rem;
+		font-family: inherit;
+		cursor: pointer;
+		padding: 0.35rem 0.5rem;
+		transition: color 0.2s;
+	}
+
+	.delete-btn-inline:hover {
+		color: #dc3545;
+	}
+
+	.conversation-actions {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin-top: 0.75rem;
+	}
+
+	.canvas-count {
+		color: var(--text-muted);
+		font-size: 0.85rem;
 	}
 </style>

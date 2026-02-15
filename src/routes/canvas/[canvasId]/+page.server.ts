@@ -10,7 +10,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const [canvasResult, profileResult] = await Promise.all([
 		locals.supabase
 			.from('canvases')
-			.select('id, name, slug, is_published, entry_point_note_id, cover_image_url, created_at, updated_at')
+			.select('id, name, slug, is_published, entry_point_note_id, cover_image_url, is_conversation, preferred_location, preferred_time_slots, created_at, updated_at')
 			.eq('id', params.canvasId)
 			.single(),
 		locals.supabase
@@ -184,6 +184,75 @@ export const actions: Actions = {
 			.eq('canvas_id', params.canvasId);
 
 		return { success: true };
+	},
+
+	setMeetingPreferences: async ({ request, locals, params }) => {
+		if (!locals.user) {
+			redirect(302, '/login');
+		}
+
+		const data = await request.formData();
+		const preferredLocation = data.get('preferredLocation');
+		const preferredTimeSlots = data.get('preferredTimeSlots');
+
+		const { error: updateError } = await locals.supabase
+			.from('canvases')
+			.update({
+				preferred_location: typeof preferredLocation === 'string' ? preferredLocation.trim() || null : null,
+				preferred_time_slots: typeof preferredTimeSlots === 'string' ? preferredTimeSlots.trim() || null : null,
+				updated_at: new Date().toISOString()
+			})
+			.eq('id', params.canvasId);
+
+		if (updateError) {
+			return fail(500, { error: 'Failed to update meeting preferences' });
+		}
+
+		return { success: true };
+	},
+
+	activateForDiscover: async ({ request, locals, params }) => {
+		if (!locals.user) {
+			redirect(302, '/login');
+		}
+
+		const data = await request.formData();
+		const action = data.get('action');
+
+		if (action === 'skip') {
+			// User chose "not this week" — just redirect to dashboard
+			redirect(302, '/dashboard');
+		}
+
+		// Parse calendar dates, time range, and locations
+		const dates = (data.get('dates') as string)?.split(',').filter(Boolean) ?? [];
+		const startTimeVal = data.get('startTime') as string;
+		const durationVal = parseInt(data.get('duration') as string, 10) || 60;
+		const locations: string[] = [];
+		for (let i = 0; i < 3; i++) {
+			const loc = data.get(`location_${i}`);
+			if (typeof loc === 'string' && loc.trim()) locations.push(loc.trim());
+		}
+
+		if (dates.length === 0 || !startTimeVal || locations.length === 0) {
+			return fail(400, { error: 'Select at least 1 day, a time, and 1 location' });
+		}
+
+		const { error: updateError } = await locals.supabase
+			.from('canvases')
+			.update({
+				active_this_week: true,
+				preferred_time_slots: JSON.stringify({ dates, startTime: startTimeVal, duration: durationVal }),
+				preferred_location: JSON.stringify(locations),
+				updated_at: new Date().toISOString()
+			})
+			.eq('id', params.canvasId);
+
+		if (updateError) {
+			return fail(500, { error: 'Failed to activate conversation' });
+		}
+
+		redirect(302, '/dashboard');
 	},
 
 	setEntryPoint: async ({ request, locals, params }) => {

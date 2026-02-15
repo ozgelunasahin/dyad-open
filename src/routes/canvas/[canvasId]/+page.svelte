@@ -26,6 +26,111 @@
 	let uploadingCover = $state(false);
 	let dragOverCover = $state(false);
 
+	// Conversation activation state
+	let showActivateModal = $state(false);
+	let activatingConvo = $state(false);
+	let isConversation = $derived(data.canvas.is_conversation ?? false);
+
+	// Week calendar helpers
+	function getCurrentWeekDates() {
+		const today = new Date();
+		const monday = new Date(today);
+		monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+		const todayStr = today.toISOString().split('T')[0];
+		return Array.from({ length: 7 }, (_, i) => {
+			const d = new Date(monday);
+			d.setDate(monday.getDate() + i);
+			const dateStr = d.toISOString().split('T')[0];
+			return {
+				date: dateStr,
+				dayShort: d.toLocaleDateString('en-US', { weekday: 'short' }),
+				dayNum: d.getDate(),
+				isPast: dateStr < todayStr
+			};
+		});
+	}
+
+	const weekDates = getCurrentWeekDates();
+
+	const TIME_OPTIONS = (() => {
+		const opts: Array<{ value: string; label: string }> = [];
+		for (let h = 8; h <= 22; h++) {
+			for (const m of ['00', '30']) {
+				if (h === 22 && m === '30') continue;
+				const value = `${h.toString().padStart(2, '0')}:${m}`;
+				const d = new Date(2000, 0, 1, h, parseInt(m));
+				const label = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+				opts.push({ value, label });
+			}
+		}
+		return opts;
+	})();
+
+	const DURATION_OPTIONS = [
+		{ value: 30, label: '30 min' },
+		{ value: 60, label: '1 hour' },
+		{ value: 90, label: '1.5 hours' },
+		{ value: 120, label: '2 hours' },
+		{ value: 180, label: '3 hours' },
+	];
+
+	const BERLIN_LOCATIONS = [
+		'Café Cinema, Kreuzberg',
+		'Betahaus, Kreuzberg',
+		'St. Oberholz, Mitte',
+		'Bonanza Coffee, Prenzlauer Berg',
+		'Five Elephant, Kreuzberg',
+		'The Barn, Mitte',
+		'Silo Coffee, Friedrichshain',
+		'Neukölln Library',
+		'Amerika-Gedenkbibliothek, Kreuzberg',
+		'Tempelhofer Feld',
+		'Viktoriapark, Kreuzberg',
+		'Görlitzer Park, Kreuzberg',
+		'Mauerpark, Prenzlauer Berg',
+		'Factory Berlin, Mitte',
+		'Impact Hub, Kreuzberg',
+	];
+
+	let selectedDates = $state<Set<string>>(new Set());
+	let startTime = $state('');
+	let duration = $state(60);
+	let availLocations = $state<string[]>(['']);
+	let locationQueries = $state<string[]>(['']);
+
+	function locationSuggestions(query: string): string[] {
+		if (!query.trim()) return BERLIN_LOCATIONS;
+		const q = query.toLowerCase();
+		return BERLIN_LOCATIONS.filter(l => l.toLowerCase().includes(q));
+	}
+
+	// Pre-fill from existing availability
+	$effect(() => {
+		if (data.canvas.is_conversation) {
+			try {
+				const t = data.canvas.preferred_time_slots;
+				if (t) {
+					const parsed = JSON.parse(t);
+					if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+						if (Array.isArray(parsed.dates)) selectedDates = new Set(parsed.dates);
+						startTime = parsed.startTime ?? '';
+						duration = parsed.duration ?? 60;
+					}
+				}
+			} catch { /* ignore */ }
+			try {
+				const l = data.canvas.preferred_location;
+				if (l) {
+					const parsed = JSON.parse(l);
+					if (Array.isArray(parsed) && parsed.length) {
+						availLocations = parsed;
+						locationQueries = parsed.map(() => '');
+					}
+				}
+			} catch { /* ignore */ }
+		}
+	});
+
 	async function handleCoverDrop(e: DragEvent) {
 		e.preventDefault();
 		dragOverCover = false;
@@ -359,6 +464,11 @@
 					/>
 				</svg>
 			</button>
+			{#if isConversation}
+				<button class="publish-discover-btn" onclick={() => (showActivateModal = true)}>
+					Publish as a Conversation
+				</button>
+			{/if}
 		</header>
 
 		<!-- Settings Panel -->
@@ -607,6 +717,125 @@
 			onClose={() => (showFeedbackModal = false)}
 			canvasId={data.canvas.id}
 		/>
+
+		<!-- Activate for Discover Modal (conversations only) -->
+		{#if showActivateModal && isConversation}
+			<div class="modal-overlay" onclick={() => (showActivateModal = false)}>
+				<div class="modal modal-wide" onclick={(e) => e.stopPropagation()}>
+					<h2>Publish as a Conversation</h2>
+					<p class="modal-description">When and where are you available to meet this week?</p>
+					<form
+						method="POST"
+						action="?/activateForDiscover"
+						use:enhance={() => {
+							activatingConvo = true;
+							return async ({ update }) => {
+								activatingConvo = false;
+								showActivateModal = false;
+								await update();
+							};
+						}}
+					>
+						<div class="avail-section">
+							<label class="avail-label">When <span class="avail-hint">(select days)</span></label>
+							<div class="week-calendar">
+								{#each weekDates as day}
+									<button
+										type="button"
+										class="day-cell"
+										class:selected={selectedDates.has(day.date)}
+										class:past={day.isPast}
+										disabled={day.isPast}
+										onclick={() => {
+											const next = new Set(selectedDates);
+											if (next.has(day.date)) next.delete(day.date);
+											else next.add(day.date);
+											selectedDates = next;
+										}}
+									>
+										<span class="day-name">{day.dayShort}</span>
+										<span class="day-num">{day.dayNum}</span>
+									</button>
+								{/each}
+							</div>
+							<input type="hidden" name="dates" value={[...selectedDates].join(',')} />
+
+							<label class="avail-label" style="margin-top: 0.75rem;">Time range</label>
+							<div class="time-range-row">
+								<select bind:value={startTime} name="startTime" class="time-select">
+									<option value="">Start time...</option>
+									{#each TIME_OPTIONS as t}
+										<option value={t.value}>{t.label}</option>
+									{/each}
+								</select>
+								<span class="range-sep">for</span>
+								<select bind:value={duration} name="duration" class="time-select">
+									{#each DURATION_OPTIONS as opt}
+										<option value={opt.value}>{opt.label}</option>
+									{/each}
+								</select>
+							</div>
+						</div>
+
+						<div class="avail-section">
+							<label class="avail-label">Where <span class="avail-hint">(1-3 locations)</span></label>
+							{#each availLocations as loc, i}
+								<div class="location-field">
+									<input
+										type="text"
+										name="location_{i}"
+										value={loc}
+										placeholder="Start typing a location..."
+										oninput={(e) => {
+											const val = (e.target as HTMLInputElement).value;
+											availLocations = availLocations.map((l, j) => j === i ? val : l);
+											locationQueries = locationQueries.map((q, j) => j === i ? val : q);
+										}}
+										onfocus={() => { locationQueries = locationQueries.map((q, j) => j === i ? (availLocations[i] || ' ') : q); }}
+										onblur={() => { setTimeout(() => { locationQueries = locationQueries.map((q, j) => j === i ? '' : q); }, 150); }}
+									/>
+									{#if locationQueries[i]}
+										{@const suggestions = locationSuggestions(locationQueries[i])}
+										{#if suggestions.length > 0}
+											<div class="location-dropdown">
+												{#each suggestions as suggestion}
+													<button
+														type="button"
+														class="location-option"
+														onmousedown={(e) => {
+															e.preventDefault();
+															availLocations = availLocations.map((l, j) => j === i ? suggestion : l);
+															locationQueries = locationQueries.map((q, j) => j === i ? '' : q);
+														}}
+													>
+														{suggestion}
+													</button>
+												{/each}
+											</div>
+										{/if}
+									{/if}
+								</div>
+							{/each}
+							{#if availLocations.length < 3}
+								<button type="button" class="add-field-btn" onclick={() => { availLocations = [...availLocations, '']; locationQueries = [...locationQueries, '']; }}>+ add location</button>
+							{/if}
+						</div>
+
+						<div class="modal-actions">
+							<button type="submit" class="submit-btn" disabled={activatingConvo || selectedDates.size === 0 || !startTime || !availLocations.some(l => l.trim())}>
+								{activatingConvo ? 'publishing...' : 'Publish'}
+							</button>
+						</div>
+					</form>
+					<button
+						class="skip-btn"
+						onclick={() => { showActivateModal = false; }}
+					>
+						I don't want a conversation this week
+					</button>
+				</div>
+			</div>
+		{/if}
 	{/if}
 </main>
 
@@ -1174,5 +1403,220 @@
 	.submit-btn:disabled {
 		opacity: 0.5;
 		cursor: not-allowed;
+	}
+
+	/* === Publish to Discover button === */
+	.publish-discover-btn {
+		padding: 4px 10px;
+		background: rgba(40, 167, 69, 0.15);
+		color: #28a745;
+		border: 1px solid rgba(40, 167, 69, 0.3);
+		border-radius: 4px;
+		font-size: 0.8rem;
+		font-family: inherit;
+		cursor: pointer;
+		transition: background 0.2s, border-color 0.2s;
+	}
+
+	.publish-discover-btn:hover {
+		background: rgba(40, 167, 69, 0.25);
+		border-color: rgba(40, 167, 69, 0.5);
+	}
+
+	/* === Availability modal === */
+	.modal-wide {
+		max-width: 480px;
+	}
+
+	.avail-section {
+		margin-bottom: 1.25rem;
+	}
+
+	.avail-label {
+		display: block;
+		font-size: 0.9rem;
+		color: var(--text-primary);
+		margin-bottom: 0.5rem;
+	}
+
+	.avail-hint {
+		color: var(--text-muted);
+		font-size: 0.8rem;
+	}
+
+	.avail-section input[type='text'] {
+		width: 100%;
+		padding: 0.6rem 0.75rem;
+		border: 1px solid var(--border-link);
+		border-radius: 4px;
+		font-size: 0.9rem;
+		font-family: inherit;
+		background: var(--bg-canvas);
+		color: var(--text-primary);
+		margin-bottom: 0.4rem;
+		box-sizing: border-box;
+	}
+
+	.avail-section input[type='text']:focus {
+		outline: none;
+		border-color: var(--text-link-hover);
+	}
+
+	.add-field-btn {
+		background: none;
+		border: none;
+		color: var(--text-link);
+		font-size: 0.85rem;
+		font-family: inherit;
+		cursor: pointer;
+		padding: 0.25rem 0;
+	}
+
+	.add-field-btn:hover {
+		color: var(--text-link-hover);
+	}
+
+	.skip-btn {
+		display: block;
+		width: 100%;
+		text-align: center;
+		margin-top: 0.75rem;
+		padding: 0.5rem;
+		background: none;
+		border: none;
+		color: var(--text-muted);
+		font-size: 0.85rem;
+		font-family: inherit;
+		cursor: pointer;
+	}
+
+	.skip-btn:hover {
+		color: var(--text-secondary);
+	}
+
+	/* Week calendar */
+	.week-calendar {
+		display: flex;
+		gap: 0.3rem;
+		margin-bottom: 0.75rem;
+	}
+
+	.day-cell {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.1rem;
+		padding: 0.45rem 0.2rem;
+		background: none;
+		border: 1px solid var(--border-link);
+		border-radius: 6px;
+		cursor: pointer;
+		font-family: inherit;
+		transition: border-color 0.15s, background 0.15s, color 0.15s;
+		color: var(--text-primary);
+	}
+
+	.day-cell:hover:not(:disabled) {
+		border-color: var(--border-link-hover);
+	}
+
+	.day-cell.selected {
+		background: var(--text-primary);
+		border-color: var(--text-primary);
+		color: var(--bg-canvas);
+	}
+
+	.day-cell.past {
+		opacity: 0.25;
+		cursor: not-allowed;
+	}
+
+	.day-name {
+		font-size: 0.65rem;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+	}
+
+	.day-num {
+		font-size: 0.95rem;
+		font-weight: 500;
+	}
+
+	.time-range-row {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.range-sep {
+		color: var(--text-muted);
+		font-size: 0.85rem;
+		flex-shrink: 0;
+	}
+
+	.time-select {
+		flex: 1;
+		padding: 0.6rem 0.75rem;
+		border: 1px solid var(--border-link);
+		border-radius: 4px;
+		font-size: 0.9rem;
+		font-family: inherit;
+		background: var(--bg-canvas);
+		color: var(--text-primary);
+		cursor: pointer;
+		appearance: none;
+		background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+		background-repeat: no-repeat;
+		background-position: right 0.75rem center;
+		padding-right: 2rem;
+	}
+
+	.time-select:focus {
+		outline: none;
+		border-color: var(--text-link-hover);
+	}
+
+	/* Location field with dropdown */
+	.location-field {
+		position: relative;
+		margin-bottom: 0.4rem;
+	}
+
+	.location-dropdown {
+		position: absolute;
+		top: 100%;
+		left: 0;
+		right: 0;
+		background: var(--bg-canvas);
+		border: 1px solid var(--border-link);
+		border-top: none;
+		border-radius: 0 0 4px 4px;
+		max-height: 180px;
+		overflow-y: auto;
+		z-index: 10;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+	}
+
+	.location-option {
+		display: block;
+		width: 100%;
+		text-align: left;
+		padding: 0.5rem 0.75rem;
+		background: none;
+		border: none;
+		border-bottom: 1px solid var(--border-link);
+		font-size: 0.88rem;
+		font-family: inherit;
+		color: var(--text-primary);
+		cursor: pointer;
+	}
+
+	.location-option:last-child {
+		border-bottom: none;
+	}
+
+	.location-option:hover {
+		background: var(--bg-control, rgba(0, 0, 0, 0.03));
 	}
 </style>
