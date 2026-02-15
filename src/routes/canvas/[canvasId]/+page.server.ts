@@ -224,26 +224,26 @@ export const actions: Actions = {
 			redirect(302, '/dashboard');
 		}
 
-		// Parse calendar dates, time range, and locations
-		const dates = (data.get('dates') as string)?.split(',').filter(Boolean) ?? [];
-		const startTimeVal = data.get('startTime') as string;
-		const durationVal = parseInt(data.get('duration') as string, 10) || 60;
-		const locations: string[] = [];
-		for (let i = 0; i < 3; i++) {
-			const loc = data.get(`location_${i}`);
-			if (typeof loc === 'string' && loc.trim()) locations.push(loc.trim());
+		// Parse per-slot availability from slotsJson
+		const slotsJson = data.get('slotsJson') as string;
+		let slots: Array<{ date: string; startTime: string; duration: number; postcode: string; exactLocation: string }> = [];
+		try {
+			slots = JSON.parse(slotsJson ?? '[]');
+		} catch { /* ignore */ }
+
+		if (slots.length === 0 || !slots.every(s => s.startTime && s.postcode)) {
+			return fail(400, { error: 'Each slot needs a time and place' });
 		}
 
-		if (dates.length === 0 || !startTimeVal || locations.length === 0) {
-			return fail(400, { error: 'Select at least 1 day, a time, and 1 location' });
-		}
+		// Derive unique postcodes for discover-level privacy
+		const postcodes = [...new Set(slots.map(s => s.postcode))];
 
 		const { error: updateError } = await locals.supabase
 			.from('canvases')
 			.update({
 				active_this_week: true,
-				preferred_time_slots: JSON.stringify({ dates, startTime: startTimeVal, duration: durationVal }),
-				preferred_location: JSON.stringify(locations),
+				preferred_time_slots: JSON.stringify({ slots }),
+				preferred_location: JSON.stringify(postcodes),
 				updated_at: new Date().toISOString()
 			})
 			.eq('id', params.canvasId);
