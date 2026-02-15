@@ -113,6 +113,9 @@ class CanvasStore {
 	// Debug mode
 	debugMode = $state<boolean>(false);
 
+	// Highlight decorations for public canvas view
+	highlights = $state<Array<{ id: string; noteSlug: string; selectedText: string }>>([]);
+
 	// Edit mode state
 	editingCardId = $state<string | null>(null);
 	editFocusPosition = $state<'end' | null>(null);
@@ -2098,6 +2101,7 @@ class CanvasStore {
 		this.currentCanvasId = null;
 		this.dimensionCache = new Map();
 		this.brokenLinks = new Set();
+		this.highlights = [];
 	}
 
 	/**

@@ -5,6 +5,8 @@
 	import Image from '@tiptap/extension-image';
 	import type { EditorView } from '@tiptap/pm/view';
 	import { Wikilink } from '$lib/tiptap/wikilink';
+	import { createHighlightPlugin, type HighlightRange } from '$lib/tiptap/highlight-decoration';
+	import { PluginKey } from '@tiptap/pm/state';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 
 	interface Props {
@@ -14,6 +16,7 @@
 		onWikilinkDelete?: (target: string) => void;
 		isLinkBroken?: (target: string) => boolean;
 		editable?: boolean;
+		noteSlug?: string;
 	}
 
 	let {
@@ -22,7 +25,8 @@
 		onWikilinkClick,
 		onWikilinkDelete,
 		isLinkBroken,
-		editable = true
+		editable = true,
+		noteSlug
 	}: Props = $props();
 
 	let element: HTMLDivElement;
@@ -175,6 +179,34 @@
 				isExternalUpdate = false;
 			}
 		}
+	});
+
+	// Highlight decoration plugin — registers/updates when canvasStore.highlights changes
+	const highlightPluginKey = new PluginKey('highlight-decorations');
+
+	$effect(() => {
+		if (!editor || !noteSlug) return;
+
+		// Filter highlights for this editor's note
+		const myHighlights: HighlightRange[] = canvasStore.highlights
+			.filter(h => h.noteSlug === noteSlug)
+			.map(h => ({
+				id: h.id,
+				noteSlug: h.noteSlug,
+				selectedText: h.selectedText,
+				startOffset: 0,
+				endOffset: h.selectedText.length
+			}));
+
+		// Unregister old plugin if present, then register with updated highlights
+		try {
+			editor.unregisterPlugin(highlightPluginKey);
+		} catch {
+			// Plugin not registered yet — ignore
+		}
+
+		const plugin = createHighlightPlugin(myHighlights);
+		editor.registerPlugin(plugin);
 	});
 
 	export function getEditor(): Editor | null {
@@ -338,6 +370,26 @@
 	/* Hide underline when connection line is active */
 	.tiptap-editor :global(.wikilink.has-connection) {
 		border-bottom-color: transparent;
+	}
+
+	/* Highlight decorations — look like wikilinks but with highlight background */
+	.tiptap-editor :global(.highlight-decoration) {
+		background: color-mix(in srgb, var(--text-link) 12%, transparent);
+		border-bottom: 1px solid var(--border-link);
+		border-radius: 2px;
+		padding: 1px 0;
+		cursor: pointer;
+		transition: all 0.15s ease;
+	}
+
+	.tiptap-editor :global(.highlight-decoration:hover) {
+		background: color-mix(in srgb, var(--text-link) 22%, transparent);
+		border-bottom-color: var(--border-link-hover);
+	}
+
+	.tiptap-editor :global(.highlight-active) {
+		background: color-mix(in srgb, var(--text-link) 25%, transparent);
+		border-bottom-color: var(--text-link);
 	}
 
 	/* Images - centered and shrink to fit */

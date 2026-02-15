@@ -398,6 +398,7 @@
 			onWikilinkDelete={handleWikilinkDelete}
 			{isLinkBroken}
 			editable={isEditing}
+			noteSlug={card.id}
 		/>
 		{#if saveStatus === 'error'}
 			<div class="save-indicator error">Error saving</div>

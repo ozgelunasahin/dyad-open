@@ -1,15 +1,13 @@
 <script lang="ts">
 	/**
-	 * Published Canvas - Read-only view with highlighting + comments
+	 * Published Canvas - Read-only view with comment panel + meeting invite
 	 */
 	import { onMount } from 'svelte';
-	import { fade } from 'svelte/transition';
+	import { fade, fly } from 'svelte/transition';
 	import type { PageData } from './$types';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import Canvas from '$lib/components/Canvas.svelte';
-	import CommentSidebar from '$lib/components/CommentSidebar.svelte';
-	import HighlightPopover from '$lib/components/HighlightPopover.svelte';
 	import MeetingInviteModal from '$lib/components/MeetingInviteModal.svelte';
 
 	let { data }: { data: PageData } = $props();
@@ -17,21 +15,26 @@
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 
-	// Highlight + comment state
-	let sidebarOpen = $state(false);
-	let highlights = $state(data.highlights ?? []);
-	let activeHighlightId = $state<string | null>(null);
+	// Comment panel
+	let panelOpen = $state(false);
+	let commentInput = $state('');
+	let submitting = $state(false);
 
-	// Text selection popover state
-	let showPopover = $state(false);
-	let popoverX = $state(0);
-	let popoverY = $state(0);
-	let pendingSelection = $state<{
-		text: string;
-		noteSlug: string;
-		startOffset: number;
-		endOffset: number;
-	} | null>(null);
+	// All comments (flattened from highlights)
+	let highlights = $state(data.highlights ?? []);
+
+	let allComments = $derived(
+		highlights
+			.flatMap(h => h.comments.map(c => ({ ...c, selectedText: h.selected_text })))
+			.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+	);
+
+	// One comment per user per canvas
+	let userHasCommented = $derived(
+		data.currentUserId
+			? allComments.some(c => c.user_id === data.currentUserId)
+			: true
+	);
 
 	function toggleTheme() {
 		themeStore.toggle();
@@ -63,80 +66,8 @@
 			canvasStore.goForward();
 		}
 		if (event.key === 'Escape') {
-			showPopover = false;
-			if (sidebarOpen) sidebarOpen = false;
+			panelOpen = false;
 		}
-	}
-
-	function handleTextSelection() {
-		if (!data.currentUserId) return; // Not logged in
-
-		const selection = window.getSelection();
-		if (!selection || selection.isCollapsed || !selection.toString().trim()) {
-			showPopover = false;
-			return;
-		}
-
-		const text = selection.toString().trim();
-		if (text.length < 3 || text.length > 5000) {
-			showPopover = false;
-			return;
-		}
-
-		// Get the position for the popover
-		const range = selection.getRangeAt(0);
-		const rect = range.getBoundingClientRect();
-		popoverX = rect.left + rect.width / 2;
-		popoverY = rect.top;
-
-		// Try to determine which note this is in (from the closest card element)
-		const noteCard = range.startContainer.parentElement?.closest('[data-note-id]');
-		const noteSlug = noteCard?.getAttribute('data-note-id') ?? canvasStore.focusedCardId ?? '';
-
-		if (!noteSlug) {
-			showPopover = false;
-			return;
-		}
-
-		pendingSelection = {
-			text,
-			noteSlug,
-			startOffset: 0, // Simplified: we store the text verbatim for matching
-			endOffset: text.length
-		};
-
-		showPopover = true;
-	}
-
-	async function handleHighlight() {
-		if (!pendingSelection || !data.currentUserId) return;
-
-		showPopover = false;
-
-		try {
-			const res = await fetch('/api/highlights', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					canvas_id: data.canvas.id,
-					note_slug: pendingSelection.noteSlug,
-					selected_text: pendingSelection.text,
-					start_offset: pendingSelection.startOffset,
-					end_offset: pendingSelection.endOffset
-				})
-			});
-
-			if (!res.ok) throw new Error('Failed to create highlight');
-
-			// Refresh highlights
-			await refreshHighlights();
-			sidebarOpen = true;
-		} catch (err) {
-			console.error('Failed to create highlight:', err);
-		}
-
-		window.getSelection()?.removeAllRanges();
-		pendingSelection = null;
 	}
 
 	async function refreshHighlights() {
@@ -146,51 +77,62 @@
 		}
 	}
 
-	async function handleAddComment(highlightId: string, body: string) {
-		const res = await fetch('/api/comments', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ highlight_id: highlightId, body })
-		});
+	async function handleSubmitComment() {
+		const body = commentInput.trim();
+		if (!body || !data.currentUserId) return;
 
-		if (!res.ok) throw new Error('Failed to add comment');
-		await refreshHighlights();
+		submitting = true;
+		try {
+			// Need a highlight to attach comment to. Use existing or create one.
+			let highlightId: string;
+			if (highlights.length > 0) {
+				highlightId = highlights[0].id;
+			} else {
+				// Create a canvas-level highlight on the entry point note
+				const entryNote = Object.keys(data.vault.notes)[0] ?? '';
+				const res = await fetch('/api/highlights', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						canvas_id: data.canvas.id,
+						note_slug: entryNote,
+						selected_text: data.canvas.name,
+						start_offset: 0,
+						end_offset: 0
+					})
+				});
+				if (!res.ok) throw new Error('Failed to create highlight');
+				const h = await res.json();
+				highlightId = h.id;
+			}
+
+			const res = await fetch('/api/comments', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ highlight_id: highlightId, body })
+			});
+
+			if (!res.ok) throw new Error('Failed to add comment');
+
+			commentInput = '';
+			await refreshHighlights();
+		} catch (err) {
+			console.error('Failed to submit comment:', err);
+		} finally {
+			submitting = false;
+		}
 	}
-
-	async function handleDeleteComment(commentId: string) {
-		const res = await fetch(`/api/comments?id=${commentId}`, { method: 'DELETE' });
-		if (!res.ok) throw new Error('Failed to delete comment');
-		await refreshHighlights();
-	}
-
-	async function handleDeleteHighlight(highlightId: string) {
-		const res = await fetch(`/api/highlights?id=${highlightId}`, { method: 'DELETE' });
-		if (!res.ok) throw new Error('Failed to delete highlight');
-		await refreshHighlights();
-	}
-
-	let hasComments = $derived(highlights.length > 0);
 
 	// Meeting state
 	let showMeetingModal = $state(false);
 	let meetingSent = $state(false);
 
-	// Check if current user has commented on this canvas (unlocks Meet button)
-	let userHasCommented = $derived(() => {
-		if (!data.currentUserId) return false;
-		return highlights.some(
-			(h) =>
-				h.user_id === data.currentUserId ||
-				h.comments.some((c) => c.user_id === data.currentUserId)
-		);
-	});
-
-	// Only show Meet button for conversation canvases, when not the author
+	// Show Meet option: conversation canvas, not the author, user has commented
 	let canMeet = $derived(
 		data.canvas.isConversation &&
 		data.currentUserId &&
 		data.currentUserId !== data.author.id &&
-		userHasCommented()
+		userHasCommented
 	);
 </script>
 
@@ -202,8 +144,7 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<main class="app" onmouseup={handleTextSelection}>
+<main class="app">
 	{#if loading}
 		<div class="loading" out:fade={{ duration: 200 }}></div>
 	{:else if error}
@@ -225,31 +166,16 @@
 
 			{#if data.currentUserId}
 				<button
-					class="comments-toggle"
-					class:has-comments={hasComments}
-					onclick={() => (sidebarOpen = !sidebarOpen)}
+					class="comment-toggle"
+					class:active={panelOpen}
+					onclick={() => panelOpen = !panelOpen}
 					aria-label="Toggle comments"
 				>
-					<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-						<path d="M2 2h12v9H5l-3 3V2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
-					</svg>
-					{#if highlights.length > 0}
-						<span class="comment-count">{highlights.length}</span>
+					Comments
+					{#if allComments.length > 0}
+						<span class="comment-count">{allComments.length}</span>
 					{/if}
 				</button>
-			{/if}
-
-			{#if canMeet && !meetingSent}
-				<button
-					class="meet-btn"
-					onclick={() => (showMeetingModal = true)}
-				>
-					Meet @{data.author.username}
-				</button>
-			{/if}
-
-			{#if meetingSent}
-				<div class="meet-sent">Invitation sent!</div>
 			{/if}
 
 			<button class="theme-toggle" onclick={toggleTheme} aria-label="Toggle theme">
@@ -276,34 +202,74 @@
 			{/if}
 			</button>
 		</div>
+
+		<!-- Comment Panel (slides from right) -->
+		{#if panelOpen}
+			<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<div class="panel-overlay" onclick={() => panelOpen = false}></div>
+			<aside class="comment-panel" transition:fly={{ x: 320, duration: 250 }}>
+				<div class="panel-header">
+					<h2>Comments</h2>
+					<button class="panel-close" onclick={() => panelOpen = false} aria-label="Close">
+						<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+							<path d="M4 4L12 12M12 4L4 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+						</svg>
+					</button>
+				</div>
+
+				<div class="panel-body">
+					{#if allComments.length === 0 && userHasCommented}
+						<p class="empty-state">No comments yet.</p>
+					{/if}
+
+					{#each allComments as comment (comment.id)}
+						<div class="comment-item">
+							<p class="comment-author">@{comment.username}</p>
+							<p class="comment-body">{comment.body}</p>
+						</div>
+					{/each}
+
+					{#if !userHasCommented}
+						<div class="comment-form">
+							<textarea
+								placeholder="Leave a comment..."
+								bind:value={commentInput}
+								rows={3}
+								disabled={submitting}
+							></textarea>
+							<button
+								class="submit-btn"
+								onclick={handleSubmitComment}
+								disabled={!commentInput.trim() || submitting}
+							>
+								{submitting ? 'Posting...' : 'Comment'}
+							</button>
+						</div>
+					{/if}
+
+					{#if canMeet && !meetingSent}
+						<div class="meet-section">
+							<p class="meet-prompt">Interested in continuing this conversation offline?</p>
+							<button class="meet-btn" onclick={() => showMeetingModal = true}>
+								Meet @{data.author.username}
+							</button>
+						</div>
+					{/if}
+
+					{#if meetingSent}
+						<div class="meet-sent">Invitation sent!</div>
+					{/if}
+				</div>
+			</aside>
+		{/if}
 	{/if}
 </main>
-
-{#if showPopover && pendingSelection}
-	<HighlightPopover
-		x={popoverX}
-		y={popoverY}
-		onHighlight={handleHighlight}
-	/>
-{/if}
-
-<CommentSidebar
-	open={sidebarOpen}
-	{highlights}
-	currentUserId={data.currentUserId ?? ''}
-	{activeHighlightId}
-	onClose={() => (sidebarOpen = false)}
-	onAddComment={handleAddComment}
-	onDeleteComment={handleDeleteComment}
-	onDeleteHighlight={handleDeleteHighlight}
-/>
 
 {#if showMeetingModal}
 	<MeetingInviteModal
 		canvasId={data.canvas.id}
 		inviteeId={data.author.id}
 		inviteeUsername={data.author.username}
-		preferredLocation={data.canvas.preferredLocation}
 		preferredTimeSlots={data.canvas.preferredTimeSlots}
 		onClose={() => (showMeetingModal = false)}
 		onSent={() => {
@@ -358,42 +324,192 @@
 		color: var(--text-secondary);
 	}
 
-	.comments-toggle {
+	/* Comment toggle button */
+	.comment-toggle {
 		position: fixed;
 		bottom: 24px;
 		right: 64px;
-		width: 32px;
-		height: 32px;
-		border: none;
+		padding: 6px 14px;
+		border: 1px solid var(--border-link);
 		border-radius: 4px;
 		background: var(--bg-control);
 		cursor: pointer;
 		color: var(--control-color);
+		font-size: 13px;
+		font-family: inherit;
 		display: flex;
 		align-items: center;
-		justify-content: center;
-		gap: 2px;
+		gap: 6px;
 		transition: all 0.2s ease;
-		opacity: 0.4;
+		opacity: 0.6;
 		z-index: 100;
 	}
 
-	.comments-toggle:hover,
-	.comments-toggle.has-comments {
+	.comment-toggle:hover,
+	.comment-toggle.active {
 		opacity: 1;
 	}
 
 	.comment-count {
 		font-size: 10px;
 		font-family: inherit;
+		background: var(--text-muted);
+		color: var(--bg-canvas);
+		border-radius: 8px;
+		padding: 1px 5px;
+		min-width: 14px;
+		text-align: center;
+	}
+
+	/* Panel overlay */
+	.panel-overlay {
+		position: fixed;
+		inset: 0;
+		z-index: 200;
+	}
+
+	/* Comment panel */
+	.comment-panel {
+		position: fixed;
+		top: 0;
+		right: 0;
+		width: 340px;
+		max-width: 90vw;
+		height: 100vh;
+		background: var(--bg-canvas);
+		border-left: 1px solid var(--border-link);
+		z-index: 300;
+		display: flex;
+		flex-direction: column;
+		font-family: 'SangBleu Sunrise', Georgia, 'Times New Roman', serif;
+	}
+
+	.panel-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 20px 24px 16px;
+		border-bottom: 1px solid var(--border-link);
+	}
+
+	.panel-header h2 {
+		margin: 0;
+		font-size: 15px;
+		font-weight: normal;
+		color: var(--text-primary);
+	}
+
+	.panel-close {
+		background: none;
+		border: none;
+		cursor: pointer;
+		color: var(--text-muted);
+		padding: 4px;
+		display: flex;
+		align-items: center;
+		transition: color 0.15s;
+	}
+
+	.panel-close:hover {
+		color: var(--text-primary);
+	}
+
+	.panel-body {
+		flex: 1;
+		overflow-y: auto;
+		padding: 20px 24px;
+	}
+
+	.empty-state {
+		color: var(--text-muted);
+		font-size: 14px;
+		font-style: italic;
+	}
+
+	/* Comment items */
+	.comment-item {
+		padding-left: 16px;
+		border-left: 1.5px solid var(--border-link);
+		margin-bottom: 20px;
+	}
+
+	.comment-author {
+		font-family: monospace;
+		font-size: 0.78rem;
+		color: var(--text-muted);
+		margin: 0 0 4px 0;
+	}
+
+	.comment-body {
+		margin: 0;
+		font-size: 14px;
+		line-height: 1.7;
+		color: var(--text-secondary);
+	}
+
+	/* Comment form */
+	.comment-form {
+		margin-top: 16px;
+	}
+
+	.comment-form textarea {
+		width: 100%;
+		font-family: inherit;
+		font-size: 14px;
+		padding: 10px 12px;
+		border: 1px solid var(--border-link);
+		border-radius: 4px;
+		background: var(--bg-canvas);
+		color: var(--text-primary);
+		resize: vertical;
+		line-height: 1.6;
+		box-sizing: border-box;
+	}
+
+	.comment-form textarea:focus {
+		outline: none;
+		border-color: var(--text-muted);
+	}
+
+	.submit-btn {
+		margin-top: 8px;
+		padding: 6px 14px;
+		background: var(--text-primary);
+		color: var(--bg-canvas);
+		border: none;
+		border-radius: 4px;
+		font-size: 13px;
+		font-family: inherit;
+		cursor: pointer;
+		transition: opacity 0.15s;
+	}
+
+	.submit-btn:hover:not(:disabled) {
+		opacity: 0.85;
+	}
+
+	.submit-btn:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+	}
+
+	/* Meet section */
+	.meet-section {
+		margin-top: 24px;
+		padding-top: 20px;
+		border-top: 1px solid var(--border-link);
+	}
+
+	.meet-prompt {
+		font-size: 13px;
+		color: var(--text-muted);
+		margin: 0 0 12px 0;
+		line-height: 1.5;
 	}
 
 	.meet-btn {
-		position: fixed;
-		bottom: 24px;
-		left: 50%;
-		transform: translateX(-50%);
-		padding: 8px 20px;
+		width: 100%;
+		padding: 10px 16px;
 		background: var(--text-primary);
 		color: var(--bg-canvas);
 		border: none;
@@ -401,9 +517,7 @@
 		font-size: 14px;
 		font-family: inherit;
 		cursor: pointer;
-		z-index: 100;
 		transition: opacity 0.2s;
-		white-space: nowrap;
 	}
 
 	.meet-btn:hover {
@@ -411,18 +525,14 @@
 	}
 
 	.meet-sent {
-		position: fixed;
-		bottom: 24px;
-		left: 50%;
-		transform: translateX(-50%);
-		padding: 8px 20px;
-		background: rgba(40, 167, 69, 0.15);
+		margin-top: 24px;
+		padding: 10px 16px;
+		background: rgba(40, 167, 69, 0.1);
 		color: #28a745;
-		border: 1px solid rgba(40, 167, 69, 0.3);
+		border: 1px solid rgba(40, 167, 69, 0.25);
 		border-radius: 6px;
 		font-size: 14px;
-		font-family: inherit;
-		z-index: 100;
+		text-align: center;
 	}
 
 	.theme-toggle {
@@ -480,16 +590,5 @@
 
 	.back-link:hover {
 		color: var(--text-primary);
-	}
-
-	.canvas-title {
-		font-size: 0.9rem;
-		color: var(--text-primary);
-	}
-
-	.canvas-author {
-		font-size: 0.8rem;
-		color: var(--text-muted);
-		font-family: monospace;
 	}
 </style>

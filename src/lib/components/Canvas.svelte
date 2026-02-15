@@ -14,16 +14,33 @@
 	} from '$lib/utils/pathfinding';
 	import NoteCard from './NoteCard.svelte';
 	import ConnectionLine from './ConnectionLine.svelte';
+	import CommentCard from './CommentCard.svelte';
 	import { sanitizeSlug } from '$lib/utils/slug';
+
+	interface CommentCardData {
+		highlightId: string;
+		x: number;
+		y: number;
+		width: number;
+		selectedText: string;
+		comments: Array<{ id: string; user_id: string; username: string; body: string; created_at: string }>;
+		sourceNoteSlug: string;
+		highlightSourceX: number; // canvas-coords: right edge of highlight text
+		highlightSourceY: number; // canvas-coords: vertical center of highlight text
+	}
 
 	interface Props {
 		readOnly?: boolean;
 		interactive?: boolean;
 		captureWheel?: boolean;
 		onBoundaryExit?: (direction: 'up' | 'down') => void;
+		commentMode?: boolean;
+		commentCards?: CommentCardData[];
+		onAddComment?: (highlightId: string, body: string) => Promise<void>;
+		currentUserId?: string;
 	}
 
-	let { readOnly = false, interactive = true, captureWheel = true, onBoundaryExit }: Props = $props();
+	let { readOnly = false, interactive = true, captureWheel = true, onBoundaryExit, commentMode = false, commentCards = [], onAddComment, currentUserId }: Props = $props();
 
 	let svg: SVGSVGElement;
 	let transform = $state({ x: 0, y: 0, k: 1 });
@@ -1708,10 +1725,35 @@
 			{/each}
 		{/if}
 
-		<!-- Note cards -->
+		<!-- Note cards (always visible) -->
 		{#each canvasStore.cardList as card (card.id)}
 			<NoteCard {card} isActive={canvasStore.focusedCardId === card.id} onLinkClick={handleLinkClick} onCardClick={handleCardClick} {readOnly} />
 		{/each}
+
+		<!-- Comment cards emerging from highlighted text (visible in comment mode) -->
+		{#if commentMode && commentCards.length > 0}
+			{#each commentCards as cc (cc.highlightId)}
+				{@const sourceCard = canvasStore.cards.get(cc.sourceNoteSlug)}
+				{@const virtualCard = { id: `__comment:${cc.highlightId}`, note: { id: `__comment:${cc.highlightId}`, title: '', content: {}, canvasId: '' }, position: { x: cc.x, y: cc.y }, dimensions: { width: cc.width, height: 80 }, parentId: null, sourceLink: null } as import('$lib/types').Card}
+				{@const startPoint = { x: cc.highlightSourceX, y: cc.highlightSourceY }}
+				{@const endPoint = getCardEntryPoint(virtualCard, startPoint)}
+				{@const allCards = canvasStore.cardList}
+				{@const existingPaths = canvasStore.getExistingPathPoints()}
+				{@const result = routeConnection(startPoint, endPoint, allCards, sourceCard ?? null, virtualCard, existingPaths)}
+				{@const svgPath = pathToSvgWithHops(result.path, existingPaths)}
+				<ConnectionLine path={svgPath} pathFailed={result.failed} />
+				<CommentCard
+					x={cc.x}
+					y={cc.y}
+					width={cc.width}
+					selectedText={cc.selectedText}
+					comments={cc.comments}
+					{currentUserId}
+					{onAddComment}
+					highlightId={cc.highlightId}
+				/>
+			{/each}
+		{/if}
 	</g>
 </svg>
 
@@ -1754,4 +1796,5 @@
 		stroke-linecap: round;
 		stroke-linejoin: round;
 	}
+
 </style>
