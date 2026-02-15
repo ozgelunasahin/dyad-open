@@ -10,6 +10,7 @@
 	import Canvas from '$lib/components/Canvas.svelte';
 	import HelpBar from '$lib/components/HelpBar.svelte';
 	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
+	import PlaceSearch from '$lib/components/PlaceSearch.svelte';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -71,67 +72,64 @@
 		{ value: 180, label: '3 hours' },
 	];
 
-	const BERLIN_LOCATIONS = [
-		'10115 Mitte',
-		'10178 Mitte',
-		'10243 Friedrichshain',
-		'10245 Friedrichshain',
-		'10247 Friedrichshain',
-		'10249 Prenzlauer Berg',
-		'10405 Prenzlauer Berg',
-		'10435 Prenzlauer Berg',
-		'10437 Prenzlauer Berg',
-		'10551 Moabit',
-		'10623 Charlottenburg',
-		'10785 Tiergarten',
-		'10961 Kreuzberg',
-		'10965 Kreuzberg',
-		'10967 Kreuzberg',
-		'10997 Kreuzberg',
-		'10999 Kreuzberg',
-		'12043 Neukölln',
-		'12045 Neukölln',
-		'12047 Neukölln',
-		'12049 Neukölln',
-		'12053 Neukölln',
-		'12099 Tempelhof',
-		'13347 Wedding',
-		'13353 Wedding',
-	];
-
-	let selectedDates = $state<Set<string>>(new Set());
-	let startTime = $state('');
-	let duration = $state(60);
-	let availLocations = $state<string[]>(['']);
-	let locationQueries = $state<string[]>(['']);
-
-	function locationSuggestions(query: string): string[] {
-		if (!query.trim()) return BERLIN_LOCATIONS;
-		const q = query.toLowerCase();
-		return BERLIN_LOCATIONS.filter(l => l.toLowerCase().includes(q));
+	interface AvailSlot {
+		date: string;
+		startTime: string;
+		duration: number;
+		postcode: string;
+		exactLocation: string;
+		placeQuery: string;
 	}
 
-	// Pre-fill from existing availability
+	let slots = $state<AvailSlot[]>([]);
+	let selectedDatesSet = $derived(new Set(slots.map(s => s.date)));
+
+	let slotsByDate = $derived.by(() => {
+		const map = new Map<string, number[]>();
+		slots.forEach((s, i) => {
+			if (!map.has(s.date)) map.set(s.date, []);
+			map.get(s.date)!.push(i);
+		});
+		return map;
+	});
+
+	function addSlotForDay(date: string) {
+		slots = [...slots, { date, startTime: '', duration: 60, postcode: '', exactLocation: '', placeQuery: '' }];
+	}
+
+	function removeSlot(index: number) {
+		slots = slots.filter((_, i) => i !== index);
+	}
+
+	function toggleDay(date: string) {
+		if (selectedDatesSet.has(date)) {
+			slots = slots.filter(s => s.date !== date);
+		} else {
+			addSlotForDay(date);
+		}
+	}
+
+	function formatDayLabel(dateStr: string): string {
+		const d = new Date(dateStr + 'T12:00:00');
+		return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+	}
+
+	// Pre-fill from existing per-slot availability
 	$effect(() => {
 		if (data.canvas.is_conversation) {
 			try {
 				const t = data.canvas.preferred_time_slots;
 				if (t) {
 					const parsed = JSON.parse(t);
-					if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-						if (Array.isArray(parsed.dates)) selectedDates = new Set(parsed.dates);
-						startTime = parsed.startTime ?? '';
-						duration = parsed.duration ?? 60;
-					}
-				}
-			} catch { /* ignore */ }
-			try {
-				const l = data.canvas.preferred_location;
-				if (l) {
-					const parsed = JSON.parse(l);
-					if (Array.isArray(parsed) && parsed.length) {
-						availLocations = parsed;
-						locationQueries = parsed.map(() => '');
+					if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && Array.isArray(parsed.slots)) {
+						slots = parsed.slots.map((s: Record<string, unknown>) => ({
+							date: (s.date as string) ?? '',
+							startTime: (s.startTime as string) ?? '',
+							duration: (s.duration as number) ?? 60,
+							postcode: (s.postcode as string) ?? '',
+							exactLocation: (s.exactLocation as string) ?? '',
+							placeQuery: (s.exactLocation as string) ?? ''
+						}));
 					}
 				}
 			} catch { /* ignore */ }
@@ -730,7 +728,7 @@
 			<div class="modal-overlay" onclick={() => (showActivateModal = false)}>
 				<div class="modal modal-wide" onclick={(e) => e.stopPropagation()}>
 					<h2>Publish as a Conversation</h2>
-					<p class="modal-description">When and where are you available to meet this week?</p>
+					<p class="modal-description">Pick days, then set time and place for each.</p>
 					<form
 						method="POST"
 						action="?/activateForDiscover"
@@ -743,93 +741,82 @@
 							};
 						}}
 					>
+						<input type="hidden" name="slotsJson" value={JSON.stringify(slots.map(s => ({ date: s.date, startTime: s.startTime, duration: s.duration, postcode: s.postcode, exactLocation: s.exactLocation })))} />
+
 						<div class="avail-section">
-							<label class="avail-label">When <span class="avail-hint">(select days)</span></label>
+							<label class="avail-label">Select days</label>
 							<div class="week-calendar">
 								{#each weekDates as day}
 									<button
 										type="button"
 										class="day-cell"
-										class:selected={selectedDates.has(day.date)}
+										class:selected={selectedDatesSet.has(day.date)}
 										class:past={day.isPast}
 										disabled={day.isPast}
-										onclick={() => {
-											const next = new Set(selectedDates);
-											if (next.has(day.date)) next.delete(day.date);
-											else next.add(day.date);
-											selectedDates = next;
-										}}
+										onclick={() => toggleDay(day.date)}
 									>
 										<span class="day-name">{day.dayShort}</span>
 										<span class="day-num">{day.dayNum}</span>
 									</button>
 								{/each}
 							</div>
-							<input type="hidden" name="dates" value={[...selectedDates].join(',')} />
-
-							<label class="avail-label" style="margin-top: 0.75rem;">Time range</label>
-							<div class="time-range-row">
-								<select bind:value={startTime} name="startTime" class="time-select">
-									<option value="">Start time...</option>
-									{#each TIME_OPTIONS as t}
-										<option value={t.value}>{t.label}</option>
-									{/each}
-								</select>
-								<span class="range-sep">for</span>
-								<select bind:value={duration} name="duration" class="time-select">
-									{#each DURATION_OPTIONS as opt}
-										<option value={opt.value}>{opt.label}</option>
-									{/each}
-								</select>
-							</div>
 						</div>
 
-						<div class="avail-section">
-							<label class="avail-label">Where <span class="avail-hint">(1-3 locations)</span></label>
-							{#each availLocations as loc, i}
-								<div class="location-field">
-									<input
-										type="text"
-										name="location_{i}"
-										value={loc}
-										placeholder="Start typing a location..."
-										oninput={(e) => {
-											const val = (e.target as HTMLInputElement).value;
-											availLocations = availLocations.map((l, j) => j === i ? val : l);
-											locationQueries = locationQueries.map((q, j) => j === i ? val : q);
-										}}
-										onfocus={() => { locationQueries = locationQueries.map((q, j) => j === i ? (availLocations[i] || ' ') : q); }}
-										onblur={() => { setTimeout(() => { locationQueries = locationQueries.map((q, j) => j === i ? '' : q); }, 150); }}
-									/>
-									{#if locationQueries[i]}
-										{@const suggestions = locationSuggestions(locationQueries[i])}
-										{#if suggestions.length > 0}
-											<div class="location-dropdown">
-												{#each suggestions as suggestion}
-													<button
-														type="button"
-														class="location-option"
-														onmousedown={(e) => {
-															e.preventDefault();
-															availLocations = availLocations.map((l, j) => j === i ? suggestion : l);
-															locationQueries = locationQueries.map((q, j) => j === i ? '' : q);
-														}}
+						{#if slots.length > 0}
+							<div class="avail-section slots-section">
+								{#each [...slotsByDate.entries()].sort(([a], [b]) => a.localeCompare(b)) as [date, indices]}
+									<div class="day-group">
+										<div class="day-group-header">
+											<span class="day-group-label">{formatDayLabel(date)}</span>
+											<button type="button" class="add-time-btn" onclick={() => addSlotForDay(date)}>+ add time</button>
+										</div>
+										{#each indices as idx}
+											<div class="slot-row">
+												<div class="slot-time">
+													<select
+														class="time-select"
+														value={slots[idx].startTime}
+														onchange={(e) => { slots = slots.map((s, i) => i === idx ? { ...s, startTime: (e.target as HTMLSelectElement).value } : s); }}
 													>
-														{suggestion}
-													</button>
-												{/each}
+														<option value="">Time...</option>
+														{#each TIME_OPTIONS as t}
+															<option value={t.value}>{t.label}</option>
+														{/each}
+													</select>
+													<span class="range-sep">for</span>
+													<select
+														class="time-select"
+														value={slots[idx].duration}
+														onchange={(e) => { slots = slots.map((s, i) => i === idx ? { ...s, duration: parseInt((e.target as HTMLSelectElement).value) } : s); }}
+													>
+														{#each DURATION_OPTIONS as opt}
+															<option value={opt.value}>{opt.label}</option>
+														{/each}
+													</select>
+												</div>
+												<div class="slot-location">
+													<PlaceSearch
+														value={slots[idx].placeQuery}
+														placeholder="Search for a place..."
+														onSelect={(place) => {
+															slots = slots.map((s, i) => i === idx
+																? { ...s, postcode: place.postcode, exactLocation: place.exactLocation, placeQuery: place.exactLocation }
+																: s);
+														}}
+													/>
+												</div>
+												{#if indices.length > 1}
+													<button type="button" class="remove-slot-btn" onclick={() => removeSlot(idx)}>&times;</button>
+												{/if}
 											</div>
-										{/if}
-									{/if}
-								</div>
-							{/each}
-							{#if availLocations.length < 3}
-								<button type="button" class="add-field-btn" onclick={() => { availLocations = [...availLocations, '']; locationQueries = [...locationQueries, '']; }}>+ add location</button>
-							{/if}
-						</div>
+										{/each}
+									</div>
+								{/each}
+							</div>
+						{/if}
 
 						<div class="modal-actions">
-							<button type="submit" class="submit-btn" disabled={activatingConvo || selectedDates.size === 0 || !startTime || !availLocations.some(l => l.trim())}>
+							<button type="submit" class="submit-btn" disabled={activatingConvo || slots.length === 0 || !slots.every(s => s.startTime && s.postcode)}>
 								{activatingConvo ? 'publishing...' : 'Publish'}
 							</button>
 						</div>
@@ -1469,20 +1456,6 @@
 		border-color: var(--text-link-hover);
 	}
 
-	.add-field-btn {
-		background: none;
-		border: none;
-		color: var(--text-link);
-		font-size: 0.85rem;
-		font-family: inherit;
-		cursor: pointer;
-		padding: 0.25rem 0;
-	}
-
-	.add-field-btn:hover {
-		color: var(--text-link-hover);
-	}
-
 	.skip-btn {
 		display: block;
 		width: 100%;
@@ -1584,46 +1557,92 @@
 		border-color: var(--text-link-hover);
 	}
 
-	/* Location field with dropdown */
-	.location-field {
-		position: relative;
-		margin-bottom: 0.4rem;
+	/* Per-slot availability UI */
+	.slots-section {
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
 	}
 
-	.location-dropdown {
-		position: absolute;
-		top: 100%;
-		left: 0;
-		right: 0;
-		background: var(--bg-canvas);
+	.day-group {
 		border: 1px solid var(--border-link);
-		border-top: none;
-		border-radius: 0 0 4px 4px;
-		max-height: 180px;
-		overflow-y: auto;
-		z-index: 10;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+		border-radius: 6px;
+		padding: 0.75rem;
 	}
 
-	.location-option {
-		display: block;
-		width: 100%;
-		text-align: left;
-		padding: 0.5rem 0.75rem;
+	.day-group-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 0.5rem;
+	}
+
+	.day-group-label {
+		font-size: 0.9rem;
+		font-weight: 500;
+		color: var(--text-primary);
+	}
+
+	.add-time-btn {
 		background: none;
 		border: none;
-		border-bottom: 1px solid var(--border-link);
-		font-size: 0.88rem;
+		color: var(--text-link, #007bff);
+		font-size: 0.8rem;
 		font-family: inherit;
-		color: var(--text-primary);
 		cursor: pointer;
+		padding: 0.2rem 0.4rem;
 	}
 
-	.location-option:last-child {
-		border-bottom: none;
+	.add-time-btn:hover {
+		color: var(--text-link-hover, #0056b3);
 	}
 
-	.location-option:hover {
-		background: var(--bg-control, rgba(0, 0, 0, 0.03));
+	.slot-row {
+		display: flex;
+		gap: 0.5rem;
+		align-items: flex-start;
+		margin-bottom: 0.5rem;
+	}
+
+	.slot-row:last-child {
+		margin-bottom: 0;
+	}
+
+	.slot-time {
+		display: flex;
+		align-items: center;
+		gap: 0.35rem;
+		flex-shrink: 0;
+	}
+
+	.slot-time .time-select {
+		width: auto;
+		min-width: 100px;
+		padding: 0.45rem 1.8rem 0.45rem 0.5rem;
+		font-size: 0.85rem;
+	}
+
+	.slot-location {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.3rem;
+	}
+
+	.remove-slot-btn {
+		background: none;
+		border: none;
+		color: var(--text-muted);
+		font-size: 1.1rem;
+		cursor: pointer;
+		padding: 0.3rem 0.4rem;
+		line-height: 1;
+		flex-shrink: 0;
+		transition: color 0.15s;
+	}
+
+	.remove-slot-btn:hover {
+		color: #dc3545;
 	}
 </style>
