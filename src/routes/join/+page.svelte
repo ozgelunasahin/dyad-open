@@ -18,14 +18,14 @@
 
 <div class="auth-container">
 	<div class="auth-card">
-		{#if !data.valid}
-			<h1>Invitation expired</h1>
-			<p class="subtitle">This invitation link is no longer valid. It may have expired or already been used.</p>
-			<a href="/" class="back-link">Back to home</a>
-		{:else if form?.success}
+		{#if form?.success}
 			<h1>Welcome to dyad.</h1>
 			<p class="subtitle">{form.message}</p>
 			<a href="/login" class="submit-btn" style="display: inline-block; text-align: center; text-decoration: none;">Sign in</a>
+		{:else if !data.valid}
+			<h1>Invitation expired</h1>
+			<p class="subtitle">This invitation link is no longer valid. It may have expired or already been used.</p>
+			<a href="/" class="back-link">Back to home</a>
 		{:else}
 			<h1>You're invited</h1>
 			<p class="subtitle">Create your account to join the conversation.</p>
@@ -39,9 +39,13 @@
 				action="?/signup"
 				use:enhance={() => {
 					loading = true;
-					return async ({ update }) => {
+					return async ({ result, update }) => {
 						loading = false;
-						await update();
+						if (result.type === 'success') {
+							await update({ reset: false });
+						} else {
+							await update();
+						}
 					};
 				}}
 			>
@@ -71,7 +75,7 @@
 						disabled={loading}
 						minlength={3}
 						maxlength={30}
-						pattern="[a-z0-9_-]+"
+						pattern="[a-z0-9_\-]+"
 						title="Lowercase letters, numbers, underscores, and hyphens only"
 					/>
 					<p class="hint">This will be your public URL: dyad.berlin/<strong>@username</strong></p>

@@ -101,7 +101,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	let members: Array<{ id: string; username: string; berlin_based: boolean; created_at: string }> = [];
 
 	if (canPublishSites) {
-		const [contactsResult, membersResult, invitationsResult] = await Promise.all([
+		const [contactsResult, membersResult, invitationsResult, registeredResult] = await Promise.all([
 			locals.supabase
 				.from('contacts')
 				.select('id, email, name, freewrite, created_at')
@@ -113,7 +113,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 				.order('created_at', { ascending: false }),
 			locals.supabase
 				.from('invitations')
-				.select('email, used_at')
+				.select('email, used_at'),
+			locals.supabase.rpc('get_registered_emails')
 		]);
 
 		if (contactsResult.error) {
@@ -125,16 +126,20 @@ export const load: PageServerLoad = async ({ locals }) => {
 		if (invitationsResult.error) {
 			console.error('Failed to load invitations:', invitationsResult.error);
 		}
+		if (registeredResult.error) {
+			console.error('Failed to load registered emails:', registeredResult.error);
+		}
+		console.log('[DASH] invitations:', invitationsResult.data?.length, 'registered:', registeredResult.data?.length, 'contacts:', contactsResult.data?.length);
 
 		const invitedEmails = new Set(
 			(invitationsResult.data ?? []).map((i) => i.email)
 		);
-		const signedUpEmails = new Set(
-			(invitationsResult.data ?? []).filter((i) => i.used_at).map((i) => i.email)
+		const registeredEmails = new Set(
+			(registeredResult.data ?? []).map((r: { email: string }) => r.email)
 		);
 
 		waitlist = (contactsResult.data ?? [])
-			.filter((c) => !signedUpEmails.has(c.email))
+			.filter((c) => !registeredEmails.has(c.email))
 			.map((c) => ({
 				...c,
 				invited: invitedEmails.has(c.email)

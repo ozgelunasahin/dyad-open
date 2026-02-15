@@ -100,6 +100,17 @@ export const actions: Actions = {
 		// Mark the invitation as used
 		await locals.supabase.rpc('use_invitation', { invite_token: token });
 
+		// Sign in immediately so the user doesn't have to log in again
+		const { error: signInError } = await locals.supabase.auth.signInWithPassword({
+			email,
+			password
+		});
+
+		if (!signInError) {
+			redirect(302, '/dashboard');
+		}
+
+		// Fallback if auto-sign-in fails (e.g., email confirmation required)
 		return { success: true, message: 'Account created! Check your email to confirm, then sign in.' };
 	}
 };

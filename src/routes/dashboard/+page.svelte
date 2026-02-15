@@ -19,9 +19,13 @@
 	let inviteError = $state<string | null>(null);
 	let waitlistSearch = $state('');
 	let waitlistFilter = $state<'all' | 'pending' | 'invited'>('all');
+	let invitedOverrides = $state(new Set<string>());
 
-	let filteredWaitlist = $derived(() => {
-		const list = data.waitlist ?? [];
+	let filteredWaitlist = $derived.by(() => {
+		const list = (data.waitlist ?? []).map((c) => ({
+			...c,
+			invited: c.invited || invitedOverrides.has(c.email)
+		}));
 		let filtered = list;
 		if (waitlistFilter === 'pending') filtered = filtered.filter((c) => !c.invited);
 		if (waitlistFilter === 'invited') filtered = filtered.filter((c) => c.invited);
@@ -52,11 +56,7 @@
 				return;
 			}
 			// Mark as invited in local state
-			const contact = data.waitlist?.find((c) => c.email === email);
-			if (contact) {
-				contact.invited = true;
-				data.waitlist = [...(data.waitlist ?? [])];
-			}
+			invitedOverrides = new Set([...invitedOverrides, email]);
 		} catch {
 			inviteError = 'Failed to send invite';
 		} finally {
@@ -537,7 +537,7 @@
 
 		<!-- ============ WAITLIST (admin only) ============ -->
 		{#if activeTab === 'waitlist'}
-			{@const allWaitlist = data.waitlist ?? []}
+			{@const allWaitlist = (data.waitlist ?? []).map((c) => ({ ...c, invited: c.invited || invitedOverrides.has(c.email) }))}
 			{@const pendingCount = allWaitlist.filter((c) => !c.invited).length}
 			{@const invitedCount = allWaitlist.filter((c) => c.invited).length}
 			<section class="section">
@@ -570,13 +570,13 @@
 					<div class="empty-state">
 						<p>No one on the waitlist yet.</p>
 					</div>
-				{:else if filteredWaitlist().length === 0}
+				{:else if filteredWaitlist.length === 0}
 					<div class="empty-state">
 						<p>No matches.</p>
 					</div>
 				{:else}
 					<div class="waitlist-list">
-						{#each filteredWaitlist() as contact}
+						{#each filteredWaitlist as contact}
 							<div class="waitlist-item">
 								<div class="waitlist-info">
 									<div class="waitlist-header-row">
