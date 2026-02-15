@@ -1,5 +1,8 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { onMount } from 'svelte';
+	import MeetingsSection from '$lib/components/MeetingsSection.svelte';
+	import PlaceSearch from '$lib/components/PlaceSearch.svelte';
 	import type { PageData, ActionData } from './$types';
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	let showCreateModal = $state(false);
@@ -8,12 +11,43 @@
 	let deleting = $state(false);
 
 	// Tab state
-	let mainTab = $state<'conversations' | 'writing'>('conversations');
+	let mainTab = $state<'conversations' | 'writing' | 'meetings'>('conversations');
 	let activeTab = $state<string>('conversations');
+
+	// Notification state for meetings tab badge
+	let unreadMeetingCount = $state(0);
+
+	onMount(async () => {
+		try {
+			const res = await fetch('/api/notifications');
+			if (res.ok) {
+				const { unreadCount } = await res.json();
+				unreadMeetingCount = unreadCount;
+			}
+		} catch { /* ignore */ }
+	});
+
+	async function markNotificationsRead() {
+		if (unreadMeetingCount === 0) return;
+		unreadMeetingCount = 0;
+		try {
+			await fetch('/api/notifications', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ all: true })
+			});
+		} catch { /* ignore */ }
+	}
+
+	function switchToMeetings() {
+		mainTab = 'meetings';
+		markNotificationsRead();
+	}
 
 	// Conversations state
 	let togglingConversation = $state<string | null>(null);
 	let showAvailabilityModal = $state<string | null>(null);
+	let isEditingAvailability = $state(false);
 	let activating = $state(false);
 
 	// Week calendar helpers
@@ -58,42 +92,14 @@
 		{ value: 180, label: '3 hours' },
 	];
 
-	const BERLIN_LOCATIONS = [
-		'10115 Mitte',
-		'10178 Mitte',
-		'10243 Friedrichshain',
-		'10245 Friedrichshain',
-		'10247 Friedrichshain',
-		'10249 Prenzlauer Berg',
-		'10405 Prenzlauer Berg',
-		'10435 Prenzlauer Berg',
-		'10437 Prenzlauer Berg',
-		'10551 Moabit',
-		'10623 Charlottenburg',
-		'10785 Tiergarten',
-		'10961 Kreuzberg',
-		'10965 Kreuzberg',
-		'10967 Kreuzberg',
-		'10997 Kreuzberg',
-		'10999 Kreuzberg',
-		'12043 Neukölln',
-		'12045 Neukölln',
-		'12047 Neukölln',
-		'12049 Neukölln',
-		'12053 Neukölln',
-		'12099 Tempelhof',
-		'13347 Wedding',
-		'13353 Wedding',
-	];
-
 	// Per-slot availability: each slot = a specific date + time + place
 	interface AvailSlot {
 		date: string;
 		startTime: string;
 		duration: number;
-		postcode: string;       // e.g. "10999 Kreuzberg" — shown on discover
-		exactLocation: string;  // e.g. "Betahaus" — revealed only on match
-		postcodeQuery: string;  // UI: search state for postcode dropdown
+		postcode: string;       // e.g. "10969 Kreuzberg" — shown on discover
+		exactLocation: string;  // e.g. "betahaus, Rudi-Dutschke-Straße 23" — revealed only on match
+		placeQuery: string;     // UI: display text for place search input
 	}
 
 	let slots = $state<AvailSlot[]>([]);
@@ -111,7 +117,7 @@
 	});
 
 	function addSlotForDay(date: string) {
-		slots = [...slots, { date, startTime: '', duration: 60, postcode: '', exactLocation: '', postcodeQuery: '' }];
+		slots = [...slots, { date, startTime: '', duration: 60, postcode: '', exactLocation: '', placeQuery: '' }];
 	}
 
 	function removeSlot(index: number) {
@@ -127,19 +133,14 @@
 		}
 	}
 
-	function postcodeSuggestions(query: string): string[] {
-		if (!query.trim()) return BERLIN_LOCATIONS;
-		const q = query.toLowerCase();
-		return BERLIN_LOCATIONS.filter(l => l.toLowerCase().includes(q));
-	}
-
 	function formatDayLabel(dateStr: string): string {
 		const d = new Date(dateStr + 'T12:00:00');
 		return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 	}
 
-	function openAvailabilityModal(conversationId: string, existingTimes?: string | null) {
+	function openAvailabilityModal(conversationId: string, existingTimes?: string | null, editing = false) {
 		showAvailabilityModal = conversationId;
+		isEditingAvailability = editing;
 		let restored: AvailSlot[] = [];
 		try {
 			if (existingTimes) {
@@ -151,7 +152,7 @@
 						duration: (s.duration as number) ?? 60,
 						postcode: (s.postcode as string) ?? '',
 						exactLocation: (s.exactLocation as string) ?? '',
-						postcodeQuery: ''
+						placeQuery: (s.exactLocation as string) ?? ''
 					}));
 				}
 			}
@@ -515,6 +516,10 @@
 				Writing
 				{#if data.canvases.length + inactiveConversations.length > 0}<span class="tab-count">{data.canvases.length + inactiveConversations.length}</span>{/if}
 			</button>
+			<button class="main-tab" class:active={mainTab === 'meetings'} onclick={switchToMeetings}>
+				Meetings
+				{#if unreadMeetingCount > 0}<span class="notification-dot"></span>{/if}
+			</button>
 		</nav>
 
 		<!-- ============ CONVERSATIONS TAB ============ -->
@@ -549,6 +554,12 @@
 									</div>
 								</a>
 								<div class="conversation-actions">
+									<button
+										class="toggle-btn"
+										onclick={(e) => { e.preventDefault(); e.stopPropagation(); openAvailabilityModal(conversation.id, conversation.preferred_time_slots, true); }}
+									>
+										Edit availability
+									</button>
 									<form
 										method="POST"
 										action="?/toggleActiveThisWeek"
@@ -686,6 +697,13 @@
 					</div>
 				</section>
 			{/if}
+		{/if}
+
+		<!-- ============ MEETINGS TAB ============ -->
+		{#if mainTab === 'meetings'}
+			<section class="section">
+				<MeetingsSection currentUserId={data.user.id} />
+			</section>
 		{/if}
 
 		<!-- ============ ADMIN TABS ============ -->
@@ -1068,7 +1086,7 @@
 {#if showAvailabilityModal}
 	<div class="modal-overlay" onclick={() => (showAvailabilityModal = null)}>
 		<div class="modal modal-wide" onclick={(e) => e.stopPropagation()}>
-			<h2>Set Availability</h2>
+			<h2>{isEditingAvailability ? 'Edit Availability' : 'Set Availability'}</h2>
 			<p>Pick days, then set time and place for each.</p>
 			<form
 				method="POST"
@@ -1136,49 +1154,16 @@
 											</select>
 										</div>
 										<div class="slot-location">
-											<div class="location-field">
-												<input
-													type="text"
-													value={slots[idx].postcode}
-													placeholder="Postcode area..."
-													oninput={(e) => {
-														const val = (e.target as HTMLInputElement).value;
-														slots = slots.map((s, i) => i === idx ? { ...s, postcode: val, postcodeQuery: val } : s);
-													}}
-													onfocus={() => { slots = slots.map((s, i) => i === idx ? { ...s, postcodeQuery: s.postcode || ' ' } : s); }}
-													onblur={() => { setTimeout(() => { slots = slots.map((s, i) => i === idx ? { ...s, postcodeQuery: '' } : s); }, 150); }}
-												/>
-												{#if slots[idx].postcodeQuery}
-													{@const suggestions = postcodeSuggestions(slots[idx].postcodeQuery)}
-													{#if suggestions.length > 0}
-														<div class="location-dropdown">
-															{#each suggestions as suggestion}
-																<button
-																	type="button"
-																	class="location-option"
-																	onmousedown={(e) => {
-																		e.preventDefault();
-																		slots = slots.map((s, i) => i === idx ? { ...s, postcode: suggestion, postcodeQuery: '' } : s);
-																	}}
-																>
-																	{suggestion}
-																</button>
-															{/each}
-														</div>
-													{/if}
-												{/if}
-											</div>
-											<input
-												type="text"
-												class="exact-location-input"
-												value={slots[idx].exactLocation}
-												placeholder="Exact spot (café, park...)"
-												oninput={(e) => {
-													const val = (e.target as HTMLInputElement).value;
-													slots = slots.map((s, i) => i === idx ? { ...s, exactLocation: val } : s);
-												}}
-											/>
-										</div>
+										<PlaceSearch
+											value={slots[idx].placeQuery}
+											placeholder="Search for a place..."
+											onSelect={(place) => {
+												slots = slots.map((s, i) => i === idx
+													? { ...s, postcode: place.postcode, exactLocation: place.exactLocation, placeQuery: place.exactLocation }
+													: s);
+											}}
+										/>
+									</div>
 										{#if indices.length > 1}
 											<button type="button" class="remove-slot-btn" onclick={() => removeSlot(idx)}>&times;</button>
 										{/if}
@@ -1192,7 +1177,7 @@
 				<div class="modal-actions">
 					<button type="button" class="cancel-btn" onclick={() => (showAvailabilityModal = null)}>cancel</button>
 					<button type="submit" class="submit-btn" disabled={activating || slots.length === 0 || !slots.every(s => s.startTime && s.postcode)}>
-						{activating ? 'activating...' : 'Activate'}
+						{activating ? 'saving...' : isEditingAvailability ? 'Save' : 'Activate'}
 					</button>
 				</div>
 			</form>
@@ -1345,6 +1330,16 @@
 		font-size: 0.8rem;
 		opacity: 0.6;
 		margin-left: 0.25rem;
+	}
+
+	.notification-dot {
+		display: inline-block;
+		width: 7px;
+		height: 7px;
+		background: #dc3545;
+		border-radius: 50%;
+		margin-left: 0.3rem;
+		vertical-align: middle;
 	}
 
 	/* Mobile: sidebar becomes top bar */
@@ -2276,49 +2271,6 @@
 		border-color: var(--text-link-hover);
 	}
 
-	/* Location field with dropdown */
-	.location-field {
-		position: relative;
-		margin-bottom: 0.4rem;
-	}
-
-	.location-dropdown {
-		position: absolute;
-		top: 100%;
-		left: 0;
-		right: 0;
-		background: var(--bg-canvas);
-		border: 1px solid var(--border-link);
-		border-top: none;
-		border-radius: 0 0 4px 4px;
-		max-height: 180px;
-		overflow-y: auto;
-		z-index: 10;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-	}
-
-	.location-option {
-		display: block;
-		width: 100%;
-		text-align: left;
-		padding: 0.5rem 0.75rem;
-		background: none;
-		border: none;
-		border-bottom: 1px solid var(--border-link);
-		font-size: 0.88rem;
-		font-family: inherit;
-		color: var(--text-primary);
-		cursor: pointer;
-	}
-
-	.location-option:last-child {
-		border-bottom: none;
-	}
-
-	.location-option:hover {
-		background: var(--bg-control, rgba(0, 0, 0, 0.03));
-	}
-
 	/* === Archive & section variants === */
 	.admin-divider {
 		border: none;
@@ -2486,38 +2438,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.3rem;
-	}
-
-	.slot-location .location-field {
-		margin-bottom: 0;
-	}
-
-	.slot-location input[type='text'] {
-		margin-bottom: 0;
-		padding: 0.45rem 0.6rem;
-		font-size: 0.85rem;
-	}
-
-	.exact-location-input {
-		width: 100%;
-		padding: 0.45rem 0.6rem;
-		border: 1px solid var(--border-link);
-		border-radius: 4px;
-		font-size: 0.85rem;
-		font-family: inherit;
-		background: var(--bg-canvas);
-		color: var(--text-primary);
-		box-sizing: border-box;
-	}
-
-	.exact-location-input:focus {
-		outline: none;
-		border-color: var(--text-link-hover);
-	}
-
-	.exact-location-input::placeholder {
-		color: var(--text-muted);
-		font-style: italic;
 	}
 
 	.remove-slot-btn {
