@@ -5,10 +5,89 @@
 
 	function formatDate(date: string): string {
 		return new Intl.DateTimeFormat('en-US', {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric'
+			month: 'long',
+			day: 'numeric'
 		}).format(new Date(date));
+	}
+
+	// 7-day calendar starting from today
+	const weekDates = (() => {
+		const today = new Date();
+		return Array.from({ length: 7 }, (_, i) => {
+			const d = new Date(today);
+			d.setDate(today.getDate() + i);
+			return {
+				date: d.toISOString().split('T')[0],
+				dayShort: d.toLocaleDateString('en-US', { weekday: 'short' }),
+				dayNum: d.getDate(),
+				// The label that conversations store, e.g. "Sat 15"
+				label: d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' })
+			};
+		});
+	})();
+
+	// Berlin postcodes for the dropdown
+	const BERLIN_POSTCODES = [
+		'10115 Mitte', '10178 Mitte',
+		'10243 Friedrichshain', '10245 Friedrichshain', '10247 Friedrichshain',
+		'10249 Prenzlauer Berg', '10405 Prenzlauer Berg', '10435 Prenzlauer Berg', '10437 Prenzlauer Berg',
+		'10551 Moabit', '10623 Charlottenburg', '10785 Tiergarten',
+		'10961 Kreuzberg', '10965 Kreuzberg', '10967 Kreuzberg', '10997 Kreuzberg', '10999 Kreuzberg',
+		'12043 Neukölln', '12045 Neukölln', '12047 Neukölln', '12049 Neukölln', '12053 Neukölln',
+		'12099 Tempelhof', '13347 Wedding', '13353 Wedding',
+	];
+
+	// Filter state — multi-select
+	let selectedDays = $state<Set<string>>(new Set());
+	let selectedLocations = $state<Set<string>>(new Set());
+	let locationQuery = $state('');
+	let locationDropdownOpen = $state(false);
+
+	let locationSuggestions = $derived.by(() => {
+		if (!locationQuery.trim()) return BERLIN_POSTCODES;
+		const q = locationQuery.toLowerCase();
+		return BERLIN_POSTCODES.filter(l => l.toLowerCase().includes(q));
+	});
+
+	let hasFilters = $derived(selectedDays.size > 0 || selectedLocations.size > 0);
+
+	let filteredConversations = $derived.by(() => {
+		let results = data.conversations;
+		if (selectedDays.size > 0) {
+			results = results.filter((c) => c.days.some(d => selectedDays.has(d)));
+		}
+		if (selectedLocations.size > 0) {
+			results = results.filter((c) => c.locations.some(l => selectedLocations.has(l)));
+		}
+		return results;
+	});
+
+	function toggleDay(label: string) {
+		const next = new Set(selectedDays);
+		if (next.has(label)) next.delete(label);
+		else next.add(label);
+		selectedDays = next;
+	}
+
+	function toggleLocation(loc: string) {
+		const next = new Set(selectedLocations);
+		if (next.has(loc)) next.delete(loc);
+		else next.add(loc);
+		selectedLocations = next;
+		locationQuery = '';
+		locationDropdownOpen = false;
+	}
+
+	function removeLocation(loc: string) {
+		const next = new Set(selectedLocations);
+		next.delete(loc);
+		selectedLocations = next;
+	}
+
+	function clearFilters() {
+		selectedDays = new Set();
+		selectedLocations = new Set();
+		locationQuery = '';
 	}
 </script>
 
@@ -18,7 +97,7 @@
 
 <div class="app-layout">
 	<aside class="sidebar">
-		<a href="/" class="sidebar-logo">
+		<a href="/discover" class="sidebar-logo">
 			<img src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/logo.png" alt="dyad" class="sidebar-logo-img" />
 		</a>
 		<nav class="sidebar-nav">
@@ -44,31 +123,94 @@
 					<p class="empty-hint">Check back soon, or start your own from the dashboard.</p>
 				</div>
 			{:else}
-				<div class="conversation-list">
-					{#each data.conversations as conversation}
-						<a href="/@{conversation.username}/{conversation.slug}" class="conversation-row">
-							<div class="row-thumb">
-								{#if conversation.coverImageUrl}
-									<img src={conversation.coverImageUrl} alt="" class="thumb-img" />
-								{:else}
-									<div class="thumb-placeholder"></div>
+				<div class="filter-bar">
+					<div class="filter-group">
+						<span class="filter-label">When</span>
+						<div class="week-calendar">
+							{#each weekDates as day}
+								<button
+									type="button"
+									class="day-cell"
+									class:selected={selectedDays.has(day.label)}
+									onclick={() => toggleDay(day.label)}
+								>
+									<span class="day-name">{day.dayShort}</span>
+									<span class="day-num">{day.dayNum}</span>
+								</button>
+							{/each}
+						</div>
+					</div>
+					<div class="filter-group">
+						<span class="filter-label">Where</span>
+						<div class="location-filter">
+							{#each [...selectedLocations] as loc}
+								<span class="location-chip">
+									{loc}
+									<button class="chip-remove" onclick={() => removeLocation(loc)}>&times;</button>
+								</span>
+							{/each}
+							<div class="location-search">
+								<input
+									type="text"
+									class="location-input"
+									placeholder={selectedLocations.size > 0 ? 'Add postcode...' : 'Search postcode...'}
+									value={locationQuery}
+									oninput={(e) => { locationQuery = (e.target as HTMLInputElement).value; locationDropdownOpen = true; }}
+									onfocus={() => { locationDropdownOpen = true; }}
+									onblur={() => { setTimeout(() => { locationDropdownOpen = false; }, 150); }}
+								/>
+								{#if locationDropdownOpen && locationSuggestions.length > 0}
+									<div class="location-dropdown">
+										{#each locationSuggestions as suggestion}
+											<button
+												type="button"
+												class="location-option"
+												class:active={selectedLocations.has(suggestion)}
+												onmousedown={(e) => { e.preventDefault(); toggleLocation(suggestion); }}
+											>{suggestion}</button>
+										{/each}
+									</div>
 								{/if}
 							</div>
-							<div class="row-body">
-								<div class="row-top">
-									<h3 class="row-title">{conversation.name}</h3>
-									<span class="date">{formatDate(conversation.updatedAt)}</span>
-								</div>
-								{#if conversation.snippet}
-									<p class="row-snippet">{conversation.snippet}</p>
-								{/if}
-								<div class="row-meta">
-									<span class="author">@{conversation.username}</span>
-								</div>
-							</div>
-						</a>
-					{/each}
+						</div>
+					</div>
+					{#if hasFilters}
+						<button class="clear-filters" onclick={clearFilters}>Clear all</button>
+					{/if}
 				</div>
+
+				{#if filteredConversations.length === 0}
+					<div class="empty-state">
+						<p>No conversations match your filters.</p>
+						<button class="clear-filters-link" onclick={clearFilters}>Clear filters</button>
+					</div>
+				{:else}
+					<div class="conversation-list">
+						{#each filteredConversations as conversation}
+							<a href="/@{conversation.username}/{conversation.slug}" class="conversation-row">
+								<div class="row-thumb">
+									{#if conversation.coverImageUrl}
+										<img src={conversation.coverImageUrl} alt="" class="thumb-img" />
+									{:else}
+										<div class="thumb-placeholder"></div>
+									{/if}
+								</div>
+								<div class="row-body">
+									<div class="row-top">
+										<h3 class="row-title">{conversation.name}</h3>
+										<span class="date">{formatDate(conversation.updatedAt)}</span>
+									</div>
+									{#if conversation.snippet}
+										<p class="row-snippet">{conversation.snippet}</p>
+									{/if}
+									<div class="row-meta">
+										<span class="author">@{conversation.username}</span>
+									</div>
+								</div>
+							</a>
+						{/each}
+					</div>
+				{/if}
 			{/if}
 		</div>
 	</main>
@@ -109,7 +251,7 @@
 		width: 22px;
 		height: auto;
 		object-fit: contain;
-		opacity: 0.5;
+		filter: brightness(0) opacity(0.4);
 	}
 
 	.sidebar-nav {
@@ -238,6 +380,209 @@
 
 	.empty-hint {
 		font-size: 0.9rem;
+	}
+
+	/* === Filter bar === */
+	.filter-bar {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+		margin-bottom: 1.5rem;
+		padding: 0.75rem 1rem;
+		border: 1px solid var(--border-link);
+		border-radius: 8px;
+		background: var(--bg-canvas);
+	}
+
+	.filter-group {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.filter-label {
+		font-size: 0.8rem;
+		color: var(--text-muted);
+		flex-shrink: 0;
+		width: 40px;
+	}
+
+	/* Week calendar in filter bar */
+	.week-calendar {
+		display: flex;
+		gap: 0.25rem;
+		flex: 1;
+	}
+
+	.day-cell {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.05rem;
+		padding: 0.35rem 0.15rem;
+		background: none;
+		border: 1px solid var(--border-link);
+		border-radius: 6px;
+		cursor: pointer;
+		font-family: inherit;
+		transition: border-color 0.15s, background 0.15s, color 0.15s;
+		color: var(--text-primary);
+	}
+
+	.day-cell:hover {
+		border-color: var(--border-link-hover, var(--text-muted));
+	}
+
+	.day-cell.selected {
+		background: var(--text-primary);
+		border-color: var(--text-primary);
+		color: var(--bg-canvas);
+	}
+
+	.day-name {
+		font-size: 0.6rem;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+	}
+
+	.day-num {
+		font-size: 0.85rem;
+		font-weight: 500;
+	}
+
+	/* Location filter with chips + search */
+	.location-filter {
+		display: flex;
+		align-items: center;
+		gap: 0.3rem;
+		flex: 1;
+		flex-wrap: wrap;
+	}
+
+	.location-chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.2rem;
+		padding: 0.2rem 0.5rem;
+		background: var(--text-primary);
+		color: var(--bg-canvas);
+		border-radius: 12px;
+		font-size: 0.8rem;
+		white-space: nowrap;
+	}
+
+	.chip-remove {
+		background: none;
+		border: none;
+		color: var(--bg-canvas);
+		font-size: 0.9rem;
+		cursor: pointer;
+		padding: 0;
+		line-height: 1;
+		opacity: 0.7;
+	}
+
+	.chip-remove:hover {
+		opacity: 1;
+	}
+
+	.location-search {
+		position: relative;
+		min-width: 140px;
+		flex: 1;
+	}
+
+	.location-input {
+		width: 100%;
+		padding: 0.4rem 0.65rem;
+		border: 1px solid var(--border-link);
+		border-radius: 6px;
+		font-size: 0.85rem;
+		font-family: inherit;
+		background: var(--bg-canvas);
+		color: var(--text-primary);
+		box-sizing: border-box;
+	}
+
+	.location-input:focus {
+		outline: none;
+		border-color: var(--text-link-hover, var(--text-muted));
+	}
+
+	.location-input::placeholder {
+		color: var(--text-muted);
+	}
+
+	.location-dropdown {
+		position: absolute;
+		top: 100%;
+		left: 0;
+		right: 0;
+		background: var(--bg-canvas);
+		border: 1px solid var(--border-link);
+		border-top: none;
+		border-radius: 0 0 6px 6px;
+		max-height: 200px;
+		overflow-y: auto;
+		z-index: 10;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+	}
+
+	.location-option {
+		display: block;
+		width: 100%;
+		text-align: left;
+		padding: 0.45rem 0.65rem;
+		background: none;
+		border: none;
+		border-bottom: 1px solid var(--border-link);
+		font-size: 0.85rem;
+		font-family: inherit;
+		color: var(--text-primary);
+		cursor: pointer;
+	}
+
+	.location-option:last-child {
+		border-bottom: none;
+	}
+
+	.location-option:hover {
+		background: var(--bg-control, rgba(0, 0, 0, 0.03));
+	}
+
+	.location-option.active {
+		background: var(--bg-control, rgba(0, 0, 0, 0.03));
+		font-weight: 500;
+	}
+
+	.clear-filters {
+		align-self: flex-end;
+		background: none;
+		border: none;
+		color: var(--text-muted);
+		font-size: 0.8rem;
+		font-family: inherit;
+		cursor: pointer;
+		text-decoration: underline;
+	}
+
+	.clear-filters:hover {
+		color: var(--text-primary);
+	}
+
+	.clear-filters-link {
+		background: none;
+		border: none;
+		color: var(--text-muted);
+		font-size: 0.9rem;
+		font-family: inherit;
+		cursor: pointer;
+		text-decoration: underline;
+	}
+
+	.clear-filters-link:hover {
+		color: var(--text-primary);
 	}
 
 	/* === Conversation list === */

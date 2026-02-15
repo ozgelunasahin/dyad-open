@@ -31,26 +31,23 @@
 	let activatingConvo = $state(false);
 	let isConversation = $derived(data.canvas.is_conversation ?? false);
 
-	// Week calendar helpers
-	function getCurrentWeekDates() {
+	// Week calendar helpers — 7 days starting from today
+	function getAvailableDates() {
 		const today = new Date();
-		const monday = new Date(today);
-		monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
-		const todayStr = today.toISOString().split('T')[0];
 		return Array.from({ length: 7 }, (_, i) => {
-			const d = new Date(monday);
-			d.setDate(monday.getDate() + i);
+			const d = new Date(today);
+			d.setDate(today.getDate() + i);
 			const dateStr = d.toISOString().split('T')[0];
 			return {
 				date: dateStr,
 				dayShort: d.toLocaleDateString('en-US', { weekday: 'short' }),
 				dayNum: d.getDate(),
-				isPast: dateStr < todayStr
+				isPast: false
 			};
 		});
 	}
 
-	const weekDates = getCurrentWeekDates();
+	const weekDates = getAvailableDates();
 
 	const TIME_OPTIONS = (() => {
 		const opts: Array<{ value: string; label: string }> = [];
@@ -75,21 +72,31 @@
 	];
 
 	const BERLIN_LOCATIONS = [
-		'Café Cinema, Kreuzberg',
-		'Betahaus, Kreuzberg',
-		'St. Oberholz, Mitte',
-		'Bonanza Coffee, Prenzlauer Berg',
-		'Five Elephant, Kreuzberg',
-		'The Barn, Mitte',
-		'Silo Coffee, Friedrichshain',
-		'Neukölln Library',
-		'Amerika-Gedenkbibliothek, Kreuzberg',
-		'Tempelhofer Feld',
-		'Viktoriapark, Kreuzberg',
-		'Görlitzer Park, Kreuzberg',
-		'Mauerpark, Prenzlauer Berg',
-		'Factory Berlin, Mitte',
-		'Impact Hub, Kreuzberg',
+		'10115 Mitte',
+		'10178 Mitte',
+		'10243 Friedrichshain',
+		'10245 Friedrichshain',
+		'10247 Friedrichshain',
+		'10249 Prenzlauer Berg',
+		'10405 Prenzlauer Berg',
+		'10435 Prenzlauer Berg',
+		'10437 Prenzlauer Berg',
+		'10551 Moabit',
+		'10623 Charlottenburg',
+		'10785 Tiergarten',
+		'10961 Kreuzberg',
+		'10965 Kreuzberg',
+		'10967 Kreuzberg',
+		'10997 Kreuzberg',
+		'10999 Kreuzberg',
+		'12043 Neukölln',
+		'12045 Neukölln',
+		'12047 Neukölln',
+		'12049 Neukölln',
+		'12053 Neukölln',
+		'12099 Tempelhof',
+		'13347 Wedding',
+		'13353 Wedding',
 	];
 
 	let selectedDates = $state<Set<string>>(new Set());

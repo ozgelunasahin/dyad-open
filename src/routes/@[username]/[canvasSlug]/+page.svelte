@@ -216,13 +216,11 @@
 			<Canvas readOnly={true} />
 
 			<header class="canvas-header">
-				<a href={data.currentUserId ? '/discover' : '/'} class="back-link">
-					<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+				<a href={data.currentUserId ? '/discover' : '/'} class="back-link" title="Back">
+					<svg width="20" height="20" viewBox="0 0 16 16" fill="none">
 						<path d="M10 12L6 8L10 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
 					</svg>
 				</a>
-				<span class="canvas-title">{data.canvas.name}</span>
-				<span class="canvas-author">@{data.author.username}</span>
 			</header>
 
 			{#if data.currentUserId}

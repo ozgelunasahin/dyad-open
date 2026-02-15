@@ -93,18 +93,29 @@ export const load: PageServerLoad = async ({ locals }) => {
 			if (c.preferred_time_slots) {
 				const parsed = JSON.parse(c.preferred_time_slots);
 				if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-					// New structured format: { dates, startTime, duration }
-					const dates: string[] = Array.isArray(parsed.dates) ? parsed.dates : [];
-					days = dates.map((d: string) => {
-						const dt = new Date(d + 'T12:00:00');
-						return dt.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
-					});
-					if (parsed.startTime) {
-						const [h, m] = parsed.startTime.split(':').map(Number);
-						const start = new Date(2000, 0, 1, h, m);
-						const end = new Date(start.getTime() + (parsed.duration ?? 60) * 60000);
-						const fmt = (d: Date) => d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-						timeRange = `${fmt(start)} – ${fmt(end)}`;
+					if (Array.isArray(parsed.slots)) {
+						// Per-slot format: { slots: [{ date, startTime, duration, postcode, exactLocation }] }
+						const dateSet = new Set<string>();
+						for (const slot of parsed.slots) {
+							if (slot.date) {
+								const dt = new Date(slot.date + 'T12:00:00');
+								dateSet.add(dt.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' }));
+							}
+						}
+						days = [...dateSet];
+					} else if (Array.isArray(parsed.dates)) {
+						// Legacy structured format: { dates, startTime, duration }
+						days = parsed.dates.map((d: string) => {
+							const dt = new Date(d + 'T12:00:00');
+							return dt.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
+						});
+						if (parsed.startTime) {
+							const [h, m] = parsed.startTime.split(':').map(Number);
+							const start = new Date(2000, 0, 1, h, m);
+							const end = new Date(start.getTime() + (parsed.duration ?? 60) * 60000);
+							const fmt = (d: Date) => d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+							timeRange = `${fmt(start)} – ${fmt(end)}`;
+						}
 					}
 				} else if (Array.isArray(parsed)) {
 					// Legacy format: string array

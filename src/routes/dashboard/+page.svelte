@@ -8,6 +8,7 @@
 	let deleting = $state(false);
 
 	// Tab state
+	let mainTab = $state<'conversations' | 'writing'>('conversations');
 	let activeTab = $state<string>('conversations');
 
 	// Conversations state
@@ -16,25 +17,24 @@
 	let activating = $state(false);
 
 	// Week calendar helpers
-	function getCurrentWeekDates() {
+	function getAvailableDates() {
 		const today = new Date();
-		const monday = new Date(today);
-		monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
 		const todayStr = today.toISOString().split('T')[0];
+		// Show 7 days starting from today
 		return Array.from({ length: 7 }, (_, i) => {
-			const d = new Date(monday);
-			d.setDate(monday.getDate() + i);
+			const d = new Date(today);
+			d.setDate(today.getDate() + i);
 			const dateStr = d.toISOString().split('T')[0];
 			return {
 				date: dateStr,
 				dayShort: d.toLocaleDateString('en-US', { weekday: 'short' }),
 				dayNum: d.getDate(),
-				isPast: dateStr < todayStr
+				isPast: false
 			};
 		});
 	}
 
-	const weekDates = getCurrentWeekDates();
+	const weekDates = getAvailableDates();
 
 	const TIME_OPTIONS = (() => {
 		const opts: Array<{ value: string; label: string }> = [];
@@ -59,60 +59,104 @@
 	];
 
 	const BERLIN_LOCATIONS = [
-		'Café Cinema, Kreuzberg',
-		'Betahaus, Kreuzberg',
-		'St. Oberholz, Mitte',
-		'Bonanza Coffee, Prenzlauer Berg',
-		'Five Elephant, Kreuzberg',
-		'The Barn, Mitte',
-		'Silo Coffee, Friedrichshain',
-		'Neukölln Library',
-		'Amerika-Gedenkbibliothek, Kreuzberg',
-		'Tempelhofer Feld',
-		'Viktoriapark, Kreuzberg',
-		'Görlitzer Park, Kreuzberg',
-		'Mauerpark, Prenzlauer Berg',
-		'Factory Berlin, Mitte',
-		'Impact Hub, Kreuzberg',
+		'10115 Mitte',
+		'10178 Mitte',
+		'10243 Friedrichshain',
+		'10245 Friedrichshain',
+		'10247 Friedrichshain',
+		'10249 Prenzlauer Berg',
+		'10405 Prenzlauer Berg',
+		'10435 Prenzlauer Berg',
+		'10437 Prenzlauer Berg',
+		'10551 Moabit',
+		'10623 Charlottenburg',
+		'10785 Tiergarten',
+		'10961 Kreuzberg',
+		'10965 Kreuzberg',
+		'10967 Kreuzberg',
+		'10997 Kreuzberg',
+		'10999 Kreuzberg',
+		'12043 Neukölln',
+		'12045 Neukölln',
+		'12047 Neukölln',
+		'12049 Neukölln',
+		'12053 Neukölln',
+		'12099 Tempelhof',
+		'13347 Wedding',
+		'13353 Wedding',
 	];
 
-	let selectedDates = $state<Set<string>>(new Set());
-	let startTime = $state('');
-	let duration = $state(60);
-	let availLocations = $state<string[]>(['']);
-	let locationQueries = $state<string[]>(['']);
+	// Per-slot availability: each slot = a specific date + time + place
+	interface AvailSlot {
+		date: string;
+		startTime: string;
+		duration: number;
+		postcode: string;       // e.g. "10999 Kreuzberg" — shown on discover
+		exactLocation: string;  // e.g. "Betahaus" — revealed only on match
+		postcodeQuery: string;  // UI: search state for postcode dropdown
+	}
 
-	function locationSuggestions(query: string): string[] {
+	let slots = $state<AvailSlot[]>([]);
+
+	let selectedDatesSet = $derived(new Set(slots.map(s => s.date)));
+
+	// Grouped by date for display
+	let slotsByDate = $derived.by(() => {
+		const map = new Map<string, number[]>();
+		slots.forEach((s, i) => {
+			if (!map.has(s.date)) map.set(s.date, []);
+			map.get(s.date)!.push(i);
+		});
+		return map;
+	});
+
+	function addSlotForDay(date: string) {
+		slots = [...slots, { date, startTime: '', duration: 60, postcode: '', exactLocation: '', postcodeQuery: '' }];
+	}
+
+	function removeSlot(index: number) {
+		slots = slots.filter((_, i) => i !== index);
+	}
+
+	function toggleDay(date: string) {
+		if (selectedDatesSet.has(date)) {
+			// Remove all slots for this day
+			slots = slots.filter(s => s.date !== date);
+		} else {
+			addSlotForDay(date);
+		}
+	}
+
+	function postcodeSuggestions(query: string): string[] {
 		if (!query.trim()) return BERLIN_LOCATIONS;
 		const q = query.toLowerCase();
 		return BERLIN_LOCATIONS.filter(l => l.toLowerCase().includes(q));
 	}
 
-	function openAvailabilityModal(conversationId: string, existingTimes?: string | null, existingLocations?: string | null) {
+	function formatDayLabel(dateStr: string): string {
+		const d = new Date(dateStr + 'T12:00:00');
+		return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+	}
+
+	function openAvailabilityModal(conversationId: string, existingTimes?: string | null) {
 		showAvailabilityModal = conversationId;
-		let dates = new Set<string>();
-		let st = '';
-		let dur = 60;
-		let locations: string[] = [''];
+		let restored: AvailSlot[] = [];
 		try {
 			if (existingTimes) {
 				const parsed = JSON.parse(existingTimes);
-				if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-					if (Array.isArray(parsed.dates)) dates = new Set(parsed.dates);
-					st = parsed.startTime ?? '';
-					dur = parsed.duration ?? 60;
+				if (parsed && typeof parsed === 'object' && Array.isArray(parsed.slots)) {
+					restored = parsed.slots.map((s: Record<string, unknown>) => ({
+						date: (s.date as string) ?? '',
+						startTime: (s.startTime as string) ?? '',
+						duration: (s.duration as number) ?? 60,
+						postcode: (s.postcode as string) ?? '',
+						exactLocation: (s.exactLocation as string) ?? '',
+						postcodeQuery: ''
+					}));
 				}
 			}
-			if (existingLocations) {
-				const parsed = JSON.parse(existingLocations);
-				if (Array.isArray(parsed) && parsed.length > 0) locations = parsed;
-			}
 		} catch { /* ignore */ }
-		selectedDates = dates;
-		startTime = st;
-		duration = dur;
-		availLocations = locations;
-		locationQueries = locations.map(() => '');
+		slots = restored;
 		activating = false;
 	}
 
@@ -122,11 +166,29 @@
 		catch { return []; }
 	}
 
-	function parseAvailability(val: string | null | undefined): { dates: string[]; startTime: string; duration: number } | null {
+	interface ParsedAvail {
+		dates: string[];
+		startTime: string;
+		duration: number;
+		slots?: Array<{ date: string; startTime: string; duration: number; postcode: string }>;
+	}
+
+	function parseAvailability(val: string | null | undefined): ParsedAvail | null {
 		if (!val) return null;
 		try {
 			const parsed = JSON.parse(val);
 			if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+				if (Array.isArray(parsed.slots)) {
+					// New per-slot format
+					const dateSet = new Set<string>();
+					for (const s of parsed.slots) { if (s.date) dateSet.add(s.date); }
+					return {
+						dates: [...dateSet],
+						startTime: '',
+						duration: 0,
+						slots: parsed.slots
+					};
+				}
 				return {
 					dates: Array.isArray(parsed.dates) ? parsed.dates : [],
 					startTime: parsed.startTime ?? '',
@@ -150,6 +212,10 @@
 		const d = new Date(dateStr + 'T12:00:00');
 		return d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
 	}
+
+	// Split conversations: active → Conversations section, inactive → Writing section
+	let activeConversations = $derived(data.conversations.filter(c => c.active_this_week));
+	let inactiveConversations = $derived(data.conversations.filter(c => !c.active_this_week));
 
 	// Waitlist state
 	let invitingEmail = $state<string | null>(null);
@@ -414,7 +480,7 @@
 
 <div class="app-layout">
 	<aside class="sidebar">
-		<a href="/" class="sidebar-logo">
+		<a href="/discover" class="sidebar-logo">
 			<img src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/logo.png" alt="dyad" class="sidebar-logo-img" />
 		</a>
 		<nav class="sidebar-nav">
@@ -440,62 +506,49 @@
 		{/if}
 
 		<div class="content">
-		<!-- ============ CONVERSATIONS ============ -->
-		<section class="section">
-			<div class="section-header">
-				<h2 class="section-title">Conversations</h2>
-				<form method="POST" action="?/createConversation" use:enhance={() => {
-					creating = true;
-					return async ({ update }) => {
-						creating = false;
-						await update();
-					};
-				}}>
-					<button type="submit" class="create-btn" disabled={creating}>
-						{creating ? 'creating...' : '+ new conversation'}
-					</button>
-				</form>
-			</div>
+		<nav class="main-tabs">
+			<button class="main-tab" class:active={mainTab === 'conversations'} onclick={() => (mainTab = 'conversations')}>
+				Conversations
+				{#if activeConversations.length > 0}<span class="tab-count">{activeConversations.length}</span>{/if}
+			</button>
+			<button class="main-tab" class:active={mainTab === 'writing'} onclick={() => (mainTab = 'writing')}>
+				Writing
+				{#if data.canvases.length + inactiveConversations.length > 0}<span class="tab-count">{data.canvases.length + inactiveConversations.length}</span>{/if}
+			</button>
+		</nav>
 
-			{#if data.conversations.length === 0}
-				<div class="empty-state">
-					<p>Start a conversation topic for the community.</p>
+		<!-- ============ CONVERSATIONS TAB ============ -->
+		{#if mainTab === 'conversations'}
+			<section class="section">
+				<div class="section-header">
+					<form method="POST" action="?/createConversation" use:enhance={() => {
+						creating = true;
+						return async ({ update }) => {
+							creating = false;
+							await update();
+						};
+					}}>
+						<button type="submit" class="create-btn" disabled={creating}>
+							{creating ? 'creating...' : '+ new conversation'}
+						</button>
+					</form>
 				</div>
-			{:else}
-				<div class="canvas-grid">
-					{#each data.conversations as conversation}
-						{@const avail = parseAvailability(conversation.preferred_time_slots)}
-						{@const locations = parseJsonArray(conversation.preferred_location)}
-						<div class="canvas-card conversation-card">
-							<a href="/canvas/{conversation.id}" class="conversation-link">
-								<div class="canvas-header">
-									<h3 class:untitled={conversation.name === 'Untitled'}>{conversation.name === 'Untitled' ? 'Untitled conversation' : conversation.name}</h3>
-									{#if conversation.active_this_week}
-										<span class="published-badge-green">Active</span>
-									{/if}
-								</div>
-								<div class="canvas-meta">
-									<span class="slug">/@{data.username}/{conversation.slug}</span>
-									<span class="date">{formatDate(conversation.updated_at)}</span>
-								</div>
-							</a>
-							{#if conversation.active_this_week && (avail || locations.length > 0)}
-								<div class="availability-tags">
-									{#if avail}
-										{#each avail.dates as d}
-											<span class="avail-tag avail-time">{formatDateShort(d)}</span>
-										{/each}
-										{#if avail.startTime}
-											<span class="avail-tag avail-time">{formatTimeRange(avail.startTime, avail.duration)}</span>
-										{/if}
-									{/if}
-									{#each locations as loc}
-										<span class="avail-tag avail-location">{loc}</span>
-									{/each}
-								</div>
-							{/if}
-							<div class="conversation-actions">
-								{#if conversation.active_this_week}
+
+				{#if activeConversations.length === 0}
+					<div class="empty-state">
+						<p>No active conversations this week.</p>
+					</div>
+				{:else}
+					<div class="canvas-grid">
+						{#each activeConversations as conversation}
+							<div class="canvas-card conversation-card">
+								<a href="/canvas/{conversation.id}" class="conversation-link">
+									<div class="canvas-header">
+										<h3 class:untitled={conversation.name === 'Untitled'}>{conversation.name === 'Untitled' ? 'Untitled conversation' : conversation.name}</h3>
+										<span class="date">{formatDate(conversation.updated_at)}</span>
+									</div>
+								</a>
+								<div class="conversation-actions">
 									<form
 										method="POST"
 										action="?/toggleActiveThisWeek"
@@ -517,104 +570,122 @@
 											Active this week
 										</button>
 									</form>
-								{:else}
+									<form method="POST" action="?/toggleArchive" use:enhance>
+										<input type="hidden" name="canvasId" value={conversation.id} />
+										<input type="hidden" name="archive" value="true" />
+										<button type="submit" class="archive-btn" title="Archive">
+											<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="2" width="14" height="4" rx="1" /><path d="M2 6v7a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V6" /><path d="M6 9h4" /></svg>
+										</button>
+									</form>
+								</div>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</section>
+		{/if}
+
+		<!-- ============ WRITING TAB ============ -->
+		{#if mainTab === 'writing'}
+			<section class="section">
+				<div class="section-header">
+					<button class="create-btn" onclick={() => (showCreateModal = true)}>
+						+ new canvas
+					</button>
+				</div>
+
+				{#if data.canvases.length === 0 && inactiveConversations.length === 0}
+					<div class="empty-state-subtle">
+						<p>Your writing lives here.</p>
+					</div>
+				{:else}
+					<div class="canvas-grid">
+						{#each inactiveConversations as conversation}
+							<div class="canvas-card">
+								<a href="/canvas/{conversation.id}" class="conversation-link">
+									<div class="canvas-header">
+										<h3 class:untitled={conversation.name === 'Untitled'}>{conversation.name === 'Untitled' ? 'Untitled conversation' : conversation.name}</h3>
+										<span class="date">{formatDate(conversation.updated_at)}</span>
+									</div>
+								</a>
+								<div class="conversation-actions">
 									<button
 										class="toggle-btn"
-										onclick={(e) => { e.preventDefault(); e.stopPropagation(); openAvailabilityModal(conversation.id, conversation.preferred_time_slots, conversation.preferred_location); }}
+										onclick={(e) => { e.preventDefault(); e.stopPropagation(); openAvailabilityModal(conversation.id, conversation.preferred_time_slots); }}
 									>
-										Inactive
+										publish as conversation
 									</button>
-								{/if}
-								<form method="POST" action="?/toggleArchive" use:enhance>
-									<input type="hidden" name="canvasId" value={conversation.id} />
-									<input type="hidden" name="archive" value="true" />
-									<button type="submit" class="archive-btn">archive</button>
-								</form>
+									<form method="POST" action="?/toggleArchive" use:enhance>
+										<input type="hidden" name="canvasId" value={conversation.id} />
+										<input type="hidden" name="archive" value="true" />
+										<button type="submit" class="archive-btn" title="Archive">
+											<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="2" width="14" height="4" rx="1" /><path d="M2 6v7a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V6" /><path d="M6 9h4" /></svg>
+										</button>
+									</form>
+								</div>
 							</div>
-						</div>
-					{/each}
-				</div>
-			{/if}
-		</section>
-
-		<!-- ============ WRITING ============ -->
-		<section class="section">
-			<div class="section-header">
-				<h2 class="section-title">Writing</h2>
-				<button class="create-btn" onclick={() => (showCreateModal = true)}>
-					+ new canvas
-				</button>
-			</div>
-
-			{#if data.canvases.length === 0}
-				<div class="empty-state-subtle">
-					<p>Private writing — not for discussion.</p>
-				</div>
-			{:else}
-				<div class="canvas-grid">
-					{#each data.canvases as canvas}
-						<div class="canvas-card">
-							<a href="/canvas/{canvas.id}" class="conversation-link">
-								<div class="canvas-header">
-									<h3>{canvas.name}</h3>
-									{#if canvas.is_published}
-										<span class="published-badge">Published</span>
-									{/if}
+						{/each}
+						{#each data.canvases as canvas}
+							<div class="canvas-card">
+								<a href="/canvas/{canvas.id}" class="conversation-link">
+									<div class="canvas-header">
+										<h3>{canvas.name}</h3>
+										<span class="date">{formatDate(canvas.updated_at)}</span>
+									</div>
+								</a>
+								<div class="conversation-actions">
+									<form method="POST" action="?/publishAsConversation" use:enhance>
+										<input type="hidden" name="canvasId" value={canvas.id} />
+										<button type="submit" class="toggle-btn">publish as conversation</button>
+									</form>
+									<form method="POST" action="?/toggleArchive" use:enhance>
+										<input type="hidden" name="canvasId" value={canvas.id} />
+										<input type="hidden" name="archive" value="true" />
+										<button type="submit" class="archive-btn" title="Archive">
+											<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="2" width="14" height="4" rx="1" /><path d="M2 6v7a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V6" /><path d="M6 9h4" /></svg>
+										</button>
+									</form>
 								</div>
-								<div class="canvas-meta">
-									<span class="slug">/@{data.username}/{canvas.slug}</span>
-									<span class="date">{formatDate(canvas.updated_at)}</span>
-								</div>
-							</a>
-							<div class="conversation-actions">
-								<form method="POST" action="?/toggleArchive" use:enhance>
-									<input type="hidden" name="canvasId" value={canvas.id} />
-									<input type="hidden" name="archive" value="true" />
-									<button type="submit" class="archive-btn">archive</button>
-								</form>
 							</div>
-						</div>
-					{/each}
-				</div>
-			{/if}
-		</section>
-
-		<!-- ============ ARCHIVE ============ -->
-		{#if (data.archived ?? []).length > 0}
-			<section class="section section-muted">
-				<div class="section-header">
-					<h2 class="section-title section-title-muted">Archive</h2>
-				</div>
-
-				<div class="canvas-grid">
-					{#each data.archived ?? [] as item}
-						<div class="canvas-card archived-card">
-							<a href="/canvas/{item.id}" class="conversation-link">
-								<div class="canvas-header">
-									<h3>{item.name}</h3>
-									<span class="archived-type">{item.is_conversation ? 'conversation' : 'writing'}</span>
-								</div>
-								<div class="canvas-meta">
-									<span class="date">{formatDate(item.updated_at)}</span>
-								</div>
-							</a>
-							<div class="conversation-actions">
-								<form method="POST" action="?/toggleArchive" use:enhance>
-									<input type="hidden" name="canvasId" value={item.id} />
-									<input type="hidden" name="archive" value="false" />
-									<button type="submit" class="archive-btn">unarchive</button>
-								</form>
-								<button
-									class="delete-btn-inline"
-									onclick={(e) => { e.stopPropagation(); showDeleteModal = item.id; }}
-								>
-									delete
-								</button>
-							</div>
-						</div>
-					{/each}
-				</div>
+						{/each}
+					</div>
+				{/if}
 			</section>
+
+			<!-- Archive (only visible under Writing tab) -->
+			{#if (data.archived ?? []).length > 0}
+				<section class="section section-muted">
+					<div class="section-header">
+						<h2 class="section-title section-title-muted">Archive</h2>
+					</div>
+
+					<div class="canvas-grid">
+						{#each data.archived ?? [] as item}
+							<div class="canvas-card archived-card">
+								<a href="/canvas/{item.id}" class="conversation-link">
+									<div class="canvas-header">
+										<h3>{item.name}</h3>
+										<span class="date">{formatDate(item.updated_at)}</span>
+									</div>
+								</a>
+								<div class="conversation-actions">
+									<form method="POST" action="?/toggleArchive" use:enhance>
+										<input type="hidden" name="canvasId" value={item.id} />
+										<input type="hidden" name="archive" value="false" />
+										<button type="submit" class="archive-btn">unarchive</button>
+									</form>
+									<button
+										class="delete-btn-inline"
+										onclick={(e) => { e.stopPropagation(); showDeleteModal = item.id; }}
+									>
+										delete
+									</button>
+								</div>
+							</div>
+						{/each}
+					</div>
+				</section>
+			{/if}
 		{/if}
 
 		<!-- ============ ADMIN TABS ============ -->
@@ -998,7 +1069,7 @@
 	<div class="modal-overlay" onclick={() => (showAvailabilityModal = null)}>
 		<div class="modal modal-wide" onclick={(e) => e.stopPropagation()}>
 			<h2>Set Availability</h2>
-			<p>When and where can you meet this week?</p>
+			<p>Pick days, then set time and place for each.</p>
 			<form
 				method="POST"
 				action="?/toggleActiveThisWeek"
@@ -1013,95 +1084,114 @@
 			>
 				<input type="hidden" name="canvasId" value={showAvailabilityModal} />
 				<input type="hidden" name="action" value="activate" />
+				<input type="hidden" name="slotsJson" value={JSON.stringify(slots.map(s => ({ date: s.date, startTime: s.startTime, duration: s.duration, postcode: s.postcode, exactLocation: s.exactLocation })))} />
 
 				<div class="avail-section">
-					<label class="avail-label">When <span class="avail-hint">(select days)</span></label>
+					<label class="avail-label">Select days</label>
 					<div class="week-calendar">
 						{#each weekDates as day}
 							<button
 								type="button"
 								class="day-cell"
-								class:selected={selectedDates.has(day.date)}
-								class:past={day.isPast}
-								disabled={day.isPast}
-								onclick={() => {
-									const next = new Set(selectedDates);
-									if (next.has(day.date)) next.delete(day.date);
-									else next.add(day.date);
-									selectedDates = next;
-								}}
+								class:selected={selectedDatesSet.has(day.date)}
+								onclick={() => toggleDay(day.date)}
 							>
 								<span class="day-name">{day.dayShort}</span>
 								<span class="day-num">{day.dayNum}</span>
 							</button>
 						{/each}
 					</div>
-					<input type="hidden" name="dates" value={[...selectedDates].join(',')} />
-
-					<label class="avail-label" style="margin-top: 0.75rem;">Time range</label>
-					<div class="time-range-row">
-						<select bind:value={startTime} name="startTime" class="time-select">
-							<option value="">Start time...</option>
-							{#each TIME_OPTIONS as t}
-								<option value={t.value}>{t.label}</option>
-							{/each}
-						</select>
-						<span class="range-sep">for</span>
-						<select bind:value={duration} name="duration" class="time-select">
-							{#each DURATION_OPTIONS as opt}
-								<option value={opt.value}>{opt.label}</option>
-							{/each}
-						</select>
-					</div>
 				</div>
 
-				<div class="avail-section">
-					<label class="avail-label">Where <span class="avail-hint">(1-3 locations)</span></label>
-					{#each availLocations as loc, i}
-						<div class="location-field">
-							<input
-								type="text"
-								name="location_{i}"
-								value={loc}
-								placeholder="Start typing a location..."
-								oninput={(e) => {
-									const val = (e.target as HTMLInputElement).value;
-									availLocations = availLocations.map((l, j) => j === i ? val : l);
-									locationQueries = locationQueries.map((q, j) => j === i ? val : q);
-								}}
-								onfocus={() => { locationQueries = locationQueries.map((q, j) => j === i ? (availLocations[i] || ' ') : q); }}
-								onblur={() => { setTimeout(() => { locationQueries = locationQueries.map((q, j) => j === i ? '' : q); }, 150); }}
-							/>
-							{#if locationQueries[i]}
-								{@const suggestions = locationSuggestions(locationQueries[i])}
-								{#if suggestions.length > 0}
-									<div class="location-dropdown">
-										{#each suggestions as suggestion}
-											<button
-												type="button"
-												class="location-option"
-												onmousedown={(e) => {
-													e.preventDefault();
-													availLocations = availLocations.map((l, j) => j === i ? suggestion : l);
-													locationQueries = locationQueries.map((q, j) => j === i ? '' : q);
-												}}
+				{#if slots.length > 0}
+					<div class="avail-section slots-section">
+						{#each [...slotsByDate.entries()].sort(([a], [b]) => a.localeCompare(b)) as [date, indices]}
+							<div class="day-group">
+								<div class="day-group-header">
+									<span class="day-group-label">{formatDayLabel(date)}</span>
+									<button type="button" class="add-time-btn" onclick={() => addSlotForDay(date)}>+ add time</button>
+								</div>
+								{#each indices as idx}
+									<div class="slot-row">
+										<div class="slot-time">
+											<select
+												class="time-select"
+												value={slots[idx].startTime}
+												onchange={(e) => { slots = slots.map((s, i) => i === idx ? { ...s, startTime: (e.target as HTMLSelectElement).value } : s); }}
 											>
-												{suggestion}
-											</button>
-										{/each}
+												<option value="">Time...</option>
+												{#each TIME_OPTIONS as t}
+													<option value={t.value}>{t.label}</option>
+												{/each}
+											</select>
+											<span class="range-sep">for</span>
+											<select
+												class="time-select"
+												value={slots[idx].duration}
+												onchange={(e) => { slots = slots.map((s, i) => i === idx ? { ...s, duration: parseInt((e.target as HTMLSelectElement).value) } : s); }}
+											>
+												{#each DURATION_OPTIONS as opt}
+													<option value={opt.value}>{opt.label}</option>
+												{/each}
+											</select>
+										</div>
+										<div class="slot-location">
+											<div class="location-field">
+												<input
+													type="text"
+													value={slots[idx].postcode}
+													placeholder="Postcode area..."
+													oninput={(e) => {
+														const val = (e.target as HTMLInputElement).value;
+														slots = slots.map((s, i) => i === idx ? { ...s, postcode: val, postcodeQuery: val } : s);
+													}}
+													onfocus={() => { slots = slots.map((s, i) => i === idx ? { ...s, postcodeQuery: s.postcode || ' ' } : s); }}
+													onblur={() => { setTimeout(() => { slots = slots.map((s, i) => i === idx ? { ...s, postcodeQuery: '' } : s); }, 150); }}
+												/>
+												{#if slots[idx].postcodeQuery}
+													{@const suggestions = postcodeSuggestions(slots[idx].postcodeQuery)}
+													{#if suggestions.length > 0}
+														<div class="location-dropdown">
+															{#each suggestions as suggestion}
+																<button
+																	type="button"
+																	class="location-option"
+																	onmousedown={(e) => {
+																		e.preventDefault();
+																		slots = slots.map((s, i) => i === idx ? { ...s, postcode: suggestion, postcodeQuery: '' } : s);
+																	}}
+																>
+																	{suggestion}
+																</button>
+															{/each}
+														</div>
+													{/if}
+												{/if}
+											</div>
+											<input
+												type="text"
+												class="exact-location-input"
+												value={slots[idx].exactLocation}
+												placeholder="Exact spot (café, park...)"
+												oninput={(e) => {
+													const val = (e.target as HTMLInputElement).value;
+													slots = slots.map((s, i) => i === idx ? { ...s, exactLocation: val } : s);
+												}}
+											/>
+										</div>
+										{#if indices.length > 1}
+											<button type="button" class="remove-slot-btn" onclick={() => removeSlot(idx)}>&times;</button>
+										{/if}
 									</div>
-								{/if}
-							{/if}
-						</div>
-					{/each}
-					{#if availLocations.length < 3}
-						<button type="button" class="add-field-btn" onclick={() => { availLocations = [...availLocations, '']; locationQueries = [...locationQueries, '']; }}>+ add location</button>
-					{/if}
-				</div>
+								{/each}
+							</div>
+						{/each}
+					</div>
+				{/if}
 
 				<div class="modal-actions">
 					<button type="button" class="cancel-btn" onclick={() => (showAvailabilityModal = null)}>cancel</button>
-					<button type="submit" class="submit-btn" disabled={activating || selectedDates.size === 0 || !startTime || !availLocations.some(l => l.trim())}>
+					<button type="submit" class="submit-btn" disabled={activating || slots.length === 0 || !slots.every(s => s.startTime && s.postcode)}>
 						{activating ? 'activating...' : 'Activate'}
 					</button>
 				</div>
@@ -1145,7 +1235,7 @@
 		width: 22px;
 		height: auto;
 		object-fit: contain;
-		opacity: 0.5;
+		filter: brightness(0) opacity(0.4);
 	}
 
 	.sidebar-nav {
@@ -1219,6 +1309,42 @@
 
 	.content {
 		max-width: 1200px;
+	}
+
+	/* === Main content tabs (Conversations / Writing) === */
+	.main-tabs {
+		display: flex;
+		gap: 0;
+		margin-bottom: 1.5rem;
+		border-bottom: 1px solid var(--border-link);
+	}
+
+	.main-tab {
+		padding: 0.6rem 1.1rem;
+		background: none;
+		border: none;
+		border-bottom: 2px solid transparent;
+		color: var(--text-muted);
+		font-size: 1rem;
+		font-family: inherit;
+		cursor: pointer;
+		white-space: nowrap;
+		transition: color 0.15s, border-color 0.15s;
+	}
+
+	.main-tab:hover {
+		color: var(--text-primary);
+	}
+
+	.main-tab.active {
+		color: var(--text-primary);
+		border-bottom-color: var(--text-primary);
+	}
+
+	.main-tab .tab-count {
+		font-size: 0.8rem;
+		opacity: 0.6;
+		margin-left: 0.25rem;
 	}
 
 	/* Mobile: sidebar becomes top bar */
@@ -1369,7 +1495,8 @@
 	}
 
 	.canvas-card {
-		display: block;
+		display: flex;
+		flex-direction: column;
 		background: var(--bg-canvas);
 		border: 1px solid var(--border-link);
 		border-radius: 8px;
@@ -1386,9 +1513,10 @@
 
 	.canvas-header {
 		display: flex;
-		align-items: center;
+		align-items: baseline;
+		justify-content: space-between;
 		gap: 0.75rem;
-		margin-bottom: 0.75rem;
+		margin-bottom: 0.5rem;
 	}
 
 	.canvas-card h3,
@@ -1437,6 +1565,14 @@
 	.slug {
 		font-family: monospace;
 		font-size: 0.8rem;
+	}
+
+	.canvas-header .date {
+		flex-shrink: 0;
+		color: var(--text-muted);
+		font-size: 0.8rem;
+		white-space: nowrap;
+		font-weight: normal;
 	}
 
 	.delete-btn {
@@ -2235,12 +2371,20 @@
 		font-size: 0.8rem;
 		font-family: inherit;
 		cursor: pointer;
-		padding: 0.35rem 0.5rem;
+		padding: 0.3rem;
 		transition: color 0.2s;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		line-height: 1;
 	}
 
 	.archive-btn:hover {
 		color: var(--text-primary);
+	}
+
+	.archive-btn svg {
+		display: block;
 	}
 
 	.delete-btn-inline {
@@ -2261,12 +2405,139 @@
 	.conversation-actions {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
-		margin-top: 0.75rem;
+		justify-content: space-between;
+		margin-top: auto;
+		padding-top: 0.75rem;
 	}
 
 	.canvas-count {
 		color: var(--text-muted);
 		font-size: 0.85rem;
+	}
+
+	/* === Per-slot availability UI === */
+	.slots-section {
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+	}
+
+	.day-group {
+		border: 1px solid var(--border-link);
+		border-radius: 6px;
+		padding: 0.75rem;
+	}
+
+	.day-group-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 0.5rem;
+	}
+
+	.day-group-label {
+		font-size: 0.9rem;
+		font-weight: 500;
+		color: var(--text-primary);
+	}
+
+	.add-time-btn {
+		background: none;
+		border: none;
+		color: var(--text-link, #007bff);
+		font-size: 0.8rem;
+		font-family: inherit;
+		cursor: pointer;
+		padding: 0.2rem 0.4rem;
+	}
+
+	.add-time-btn:hover {
+		color: var(--text-link-hover, #0056b3);
+	}
+
+	.slot-row {
+		display: flex;
+		gap: 0.5rem;
+		align-items: flex-start;
+		margin-bottom: 0.5rem;
+	}
+
+	.slot-row:last-child {
+		margin-bottom: 0;
+	}
+
+	.slot-time {
+		display: flex;
+		align-items: center;
+		gap: 0.35rem;
+		flex-shrink: 0;
+	}
+
+	.slot-time .time-select {
+		width: auto;
+		min-width: 100px;
+		padding: 0.45rem 1.8rem 0.45rem 0.5rem;
+		font-size: 0.85rem;
+	}
+
+	.slot-location {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.3rem;
+	}
+
+	.slot-location .location-field {
+		margin-bottom: 0;
+	}
+
+	.slot-location input[type='text'] {
+		margin-bottom: 0;
+		padding: 0.45rem 0.6rem;
+		font-size: 0.85rem;
+	}
+
+	.exact-location-input {
+		width: 100%;
+		padding: 0.45rem 0.6rem;
+		border: 1px solid var(--border-link);
+		border-radius: 4px;
+		font-size: 0.85rem;
+		font-family: inherit;
+		background: var(--bg-canvas);
+		color: var(--text-primary);
+		box-sizing: border-box;
+	}
+
+	.exact-location-input:focus {
+		outline: none;
+		border-color: var(--text-link-hover);
+	}
+
+	.exact-location-input::placeholder {
+		color: var(--text-muted);
+		font-style: italic;
+	}
+
+	.remove-slot-btn {
+		background: none;
+		border: none;
+		color: var(--text-muted);
+		font-size: 1.1rem;
+		cursor: pointer;
+		padding: 0.3rem 0.4rem;
+		line-height: 1;
+		flex-shrink: 0;
+		transition: color 0.15s;
+	}
+
+	.remove-slot-btn:hover {
+		color: #dc3545;
+	}
+
+	.untitled {
+		color: var(--text-muted);
+		font-style: italic;
 	}
 </style>
