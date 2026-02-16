@@ -413,8 +413,9 @@
 	/* Expand/collapse button */
 	.expand-btn {
 		position: absolute;
-		bottom: 10px;
-		right: 10px;
+		bottom: 16px;
+		left: 50%;
+		transform: translateX(-50%);
 		width: 28px;
 		height: 28px;
 		border: none;
