@@ -62,8 +62,8 @@
 			</button>
 		{/each}
 		<hr />
-		<a href="/signup" class="mobile-link" onclick={() => mobileMenuOpen = false}>sign up</a>
-		<a href="/login" class="mobile-link" onclick={() => mobileMenuOpen = false}>log in</a>
+		<button onclick={() => { const el = document.getElementById('join'); if (el) el.scrollIntoView({ behavior: 'smooth' }); mobileMenuOpen = false; }}>join</button>
+		<a href="/login" class="mobile-link">log in</a>
 	</div>
 {/if}
 
@@ -74,7 +74,7 @@
 		top: 16px;
 		left: 50%;
 		transform: translateX(-50%);
-		z-index: 100;
+		z-index: 201;
 		display: flex;
 		align-items: center;
 		gap: 20px;
@@ -224,7 +224,7 @@
 			top: 56px;
 			left: 20px;
 			right: 20px;
-			z-index: 99;
+			z-index: 200;
 			background: color-mix(in srgb, var(--bg-canvas, #f5f3f0) 95%, transparent);
 			backdrop-filter: blur(16px);
 			-webkit-backdrop-filter: blur(16px);
