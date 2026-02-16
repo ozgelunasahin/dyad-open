@@ -247,7 +247,7 @@
 						{#if section.coverImageUrl}
 							<div class="section-cover">
 								{#if /\.(mp4|webm|mov)(\?|$)/i.test(section.coverImageUrl)}
-									<video src={section.coverImageUrl} autoplay loop muted playsinline />
+									<video src={section.coverImageUrl} autoplay loop muted playsinline></video>
 								{:else}
 									<img src={section.coverImageUrl} alt="" />
 								{/if}
