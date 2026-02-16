@@ -835,6 +835,7 @@ class CanvasStore {
 					detail: {
 						x: card.position.x + card.dimensions.width / 2,
 						y: card.position.y,
+						cardHeight: card.dimensions.height,
 						cardId: card.id,
 						linkRestoration
 					}

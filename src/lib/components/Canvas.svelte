@@ -332,37 +332,51 @@
 		document.addEventListener('touchend', handleTouchEnd);
 
 		// Position camera: focused card in reading zone, or restore stored position
-		const storedCamera = canvasStore.camera;
-		if (canvasStore.focusedCardId) {
-			// Position focused card in reading zone on mount
-			const card = canvasStore.cards.get(canvasStore.focusedCardId);
-			if (card) {
+		// Deferred via rAF to ensure Safari has computed layout dimensions
+		function positionCamera() {
+			const storedCamera = canvasStore.camera;
+			if (canvasStore.focusedCardId) {
+				const card = canvasStore.cards.get(canvasStore.focusedCardId);
+				if (card) {
+					const width = svg.clientWidth;
+					const height = svg.clientHeight;
+					// Safari may report 0 dimensions on first frame — retry
+					if (width === 0 || height === 0) {
+						requestAnimationFrame(positionCamera);
+						return;
+					}
+					const targetX = card.position.x + card.dimensions.width / 2;
+					const targetY = card.position.y;
+					const baseZoom = storedCamera.zoom !== 1 ? storedCamera.zoom : 1;
+					const zoomLevel = readOnly ? mobileAutoZoom(width, baseZoom) : baseZoom;
+					const rzX = readingZoneX(width, zoomLevel);
+					// Vertically center the card in readOnly mode, top-align otherwise
+					const cardMidY = targetY + card.dimensions.height / 2;
+					const yOffset = readOnly
+						? height / 2 - cardMidY * zoomLevel
+						: height * 0.15 - targetY * zoomLevel;
+					const initialTransform = zoomIdentity
+						.translate(rzX - targetX * zoomLevel, yOffset)
+						.scale(zoomLevel);
+					selection.call(zoomBehavior.transform, initialTransform);
+				}
+			} else if (storedCamera.x !== 0 || storedCamera.y !== 0 || storedCamera.zoom !== 1) {
+				const initialTransform = zoomIdentity
+					.translate(storedCamera.x, storedCamera.y)
+					.scale(storedCamera.zoom);
+				selection.call(zoomBehavior.transform, initialTransform);
+			} else {
 				const width = svg.clientWidth;
 				const height = svg.clientHeight;
-				const topMargin = height * 0.15;
-				const targetX = card.position.x + card.dimensions.width / 2;
-				const targetY = card.position.y;
-				const baseZoom = storedCamera.zoom !== 1 ? storedCamera.zoom : 1;
-				const zoomLevel = readOnly ? mobileAutoZoom(width, baseZoom) : baseZoom;
-				const rzX = readingZoneX(width, zoomLevel);
-				const initialTransform = zoomIdentity
-					.translate(rzX - targetX * zoomLevel, topMargin - targetY * zoomLevel)
-					.scale(zoomLevel);
+				if (width === 0 || height === 0) {
+					requestAnimationFrame(positionCamera);
+					return;
+				}
+				const initialTransform = zoomIdentity.translate(width / 2, height / 2);
 				selection.call(zoomBehavior.transform, initialTransform);
 			}
-		} else if (storedCamera.x !== 0 || storedCamera.y !== 0 || storedCamera.zoom !== 1) {
-			// No focused card, restore stored camera
-			const initialTransform = zoomIdentity
-				.translate(storedCamera.x, storedCamera.y)
-				.scale(storedCamera.zoom);
-			selection.call(zoomBehavior.transform, initialTransform);
-		} else {
-			// Center initial view (no focused card, no stored camera)
-			const width = svg.clientWidth;
-			const height = svg.clientHeight;
-			const initialTransform = zoomIdentity.translate(width / 2, height / 2);
-			selection.call(zoomBehavior.transform, initialTransform);
 		}
+		requestAnimationFrame(positionCamera);
 
 		// Compute paths for any restored connections (after state initialization)
 		setTimeout(() => computeMissingPaths(), 0);
@@ -381,11 +395,12 @@
 			const customEvent = event as CustomEvent<{
 				x: number;
 				y: number;
+				cardHeight?: number;
 				cardId: string;
 				linkRestoration?: CardRestoration | null;
 			}>;
 			pendingLinkRestoration = customEvent.detail.linkRestoration ?? null;
-			animateToCenter(customEvent.detail.x, customEvent.detail.y);
+			animateToCenter(customEvent.detail.x, customEvent.detail.y, customEvent.detail.cardHeight);
 		};
 
 		window.addEventListener('canvas-focus', handleFocusAnimation);
@@ -1039,7 +1054,7 @@
 	 * Zoom level is always preserved - user controls their reading zoom.
 	 * P2-007 fix: Added cancellation check to prevent memory leaks.
 	 */
-	function animateToCenter(targetX: number, targetY: number) {
+	function animateToCenter(targetX: number, targetY: number, cardHeight?: number) {
 		if (!svg) return;
 
 		// Increment generation to cancel any running animation
@@ -1055,10 +1070,12 @@
 
 		// Reading view: place card in left-biased reading zone, top near viewport top
 		// On mobile, aligns card left edge to viewport for readability
-		const topMargin = height * 0.15;
 		const rzX = readingZoneX(width, zoomLevel);
 		const endX = rzX - targetX * zoomLevel;
-		const endY = topMargin - targetY * zoomLevel;
+		// In readOnly mode, vertically center the card if we know its height
+		const endY = (readOnly && cardHeight)
+			? height / 2 - (targetY + cardHeight / 2) * zoomLevel
+			: height * 0.15 - targetY * zoomLevel;
 
 		const startX = transform.x;
 		const startY = transform.y;
