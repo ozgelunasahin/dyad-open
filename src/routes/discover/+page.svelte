@@ -2,6 +2,7 @@
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
+	let mobileMenuOpen = $state(false);
 
 	function formatDate(date: string): string {
 		return new Intl.DateTimeFormat('en-US', {
@@ -108,7 +109,27 @@
 			<span class="sidebar-username">@{data.username}</span>
 			<a href="/logout" class="sidebar-logout">sign out</a>
 		</div>
+		<button class="mobile-menu-btn" onclick={() => mobileMenuOpen = !mobileMenuOpen} aria-label="Menu">
+			{#if mobileMenuOpen}
+				<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+					<path d="M4 4l12 12M16 4L4 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+				</svg>
+			{:else}
+				<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+					<path d="M3 6h14M3 10h14M3 14h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+				</svg>
+			{/if}
+		</button>
 	</aside>
+	{#if mobileMenuOpen}
+		<div class="mobile-menu">
+			<a href="/discover" onclick={() => mobileMenuOpen = false}>discover</a>
+			<a href="/dashboard" onclick={() => mobileMenuOpen = false}>profile</a>
+			<hr />
+			<span class="mobile-menu-user">@{data.username}</span>
+			<a href="/logout" onclick={() => mobileMenuOpen = false}>sign out</a>
+		</div>
+	{/if}
 
 	<main class="main-content">
 		<header class="page-header">
@@ -304,6 +325,22 @@
 		color: var(--text-primary);
 	}
 
+	/* Hamburger — hidden on desktop */
+	.mobile-menu-btn {
+		display: none;
+		background: none;
+		border: none;
+		padding: 4px;
+		cursor: pointer;
+		color: var(--text-primary, #1a1a1a);
+		align-items: center;
+		justify-content: center;
+	}
+
+	.mobile-menu {
+		display: none;
+	}
+
 	.main-content {
 		flex: 1;
 		min-width: 0;
@@ -355,16 +392,57 @@
 		}
 
 		.sidebar-nav {
-			flex-direction: row;
-			gap: 0.5rem;
+			display: none;
 		}
 
 		.sidebar-bottom {
-			margin-top: 0;
+			display: none;
+		}
+
+		.mobile-menu-btn {
+			display: flex;
 			margin-left: auto;
-			flex-direction: row;
-			align-items: center;
-			gap: 0.75rem;
+		}
+
+		.mobile-menu {
+			display: flex;
+			flex-direction: column;
+			background: color-mix(in srgb, var(--bg-canvas, #f5f3f0) 95%, transparent);
+			backdrop-filter: blur(16px);
+			-webkit-backdrop-filter: blur(16px);
+			border-radius: 16px;
+			padding: 12px 8px;
+			margin: 0 1rem 1rem;
+			box-shadow: 0 4px 24px var(--bg-control, rgba(0, 0, 0, 0.1));
+		}
+
+		.mobile-menu a, .mobile-menu-user {
+			font-family: 'SangBleu Sunrise', Georgia, serif;
+			font-size: 16px;
+			font-weight: 500;
+			color: var(--text-secondary, #333);
+			text-decoration: none;
+			padding: 12px 16px;
+			border-radius: 8px;
+			display: block;
+			transition: background 0.15s, color 0.15s;
+		}
+
+		.mobile-menu a:hover {
+			background: var(--bg-control, rgba(0, 0, 0, 0.05));
+			color: var(--text-primary, #1a1a1a);
+		}
+
+		.mobile-menu-user {
+			font-family: monospace;
+			font-size: 13px;
+			color: var(--text-muted, #666);
+		}
+
+		.mobile-menu hr {
+			border: none;
+			border-top: 1px solid var(--border-link, rgba(0, 0, 0, 0.1));
+			margin: 4px 16px;
 		}
 	}
 
