@@ -242,7 +242,8 @@ class CanvasStore {
 
 		// Prefer localStorage positions over server-provided positions when available
 		// This avoids race conditions where sendBeacon hasn't been processed yet
-		if (persisted?.cards && persisted.cards.length > 0) {
+		// Skip for site-landing: always start fresh with just the entry note
+		if (!isSiteLanding && persisted?.cards && persisted.cards.length > 0) {
 			const restoredCards = new Map<string, Card>();
 
 			for (const savedCard of persisted.cards) {

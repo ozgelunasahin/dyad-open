@@ -567,7 +567,7 @@
 		}
 
 		.card-title {
-			font-size: 17px;
+			font-size: 14px;
 			display: block;
 			margin-top: 0;
 		}
@@ -576,7 +576,8 @@
 			display: block;
 			margin-left: 0;
 			margin-top: 4px;
-			font-size: 15px;
+			font-size: 14px;
+			font-weight: 400;
 		}
 	}
 </style>
