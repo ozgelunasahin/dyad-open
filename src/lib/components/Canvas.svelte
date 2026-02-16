@@ -1072,10 +1072,8 @@
 		// On mobile, aligns card left edge to viewport for readability
 		const rzX = readingZoneX(width, zoomLevel);
 		const endX = rzX - targetX * zoomLevel;
-		// In readOnly mode, vertically center the card if we know its height
-		const endY = (readOnly && cardHeight)
-			? height / 2 - (targetY + cardHeight / 2) * zoomLevel
-			: height * 0.15 - targetY * zoomLevel;
+		// Place card top near viewport top so user sees the beginning of the note
+		const endY = height * 0.15 - targetY * zoomLevel;
 
 		const startX = transform.x;
 		const startY = transform.y;

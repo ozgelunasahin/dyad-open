@@ -478,9 +478,7 @@
 		<nav class="sidebar-nav">
 			<a href="/discover" class="sidebar-link">Discover</a>
 			<a href="/dashboard" class="sidebar-link" class:active={sidebarView === 'profile'} onclick={(e) => { e.preventDefault(); sidebarView = 'profile'; }}>Profile</a>
-			{#if data.canPublishSites}
-				<a href="/dashboard" class="sidebar-link" class:active={sidebarView === 'dashboard'} onclick={(e) => { e.preventDefault(); sidebarView = 'dashboard'; }}>Dashboard</a>
-			{/if}
+			<a href="/dashboard" class="sidebar-link" class:active={sidebarView === 'dashboard'} onclick={(e) => { e.preventDefault(); sidebarView = 'dashboard'; }}>Dashboard</a>
 		</nav>
 		<div class="sidebar-bottom">
 			<span class="sidebar-username">@{data.username}</span>
