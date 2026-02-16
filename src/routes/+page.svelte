@@ -414,8 +414,7 @@
 	.expand-btn {
 		position: absolute;
 		bottom: 16px;
-		left: 50%;
-		transform: translateX(-50%);
+		right: 16px;
 		width: 28px;
 		height: 28px;
 		border: none;
