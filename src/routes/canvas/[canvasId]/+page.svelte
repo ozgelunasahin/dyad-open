@@ -390,7 +390,7 @@
 					/>
 				</svg>
 			</a>
-			<h1>{data.canvas.name}</h1>
+			<h1>{data.canvas.name === 'Untitled' ? '' : data.canvas.name}</h1>
 		</header>
 
 		<!-- Create Note Modal for empty state -->
@@ -449,7 +449,7 @@
 					/>
 				</svg>
 			</a>
-			<h1>{data.canvas.name}</h1>
+			<h1>{data.canvas.name === 'Untitled' ? '' : data.canvas.name}</h1>
 			<button
 				class="new-note-btn"
 				onclick={() => (showCreateNoteModal = true)}

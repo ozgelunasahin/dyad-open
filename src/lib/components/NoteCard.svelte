@@ -171,6 +171,8 @@
 
 			canvasStore.addNoteToVault(safeNoteId, title, content);
 			onLinkClick(safeNoteId, card.id, linkBounds);
+			// Auto-enter edit mode so the user can keep typing
+			canvasStore.enterEditMode(safeNoteId, 'end');
 		} catch (err) {
 			console.error('Failed to create note:', err);
 		}

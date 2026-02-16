@@ -5,14 +5,14 @@
 	import PlaceSearch from '$lib/components/PlaceSearch.svelte';
 	import type { PageData, ActionData } from './$types';
 	let { data, form }: { data: PageData; form: ActionData } = $props();
-	let showCreateModal = $state(false);
 	let showDeleteModal = $state<string | null>(null);
 	let creating = $state(false);
 	let deleting = $state(false);
 
 	// Tab state
-	let mainTab = $state<'conversations' | 'writing' | 'meetings'>('conversations');
-	let activeTab = $state<string>('conversations');
+	let mainTab = $state<'writing' | 'conversations' | 'meetings'>('writing');
+	let activeTab = $state<string>('sites');
+	let sidebarView = $state<'profile' | 'dashboard'>('profile');
 
 	// Notification state for meetings tab badge
 	let unreadMeetingCount = $state(0);
@@ -222,27 +222,18 @@
 	let invitingEmail = $state<string | null>(null);
 	let inviteError = $state<string | null>(null);
 	let waitlistSearch = $state('');
-	let waitlistFilter = $state<'all' | 'pending' | 'invited'>('all');
 	let invitedOverrides = $state(new Set<string>());
 
-	let filteredWaitlist = $derived.by(() => {
-		const list = (data.waitlist ?? []).map((c) => ({
-			...c,
-			invited: c.invited || invitedOverrides.has(c.email)
-		}));
-		let filtered = list;
-		if (waitlistFilter === 'pending') filtered = filtered.filter((c) => !c.invited);
-		if (waitlistFilter === 'invited') filtered = filtered.filter((c) => c.invited);
-		if (waitlistSearch.trim()) {
-			const q = waitlistSearch.toLowerCase();
-			filtered = filtered.filter(
-				(c) =>
-					c.email.toLowerCase().includes(q) ||
-					(c.name && c.name.toLowerCase().includes(q)) ||
-					(c.freewrite && c.freewrite.toLowerCase().includes(q))
-			);
-		}
-		return filtered;
+	let pendingWaitlistFiltered = $derived.by(() => {
+		const pending = (data.waitlist ?? []).filter((c) => !c.invited && !invitedOverrides.has(c.email));
+		if (!waitlistSearch.trim()) return pending;
+		const q = waitlistSearch.toLowerCase();
+		return pending.filter(
+			(c) =>
+				c.email.toLowerCase().includes(q) ||
+				(c.name && c.name.toLowerCase().includes(q)) ||
+				(c.freewrite && c.freewrite.toLowerCase().includes(q))
+		);
 	});
 
 	async function sendInvite(email: string, name: string | null) {
@@ -486,7 +477,10 @@
 		</a>
 		<nav class="sidebar-nav">
 			<a href="/discover" class="sidebar-link">Discover</a>
-			<a href="/dashboard" class="sidebar-link active">Profile</a>
+			<a href="/dashboard" class="sidebar-link" class:active={sidebarView === 'profile'} onclick={(e) => { e.preventDefault(); sidebarView = 'profile'; }}>Profile</a>
+			{#if data.canPublishSites}
+				<a href="/dashboard" class="sidebar-link" class:active={sidebarView === 'dashboard'} onclick={(e) => { e.preventDefault(); sidebarView = 'dashboard'; }}>Dashboard</a>
+			{/if}
 		</nav>
 		<div class="sidebar-bottom">
 			<span class="sidebar-username">@{data.username}</span>
@@ -496,7 +490,7 @@
 
 	<main class="main-content">
 		<header class="page-header">
-			<h1>On My Mind</h1>
+			<h1>{sidebarView === 'dashboard' ? 'Dashboard' : 'On My Mind'}</h1>
 		</header>
 
 		{#if form?.error}
@@ -507,14 +501,15 @@
 		{/if}
 
 		<div class="content">
+		{#if sidebarView === 'profile'}
 		<nav class="main-tabs">
-			<button class="main-tab" class:active={mainTab === 'conversations'} onclick={() => (mainTab = 'conversations')}>
-				Conversations
-				{#if activeConversations.length > 0}<span class="tab-count">{activeConversations.length}</span>{/if}
-			</button>
 			<button class="main-tab" class:active={mainTab === 'writing'} onclick={() => (mainTab = 'writing')}>
 				Writing
 				{#if data.canvases.length + inactiveConversations.length > 0}<span class="tab-count">{data.canvases.length + inactiveConversations.length}</span>{/if}
+			</button>
+			<button class="main-tab" class:active={mainTab === 'conversations'} onclick={() => (mainTab = 'conversations')}>
+				Conversations
+				{#if activeConversations.length > 0}<span class="tab-count">{activeConversations.length}</span>{/if}
 			</button>
 			<button class="main-tab" class:active={mainTab === 'meetings'} onclick={switchToMeetings}>
 				Meetings
@@ -533,8 +528,8 @@
 							await update();
 						};
 					}}>
-						<button type="submit" class="create-btn" disabled={creating}>
-							{creating ? 'creating...' : '+ new conversation'}
+						<button type="submit" class="create-btn" disabled={creating || activeConversations.length >= 3}>
+							{creating ? 'creating...' : activeConversations.length >= 3 ? '3/3 conversations this week' : '+ new conversation'}
 						</button>
 					</form>
 				</div>
@@ -600,9 +595,17 @@
 		{#if mainTab === 'writing'}
 			<section class="section">
 				<div class="section-header">
-					<button class="create-btn" onclick={() => (showCreateModal = true)}>
-						+ new canvas
-					</button>
+					<form method="POST" action="?/createWriting" use:enhance={() => {
+						creating = true;
+						return async ({ update }) => {
+							creating = false;
+							await update();
+						};
+					}}>
+						<button type="submit" class="create-btn" disabled={creating}>
+							{creating ? 'creating...' : '+ new canvas'}
+						</button>
+					</form>
 				</div>
 
 				{#if data.canvases.length === 0 && inactiveConversations.length === 0}
@@ -706,19 +709,20 @@
 			</section>
 		{/if}
 
-		<!-- ============ ADMIN TABS ============ -->
-		{#if data.canPublishSites}
-			<hr class="admin-divider" />
-			<nav class="tabs">
-				<button class="tab" class:active={activeTab === 'sites'} onclick={() => (activeTab = 'sites')}>Sites</button>
-				<button class="tab" class:active={activeTab === 'highlights'} onclick={() => (activeTab = 'highlights')}>Highlights</button>
-				<button class="tab" class:active={activeTab === 'waitlist'} onclick={() => (activeTab = 'waitlist')}>Waitlist <span class="tab-count">{data.waitlist?.length ?? 0}</span></button>
-				<button class="tab" class:active={activeTab === 'members'} onclick={() => (activeTab = 'members')}>Members <span class="tab-count">{data.members?.length ?? 0}</span></button>
-			</nav>
 		{/if}
 
-		<!-- ============ SITES (admin only) ============ -->
-		{#if data.canPublishSites && activeTab === 'sites'}
+		<!-- ============ DASHBOARD VIEW (admin) ============ -->
+		{#if sidebarView === 'dashboard' && data.canPublishSites}
+			<nav class="main-tabs">
+				<button class="main-tab" class:active={activeTab === 'sites'} onclick={() => (activeTab = 'sites')}>Sites</button>
+				<button class="main-tab" class:active={activeTab === 'field-notes'} onclick={() => (activeTab = 'field-notes')}>Field Notes</button>
+				<button class="main-tab" class:active={activeTab === 'waitlist'} onclick={() => (activeTab = 'waitlist')}>Waitlist</button>
+				<button class="main-tab" class:active={activeTab === 'invited'} onclick={() => (activeTab = 'invited')}>Invited</button>
+				<button class="main-tab" class:active={activeTab === 'members'} onclick={() => (activeTab = 'members')}>Members <span class="tab-count">{data.members?.length ?? 0}</span></button>
+			</nav>
+
+		<!-- ============ SITES ============ -->
+		{#if activeTab === 'sites'}
 			<section class="section">
 				<div class="section-header">
 					<h2 class="section-title">Sites</h2>
@@ -767,11 +771,11 @@
 			</section>
 		{/if}
 
-		<!-- ============ LANDING HIGHLIGHTS (admin only) ============ -->
-		{#if data.canPublishSites && activeTab === 'highlights'}
+		<!-- ============ FIELD NOTES ============ -->
+		{#if activeTab === 'field-notes'}
 			<section class="section">
 				<div class="section-header">
-					<h2 class="section-title">Landing Highlights</h2>
+					<h2 class="section-title">Field Notes</h2>
 					<span class="highlight-count">{highlightedCanvasIds.size}/3</span>
 				</div>
 				<p class="section-description">Select up to 3 canvases to feature in the field notes section on the landing page.</p>
@@ -842,48 +846,34 @@
 			</section>
 		{/if}
 
-		<!-- ============ WAITLIST (admin only) ============ -->
-		{#if data.canPublishSites && activeTab === 'waitlist'}
-			{@const allWaitlist = (data.waitlist ?? []).map((c) => ({ ...c, invited: c.invited || invitedOverrides.has(c.email) }))}
-			{@const pendingCount = allWaitlist.filter((c) => !c.invited).length}
-			{@const invitedCount = allWaitlist.filter((c) => c.invited).length}
+		<!-- ============ WAITLIST (pending only) ============ -->
+		{#if activeTab === 'waitlist'}
 			<section class="section">
 				<div class="section-header">
 					<h2 class="section-title">Waitlist</h2>
-					<span class="waitlist-count">{allWaitlist.length} total &middot; {pendingCount} pending &middot; {invitedCount} invited</span>
+					<span class="waitlist-count">{pendingWaitlistFiltered.length} pending</span>
 				</div>
 
 				{#if inviteError}
 					<div class="error-message">{inviteError}</div>
 				{/if}
 
-				{#if allWaitlist.length > 0}
-					<div class="waitlist-controls">
-						<input
-							type="text"
-							class="waitlist-search"
-							placeholder="Search by name, email, or freewrite..."
-							bind:value={waitlistSearch}
-						/>
-						<div class="waitlist-filters">
-							<button class="filter-btn" class:active={waitlistFilter === 'all'} onclick={() => (waitlistFilter = 'all')}>All</button>
-							<button class="filter-btn" class:active={waitlistFilter === 'pending'} onclick={() => (waitlistFilter = 'pending')}>Pending</button>
-							<button class="filter-btn" class:active={waitlistFilter === 'invited'} onclick={() => (waitlistFilter = 'invited')}>Invited</button>
-						</div>
-					</div>
-				{/if}
+				<div class="waitlist-controls">
+					<input
+						type="text"
+						class="waitlist-search"
+						placeholder="Search by name, email, or freewrite..."
+						bind:value={waitlistSearch}
+					/>
+				</div>
 
-				{#if allWaitlist.length === 0}
+				{#if pendingWaitlistFiltered.length === 0}
 					<div class="empty-state">
-						<p>No one on the waitlist yet.</p>
-					</div>
-				{:else if filteredWaitlist.length === 0}
-					<div class="empty-state">
-						<p>No matches.</p>
+						<p>{waitlistSearch.trim() ? 'No matches.' : 'No one waiting.'}</p>
 					</div>
 				{:else}
 					<div class="waitlist-list">
-						{#each filteredWaitlist as contact}
+						{#each pendingWaitlistFiltered as contact}
 							<div class="waitlist-item">
 								<div class="waitlist-info">
 									<div class="waitlist-header-row">
@@ -896,17 +886,13 @@
 									{/if}
 								</div>
 								<div class="waitlist-action">
-									{#if contact.invited}
-										<span class="invited-badge">Invited</span>
-									{:else}
-										<button
-											class="invite-btn"
-											disabled={invitingEmail === contact.email}
-											onclick={() => sendInvite(contact.email, contact.name)}
-										>
-											{invitingEmail === contact.email ? 'Sending...' : 'Invite'}
-										</button>
-									{/if}
+									<button
+										class="invite-btn"
+										disabled={invitingEmail === contact.email}
+										onclick={() => sendInvite(contact.email, contact.name)}
+									>
+										{invitingEmail === contact.email ? 'Sending...' : 'Invite'}
+									</button>
 								</div>
 							</div>
 						{/each}
@@ -915,8 +901,45 @@
 			</section>
 		{/if}
 
-		<!-- ============ MEMBERS (admin only) ============ -->
-		{#if data.canPublishSites && activeTab === 'members'}
+		<!-- ============ INVITED ============ -->
+		{#if activeTab === 'invited'}
+			{@const invitedWaitlist = (data.waitlist ?? []).filter((c) => c.invited || invitedOverrides.has(c.email))}
+			<section class="section">
+				<div class="section-header">
+					<h2 class="section-title">Invited</h2>
+					<span class="waitlist-count">{invitedWaitlist.length} invited</span>
+				</div>
+
+				{#if invitedWaitlist.length === 0}
+					<div class="empty-state">
+						<p>No one invited yet.</p>
+					</div>
+				{:else}
+					<div class="waitlist-list">
+						{#each invitedWaitlist as contact}
+							<div class="waitlist-item">
+								<div class="waitlist-info">
+									<div class="waitlist-header-row">
+										<span class="waitlist-name">{contact.name || 'Anonymous'}</span>
+										<span class="waitlist-email">{contact.email}</span>
+										<span class="waitlist-date">{formatDate(contact.created_at)}</span>
+									</div>
+									{#if contact.freewrite}
+										<p class="waitlist-freewrite">{contact.freewrite}</p>
+									{/if}
+								</div>
+								<div class="waitlist-action">
+									<span class="invited-badge">Invited</span>
+								</div>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</section>
+		{/if}
+
+		<!-- ============ MEMBERS ============ -->
+		{#if activeTab === 'members'}
 			<section class="section">
 				<div class="section-header">
 					<h2 class="section-title">Members</h2>
@@ -946,49 +969,10 @@
 				{/if}
 			</section>
 		{/if}
+		{/if}
 	</div>
 	</main>
 </div>
-
-<!-- Create Canvas Modal -->
-{#if showCreateModal}
-	<div class="modal-overlay" onclick={() => (showCreateModal = false)}>
-		<div class="modal" onclick={(e) => e.stopPropagation()}>
-			<h2>Create New Canvas</h2>
-			<form
-				method="POST"
-				action="?/create"
-				use:enhance={() => {
-					creating = true;
-					return async ({ update }) => {
-						creating = false;
-						await update();
-						showCreateModal = false;
-					};
-				}}
-			>
-				<input
-					type="text"
-					id="name"
-					name="name"
-					required
-					maxlength="100"
-					placeholder="Canvas name"
-					disabled={creating}
-					autofocus
-				/>
-				<div class="modal-actions">
-					<button type="button" class="cancel-btn" onclick={() => (showCreateModal = false)}>
-						cancel
-					</button>
-					<button type="submit" class="submit-btn" disabled={creating}>
-						{creating ? 'creating...' : 'create canvas'}
-					</button>
-				</div>
-			</form>
-		</div>
-	</div>
-{/if}
 
 <!-- Delete Canvas Modal -->
 {#if showDeleteModal}
@@ -2071,34 +2055,6 @@
 
 	.waitlist-search::placeholder {
 		color: var(--text-muted);
-	}
-
-	.waitlist-filters {
-		display: flex;
-		gap: 0.25rem;
-	}
-
-	.filter-btn {
-		padding: 0.4rem 0.7rem;
-		background: none;
-		border: 1px solid var(--border-link);
-		border-radius: 4px;
-		color: var(--text-muted);
-		font-size: 0.8rem;
-		font-family: inherit;
-		cursor: pointer;
-		transition: border-color 0.2s, color 0.2s, background 0.2s;
-	}
-
-	.filter-btn:hover {
-		border-color: var(--border-link-hover);
-		color: var(--text-primary);
-	}
-
-	.filter-btn.active {
-		background: var(--text-primary);
-		color: var(--bg-canvas);
-		border-color: var(--text-primary);
 	}
 
 	.berlin-badge {
