@@ -189,7 +189,7 @@ class CanvasStore {
 		this.activeChain = [...this.activeChain.filter(id => id !== cardId), cardId];
 	}
 
-	async initialize(vault: Vault, canvasId?: string, savedPositions?: SavedPosition[]): Promise<void> {
+	async initialize(vault: Vault, canvasId?: string, savedPositions?: SavedPosition[], readOnly?: boolean): Promise<void> {
 		console.log('[Store] initialize called');
 		const gen = ++this.initGeneration;
 		this.vault = vault;
@@ -236,14 +236,15 @@ class CanvasStore {
 		// Server-provided positions may be stale due to sendBeacon race conditions
 		const persisted = loadPersistedState(this.currentCanvasId);
 		const isSiteLanding = this.currentCanvasId === 'site-landing';
-		if (persisted?.cameraState && !isSiteLanding) {
+		const skipRestore = isSiteLanding || readOnly;
+		if (persisted?.cameraState && !skipRestore) {
 			this.camera = persisted.cameraState;
 		}
 
 		// Prefer localStorage positions over server-provided positions when available
 		// This avoids race conditions where sendBeacon hasn't been processed yet
-		// Skip for site-landing: always start fresh with just the entry note
-		if (!isSiteLanding && persisted?.cards && persisted.cards.length > 0) {
+		// Skip for site-landing and readOnly: always start fresh with just the entry note
+		if (!skipRestore && persisted?.cards && persisted.cards.length > 0) {
 			const restoredCards = new Map<string, Card>();
 
 			for (const savedCard of persisted.cards) {
