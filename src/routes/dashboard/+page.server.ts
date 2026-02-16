@@ -279,9 +279,61 @@ export const actions: Actions = {
 		redirect(302, `/canvas/${id}`);
 	},
 
+	createWriting: async ({ locals }) => {
+		if (!locals.user) {
+			redirect(302, '/login');
+		}
+
+		const id = nanoid();
+		const slug = `canvas-${id.slice(0, 8)}`;
+
+		const { error: canvasError } = await locals.supabase.from('canvases').insert({
+			id,
+			user_id: locals.user.id,
+			name: 'Untitled',
+			slug
+		});
+
+		if (canvasError) {
+			console.error('Create writing canvas error:', canvasError);
+			return fail(500, { error: 'Failed to create canvas' });
+		}
+
+		// Insert a starter note with empty title
+		const starterSlug = 'start';
+		await locals.supabase.from('notes').insert({
+			canvas_id: id,
+			user_id: locals.user.id,
+			slug: starterSlug,
+			title: '',
+			content: { type: 'doc', content: [{ type: 'paragraph' }] },
+			wikilinks: []
+		});
+
+		await locals.supabase
+			.from('canvases')
+			.update({ entry_point_note_id: starterSlug })
+			.eq('id', id);
+
+		redirect(302, `/canvas/${id}?edit=start`);
+	},
+
 	createConversation: async ({ locals }) => {
 		if (!locals.user) {
 			redirect(302, '/login');
+		}
+
+		// Enforce max 3 active conversations per week
+		const { data: activeConvos } = await locals.supabase
+			.from('canvases')
+			.select('id')
+			.eq('user_id', locals.user.id)
+			.eq('is_conversation', true)
+			.eq('active_this_week', true)
+			.neq('is_archived', true);
+
+		if ((activeConvos ?? []).length >= 3) {
+			return fail(400, { error: 'Maximum 3 active conversations per week' });
 		}
 
 		const id = nanoid();

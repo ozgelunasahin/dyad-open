@@ -95,7 +95,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 	// Send welcome email (fire-and-forget — don't block the response)
 	const displayName = (typeof name === 'string' && name.trim()) || 'there';
 	resend.emails.send({
-		from: 'dyad. <onboarding@resend.dev>',
+		from: 'dyad. <hello@dyad.berlin>',
 		to: email.trim(),
 		subject: "What's in a conversation?",
 		html: `

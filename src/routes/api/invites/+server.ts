@@ -90,7 +90,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	// Send invite email
 	const displayName = (typeof name === 'string' && name.trim()) || 'there';
 	resend.emails.send({
-		from: 'dyad. <onboarding@resend.dev>',
+		from: 'dyad. <hello@dyad.berlin>',
 		to: email.trim(),
 		subject: "You're invited to dyad.",
 		html: `
