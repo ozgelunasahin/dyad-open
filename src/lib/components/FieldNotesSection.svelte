@@ -6,6 +6,7 @@
 		image_url: string | null;
 		link: string | null;
 		position: number;
+		format: string | null;
 	}
 
 	interface Props {
@@ -166,6 +167,9 @@
 			{#each items as item (item.id)}
 				{@const isSaving = saving === item.id}
 				<div class="card">
+					<!-- Format tag -->
+					<span class="format-tag">{item.format || 'essay'}</span>
+
 					<!-- Image area -->
 					{#if isEditMode}
 						<div
@@ -209,7 +213,7 @@
 						{/if}
 					{/if}
 
-					<!-- Title -->
+					<!-- Title (bold) + Author (thin) -->
 					{#if isEditMode}
 						<h3
 							class="card-title"
@@ -217,22 +221,22 @@
 							oninput={(e) => handleTitleInput(item.id, e)}
 							role="textbox"
 						>{item.title}</h3>
-					{:else if item.link}
-						<a href={item.link} class="card-title-link"><h3 class="card-title">{item.title}</h3></a>
-					{:else}
-						<h3 class="card-title">{item.title}</h3>
-					{/if}
-
-					<!-- Subtitle -->
-					{#if isEditMode}
 						<p
-							class="card-subtitle"
+							class="card-author"
 							contenteditable="true"
 							oninput={(e) => handleSubtitleInput(item.id, e)}
 							role="textbox"
 						>{item.subtitle || ''}</p>
-					{:else if item.subtitle}
-						<p class="card-subtitle">{item.subtitle}</p>
+					{:else}
+						{#if item.link}
+							<a href={item.link} class="card-title-link">
+								<h3 class="card-title">{item.title}</h3>{#if item.subtitle} <span class="card-author">by {item.subtitle}</span>{/if}
+							</a>
+						{:else}
+							<div class="card-meta">
+								<h3 class="card-title">{item.title}</h3>{#if item.subtitle} <span class="card-author">by {item.subtitle}</span>{/if}
+							</div>
+						{/if}
 					{/if}
 
 					<!-- Edit mode controls -->
@@ -282,16 +286,18 @@
 		align-items: start;
 	}
 
-	/* Left column: label */
+	/* Left column: label — aligned with format tag baseline */
 	.label-col {
-		padding-top: 8px;
+		padding-top: 0;
 	}
 
 	.section-label {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
-		font-size: 1.25rem;
-		color: var(--text-primary, #1a1a1a);
-		font-weight: normal;
+		font-family: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace;
+		font-size: 11px;
+		font-weight: 500;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--text-muted, #666);
 	}
 
 	/* Right column: 3 cards in a row */
@@ -305,6 +311,17 @@
 	.card {
 		display: flex;
 		flex-direction: column;
+	}
+
+	/* Format tag — monospace uppercase above image */
+	.format-tag {
+		font-family: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace;
+		font-size: 11px;
+		font-weight: 500;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--text-muted, #666);
+		margin-bottom: 8px;
 	}
 
 	/* Image area — tall portrait aspect ratio like Emergence */
@@ -379,41 +396,63 @@
 		font-size: 13px;
 	}
 
-	/* Title */
+	/* Title — bold */
 	.card-title {
 		font-family: 'SangBleu Sunrise', Georgia, serif;
 		font-size: 15px;
-		font-weight: normal;
+		font-weight: 700;
 		color: var(--text-primary, #1a1a1a);
 		margin: 12px 0 0;
 		line-height: 1.35;
+		display: inline;
 	}
 
 	.card-title[contenteditable] {
 		outline: none;
 		border-bottom: 1px solid var(--border-link, rgba(0, 0, 0, 0.1));
 		padding-bottom: 2px;
+		display: block;
 	}
 
 	.card-title-link {
 		text-decoration: none;
 		color: inherit;
+		display: block;
+		margin-top: 12px;
+		line-height: 1.35;
 	}
 
-	/* Subtitle */
-	.card-subtitle {
+	.card-title-link .card-title {
+		margin-top: 0;
+	}
+
+	.card-meta {
+		margin-top: 12px;
+		line-height: 1.35;
+	}
+
+	.card-meta .card-title {
+		margin-top: 0;
+	}
+
+	/* Author — thin weight, inline after title */
+	.card-author {
 		font-family: 'SangBleu Sunrise', Georgia, serif;
-		font-size: 13px;
+		font-size: 15px;
+		font-weight: 300;
 		color: var(--text-muted, #666);
-		margin: 4px 0 0;
-		line-height: 1.3;
+		line-height: 1.35;
+		margin: 0;
+		margin-left: 0.3em;
 	}
 
-	.card-subtitle[contenteditable] {
+	.card-author[contenteditable] {
 		outline: none;
 		border-bottom: 1px solid var(--border-link, rgba(0, 0, 0, 0.1));
 		padding-bottom: 2px;
 		min-height: 1em;
+		display: block;
+		margin-top: 4px;
 	}
 
 	/* Edit controls */

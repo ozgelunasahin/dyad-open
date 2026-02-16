@@ -31,7 +31,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	const body = await request.json();
-	const { title, subtitle, image_url, link, position, canvas_id } = body;
+	const { title, subtitle, image_url, link, position, canvas_id, format } = body;
 
 	if (!title && !canvas_id) {
 		return json({ error: 'Title or canvas_id is required' }, { status: 400 });
@@ -119,7 +119,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			image_url: finalImageUrl || null,
 			link: finalLink || null,
 			position: position ?? 0,
-			canvas_id: canvas_id || null
+			canvas_id: canvas_id || null,
+			format: format || 'essay'
 		})
 		.select()
 		.single();
@@ -137,7 +138,7 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 	}
 
 	const body = await request.json();
-	const { id, title, subtitle, image_url, link, position } = body;
+	const { id, title, subtitle, image_url, link, position, format } = body;
 
 	if (!id) {
 		return json({ error: 'Highlight id is required' }, { status: 400 });
@@ -149,6 +150,7 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 	if (image_url !== undefined) updates.image_url = image_url;
 	if (link !== undefined) updates.link = link;
 	if (position !== undefined) updates.position = position;
+	if (format !== undefined) updates.format = format;
 
 	const { data, error } = await locals.supabase
 		.from('landing_highlights')

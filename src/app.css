@@ -62,7 +62,7 @@
 }
 
 [data-theme='dark'] {
-	--bg-canvas: #1a1a1a;
+	--bg-canvas: #000000;
 	--bg-code: rgba(255, 255, 255, 0.08);
 	--bg-code-block: rgba(255, 255, 255, 0.05);
 	--bg-control: rgba(255, 255, 255, 0.05);

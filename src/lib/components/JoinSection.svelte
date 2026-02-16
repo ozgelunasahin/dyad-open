@@ -42,45 +42,47 @@
 			<span class="section-label">Join:</span>
 		</div>
 		<div class="form-col">
-			{#if status === 'sent'}
-				<p class="success-text">Thank you. We'll be in touch.</p>
-			{:else}
-				<p class="description">For all free thinkers who want company.</p>
-				<form onsubmit={handleSubmit}>
-					<div class="freewrite-group">
-						<label for="freewrite" class="freewrite-label">What's in a conversation?</label>
-						<textarea
-							id="freewrite"
-							placeholder="Write freely..."
-							bind:value={freewrite}
-							disabled={status === 'sending'}
-							maxlength={2000}
-							rows={4}
-						></textarea>
-					</div>
-					<div class="form-row">
-						<input
-							type="text"
-							placeholder="Name"
-							bind:value={name}
-							disabled={status === 'sending'}
-						/>
-						<input
-							type="email"
-							placeholder="Email"
-							bind:value={email}
-							required
-							disabled={status === 'sending'}
-						/>
-						<button type="submit" disabled={status === 'sending'}>
-							{status === 'sending' ? 'Sending...' : 'Join'}
-						</button>
-					</div>
-					{#if status === 'error'}
-						<p class="error-text">{errorMsg}</p>
-					{/if}
-				</form>
-			{/if}
+			<div class="form-content">
+				{#if status === 'sent'}
+					<p class="success-text">Thank you. We'll be in touch.</p>
+				{:else}
+					<p class="description">For all free thinkers who want company.</p>
+					<form onsubmit={handleSubmit}>
+						<div class="freewrite-group">
+							<label for="freewrite" class="freewrite-label">What's in a conversation?</label>
+							<textarea
+								id="freewrite"
+								placeholder="Write freely..."
+								bind:value={freewrite}
+								disabled={status === 'sending'}
+								maxlength={2000}
+								rows={4}
+							></textarea>
+						</div>
+						<div class="form-row">
+							<input
+								type="text"
+								placeholder="Name"
+								bind:value={name}
+								disabled={status === 'sending'}
+							/>
+							<input
+								type="email"
+								placeholder="Email"
+								bind:value={email}
+								required
+								disabled={status === 'sending'}
+							/>
+							<button type="submit" disabled={status === 'sending'}>
+								{status === 'sending' ? 'Sending...' : 'Join'}
+							</button>
+						</div>
+						{#if status === 'error'}
+							<p class="error-text">{errorMsg}</p>
+						{/if}
+					</form>
+				{/if}
+			</div>
 		</div>
 	</div>
 </div>
@@ -102,14 +104,28 @@
 	}
 
 	.label-col {
-		padding-top: 4px;
+		padding-top: 0;
 	}
 
 	.section-label {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
-		font-size: 1.25rem;
-		color: var(--text-primary, #1a1a1a);
-		font-weight: normal;
+		font-family: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace;
+		font-size: 11px;
+		font-weight: 500;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--text-muted, #666);
+	}
+
+	/* 3-column sub-grid matching Field Notes cards-col */
+	.form-col {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 24px;
+	}
+
+	/* Form content spans first 2 of 3 columns */
+	.form-content {
+		grid-column: 1 / 3;
 	}
 
 	.description {
@@ -118,12 +134,10 @@
 		color: var(--text-muted, #666);
 		margin: 0 0 20px;
 		line-height: 1.5;
-		max-width: 480px;
 	}
 
 	.freewrite-group {
 		margin-bottom: 20px;
-		max-width: 560px;
 	}
 
 	.freewrite-label {
@@ -166,7 +180,6 @@
 	.form-row {
 		display: flex;
 		gap: 12px;
-		max-width: 560px;
 	}
 
 	input {
@@ -235,6 +248,14 @@
 		.layout {
 			grid-template-columns: 1fr;
 			gap: 16px;
+		}
+
+		.form-col {
+			grid-template-columns: 1fr;
+		}
+
+		.form-content {
+			grid-column: 1;
 		}
 
 		.form-row {

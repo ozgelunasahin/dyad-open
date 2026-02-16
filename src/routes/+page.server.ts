@@ -20,13 +20,13 @@ export const load: PageServerLoad = async ({ locals, setHeaders, url }) => {
 	}
 
 	// Non-logged-in users see the landing page
-	// Load published "dyad" and "tetrad" canvases directly by slug
+	// Load published "dyad" and "weaving" canvases directly by slug
 	const { data: canvases } = await locals.supabase
 		.from('canvases')
 		.select('id, name, slug, entry_point_note_id, user_id, cover_image_url')
 		.eq('is_published', true)
-		.in('slug', ['dyad', 'tetrad'])
-		.order('slug', { ascending: true }); // dyad first, then tetrad
+		.in('slug', ['dyad', 'weaving'])
+		.order('slug', { ascending: true }); // dyad first, then weaving
 
 	if (!canvases || canvases.length === 0) {
 		return { sections: [], navItems: [] };

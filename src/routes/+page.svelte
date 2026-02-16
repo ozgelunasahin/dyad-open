@@ -213,12 +213,8 @@
 			>
 				{#if section.type === 'canvas'}
 					<div class="section-card">
-						{#if section.coverImageUrl}
-							<div class="section-cover">
-								<img src={section.coverImageUrl} alt="" />
-							</div>
-						{/if}
 						<div class="canvas-area" class:expanded={expandedCanvas === slug}>
+							{#if slug !== 'dyad'}<span class="section-tag">{section.name}</span>{/if}
 							{#if isMobile}
 								{@const entryNote = section.vault?.notes?.[section.vault?.entryPoint]}
 								{#if entryNote}
@@ -248,6 +244,15 @@
 								</button>
 							{/if}
 						</div>
+						{#if section.coverImageUrl}
+							<div class="section-cover">
+								{#if /\.(mp4|webm|mov)(\?|$)/i.test(section.coverImageUrl)}
+									<video src={section.coverImageUrl} autoplay loop muted playsinline />
+								{:else}
+									<img src={section.coverImageUrl} alt="" />
+								{/if}
+							</div>
+						{/if}
 					</div>
 				{/if}
 			</section>
@@ -315,45 +320,79 @@
 		box-sizing: border-box;
 	}
 
-	/* === Section Card — vertical flow: image then canvas === */
+	/* === Section Card — horizontal split: canvas left, image right === */
 	.section-card {
 		width: 100%;
 		height: 100%;
-		position: relative;
+		display: flex;
+		flex-direction: row;
 		overflow: hidden;
 	}
 
-	/* Cover image — centered, proportional, full photo visible */
+	/* Cover image — right half with grain overlay */
 	.section-cover {
-		margin: 16px 16px 0;
-		height: 75vh;
-		border-radius: 8px;
-		overflow: hidden;
+		width: 50%;
+		height: 100%;
+		position: relative;
+		padding: 16px 16px 16px 0;
+		box-sizing: border-box;
 	}
 
-	.section-cover img {
+	.section-cover img,
+	.section-cover video {
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
-		object-position: center bottom;
+		object-position: center;
 		display: block;
 		border-radius: 8px;
 	}
 
-	/* Canvas/text area — absolute from bottom, animates up on expand */
-	.canvas-area {
+	/* Film grain overlay — matches image inset */
+	.section-cover::after {
+		content: '';
 		position: absolute;
-		bottom: 0;
+		top: 16px;
+		right: 16px;
+		bottom: 16px;
 		left: 0;
-		right: 0;
-		height: 20%;
-		z-index: 2;
-		transition: height 0.6s ease;
+		border-radius: 8px;
+		background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.4'/%3E%3C/svg%3E");
+		background-size: 128px 128px;
+		mix-blend-mode: overlay;
+		pointer-events: none;
+		z-index: 1;
+	}
+
+	/* Section tag — monospace label above canvas content */
+	.section-tag {
+		font-family: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace;
+		font-size: 11px;
+		font-weight: 500;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--text-muted, #666);
+		position: absolute;
+		top: 40px;
+		left: 32px;
+		z-index: 4;
+	}
+
+	/* Canvas/text area — left half */
+	.canvas-area {
+		width: 50%;
+		height: 100%;
+		position: relative;
+		overflow: hidden;
+		transition: width 0.6s ease;
 	}
 
 	/* When expanded, canvas takes the full section */
 	.canvas-area.expanded {
-		height: 100%;
+		width: 100%;
+		position: absolute;
+		inset: 0;
+		z-index: 3;
 	}
 
 	.canvas-frame {
@@ -486,14 +525,17 @@
 
 		.section-card {
 			height: auto;
+			flex-direction: column;
 			overflow: visible;
 		}
 
 		.section-cover {
-			margin: 12px 12px 0;
+			width: 100%;
+			height: 50vh;
 		}
 
 		.canvas-area {
+			width: 100%;
 			position: relative;
 			height: auto;
 		}

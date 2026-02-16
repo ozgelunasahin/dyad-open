@@ -31,13 +31,13 @@
 		{/each}
 	</div>
 
-	<!-- Right: user icon links to login (desktop) -->
-	<a href="/login" class="user-link" aria-label="Log in">
+	<!-- Right: user icon scrolls to join section -->
+	<button class="user-link" onclick={() => onNavigate('field-notes')} aria-label="Join">
 		<svg width="18" height="18" viewBox="0 0 18 18" fill="none">
 			<circle cx="9" cy="7" r="3" stroke="currentColor" stroke-width="1.5"/>
 			<path d="M3 16c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
 		</svg>
-	</a>
+	</button>
 
 	<!-- Mobile: hamburger -->
 	<button class="menu-btn" onclick={() => mobileMenuOpen = !mobileMenuOpen} aria-label="Menu">
@@ -71,7 +71,7 @@
 <style>
 	.site-nav {
 		position: fixed;
-		top: 24px;
+		top: 16px;
 		left: 50%;
 		transform: translateX(-50%);
 		z-index: 100;
@@ -101,12 +101,15 @@
 		margin: 0 auto;
 	}
 
-	/* User icon link (desktop) */
+	/* User icon button (desktop) */
 	.user-link {
 		display: flex;
 		align-items: center;
 		color: var(--text-muted, #666);
 		padding: 4px;
+		background: none;
+		border: none;
+		cursor: pointer;
 		transition: color 0.15s;
 	}
 
@@ -144,9 +147,10 @@
 
 	/* Nav buttons */
 	button {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
-		font-size: 14px;
+		font-family: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace;
+		font-size: 12px;
 		font-weight: 500;
+		letter-spacing: 0.04em;
 		color: var(--text-muted, #666);
 		background: none;
 		border: none;
