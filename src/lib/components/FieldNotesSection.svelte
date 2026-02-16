@@ -396,11 +396,11 @@
 		font-size: 13px;
 	}
 
-	/* Title — bold */
+	/* Title — medium */
 	.card-title {
 		font-family: 'SangBleu Sunrise', Georgia, serif;
 		font-size: 15px;
-		font-weight: 700;
+		font-weight: 500;
 		color: var(--text-primary, #1a1a1a);
 		margin: 12px 0 0;
 		line-height: 1.35;
@@ -528,6 +528,55 @@
 
 		.cards-col {
 			grid-template-columns: 1fr;
+			gap: 32px;
+		}
+
+		/* Horizontal card: image left, text right */
+		.card {
+			flex-direction: row;
+			gap: 16px;
+			position: relative;
+		}
+
+		/* Format tag overlaid on image top-left */
+		.format-tag {
+			position: absolute;
+			top: 8px;
+			left: 8px;
+			z-index: 2;
+			background: rgba(128, 128, 128, 0.6);
+			color: #fff;
+			padding: 4px 8px;
+			border-radius: 2px;
+			font-size: 10px;
+			margin-bottom: 0;
+		}
+
+		/* Image takes left half */
+		.image-area {
+			width: 55%;
+			flex-shrink: 0;
+			aspect-ratio: 3 / 4;
+		}
+
+		/* Text block sits to the right of image */
+		.card-title-link,
+		.card-meta {
+			margin-top: 0;
+			padding-top: 4px;
+		}
+
+		.card-title {
+			font-size: 17px;
+			display: block;
+			margin-top: 0;
+		}
+
+		.card-author {
+			display: block;
+			margin-left: 0;
+			margin-top: 4px;
+			font-size: 15px;
 		}
 	}
 </style>

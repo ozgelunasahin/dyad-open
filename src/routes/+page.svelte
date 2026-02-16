@@ -25,7 +25,7 @@
 
 	// Scroll and section state
 	let scrollContainer: HTMLElement | null = $state(null);
-	let sectionEls: Record<string, HTMLElement> = {};
+	let sectionEls: Record<string, HTMLElement> = $state({});
 	let activeSlug = $state('');
 	let activeCanvasSection = $state<string | null>(null);
 	let navHidden = $state(false);
@@ -518,6 +518,7 @@
 		}
 
 		.snap-section {
+			height: auto;
 			min-height: 0;
 			scroll-snap-align: none;
 			scroll-snap-stop: normal;
@@ -525,19 +526,39 @@
 
 		.section-card {
 			height: auto;
-			flex-direction: column;
+			flex-direction: column-reverse;
 			overflow: visible;
 		}
 
 		.section-cover {
 			width: 100%;
-			height: 50vh;
+			height: 70vh;
+			padding: 0;
+		}
+
+		.section-cover img,
+		.section-cover video {
+			border-radius: 0;
+		}
+
+		.section-cover::after {
+			top: 0;
+			right: 0;
+			bottom: 0;
+			left: 0;
+			border-radius: 0;
 		}
 
 		.canvas-area {
 			width: 100%;
 			position: relative;
 			height: auto;
+		}
+
+		.section-tag {
+			position: static;
+			display: block;
+			padding: 16px 14px 0;
 		}
 
 		.mobile-entry-text {

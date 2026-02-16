@@ -203,7 +203,7 @@
 
 		.site-logo {
 			height: 24px;
-			filter: brightness(0);
+			filter: brightness(100);
 		}
 
 		:global([data-theme='dark']) .site-logo {
@@ -214,7 +214,7 @@
 			display: flex;
 			align-items: center;
 			justify-content: center;
-			color: var(--text-primary, #1a1a1a);
+			color: #fff;
 		}
 
 		.mobile-menu {
