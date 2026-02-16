@@ -1,14 +1,43 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import type { ActionData, PageData } from './$types';
+	let name = $state('');
+	let email = $state('');
+	let freewrite = $state('');
+	let status = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
+	let errorMsg = $state('');
 
-	let { data, form }: { data: PageData; form: ActionData } = $props();
-	let loading = $state(false);
-	let mode = $state<'login' | 'reset' | 'update'>(data.mode === 'update' ? 'update' : 'login');
+	async function handleSubmit(e: Event) {
+		e.preventDefault();
+		if (!email) return;
+
+		if (!freewrite.trim()) {
+			errorMsg = 'Please share your thoughts before joining.';
+			status = 'error';
+			return;
+		}
+
+		status = 'sending';
+		try {
+			const res = await fetch('/api/contact', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ email: email.trim(), name: name.trim() || undefined, freewrite: freewrite.trim() || undefined })
+			});
+
+			if (!res.ok) {
+				const data = await res.json();
+				throw new Error(data.error || 'Something went wrong');
+			}
+
+			status = 'sent';
+		} catch (err) {
+			errorMsg = err instanceof Error ? err.message : 'Something went wrong';
+			status = 'error';
+		}
+	}
 </script>
 
 <svelte:head>
-	<title>{mode === 'login' ? 'login' : mode === 'reset' ? 'reset password' : 'set new password'} - dyad. cultivating a culture of conversation</title>
+	<title>join - dyad. cultivating a culture of conversation</title>
 </svelte:head>
 
 <nav class="login-nav">
@@ -19,89 +48,53 @@
 
 <div class="split-layout">
 	<div class="image-half">
-		<img src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/log%20in.jpeg" alt="" />
+		<img src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/sign%20in.jpeg" alt="" />
 	</div>
 	<div class="form-half">
 		<div class="auth-card">
-			<h1>
-				{#if mode === 'login'}Welcome back{:else if mode === 'reset'}Reset password{:else}Set new password{/if}
-			</h1>
-			<p class="subtitle">
-				{#if mode === 'login'}Sign in to create and join conversations{:else if mode === 'reset'}Enter your email to receive a reset link{:else}Choose a new password for your account{/if}
-			</p>
+			<h1>Join</h1>
+			<p class="subtitle">For all free thinkers who want company.</p>
 
-			{#if form?.error}
-				<div class="error-message">{form.error}</div>
-			{/if}
-
-			{#if form?.success}
-				<div class="success-message">{form.message}</div>
-			{/if}
-
-			<form
-				method="POST"
-				action="?/{mode === 'reset' ? 'resetPassword' : mode === 'update' ? 'updatePassword' : mode}"
-				use:enhance={() => {
-					loading = true;
-					return async ({ update }) => {
-						loading = false;
-						await update();
-					};
-				}}
-			>
-				{#if mode !== 'update'}
+			{#if status === 'sent'}
+				<div class="success-message">Thank you. We'll be in touch.</div>
+			{:else}
+				<form onsubmit={handleSubmit}>
 					<div class="form-group">
-						<label for="email">Email</label>
+						<label for="freewrite" class="freewrite-label">What's in a conversation?</label>
+						<textarea
+							id="freewrite"
+							placeholder="Write freely..."
+							bind:value={freewrite}
+							disabled={status === 'sending'}
+							maxlength={2000}
+							rows={4}
+						></textarea>
+					</div>
+					<div class="form-group">
+						<input
+							type="text"
+							placeholder="Name"
+							bind:value={name}
+							disabled={status === 'sending'}
+						/>
+					</div>
+					<div class="form-group">
 						<input
 							type="email"
-							id="email"
-							name="email"
-							value={form?.email ?? ''}
+							placeholder="Email"
+							bind:value={email}
 							required
-							autocomplete="email"
-							disabled={loading}
+							disabled={status === 'sending'}
 						/>
 					</div>
-				{/if}
-
-				{#if mode !== 'reset'}
-					<div class="form-group">
-						<label for="password">{mode === 'update' ? 'New password' : 'Password'}</label>
-						<input
-							type="password"
-							id="password"
-							name="password"
-							required
-							autocomplete={mode === 'login' ? 'current-password' : 'new-password'}
-							disabled={loading}
-							minlength={mode === 'update' ? 6 : undefined}
-						/>
-						{#if mode === 'update'}
-							<p class="hint">At least 6 characters</p>
-						{/if}
-					</div>
-				{/if}
-
-				<button type="submit" class="submit-btn" disabled={loading}>
-					{#if loading}
-						{#if mode === 'login'}Signing in...{:else if mode === 'reset'}Sending...{:else}Updating...{/if}
-					{:else}
-						{#if mode === 'login'}Sign in{:else if mode === 'reset'}Send reset link{:else}Update password{/if}
+					<button type="submit" class="submit-btn" disabled={status === 'sending'}>
+						{status === 'sending' ? 'Sending...' : 'Join'}
+					</button>
+					{#if status === 'error'}
+						<p class="error-text">{errorMsg}</p>
 					{/if}
-				</button>
-			</form>
-
-			<div class="switch-auth">
-				{#if mode === 'login'}
-					<button type="button" class="link-btn" onclick={() => (mode = 'reset')}>Forgot password?</button>
-					<a href="/waitlist" class="link-btn">Join</a>
-				{:else if mode === 'reset'}
-					<button type="button" class="link-btn" onclick={() => (mode = 'login')}>Sign in</button>
-					<a href="/waitlist" class="link-btn">Join</a>
-				{:else}
-					<a href="/dashboard" class="link-btn">Go to dashboard</a>
-				{/if}
-			</div>
+				</form>
+			{/if}
 		</div>
 	</div>
 </div>
@@ -145,7 +138,6 @@
 		background: var(--bg-canvas);
 	}
 
-	/* Image — left half with grain overlay */
 	.image-half {
 		width: 50%;
 		height: 100%;
@@ -178,7 +170,6 @@
 		z-index: 1;
 	}
 
-	/* Form — right half, vertically centered */
 	.form-half {
 		width: 50%;
 		height: 100%;
@@ -203,18 +194,9 @@
 
 	.subtitle {
 		margin: 0 0 1.5rem 0;
+		font-family: 'SangBleu Sunrise', Georgia, serif;
 		color: var(--text-muted);
 		font-size: 0.95rem;
-	}
-
-	.error-message {
-		background: rgba(220, 53, 69, 0.1);
-		border: 1px solid rgba(220, 53, 69, 0.3);
-		color: #dc3545;
-		padding: 0.75rem 1rem;
-		border-radius: 4px;
-		margin-bottom: 1.5rem;
-		font-size: 0.9rem;
 	}
 
 	.success-message {
@@ -223,7 +205,6 @@
 		color: #198754;
 		padding: 0.75rem 1rem;
 		border-radius: 4px;
-		margin-bottom: 1.5rem;
 		font-size: 0.9rem;
 	}
 
@@ -231,11 +212,41 @@
 		margin-bottom: 1.25rem;
 	}
 
-	label {
+	.freewrite-label {
 		display: block;
-		margin-bottom: 0.5rem;
-		color: var(--text-secondary);
-		font-size: 0.95rem;
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 0.85rem;
+		color: var(--text-muted);
+		margin-bottom: 6px;
+		font-style: italic;
+	}
+
+	textarea {
+		width: 100%;
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 0.9rem;
+		padding: 0.75rem;
+		border: 1px solid var(--border-link);
+		border-radius: 4px;
+		background: var(--bg-canvas);
+		color: var(--text-primary);
+		resize: vertical;
+		line-height: 1.5;
+		box-sizing: border-box;
+		transition: border-color 0.2s;
+	}
+
+	textarea:focus {
+		outline: none;
+		border-color: var(--text-link-hover);
+	}
+
+	textarea::placeholder {
+		color: var(--text-muted);
+	}
+
+	textarea:disabled {
+		opacity: 0.6;
 	}
 
 	input {
@@ -258,12 +269,6 @@
 	input:disabled {
 		opacity: 0.6;
 		cursor: not-allowed;
-	}
-
-	.hint {
-		margin: 0.5rem 0 0 0;
-		font-size: 0.85rem;
-		color: var(--text-muted);
 	}
 
 	.submit-btn {
@@ -289,30 +294,10 @@
 		cursor: not-allowed;
 	}
 
-	.switch-auth {
-		margin: 1.5rem 0 0 0;
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		color: var(--text-muted);
-		font-size: 0.95rem;
-	}
-
-	.link-btn {
-		background: none;
-		border: none;
-		padding: 0;
-		color: var(--text-link);
-		font: inherit;
-		cursor: pointer;
-		text-decoration: none;
-		border-bottom: 1px solid var(--border-link);
-		transition: border-color 0.2s, color 0.2s;
-	}
-
-	.link-btn:hover {
-		color: var(--text-link-hover);
-		border-color: var(--border-link-hover);
+	.error-text {
+		font-size: 0.85rem;
+		color: #dc3545;
+		margin: 8px 0 0;
 	}
 
 	/* === Mobile — image on top, form below === */
