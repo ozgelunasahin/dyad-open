@@ -233,17 +233,19 @@
 									</div>
 								{/if}
 							{/if}
-							<button class="expand-btn" onclick={() => toggleExpand(slug)} aria-label={expandedCanvas === slug ? 'Collapse canvas' : 'Expand canvas'}>
-								{#if expandedCanvas === slug}
-									<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-										<path d="M9 1h4v4M5 13H1V9M13 1L8.5 5.5M1 13l4.5-4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-									</svg>
-								{:else}
-									<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-										<path d="M1 5V1h4M13 9v4H9M1 1l4.5 4.5M13 13L8.5 8.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-									</svg>
-								{/if}
-							</button>
+							{#if !isMobile}
+								<button class="expand-btn" onclick={() => toggleExpand(slug)} aria-label={expandedCanvas === slug ? 'Collapse canvas' : 'Expand canvas'}>
+									{#if expandedCanvas === slug}
+										<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+											<path d="M9 1h4v4M5 13H1V9M13 1L8.5 5.5M1 13l4.5-4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+										</svg>
+									{:else}
+										<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+											<path d="M1 5V1h4M13 9v4H9M1 1l4.5 4.5M13 13L8.5 8.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+										</svg>
+									{/if}
+								</button>
+							{/if}
 						</div>
 						{#if section.coverImageUrl}
 							<div class="section-cover">
@@ -413,6 +415,14 @@
 		box-sizing: border-box;
 	}
 
+	.entry-title {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 1.4rem;
+		font-weight: 700;
+		margin: 0 0 0.5rem 0;
+		color: var(--text-primary);
+	}
+
 	/* Expand/collapse button */
 	.expand-btn {
 		position: absolute;
@@ -536,20 +546,20 @@
 		.section-cover {
 			width: 100%;
 			height: 70vh;
-			padding: 0;
+			padding: 8px 8px 0 8px;
 		}
 
 		.section-cover img,
 		.section-cover video {
-			border-radius: 8px;
+			border-radius: 6px;
 		}
 
 		.section-cover::after {
-			top: 0;
-			right: 0;
+			top: 8px;
+			right: 8px;
 			bottom: 0;
-			left: 0;
-			border-radius: 8px;
+			left: 8px;
+			border-radius: 6px;
 		}
 
 		.canvas-area {
@@ -565,7 +575,7 @@
 		}
 
 		.entry-text {
-			padding: 16px 14px 40px;
+			padding: 12px 8px 40px;
 			font-size: 14px !important;
 		}
 

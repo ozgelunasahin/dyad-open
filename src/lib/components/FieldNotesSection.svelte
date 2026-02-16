@@ -521,6 +521,10 @@
 
 	/* === Mobile === */
 	@media (max-width: 768px) {
+		.field-notes {
+			padding: 40px 8px;
+		}
+
 		.layout {
 			grid-template-columns: 1fr;
 			gap: 16px;
@@ -529,6 +533,11 @@
 		.cards-col {
 			grid-template-columns: 1fr;
 			gap: 32px;
+		}
+
+		.image-area,
+		.image-area img {
+			border-radius: 6px;
 		}
 
 		/* Horizontal card: image left, text right */

@@ -94,10 +94,10 @@
 			<div class="switch-auth">
 				{#if mode === 'login'}
 					<button type="button" class="link-btn" onclick={() => (mode = 'reset')}>Forgot password?</button>
-					<a href="/waitlist" class="link-btn">Join</a>
+					<a href="/#join" class="link-btn">Join</a>
 				{:else if mode === 'reset'}
 					<button type="button" class="link-btn" onclick={() => (mode = 'login')}>Sign in</button>
-					<a href="/waitlist" class="link-btn">Join</a>
+					<a href="/#join" class="link-btn">Join</a>
 				{:else}
 					<a href="/dashboard" class="link-btn">Go to dashboard</a>
 				{/if}
@@ -326,19 +326,19 @@
 		.image-half {
 			width: 100%;
 			height: 40vh;
-			padding: 0;
+			padding: 16px 16px 0 16px;
 		}
 
 		.image-half img {
-			border-radius: 0;
+			border-radius: 8px;
 		}
 
 		.image-half::after {
-			top: 0;
-			right: 0;
+			top: 16px;
+			right: 16px;
 			bottom: 0;
-			left: 0;
-			border-radius: 0;
+			left: 16px;
+			border-radius: 8px;
 		}
 
 		.login-nav {
