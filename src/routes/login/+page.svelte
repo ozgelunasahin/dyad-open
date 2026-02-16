@@ -5,6 +5,43 @@
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	let loading = $state(false);
 	let mode = $state<'login' | 'reset' | 'update'>(data.mode === 'update' ? 'update' : 'login');
+
+	// Waitlist form state
+	let waitlistName = $state('');
+	let waitlistEmail = $state('');
+	let waitlistFreewrite = $state('');
+	let waitlistStatus = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
+	let waitlistError = $state('');
+
+	async function handleWaitlist(e: Event) {
+		e.preventDefault();
+		if (!waitlistEmail) return;
+		if (!waitlistFreewrite.trim()) {
+			waitlistError = 'Please share your thoughts before joining.';
+			waitlistStatus = 'error';
+			return;
+		}
+		waitlistStatus = 'sending';
+		try {
+			const res = await fetch('/api/contact', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					email: waitlistEmail.trim(),
+					name: waitlistName.trim() || undefined,
+					freewrite: waitlistFreewrite.trim() || undefined
+				})
+			});
+			if (!res.ok) {
+				const data = await res.json();
+				throw new Error(data.error || 'Something went wrong');
+			}
+			waitlistStatus = 'sent';
+		} catch (err) {
+			waitlistError = err instanceof Error ? err.message : 'Something went wrong';
+			waitlistStatus = 'error';
+		}
+	}
 </script>
 
 <svelte:head>
@@ -98,6 +135,39 @@
 			{/if}
 		</p>
 	</div>
+
+	<div class="waitlist-card">
+		<span class="waitlist-tag">join</span>
+		<p class="waitlist-description">For all free thinkers who want company.</p>
+
+		{#if waitlistStatus === 'sent'}
+			<p class="success-message">Thank you. We'll be in touch.</p>
+		{:else}
+			<form onsubmit={handleWaitlist}>
+				<div class="form-group">
+					<label for="waitlist-freewrite" class="freewrite-label">What's in a conversation?</label>
+					<textarea
+						id="waitlist-freewrite"
+						placeholder="Write freely..."
+						bind:value={waitlistFreewrite}
+						disabled={waitlistStatus === 'sending'}
+						maxlength={2000}
+						rows={3}
+					></textarea>
+				</div>
+				<div class="waitlist-row">
+					<input type="text" placeholder="Name" bind:value={waitlistName} disabled={waitlistStatus === 'sending'} />
+					<input type="email" placeholder="Email" bind:value={waitlistEmail} required disabled={waitlistStatus === 'sending'} />
+					<button type="submit" class="submit-btn waitlist-btn" disabled={waitlistStatus === 'sending'}>
+						{waitlistStatus === 'sending' ? 'Sending...' : 'Join'}
+					</button>
+				</div>
+				{#if waitlistStatus === 'error'}
+					<p class="error-text">{waitlistError}</p>
+				{/if}
+			</form>
+		{/if}
+	</div>
 </div>
 
 <style>
@@ -138,6 +208,7 @@
 	.auth-container {
 		min-height: 100vh;
 		display: flex;
+		flex-direction: column;
 		align-items: center;
 		justify-content: center;
 		padding: 2rem;
@@ -269,5 +340,86 @@
 	.link-btn:hover {
 		color: var(--text-link-hover);
 		border-color: var(--border-link-hover);
+	}
+
+	/* === Waitlist section === */
+	.waitlist-card {
+		width: 100%;
+		max-width: 400px;
+		margin-top: 2rem;
+		padding-top: 2rem;
+		border-top: 1px solid var(--border-link);
+	}
+
+	.waitlist-tag {
+		font-family: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace;
+		font-size: 11px;
+		font-weight: 500;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--text-muted, #666);
+	}
+
+	.waitlist-description {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 0.95rem;
+		color: var(--text-muted);
+		margin: 8px 0 16px;
+	}
+
+	.freewrite-label {
+		display: block;
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 0.85rem;
+		color: var(--text-muted);
+		margin-bottom: 6px;
+		font-style: italic;
+	}
+
+	textarea {
+		width: 100%;
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 0.9rem;
+		padding: 0.75rem;
+		border: 1px solid var(--border-link);
+		border-radius: 4px;
+		background: var(--bg-canvas);
+		color: var(--text-primary);
+		resize: vertical;
+		line-height: 1.5;
+		box-sizing: border-box;
+		transition: border-color 0.2s;
+	}
+
+	textarea:focus {
+		outline: none;
+		border-color: var(--text-link-hover);
+	}
+
+	textarea::placeholder {
+		color: var(--text-muted);
+	}
+
+	textarea:disabled {
+		opacity: 0.6;
+	}
+
+	.waitlist-row {
+		display: flex;
+		gap: 8px;
+		margin-top: 12px;
+	}
+
+	.waitlist-btn {
+		width: auto;
+		padding: 0.75rem 1.25rem;
+		margin-top: 0;
+		white-space: nowrap;
+	}
+
+	.error-text {
+		font-size: 0.85rem;
+		color: #dc3545;
+		margin: 8px 0 0;
 	}
 </style>
