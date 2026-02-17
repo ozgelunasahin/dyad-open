@@ -119,5 +119,5 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 		console.warn('[contact] RESEND_API_KEY not set — skipping email');
 	}
 
-	return json({ ok: true });
+	return json({ ok: true, debug: { resendKeyPresent: !!env.RESEND_API_KEY, resendKeyLength: env.RESEND_API_KEY?.length ?? 0 } });
 };
