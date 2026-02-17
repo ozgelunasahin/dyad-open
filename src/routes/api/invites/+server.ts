@@ -90,26 +90,29 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	console.log('[invites] RESEND_API_KEY present:', !!env.RESEND_API_KEY, 'length:', env.RESEND_API_KEY?.length ?? 0);
 	if (env.RESEND_API_KEY) {
 		const resend = new Resend(env.RESEND_API_KEY);
-		resend.emails.send({
-		from: 'dyad. <hello@dyad.berlin>',
-		to: email.trim(),
-		subject: "You're invited to dyad.",
-		html: `
-			<div style="font-family: Georgia, serif; max-width: 520px; margin: 0 auto; padding: 40px 20px; color: #1a1a1a; line-height: 1.7;">
-				<p>Hi ${displayName},</p>
-				<p>You've been invited to join dyad — a community of independent thinkers who meet through writing.</p>
-				<p><a href="${inviteUrl}" style="color: #1a1a1a; font-weight: bold; text-decoration: underline;">Join dyad</a></p>
-				<p style="font-size: 14px; color: #666;">This link expires in ${INVITE_EXPIRY_DAYS} days.</p>
-				<hr style="border: none; border-top: 1px solid #e0ddd8; margin: 32px 0 16px;" />
-				<p style="font-size: 12px; color: #999;">dyad.berlin — cultivating a culture of conversation</p>
-			</div>
-		`
-		}).then(result => {
-			console.log('[invites] Resend result:', JSON.stringify(result));
-		}).catch(err => console.error('[invites] Resend error:', err));
+		let emailResult: unknown = null;
+		let emailError: unknown = null;
+		try {
+			emailResult = await resend.emails.send({
+				from: 'dyad. <hello@dyad.berlin>',
+				to: email.trim(),
+				subject: "You're invited to dyad.",
+				html: `
+					<div style="font-family: Georgia, serif; max-width: 520px; margin: 0 auto; padding: 40px 20px; color: #1a1a1a; line-height: 1.7;">
+						<p>Hi ${displayName},</p>
+						<p>You've been invited to join dyad — a community of independent thinkers who meet through writing.</p>
+						<p><a href="${inviteUrl}" style="color: #1a1a1a; font-weight: bold; text-decoration: underline;">Join dyad</a></p>
+						<p style="font-size: 14px; color: #666;">This link expires in ${INVITE_EXPIRY_DAYS} days.</p>
+						<hr style="border: none; border-top: 1px solid #e0ddd8; margin: 32px 0 16px;" />
+						<p style="font-size: 12px; color: #999;">dyad.berlin — cultivating a culture of conversation</p>
+					</div>
+				`
+			});
+		} catch (err) {
+			emailError = err instanceof Error ? err.message : String(err);
+		}
+		return json({ ok: true, inviteUrl, debug: { resendKeyPresent: true, resendKeyLength: env.RESEND_API_KEY?.length ?? 0, emailResult, emailError } });
 	} else {
-		console.warn('[invites] RESEND_API_KEY not set — skipping email');
+		return json({ ok: true, inviteUrl, debug: { resendKeyPresent: false, resendKeyLength: 0 } });
 	}
-
-	return json({ ok: true, inviteUrl, debug: { resendKeyPresent: !!env.RESEND_API_KEY, resendKeyLength: env.RESEND_API_KEY?.length ?? 0 } });
 };
