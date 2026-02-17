@@ -92,8 +92,9 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 
 	// Send welcome email (fire-and-forget — don't block the response)
 	const displayName = (typeof name === 'string' && name.trim()) || 'there';
-	const resend = new Resend(env.RESEND_API_KEY);
-	resend.emails.send({
+	if (env.RESEND_API_KEY) {
+		const resend = new Resend(env.RESEND_API_KEY);
+		resend.emails.send({
 		from: 'dyad. <hello@dyad.berlin>',
 		to: email.trim(),
 		subject: "What's in a conversation?",
@@ -110,7 +111,8 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 				<p style="font-size: 12px; color: #999;">dyad.berlin — cultivating a culture of conversation</p>
 			</div>
 		`
-	}).catch(err => console.error('Failed to send welcome email:', err));
+		}).catch(err => console.error('Failed to send welcome email:', err));
+	}
 
 	return json({ ok: true });
 };

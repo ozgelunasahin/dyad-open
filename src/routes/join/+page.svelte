@@ -16,7 +16,11 @@
 	</a>
 </nav>
 
-<div class="auth-container">
+<div class="split-layout">
+	<div class="image-half">
+		<img src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/log%20in.jpeg" alt="" />
+	</div>
+	<div class="form-half">
 	<div class="auth-card">
 		{#if form?.success}
 			<h1>Welcome to dyad.</h1>
@@ -118,25 +122,20 @@
 			</p>
 		{/if}
 	</div>
+	</div>
 </div>
 
 <style>
 	.join-nav {
 		position: fixed;
 		top: 24px;
-		left: 50%;
-		transform: translateX(-50%);
+		right: 0;
+		width: 50%;
 		z-index: 100;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		padding: 0 28px;
 		height: 48px;
-		background: color-mix(in srgb, var(--bg-canvas, #f5f3f0) 92%, transparent);
-		backdrop-filter: blur(16px);
-		-webkit-backdrop-filter: blur(16px);
-		border-radius: 8px;
-		box-shadow: 0 1px 12px var(--bg-control, rgba(0, 0, 0, 0.08));
 	}
 
 	.logo-link {
@@ -155,20 +154,59 @@
 		filter: none;
 	}
 
-	.auth-container {
-		min-height: 100vh;
+	/* === Split layout — mirrors login page === */
+	.split-layout {
+		width: 100%;
+		height: 100vh;
+		display: flex;
+		flex-direction: row;
+		overflow: hidden;
+		background: var(--bg-canvas);
+	}
+
+	.image-half {
+		width: 50%;
+		height: 100%;
+		position: relative;
+		padding: 16px 0 16px 16px;
+		box-sizing: border-box;
+	}
+
+	.image-half img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		object-position: center;
+		display: block;
+		border-radius: 8px;
+	}
+
+	.image-half::after {
+		content: '';
+		position: absolute;
+		top: 16px;
+		right: 0;
+		bottom: 16px;
+		left: 16px;
+		border-radius: 8px;
+		background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.4'/%3E%3C/svg%3E");
+		background-size: 128px 128px;
+		mix-blend-mode: overlay;
+		pointer-events: none;
+		z-index: 1;
+	}
+
+	.form-half {
+		width: 50%;
+		height: 100%;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		padding: 2rem;
-		background: var(--bg-canvas);
+		box-sizing: border-box;
 	}
 
 	.auth-card {
-		background: var(--bg-canvas);
-		border: 1px solid var(--border-link);
-		border-radius: 8px;
-		padding: 2.5rem;
 		width: 100%;
 		max-width: 400px;
 	}
@@ -301,5 +339,42 @@
 	.back-link:hover {
 		color: var(--text-link-hover);
 		border-color: var(--border-link-hover);
+	}
+
+	/* === Mobile — image on top, form below === */
+	@media (max-width: 768px) {
+		.split-layout {
+			flex-direction: column;
+			height: auto;
+			min-height: 100vh;
+		}
+
+		.image-half {
+			width: 100%;
+			height: 40vh;
+			padding: 16px 16px 0 16px;
+		}
+
+		.image-half img {
+			border-radius: 8px;
+		}
+
+		.image-half::after {
+			top: 16px;
+			right: 16px;
+			bottom: 0;
+			left: 16px;
+			border-radius: 8px;
+		}
+
+		.join-nav {
+			width: 100%;
+		}
+
+		.form-half {
+			width: 100%;
+			height: auto;
+			padding: 2rem 1.5rem;
+		}
 	}
 </style>

@@ -1,19 +1,24 @@
 <script lang="ts">
 	/**
 	 * Published Canvas - Read-only view with comment panel + meeting invite
+	 * Mobile: uses ExpandableContent (toggle wikilinks) for better reading
+	 * Desktop: uses Canvas (2D pan/zoom) for spatial exploration
 	 */
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
 	import type { PageData } from './$types';
 	import { canvasStore } from '$lib/stores/canvas.svelte';
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import Canvas from '$lib/components/Canvas.svelte';
+	import ExpandableContent from '$lib/components/ExpandableContent.svelte';
 	import MeetingInviteModal from '$lib/components/MeetingInviteModal.svelte';
 
 	let { data }: { data: PageData } = $props();
 
 	let loading = $state(true);
 	let error = $state<string | null>(null);
+	let isMobile = $state(false);
+	let mobileMenuOpen = $state(false);
 
 	// Comment panel
 	let panelOpen = $state(false);
@@ -41,6 +46,11 @@
 	}
 
 	onMount(async () => {
+		const mq = window.matchMedia('(max-width: 768px)');
+		isMobile = mq.matches;
+		const mqHandler = (e: MediaQueryListEvent) => { isMobile = e.matches; };
+		mq.addEventListener('change', mqHandler);
+
 		try {
 			const hash = window.location.hash.slice(1);
 			const vault = { ...data.vault };
@@ -48,12 +58,24 @@
 				vault.entryPoint = hash;
 			}
 
-			await canvasStore.initialize(vault, data.canvas.id, data.cardPositions);
+			if (!isMobile) {
+				await canvasStore.initialize(vault, data.canvas.id, data.cardPositions, true);
+			}
 			loading = false;
+
+			if (!isMobile) {
+				await tick();
+				const entryId = vault.entryPoint;
+				if (entryId) {
+					canvasStore.focusCard(entryId, true);
+				}
+			}
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Unknown error';
 			loading = false;
 		}
+
+		return () => mq.removeEventListener('change', mqHandler);
 	});
 
 	function handleKeydown(event: KeyboardEvent) {
@@ -134,6 +156,12 @@
 		data.currentUserId !== data.author.id &&
 		userHasCommented
 	);
+
+	// Get the entry note for mobile ExpandableContent view
+	let entryNote = $derived(() => {
+		const entryId = data.vault?.entryPoint;
+		return entryId ? data.vault?.notes?.[entryId] : null;
+	});
 </script>
 
 <svelte:head>
@@ -151,6 +179,54 @@
 		<div class="error" in:fade={{ duration: 200 }}>
 			<p>{error}</p>
 			<button onclick={() => window.location.reload()}>Retry</button>
+		</div>
+	{:else if isMobile}
+		<div class="mobile-reading" in:fade={{ duration: 200 }}>
+			<nav class="mobile-nav">
+				<a href="/" class="logo-link" aria-label="Back to home">
+					<img src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/logo.png" alt="dyad" class="site-logo" />
+				</a>
+				<button class="menu-btn" onclick={() => mobileMenuOpen = !mobileMenuOpen} aria-label="Menu">
+					{#if mobileMenuOpen}
+						<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+							<path d="M4 4l12 12M16 4L4 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+						</svg>
+					{:else}
+						<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+							<path d="M3 6h14M3 10h14M3 14h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+						</svg>
+					{/if}
+				</button>
+			</nav>
+			{#if mobileMenuOpen}
+				<!-- svelte-ignore a11y_no_static_element_interactions -->
+				<div class="mobile-overlay" onclick={() => mobileMenuOpen = false}></div>
+				<aside class="mobile-panel" transition:fly={{ x: 300, duration: 250 }}>
+					<nav class="mobile-panel-nav">
+						<a href="/" onclick={() => mobileMenuOpen = false}>home</a>
+						<a href="/#join" onclick={() => mobileMenuOpen = false}>join</a>
+						<a href="/login" onclick={() => mobileMenuOpen = false}>log in</a>
+					</nav>
+				</aside>
+			{/if}
+			{#if entryNote()}
+				<ExpandableContent
+					content={entryNote().content}
+					vault={data.vault}
+				/>
+			{/if}
+			<button class="theme-toggle" onclick={toggleTheme} aria-label="Toggle theme">
+			{#if themeStore.current === 'light'}
+				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+					<circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5" />
+					<path d="M8 1V2.5M8 13.5V15M1 8H2.5M13.5 8H15M3.05 3.05L4.11 4.11M11.89 11.89L12.95 12.95M3.05 12.95L4.11 11.89M11.89 4.11L12.95 3.05" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+				</svg>
+			{:else}
+				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+					<path d="M14 8.5A6 6 0 117.5 2a4.5 4.5 0 006.5 6.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+				</svg>
+			{/if}
+			</button>
 		</div>
 	{:else}
 		<div class="canvas-container" in:fade={{ duration: 200 }}>
@@ -295,6 +371,94 @@
 	.canvas-container {
 		width: 100%;
 		height: 100%;
+	}
+
+	/* Mobile reading view — scrollable with toggle wikilinks */
+	.mobile-reading {
+		padding: 0 20px 80px;
+		overflow-y: auto;
+		height: 100%;
+		box-sizing: border-box;
+	}
+
+	.mobile-nav {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 16px 0;
+		margin-bottom: 8px;
+	}
+
+	.logo-link {
+		display: flex;
+		align-items: center;
+		text-decoration: none;
+	}
+
+	.site-logo {
+		height: 24px;
+		width: auto;
+		filter: brightness(0);
+		transition: filter 0.2s ease;
+	}
+
+	:global([data-theme='dark']) .site-logo {
+		filter: none;
+	}
+
+	.menu-btn {
+		background: none;
+		border: none;
+		padding: 4px;
+		cursor: pointer;
+		color: var(--text-primary, #1a1a1a);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.mobile-overlay {
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.15);
+		z-index: 200;
+	}
+
+	.mobile-panel {
+		position: fixed;
+		top: 0;
+		right: 0;
+		width: 280px;
+		max-width: 80vw;
+		height: 100vh;
+		background: var(--bg-canvas, #f5f3f0);
+		z-index: 300;
+		padding: 24px;
+		box-sizing: border-box;
+		display: flex;
+		flex-direction: column;
+		box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1);
+	}
+
+	.mobile-panel-nav {
+		display: flex;
+		flex-direction: column;
+		margin-top: 32px;
+	}
+
+	.mobile-panel-nav a {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 18px;
+		font-weight: 500;
+		color: var(--text-primary, #1a1a1a);
+		text-decoration: none;
+		padding: 14px 0;
+		border-bottom: 1px solid var(--border-link, rgba(0, 0, 0, 0.1));
+		transition: color 0.15s;
+	}
+
+	.mobile-panel-nav a:hover {
+		color: var(--text-muted, #666);
 	}
 
 	.error {
@@ -560,7 +724,7 @@
 		opacity: 1;
 	}
 
-	/* Back navigation header */
+	/* Back navigation header (desktop) */
 	.canvas-header {
 		position: fixed;
 		top: 16px;
@@ -582,10 +746,10 @@
 	}
 
 	.back-link {
-		display: flex;
+		display: inline-flex;
 		align-items: center;
 		color: var(--text-muted);
-		transition: color 0.2s;
+		transition: color 0.15s;
 	}
 
 	.back-link:hover {
