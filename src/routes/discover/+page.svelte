@@ -1,7 +1,9 @@
 <script lang="ts">
+	import { fly } from 'svelte/transition';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
+	let mobileMenuOpen = $state(false);
 
 	function formatDate(date: string): string {
 		return new Intl.DateTimeFormat('en-US', {
@@ -108,7 +110,32 @@
 			<span class="sidebar-username">@{data.username}</span>
 			<a href="/logout" class="sidebar-logout">sign out</a>
 		</div>
+		<button class="mobile-menu-btn" onclick={() => mobileMenuOpen = !mobileMenuOpen} aria-label="Menu">
+			{#if mobileMenuOpen}
+				<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+					<path d="M4 4l12 12M16 4L4 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+				</svg>
+			{:else}
+				<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+					<path d="M3 6h14M3 10h14M3 14h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+				</svg>
+			{/if}
+		</button>
 	</aside>
+	{#if mobileMenuOpen}
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div class="mobile-overlay" onclick={() => mobileMenuOpen = false}></div>
+		<aside class="mobile-panel" transition:fly={{ x: 300, duration: 250 }}>
+			<nav class="mobile-panel-nav">
+				<a href="/dashboard" onclick={() => mobileMenuOpen = false}>profile</a>
+				<a href="/" onclick={() => mobileMenuOpen = false}>home</a>
+			</nav>
+			<div class="mobile-panel-bottom">
+				<span class="mobile-panel-user">@{data.username}</span>
+				<a href="/logout" onclick={() => mobileMenuOpen = false}>sign out</a>
+			</div>
+		</aside>
+	{/if}
 
 	<main class="main-content">
 		<header class="page-header">
@@ -304,6 +331,23 @@
 		color: var(--text-primary);
 	}
 
+	/* Hamburger — hidden on desktop */
+	.mobile-menu-btn {
+		display: none;
+		background: none;
+		border: none;
+		padding: 4px;
+		cursor: pointer;
+		color: var(--text-primary, #1a1a1a);
+		align-items: center;
+		justify-content: center;
+	}
+
+	/* Slide-in panel — hidden on desktop */
+	.mobile-overlay, .mobile-panel {
+		display: none;
+	}
+
 	.main-content {
 		flex: 1;
 		min-width: 0;
@@ -355,16 +399,87 @@
 		}
 
 		.sidebar-nav {
-			flex-direction: row;
-			gap: 0.5rem;
+			display: none;
 		}
 
 		.sidebar-bottom {
-			margin-top: 0;
+			display: none;
+		}
+
+		.mobile-menu-btn {
+			display: flex;
 			margin-left: auto;
-			flex-direction: row;
-			align-items: center;
-			gap: 0.75rem;
+		}
+
+		.mobile-overlay {
+			display: block;
+			position: fixed;
+			inset: 0;
+			background: rgba(0, 0, 0, 0.15);
+			z-index: 200;
+		}
+
+		.mobile-panel {
+			display: flex;
+			flex-direction: column;
+			position: fixed;
+			top: 0;
+			right: 0;
+			width: 280px;
+			max-width: 80vw;
+			height: 100vh;
+			background: var(--bg-canvas, #f5f3f0);
+			z-index: 300;
+			padding: 24px;
+			box-sizing: border-box;
+			box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1);
+		}
+
+		.mobile-panel-nav {
+			display: flex;
+			flex-direction: column;
+			gap: 0;
+			margin-top: 32px;
+		}
+
+		.mobile-panel-nav a {
+			font-family: 'SangBleu Sunrise', Georgia, serif;
+			font-size: 18px;
+			font-weight: 500;
+			color: var(--text-primary, #1a1a1a);
+			text-decoration: none;
+			padding: 14px 0;
+			border-bottom: 1px solid var(--border-link, rgba(0, 0, 0, 0.1));
+			transition: color 0.15s;
+		}
+
+		.mobile-panel-nav a:hover {
+			color: var(--text-muted, #666);
+		}
+
+		.mobile-panel-bottom {
+			margin-top: auto;
+			display: flex;
+			flex-direction: column;
+			gap: 12px;
+		}
+
+		.mobile-panel-user {
+			font-family: monospace;
+			font-size: 13px;
+			color: var(--text-muted, #666);
+		}
+
+		.mobile-panel-bottom a {
+			font-family: 'SangBleu Sunrise', Georgia, serif;
+			font-size: 16px;
+			color: var(--text-secondary, #333);
+			text-decoration: none;
+			transition: color 0.15s;
+		}
+
+		.mobile-panel-bottom a:hover {
+			color: var(--text-primary, #1a1a1a);
 		}
 	}
 

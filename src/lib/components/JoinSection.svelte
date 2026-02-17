@@ -36,7 +36,10 @@
 	}
 </script>
 
-<div class="join-section">
+<div class="join-section" id="join">
+	<div class="join-cover">
+		<img src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/log%20in.jpeg" alt="" />
+	</div>
 	<div class="layout">
 		<div class="label-col">
 			<span class="section-label">Join:</span>
@@ -92,6 +95,10 @@
 		width: 100%;
 		padding: 40px 16px;
 		box-sizing: border-box;
+	}
+
+	.join-cover {
+		display: none;
 	}
 
 	.layout {
@@ -245,6 +252,25 @@
 	}
 
 	@media (max-width: 768px) {
+		.join-section {
+			padding: 0 8px;
+		}
+
+		.join-cover {
+			display: block;
+			width: 100%;
+			margin-bottom: 12px;
+		}
+
+		.join-cover img {
+			width: 100%;
+			height: 50vh;
+			object-fit: cover;
+			object-position: center;
+			display: block;
+			border-radius: 6px;
+		}
+
 		.layout {
 			grid-template-columns: 1fr;
 			gap: 16px;

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { fly } from 'svelte/transition';
 	import type { NavItem } from '$lib/server/load-site-sections';
 
 	interface Props {
@@ -53,18 +54,21 @@
 	</button>
 </nav>
 
-<!-- Mobile menu -->
+<!-- Mobile slide-in panel -->
 {#if mobileMenuOpen}
-	<div class="mobile-menu">
-		{#each items.slice(1) as item}
-			<button onclick={() => { onNavigate(item.slug); mobileMenuOpen = false; }}>
-				{item.name}
-			</button>
-		{/each}
-		<hr />
-		<a href="/signup" class="mobile-link" onclick={() => mobileMenuOpen = false}>sign up</a>
-		<a href="/login" class="mobile-link" onclick={() => mobileMenuOpen = false}>log in</a>
-	</div>
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div class="mobile-overlay" onclick={() => mobileMenuOpen = false}></div>
+	<aside class="mobile-panel" transition:fly={{ x: 300, duration: 250 }}>
+		<nav class="mobile-panel-nav">
+			{#each items.slice(1).filter(item => item.slug !== activeSlug) as item}
+				<button onclick={() => { onNavigate(item.slug); mobileMenuOpen = false; }}>
+					{item.name}
+				</button>
+			{/each}
+			<button onclick={() => { const el = document.getElementById('join'); if (el) el.scrollIntoView({ behavior: 'smooth' }); mobileMenuOpen = false; }}>join</button>
+			<a href="/login" class="mobile-panel-link">log in</a>
+		</nav>
+	</aside>
 {/if}
 
 
@@ -74,7 +78,7 @@
 		top: 16px;
 		left: 50%;
 		transform: translateX(-50%);
-		z-index: 100;
+		z-index: 201;
 		display: flex;
 		align-items: center;
 		gap: 20px;
@@ -114,8 +118,8 @@
 		color: var(--text-primary, #1a1a1a);
 	}
 
-	/* Mobile menu (hidden on desktop) */
-	.mobile-menu {
+	/* Slide-in panel — hidden on desktop */
+	.mobile-overlay, .mobile-panel {
 		display: none;
 	}
 
@@ -217,47 +221,56 @@
 			color: #fff;
 		}
 
-		.mobile-menu {
+		.mobile-overlay {
+			display: block;
+			position: fixed;
+			inset: 0;
+			background: rgba(0, 0, 0, 0.15);
+			z-index: 200;
+		}
+
+		.mobile-panel {
 			display: flex;
 			flex-direction: column;
 			position: fixed;
-			top: 56px;
-			left: 20px;
-			right: 20px;
-			z-index: 99;
-			background: color-mix(in srgb, var(--bg-canvas, #f5f3f0) 95%, transparent);
-			backdrop-filter: blur(16px);
-			-webkit-backdrop-filter: blur(16px);
-			border-radius: 16px;
-			padding: 12px 8px;
-			box-shadow: 0 4px 24px var(--bg-control, rgba(0, 0, 0, 0.1));
+			top: 0;
+			right: 0;
+			width: 280px;
+			max-width: 80vw;
+			height: 100vh;
+			background: var(--bg-canvas, #f5f3f0);
+			z-index: 300;
+			padding: 24px;
+			box-sizing: border-box;
+			box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1);
 		}
 
-		.mobile-menu button, .mobile-menu .mobile-link {
+		.mobile-panel-nav {
+			display: flex;
+			flex-direction: column;
+			margin-top: 32px;
+		}
+
+		.mobile-panel-nav button, .mobile-panel-nav .mobile-panel-link {
 			font-family: 'SangBleu Sunrise', Georgia, serif;
-			font-size: 16px;
+			font-size: 18px;
 			font-weight: 500;
-			color: var(--text-secondary, #333);
+			color: var(--text-primary, #1a1a1a);
 			background: none;
 			border: none;
-			padding: 12px 16px;
+			padding: 14px 0;
 			text-align: left;
 			cursor: pointer;
 			text-decoration: none;
 			display: block;
-			border-radius: 8px;
-			transition: background 0.15s, color 0.15s;
+			border-bottom: 1px solid var(--border-link, rgba(0, 0, 0, 0.1));
+			border-radius: 0;
+			letter-spacing: normal;
+			transition: color 0.15s;
 		}
 
-		.mobile-menu button:hover, .mobile-menu .mobile-link:hover {
-			background: var(--bg-control, rgba(0, 0, 0, 0.05));
-			color: var(--text-primary, #1a1a1a);
-		}
-
-		.mobile-menu hr {
-			border: none;
-			border-top: 1px solid var(--border-link, rgba(0, 0, 0, 0.1));
-			margin: 4px 16px;
+		.mobile-panel-nav button:hover, .mobile-panel-nav .mobile-panel-link:hover {
+			color: var(--text-muted, #666);
 		}
 	}
 </style>

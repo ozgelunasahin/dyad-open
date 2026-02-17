@@ -150,8 +150,9 @@
 		}
 
 		activeCanvasSection = sectionId;
-		const canvasStoreId = `landing-${section.canvasId}`;
-		canvasStore.initialize(section.vault, canvasStoreId, section.cardPositions);
+		// Use 'site-landing' so the store skips localStorage restoration
+		// and opens only the entry note fresh — wikilinks visible but not expanded
+		canvasStore.initialize(section.vault, 'site-landing');
 		await tick();
 
 		if (activationGeneration !== myGeneration) return;
@@ -218,7 +219,7 @@
 							{#if isMobile}
 								{@const entryNote = section.vault?.notes?.[section.vault?.entryPoint]}
 								{#if entryNote}
-									<div class="mobile-entry-text">
+									<div class="entry-text">
 										<ExpandableContent
 											content={entryNote.content}
 											vault={section.vault}
@@ -231,6 +232,8 @@
 										<Canvas readOnly captureWheel={false} onBoundaryExit={handleBoundaryExit} />
 									</div>
 								{/if}
+							{/if}
+							{#if !isMobile}
 								<button class="expand-btn" onclick={() => toggleExpand(slug)} aria-label={expandedCanvas === slug ? 'Collapse canvas' : 'Expand canvas'}>
 									{#if expandedCanvas === slug}
 										<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -385,6 +388,8 @@
 		position: relative;
 		overflow: hidden;
 		transition: width 0.6s ease;
+		display: flex;
+		flex-direction: column;
 	}
 
 	/* When expanded, canvas takes the full section */
@@ -402,12 +407,20 @@
 		touch-action: none;
 	}
 
-	/* Mobile entry text — replaces canvas on mobile */
-	.mobile-entry-text {
+	/* Entry text — mobile text rendering of canvas content */
+	.entry-text {
 		width: 100%;
 		background: var(--bg-canvas);
 		padding: 16px 14px 80px;
 		box-sizing: border-box;
+	}
+
+	.entry-title {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 1.4rem;
+		font-weight: 700;
+		margin: 0 0 0.5rem 0;
+		color: var(--text-primary);
 	}
 
 	/* Expand/collapse button */
@@ -533,20 +546,20 @@
 		.section-cover {
 			width: 100%;
 			height: 70vh;
-			padding: 0;
+			padding: 8px 8px 0 8px;
 		}
 
 		.section-cover img,
 		.section-cover video {
-			border-radius: 0;
+			border-radius: 6px;
 		}
 
 		.section-cover::after {
-			top: 0;
-			right: 0;
+			top: 8px;
+			right: 8px;
 			bottom: 0;
-			left: 0;
-			border-radius: 0;
+			left: 8px;
+			border-radius: 6px;
 		}
 
 		.canvas-area {
@@ -561,8 +574,13 @@
 			padding: 16px 14px 0;
 		}
 
-		.mobile-entry-text {
-			padding: 16px 14px 40px;
+		.entry-text {
+			padding: 12px 8px 40px;
+			font-size: 14px !important;
+		}
+
+		.entry-text :global(*) {
+			font-size: 14px !important;
 		}
 
 		.field-notes-section {

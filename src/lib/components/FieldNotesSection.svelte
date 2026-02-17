@@ -521,6 +521,10 @@
 
 	/* === Mobile === */
 	@media (max-width: 768px) {
+		.field-notes {
+			padding: 40px 8px;
+		}
+
 		.layout {
 			grid-template-columns: 1fr;
 			gap: 16px;
@@ -529,6 +533,11 @@
 		.cards-col {
 			grid-template-columns: 1fr;
 			gap: 32px;
+		}
+
+		.image-area,
+		.image-area img {
+			border-radius: 6px;
 		}
 
 		/* Horizontal card: image left, text right */
@@ -567,7 +576,7 @@
 		}
 
 		.card-title {
-			font-size: 17px;
+			font-size: 14px;
 			display: block;
 			margin-top: 0;
 		}
@@ -576,7 +585,8 @@
 			display: block;
 			margin-left: 0;
 			margin-top: 4px;
-			font-size: 15px;
+			font-size: 14px;
+			font-weight: 400;
 		}
 	}
 </style>

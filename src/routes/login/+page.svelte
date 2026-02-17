@@ -5,43 +5,6 @@
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	let loading = $state(false);
 	let mode = $state<'login' | 'reset' | 'update'>(data.mode === 'update' ? 'update' : 'login');
-
-	// Waitlist form state
-	let waitlistName = $state('');
-	let waitlistEmail = $state('');
-	let waitlistFreewrite = $state('');
-	let waitlistStatus = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
-	let waitlistError = $state('');
-
-	async function handleWaitlist(e: Event) {
-		e.preventDefault();
-		if (!waitlistEmail) return;
-		if (!waitlistFreewrite.trim()) {
-			waitlistError = 'Please share your thoughts before joining.';
-			waitlistStatus = 'error';
-			return;
-		}
-		waitlistStatus = 'sending';
-		try {
-			const res = await fetch('/api/contact', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					email: waitlistEmail.trim(),
-					name: waitlistName.trim() || undefined,
-					freewrite: waitlistFreewrite.trim() || undefined
-				})
-			});
-			if (!res.ok) {
-				const data = await res.json();
-				throw new Error(data.error || 'Something went wrong');
-			}
-			waitlistStatus = 'sent';
-		} catch (err) {
-			waitlistError = err instanceof Error ? err.message : 'Something went wrong';
-			waitlistStatus = 'error';
-		}
-	}
 </script>
 
 <svelte:head>
@@ -54,119 +17,92 @@
 	</a>
 </nav>
 
-<div class="auth-container">
-	<div class="auth-card">
-		<h1>
-			{#if mode === 'login'}Welcome back{:else if mode === 'reset'}Reset password{:else}Set new password{/if}
-		</h1>
-		<p class="subtitle">
-			{#if mode === 'login'}Sign in to continue to your canvases{:else if mode === 'reset'}Enter your email to receive a reset link{:else}Choose a new password for your account{/if}
-		</p>
-
-		{#if form?.error}
-			<div class="error-message">{form.error}</div>
-		{/if}
-
-		{#if form?.success}
-			<div class="success-message">{form.message}</div>
-		{/if}
-
-		<form
-			method="POST"
-			action="?/{mode === 'reset' ? 'resetPassword' : mode === 'update' ? 'updatePassword' : mode}"
-			use:enhance={() => {
-				loading = true;
-				return async ({ update }) => {
-					loading = false;
-					await update();
-				};
-			}}
-		>
-			{#if mode !== 'update'}
-				<div class="form-group">
-					<label for="email">Email</label>
-					<input
-						type="email"
-						id="email"
-						name="email"
-						value={form?.email ?? ''}
-						required
-						autocomplete="email"
-						disabled={loading}
-					/>
-				</div>
-			{/if}
-
-			{#if mode !== 'reset'}
-				<div class="form-group">
-					<label for="password">{mode === 'update' ? 'New password' : 'Password'}</label>
-					<input
-						type="password"
-						id="password"
-						name="password"
-						required
-						autocomplete={mode === 'login' ? 'current-password' : 'new-password'}
-						disabled={loading}
-						minlength={mode === 'update' ? 6 : undefined}
-					/>
-					{#if mode === 'update'}
-						<p class="hint">At least 6 characters</p>
-					{/if}
-				</div>
-			{/if}
-
-			<button type="submit" class="submit-btn" disabled={loading}>
-				{#if loading}
-					{#if mode === 'login'}Signing in...{:else if mode === 'reset'}Sending...{:else}Updating...{/if}
-				{:else}
-					{#if mode === 'login'}Sign in{:else if mode === 'reset'}Send reset link{:else}Update password{/if}
-				{/if}
-			</button>
-		</form>
-
-		<p class="switch-auth">
-			{#if mode === 'login'}
-				<button type="button" class="link-btn" onclick={() => (mode = 'reset')}>Forgot password?</button>
-			{:else if mode === 'reset'}
-				Remember your password?
-				<button type="button" class="link-btn" onclick={() => (mode = 'login')}>Sign in</button>
-			{:else}
-				<a href="/dashboard" class="link-btn">Go to dashboard</a>
-			{/if}
-		</p>
+<div class="split-layout">
+	<div class="image-half">
+		<img src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/log%20in.jpeg" alt="" />
 	</div>
+	<div class="form-half">
+		<div class="auth-card">
+			<h1>
+				{#if mode === 'login'}Welcome back{:else if mode === 'reset'}Reset password{:else}Set new password{/if}
+			</h1>
+			<p class="subtitle">
+				{#if mode === 'login'}Sign in to create and join conversations{:else if mode === 'reset'}Enter your email to receive a reset link{:else}Choose a new password for your account{/if}
+			</p>
 
-	<div class="waitlist-card">
-		<span class="waitlist-tag">join</span>
-		<p class="waitlist-description">For all free thinkers who want company.</p>
+			{#if form?.error}
+				<div class="error-message">{form.error}</div>
+			{/if}
 
-		{#if waitlistStatus === 'sent'}
-			<p class="success-message">Thank you. We'll be in touch.</p>
-		{:else}
-			<form onsubmit={handleWaitlist}>
-				<div class="form-group">
-					<label for="waitlist-freewrite" class="freewrite-label">What's in a conversation?</label>
-					<textarea
-						id="waitlist-freewrite"
-						placeholder="Write freely..."
-						bind:value={waitlistFreewrite}
-						disabled={waitlistStatus === 'sending'}
-						maxlength={2000}
-						rows={3}
-					></textarea>
-				</div>
-				<div class="waitlist-row">
-					<input type="text" placeholder="Name" bind:value={waitlistName} disabled={waitlistStatus === 'sending'} />
-					<input type="email" placeholder="Email" bind:value={waitlistEmail} required disabled={waitlistStatus === 'sending'} />
-					<button type="submit" class="submit-btn waitlist-btn" disabled={waitlistStatus === 'sending'}>
-						{waitlistStatus === 'sending' ? 'Sending...' : 'Join'}
-					</button>
-				</div>
-				{#if waitlistStatus === 'error'}
-					<p class="error-text">{waitlistError}</p>
+			{#if form?.success}
+				<div class="success-message">{form.message}</div>
+			{/if}
+
+			<form
+				method="POST"
+				action="?/{mode === 'reset' ? 'resetPassword' : mode === 'update' ? 'updatePassword' : mode}"
+				use:enhance={() => {
+					loading = true;
+					return async ({ update }) => {
+						loading = false;
+						await update();
+					};
+				}}
+			>
+				{#if mode !== 'update'}
+					<div class="form-group">
+						<label for="email">Email</label>
+						<input
+							type="email"
+							id="email"
+							name="email"
+							value={form?.email ?? ''}
+							required
+							autocomplete="email"
+							disabled={loading}
+						/>
+					</div>
 				{/if}
+
+				{#if mode !== 'reset'}
+					<div class="form-group">
+						<label for="password">{mode === 'update' ? 'New password' : 'Password'}</label>
+						<input
+							type="password"
+							id="password"
+							name="password"
+							required
+							autocomplete={mode === 'login' ? 'current-password' : 'new-password'}
+							disabled={loading}
+							minlength={mode === 'update' ? 6 : undefined}
+						/>
+						{#if mode === 'update'}
+							<p class="hint">At least 6 characters</p>
+						{/if}
+					</div>
+				{/if}
+
+				<button type="submit" class="submit-btn" disabled={loading}>
+					{#if loading}
+						{#if mode === 'login'}Signing in...{:else if mode === 'reset'}Sending...{:else}Updating...{/if}
+					{:else}
+						{#if mode === 'login'}Sign in{:else if mode === 'reset'}Send reset link{:else}Update password{/if}
+					{/if}
+				</button>
 			</form>
-		{/if}
+
+			<div class="switch-auth">
+				{#if mode === 'login'}
+					<button type="button" class="link-btn" onclick={() => (mode = 'reset')}>Forgot password?</button>
+					<a href="/#join" class="link-btn">Join</a>
+				{:else if mode === 'reset'}
+					<button type="button" class="link-btn" onclick={() => (mode = 'login')}>Sign in</button>
+					<a href="/#join" class="link-btn">Join</a>
+				{:else}
+					<a href="/dashboard" class="link-btn">Go to dashboard</a>
+				{/if}
+			</div>
+		</div>
 	</div>
 </div>
 
@@ -174,19 +110,13 @@
 	.login-nav {
 		position: fixed;
 		top: 24px;
-		left: 50%;
-		transform: translateX(-50%);
+		right: 0;
+		width: 50%;
 		z-index: 100;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		padding: 0 28px;
 		height: 48px;
-		background: color-mix(in srgb, var(--bg-canvas, #f5f3f0) 92%, transparent);
-		backdrop-filter: blur(16px);
-		-webkit-backdrop-filter: blur(16px);
-		border-radius: 8px;
-		box-shadow: 0 1px 12px var(--bg-control, rgba(0, 0, 0, 0.08));
 	}
 
 	.logo-link {
@@ -205,23 +135,63 @@
 		filter: none;
 	}
 
-	.auth-container {
-		min-height: 100vh;
+	/* === Split layout — mirrors landing page === */
+	.split-layout {
+		width: 100%;
+		height: 100vh;
 		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		padding: 2rem;
+		flex-direction: row;
+		overflow: hidden;
 		background: var(--bg-canvas);
 	}
 
-	.auth-card {
-		background: var(--bg-canvas);
-		border: 1px solid var(--border-link);
-		border-radius: 8px;
-		padding: 2.5rem;
+	/* Image — left half with grain overlay */
+	.image-half {
+		width: 50%;
+		height: 100%;
+		position: relative;
+		padding: 16px 0 16px 16px;
+		box-sizing: border-box;
+	}
+
+	.image-half img {
 		width: 100%;
-		max-width: 400px;
+		height: 100%;
+		object-fit: cover;
+		object-position: center;
+		display: block;
+		border-radius: 8px;
+	}
+
+	.image-half::after {
+		content: '';
+		position: absolute;
+		top: 16px;
+		right: 0;
+		bottom: 16px;
+		left: 16px;
+		border-radius: 8px;
+		background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.4'/%3E%3C/svg%3E");
+		background-size: 128px 128px;
+		mix-blend-mode: overlay;
+		pointer-events: none;
+		z-index: 1;
+	}
+
+	/* Form — right half, vertically centered */
+	.form-half {
+		width: 50%;
+		height: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 2rem;
+		box-sizing: border-box;
+	}
+
+	.auth-card {
+		width: 100%;
+		max-width: 360px;
 	}
 
 	h1 {
@@ -321,7 +291,9 @@
 
 	.switch-auth {
 		margin: 1.5rem 0 0 0;
-		text-align: center;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
 		color: var(--text-muted);
 		font-size: 0.95rem;
 	}
@@ -333,6 +305,7 @@
 		color: var(--text-link);
 		font: inherit;
 		cursor: pointer;
+		text-decoration: none;
 		border-bottom: 1px solid var(--border-link);
 		transition: border-color 0.2s, color 0.2s;
 	}
@@ -342,84 +315,40 @@
 		border-color: var(--border-link-hover);
 	}
 
-	/* === Waitlist section === */
-	.waitlist-card {
-		width: 100%;
-		max-width: 400px;
-		margin-top: 2rem;
-		padding-top: 2rem;
-		border-top: 1px solid var(--border-link);
-	}
+	/* === Mobile — image on top, form below === */
+	@media (max-width: 768px) {
+		.split-layout {
+			flex-direction: column;
+			height: auto;
+			min-height: 100vh;
+		}
 
-	.waitlist-tag {
-		font-family: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace;
-		font-size: 11px;
-		font-weight: 500;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		color: var(--text-muted, #666);
-	}
+		.image-half {
+			width: 100%;
+			height: 40vh;
+			padding: 16px 16px 0 16px;
+		}
 
-	.waitlist-description {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
-		font-size: 0.95rem;
-		color: var(--text-muted);
-		margin: 8px 0 16px;
-	}
+		.image-half img {
+			border-radius: 8px;
+		}
 
-	.freewrite-label {
-		display: block;
-		font-family: 'SangBleu Sunrise', Georgia, serif;
-		font-size: 0.85rem;
-		color: var(--text-muted);
-		margin-bottom: 6px;
-		font-style: italic;
-	}
+		.image-half::after {
+			top: 16px;
+			right: 16px;
+			bottom: 0;
+			left: 16px;
+			border-radius: 8px;
+		}
 
-	textarea {
-		width: 100%;
-		font-family: 'SangBleu Sunrise', Georgia, serif;
-		font-size: 0.9rem;
-		padding: 0.75rem;
-		border: 1px solid var(--border-link);
-		border-radius: 4px;
-		background: var(--bg-canvas);
-		color: var(--text-primary);
-		resize: vertical;
-		line-height: 1.5;
-		box-sizing: border-box;
-		transition: border-color 0.2s;
-	}
+		.login-nav {
+			width: 100%;
+		}
 
-	textarea:focus {
-		outline: none;
-		border-color: var(--text-link-hover);
-	}
-
-	textarea::placeholder {
-		color: var(--text-muted);
-	}
-
-	textarea:disabled {
-		opacity: 0.6;
-	}
-
-	.waitlist-row {
-		display: flex;
-		gap: 8px;
-		margin-top: 12px;
-	}
-
-	.waitlist-btn {
-		width: auto;
-		padding: 0.75rem 1.25rem;
-		margin-top: 0;
-		white-space: nowrap;
-	}
-
-	.error-text {
-		font-size: 0.85rem;
-		color: #dc3545;
-		margin: 8px 0 0;
+		.form-half {
+			width: 100%;
+			height: auto;
+			padding: 2rem 1.5rem;
+		}
 	}
 </style>
