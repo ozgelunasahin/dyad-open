@@ -92,6 +92,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 
 	// Send welcome email (fire-and-forget — don't block the response)
 	const displayName = (typeof name === 'string' && name.trim()) || 'there';
+	console.log('[contact] RESEND_API_KEY present:', !!env.RESEND_API_KEY, 'length:', env.RESEND_API_KEY?.length ?? 0);
 	if (env.RESEND_API_KEY) {
 		const resend = new Resend(env.RESEND_API_KEY);
 		resend.emails.send({
@@ -111,8 +112,12 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 				<p style="font-size: 12px; color: #999;">dyad.berlin — cultivating a culture of conversation</p>
 			</div>
 		`
-		}).catch(err => console.error('Failed to send welcome email:', err));
+		}).then(result => {
+			console.log('[contact] Resend result:', JSON.stringify(result));
+		}).catch(err => console.error('[contact] Resend error:', err));
+	} else {
+		console.warn('[contact] RESEND_API_KEY not set — skipping email');
 	}
 
-	return json({ ok: true });
+	return json({ ok: true, debug: { resendKeyPresent: !!env.RESEND_API_KEY, resendKeyLength: env.RESEND_API_KEY?.length ?? 0 } });
 };

@@ -164,11 +164,13 @@
 			<span class="section-label">Field notes:</span>
 		</div>
 		<div class="cards-col">
-			{#each items as item (item.id)}
+			{#each items as item, i (item.id)}
 				{@const isSaving = saving === item.id}
+				{@const teaserFormats = ['essay', 'essay', 'interview']}
+				{@const teaserDates = ['February 23rd, 2026', 'March 9th, 2026', 'March 9th, 2026']}
 				<div class="card">
 					<!-- Format tag -->
-					<span class="format-tag">{item.format || 'essay'}</span>
+					<span class="format-tag">{isEditMode ? (item.format || 'essay') : teaserFormats[i] ?? 'essay'}</span>
 
 					<!-- Image area -->
 					{#if isEditMode}
@@ -194,49 +196,14 @@
 						</div>
 					{:else}
 						{@const hasImage = !!item.image_url}
-						{#if item.link}
-							<a href={item.link} class="image-area" class:placeholder-bg={!hasImage}>
+						<div class="teaser-wrapper">
+							<div class="image-area teaser" class:placeholder-bg={!hasImage}>
 								{#if hasImage}
-									<img src={item.image_url} alt={item.title} />
-								{:else}
-									<div class="placeholder-text">{item.title}</div>
-								{/if}
-							</a>
-						{:else}
-							<div class="image-area" class:placeholder-bg={!hasImage}>
-								{#if hasImage}
-									<img src={item.image_url} alt={item.title} />
-								{:else}
-									<div class="placeholder-text">{item.title}</div>
+									<img src={item.image_url} alt="" />
 								{/if}
 							</div>
-						{/if}
-					{/if}
-
-					<!-- Title (bold) + Author (thin) -->
-					{#if isEditMode}
-						<h3
-							class="card-title"
-							contenteditable="true"
-							oninput={(e) => handleTitleInput(item.id, e)}
-							role="textbox"
-						>{item.title}</h3>
-						<p
-							class="card-author"
-							contenteditable="true"
-							oninput={(e) => handleSubtitleInput(item.id, e)}
-							role="textbox"
-						>{item.subtitle || ''}</p>
-					{:else}
-						{#if item.link}
-							<a href={item.link} class="card-title-link">
-								<h3 class="card-title">{item.title}</h3>{#if item.subtitle} <span class="card-author">by {item.subtitle}</span>{/if}
-							</a>
-						{:else}
-							<div class="card-meta">
-								<h3 class="card-title">{item.title}</h3>{#if item.subtitle} <span class="card-author">by {item.subtitle}</span>{/if}
-							</div>
-						{/if}
+							<span class="teaser-date">To be published on {teaserDates[i] ?? ''}</span>
+						</div>
 					{/if}
 
 					<!-- Edit mode controls -->
@@ -344,6 +311,32 @@
 
 	a.image-area {
 		text-decoration: none;
+	}
+
+	/* Teaser cards — blurred, no interaction */
+	.teaser-wrapper {
+		position: relative;
+	}
+
+	.image-area.teaser {
+		pointer-events: none;
+		user-select: none;
+	}
+
+	.image-area.teaser img {
+		filter: blur(3px) saturate(0.3);
+	}
+
+	.teaser-date {
+		position: absolute;
+		bottom: 12px;
+		right: 14px;
+		font-family: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace;
+		font-size: 11px;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--text-primary, #1a1a1a);
 	}
 
 	/* When no image, show title as placeholder inside the card area */
@@ -587,6 +580,24 @@
 			margin-top: 4px;
 			font-size: 14px;
 			font-weight: 400;
+		}
+
+		/* Teaser: date sits to the right of the image, not overlaid */
+		.teaser-wrapper {
+			display: flex;
+			flex-direction: row;
+			align-items: flex-end;
+			gap: 16px;
+		}
+
+		.teaser-wrapper .image-area {
+			width: 55%;
+			flex-shrink: 0;
+		}
+
+		.teaser-date {
+			position: static;
+			font-size: 10px;
 		}
 	}
 </style>
