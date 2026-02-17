@@ -111,5 +111,5 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		console.warn('[invites] RESEND_API_KEY not set — skipping email');
 	}
 
-	return json({ ok: true, inviteUrl });
+	return json({ ok: true, inviteUrl, debug: { resendKeyPresent: !!env.RESEND_API_KEY, resendKeyLength: env.RESEND_API_KEY?.length ?? 0 } });
 };
