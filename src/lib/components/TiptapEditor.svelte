@@ -2,6 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { Editor, type JSONContent } from '@tiptap/core';
 	import StarterKit from '@tiptap/starter-kit';
+	import Link from '@tiptap/extension-link';
 	import Image from '@tiptap/extension-image';
 	import type { EditorView } from '@tiptap/pm/view';
 	import { Wikilink } from '$lib/tiptap/wikilink';
@@ -58,6 +59,13 @@
 					bold: {},
 					italic: {}
 				}),
+				Link.configure({
+					openOnClick: false,
+					HTMLAttributes: {
+						class: 'external-link',
+						rel: 'noopener noreferrer'
+					}
+				}),
 				Wikilink.configure({
 					onWikilinkClick,
 					onWikilinkDelete,
@@ -79,6 +87,25 @@
 					'data-enable-grammarly': 'false',
 					class: 'tiptap-content'
 				},
+				handleKeyDown: (view, event) => {
+					// Cmd+K / Ctrl+K → set or remove a hyperlink
+					if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+						event.preventDefault();
+						if (!editor) return true;
+
+						const existingHref = editor.getAttributes('link').href;
+						const url = window.prompt('URL', existingHref ?? '');
+
+						if (url === null) return true; // cancelled
+						if (url === '') {
+							editor.chain().focus().unsetLink().run();
+						} else {
+							editor.chain().focus().setLink({ href: url }).run();
+						}
+						return true;
+					}
+					return false;
+				},
 				handleClick: (view, pos, event) => {
 					const target = event.target as HTMLElement;
 					if (target.classList.contains('wikilink') && onWikilinkClick) {
@@ -94,6 +121,21 @@
 				},
 				handlePaste(view: EditorView, event: ClipboardEvent): boolean {
 					if (!view.editable) return false;
+
+					// Select text + paste URL → create link (Notion-style)
+					const text = event.clipboardData?.getData('text/plain')?.trim();
+					if (text && !view.state.selection.empty) {
+						try {
+							const url = new URL(text, window.location.origin);
+							if (url.protocol === 'http:' || url.protocol === 'https:' || text.startsWith('/')) {
+								event.preventDefault();
+								editor?.chain().focus().setLink({ href: text }).run();
+								return true;
+							}
+						} catch {
+							// Not a URL — fall through to default paste
+						}
+					}
 
 					const files = event.clipboardData?.files;
 					if (!files?.length) return false;
@@ -326,6 +368,19 @@
 		padding-left: 16px;
 		color: var(--text-muted);
 		font-style: italic;
+	}
+
+	/* External links */
+	.tiptap-editor :global(a.external-link) {
+		color: var(--text-link);
+		text-decoration: none;
+		border-bottom: 1px solid var(--border-link);
+		transition: all 0.15s ease;
+	}
+
+	.tiptap-editor :global(a.external-link:hover) {
+		color: var(--text-link-hover);
+		border-bottom-color: var(--border-link-hover);
 	}
 
 	/* Wikilinks */

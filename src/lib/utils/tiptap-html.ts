@@ -6,6 +6,7 @@
  */
 import { generateHTML } from '@tiptap/html';
 import StarterKit from '@tiptap/starter-kit';
+import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
 import { Node, mergeAttributes } from '@tiptap/core';
 import type { JSONContent } from '@tiptap/core';
@@ -73,6 +74,13 @@ const extensions = [
 		bold: {},
 		italic: {}
 	}),
+	Link.configure({
+		openOnClick: false,
+		HTMLAttributes: {
+			class: 'external-link',
+			rel: 'noopener noreferrer'
+		}
+	}),
 	WikilinkStatic,
 	Image
 ];
@@ -97,9 +105,10 @@ const PURIFY_CONFIG = {
 		'ol',
 		'li',
 		'span',
-		'img'
+		'img',
+		'a'
 	],
-	ALLOWED_ATTR: ['class', 'data-target', 'src', 'alt', 'title']
+	ALLOWED_ATTR: ['class', 'data-target', 'src', 'alt', 'title', 'href', 'target', 'rel']
 };
 
 /**
