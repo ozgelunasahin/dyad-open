@@ -1,10 +1,8 @@
 import { json, error } from '@sveltejs/kit';
 import { Resend } from 'resend';
-import { RESEND_API_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 import { nanoid } from 'nanoid';
 import type { RequestHandler } from './$types';
-
-const resend = new Resend(RESEND_API_KEY);
 
 const INVITE_EXPIRY_DAYS = 14;
 
@@ -89,6 +87,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	// Send invite email
 	const displayName = (typeof name === 'string' && name.trim()) || 'there';
+	const resend = new Resend(env.RESEND_API_KEY);
 	resend.emails.send({
 		from: 'dyad. <hello@dyad.berlin>',
 		to: email.trim(),

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { fly } from 'svelte/transition';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -122,13 +123,18 @@
 		</button>
 	</aside>
 	{#if mobileMenuOpen}
-		<div class="mobile-menu">
-			<a href="/discover" onclick={() => mobileMenuOpen = false}>discover</a>
-			<a href="/dashboard" onclick={() => mobileMenuOpen = false}>profile</a>
-			<hr />
-			<span class="mobile-menu-user">@{data.username}</span>
-			<a href="/logout" onclick={() => mobileMenuOpen = false}>sign out</a>
-		</div>
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div class="mobile-overlay" onclick={() => mobileMenuOpen = false}></div>
+		<aside class="mobile-panel" transition:fly={{ x: 300, duration: 250 }}>
+			<nav class="mobile-panel-nav">
+				<a href="/dashboard" onclick={() => mobileMenuOpen = false}>profile</a>
+				<a href="/" onclick={() => mobileMenuOpen = false}>home</a>
+			</nav>
+			<div class="mobile-panel-bottom">
+				<span class="mobile-panel-user">@{data.username}</span>
+				<a href="/logout" onclick={() => mobileMenuOpen = false}>sign out</a>
+			</div>
+		</aside>
 	{/if}
 
 	<main class="main-content">
@@ -337,7 +343,8 @@
 		justify-content: center;
 	}
 
-	.mobile-menu {
+	/* Slide-in panel — hidden on desktop */
+	.mobile-overlay, .mobile-panel {
 		display: none;
 	}
 
@@ -404,45 +411,75 @@
 			margin-left: auto;
 		}
 
-		.mobile-menu {
+		.mobile-overlay {
+			display: block;
+			position: fixed;
+			inset: 0;
+			background: rgba(0, 0, 0, 0.15);
+			z-index: 200;
+		}
+
+		.mobile-panel {
 			display: flex;
 			flex-direction: column;
-			background: color-mix(in srgb, var(--bg-canvas, #f5f3f0) 95%, transparent);
-			backdrop-filter: blur(16px);
-			-webkit-backdrop-filter: blur(16px);
-			border-radius: 16px;
-			padding: 12px 8px;
-			margin: 0 1rem 1rem;
-			box-shadow: 0 4px 24px var(--bg-control, rgba(0, 0, 0, 0.1));
+			position: fixed;
+			top: 0;
+			right: 0;
+			width: 280px;
+			max-width: 80vw;
+			height: 100vh;
+			background: var(--bg-canvas, #f5f3f0);
+			z-index: 300;
+			padding: 24px;
+			box-sizing: border-box;
+			box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1);
 		}
 
-		.mobile-menu a, .mobile-menu-user {
+		.mobile-panel-nav {
+			display: flex;
+			flex-direction: column;
+			gap: 0;
+			margin-top: 32px;
+		}
+
+		.mobile-panel-nav a {
 			font-family: 'SangBleu Sunrise', Georgia, serif;
-			font-size: 16px;
+			font-size: 18px;
 			font-weight: 500;
-			color: var(--text-secondary, #333);
-			text-decoration: none;
-			padding: 12px 16px;
-			border-radius: 8px;
-			display: block;
-			transition: background 0.15s, color 0.15s;
-		}
-
-		.mobile-menu a:hover {
-			background: var(--bg-control, rgba(0, 0, 0, 0.05));
 			color: var(--text-primary, #1a1a1a);
+			text-decoration: none;
+			padding: 14px 0;
+			border-bottom: 1px solid var(--border-link, rgba(0, 0, 0, 0.1));
+			transition: color 0.15s;
 		}
 
-		.mobile-menu-user {
+		.mobile-panel-nav a:hover {
+			color: var(--text-muted, #666);
+		}
+
+		.mobile-panel-bottom {
+			margin-top: auto;
+			display: flex;
+			flex-direction: column;
+			gap: 12px;
+		}
+
+		.mobile-panel-user {
 			font-family: monospace;
 			font-size: 13px;
 			color: var(--text-muted, #666);
 		}
 
-		.mobile-menu hr {
-			border: none;
-			border-top: 1px solid var(--border-link, rgba(0, 0, 0, 0.1));
-			margin: 4px 16px;
+		.mobile-panel-bottom a {
+			font-family: 'SangBleu Sunrise', Georgia, serif;
+			font-size: 16px;
+			color: var(--text-secondary, #333);
+			text-decoration: none;
+			transition: color 0.15s;
+		}
+
+		.mobile-panel-bottom a:hover {
+			color: var(--text-primary, #1a1a1a);
 		}
 	}
 

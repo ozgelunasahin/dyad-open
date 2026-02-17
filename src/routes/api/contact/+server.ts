@@ -1,9 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { Resend } from 'resend';
-import { RESEND_API_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 import type { RequestHandler } from './$types';
-
-const resend = new Resend(RESEND_API_KEY);
 
 // Simple in-memory rate limiter (per-process; sufficient for single-instance deploys)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -94,6 +92,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 
 	// Send welcome email (fire-and-forget — don't block the response)
 	const displayName = (typeof name === 'string' && name.trim()) || 'there';
+	const resend = new Resend(env.RESEND_API_KEY);
 	resend.emails.send({
 		from: 'dyad. <hello@dyad.berlin>',
 		to: email.trim(),
