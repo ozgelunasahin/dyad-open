@@ -87,8 +87,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	// Send invite email
 	const displayName = (typeof name === 'string' && name.trim()) || 'there';
-	const resend = new Resend(env.RESEND_API_KEY);
-	resend.emails.send({
+	if (env.RESEND_API_KEY) {
+		const resend = new Resend(env.RESEND_API_KEY);
+		resend.emails.send({
 		from: 'dyad. <hello@dyad.berlin>',
 		to: email.trim(),
 		subject: "You're invited to dyad.",
@@ -103,7 +104,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				<p style="font-size: 12px; color: #999;">dyad.berlin — cultivating a culture of conversation</p>
 			</div>
 		`
-	}).catch(err => console.error('Failed to send invite email:', err));
+		}).catch(err => console.error('Failed to send invite email:', err));
+	}
 
 	return json({ ok: true, inviteUrl });
 };
