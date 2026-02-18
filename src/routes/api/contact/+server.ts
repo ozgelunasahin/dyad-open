@@ -42,7 +42,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 		return json({ error: 'Invalid JSON body' }, { status: 400 });
 	}
 
-	const { email, name, freewrite } = body as Record<string, unknown>;
+	const { email, name, based_in, freewrite } = body as Record<string, unknown>;
 
 	if (!email || typeof email !== 'string') {
 		error(400, 'Email is required');
@@ -78,6 +78,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 		.insert({
 			email: email.trim(),
 			name: (typeof name === 'string' ? name.trim() : null) || null,
+			based_in: (typeof based_in === 'string' ? based_in.trim() : null) || null,
 			freewrite: (typeof freewrite === 'string' ? freewrite.trim() : null) || null
 		});
 
@@ -103,16 +104,17 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 				to: email.trim(),
 				subject: "What's in a conversation?",
 				html: `
-					<div style="font-family: Georgia, serif; max-width: 520px; margin: 0 auto; padding: 40px 20px; color: #1a1a1a; line-height: 1.7;">
+					<div style="font-family: Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 40px 20px; color: #1a1a1a; line-height: 1.7;">
 						<p>Hi ${displayName},</p>
-						<p>This is Luna, one of the makers of Dyad.</p>
-						<p>Dyad is a community of independent, critical thinkers who want company on shared questions, ideas, experiences and all that can be the start of a conversation. All conversations are in person, and we create the digital experience to minimize the time you spend online, and have it a joyful, ad-free and free roaming experience.</p>
-						<p>Since we started with the ugly duckling version of this work, we met so many people who genuinely share our feelings for the lack of contact and connection, the way it feels meaningful, human. In conversation with these people, we are building the first full version and in the meanwhile, found other ways to experience the kind of conversations we have been looking for. This comes into life this spring in Berlin. More on that very, very soon.</p>
-						<p>In the meanwhile, we welcome you with genuine joy. In a time where there is so much pressure to keep us separated, we take such joy to build other ways to come together, and contribute to oral culture as counter practice.</p>
-						<p>Welcome.</p>
+						<p>Dyad is a community of and for people who want company on shared questions, ideas, experiences and all that can be the start of a conversation. All conversations are in person, and we create the digital experience to minimize the time you spend online, and have it a joyful, ad-free roaming experience.</p>
+						<p>Since we started with the ugly duckling version of this work, we met so many people who genuinely share our feelings for what a conversation can be: enlivening, insightful, presencing, meaningful, connecting; human. In conversation with these people as our early users, we are currently at work building the app you can use to come across those who resonate, who share what you have in mind with a different vantage point.</p>
+						<p>In the meanwhile, we found another way to experience the kind of conversations we have been longing for. Weaving, our public conversation series, is coming to life with its first season this spring in Berlin. More on this very, very soon.</p>
+						<p>You are on our waitlist and can expect to hear from us within the next 7 days.</p>
+						<p>We are looking forward to meeting you for a conversation.</p>
 						<p style="margin-top: 32px;">With care,<br/>Luna</p>
 						<hr style="border: none; border-top: 1px solid #e0ddd8; margin: 32px 0 16px;" />
-						<p style="font-size: 12px; color: #999;">dyad.berlin — cultivating a culture of conversation</p>
+						<a href="https://dyad.berlin" style="display: inline-block;"><img src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/logo%20dark.png" alt="dyad" style="height: 32px; width: auto; margin-bottom: 8px;" /></a>
+						<p style="font-size: 12px; color: #999; margin: 0;">cultivating a culture of conversation</p>
 					</div>
 				`
 			});
