@@ -1,8 +1,8 @@
 <footer class="site-footer">
 	<p class="footer-copy">&copy; Monad Engineering, {new Date().getFullYear()}</p>
 	<div class="footer-links">
-		<a href="/impressum">Legal Notice</a>
-		<a href="/datenschutz">Privacy Policy</a>
+		<span>Legal Notice</span>
+		<span>Privacy Policy</span>
 	</div>
 </footer>
 
@@ -26,14 +26,7 @@
 		gap: 16px;
 	}
 
-	.footer-links a {
+	.footer-links span {
 		color: var(--text-muted, #999);
-		text-decoration: underline;
-		text-underline-offset: 2px;
-		transition: color 0.2s ease;
-	}
-
-	.footer-links a:hover {
-		color: var(--text-secondary, #666);
 	}
 </style>

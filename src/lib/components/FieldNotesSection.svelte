@@ -196,14 +196,12 @@
 						</div>
 					{:else}
 						{@const hasImage = !!item.image_url}
-						<div class="teaser-wrapper">
-							<div class="image-area teaser" class:placeholder-bg={!hasImage}>
-								{#if hasImage}
-									<img src={item.image_url} alt="" />
-								{/if}
-							</div>
-							<span class="teaser-date">To be published on {teaserDates[i] ?? ''}</span>
+						<div class="image-area teaser" class:placeholder-bg={!hasImage}>
+							{#if hasImage}
+								<img src={item.image_url} alt="" />
+							{/if}
 						</div>
+						<span class="teaser-date">To be published on {teaserDates[i] ?? ''}</span>
 					{/if}
 
 					<!-- Edit mode controls -->
@@ -314,10 +312,6 @@
 	}
 
 	/* Teaser cards — blurred, no interaction */
-	.teaser-wrapper {
-		position: relative;
-	}
-
 	.image-area.teaser {
 		pointer-events: none;
 		user-select: none;
@@ -328,9 +322,8 @@
 	}
 
 	.teaser-date {
-		position: absolute;
-		bottom: 12px;
-		right: 14px;
+		display: block;
+		margin-top: 10px;
 		font-family: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace;
 		font-size: 11px;
 		font-weight: 600;
@@ -582,21 +575,7 @@
 			font-weight: 400;
 		}
 
-		/* Teaser: date sits to the right of the image, not overlaid */
-		.teaser-wrapper {
-			display: flex;
-			flex-direction: row;
-			align-items: flex-end;
-			gap: 16px;
-		}
-
-		.teaser-wrapper .image-area {
-			width: 55%;
-			flex-shrink: 0;
-		}
-
 		.teaser-date {
-			position: static;
 			font-size: 10px;
 		}
 	}

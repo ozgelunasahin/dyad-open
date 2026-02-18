@@ -1,6 +1,9 @@
 <script lang="ts">
+	import CitySearch from '$lib/components/CitySearch.svelte';
+
 	let name = $state('');
 	let email = $state('');
+	let basedIn = $state('');
 	let freewrite = $state('');
 	let status = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
 	let errorMsg = $state('');
@@ -20,7 +23,7 @@
 			const res = await fetch('/api/contact', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ email: email.trim(), name: name.trim() || undefined, freewrite: freewrite.trim() || undefined })
+				body: JSON.stringify({ email: email.trim(), name: name.trim() || undefined, based_in: basedIn.trim() || undefined, freewrite: freewrite.trim() || undefined })
 			});
 
 			if (!res.ok) {
@@ -53,17 +56,17 @@
 	<div class="form-half">
 		<div class="auth-card">
 			<h1>Join</h1>
-			<p class="subtitle">For all free thinkers who want company.</p>
+			<p class="subtitle">For those who seek conversation for its own sake and meet others with humility, critical thinking and deep listening.</p>
 
 			{#if status === 'sent'}
 				<div class="success-message">Thank you. We'll be in touch.</div>
 			{:else}
 				<form onsubmit={handleSubmit}>
 					<div class="form-group">
-						<label for="freewrite" class="freewrite-label">What's in a conversation?</label>
+						<label for="freewrite" class="freewrite-label">Why do you want to join?</label>
 						<textarea
 							id="freewrite"
-							placeholder="Write freely..."
+							placeholder="What's in a conversation?"
 							bind:value={freewrite}
 							disabled={status === 'sending'}
 							maxlength={2000}
@@ -77,6 +80,9 @@
 							bind:value={name}
 							disabled={status === 'sending'}
 						/>
+					</div>
+					<div class="form-group">
+						<CitySearch bind:value={basedIn} disabled={status === 'sending'} />
 					</div>
 					<div class="form-group">
 						<input
