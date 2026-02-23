@@ -1,7 +1,23 @@
-import { json } from '@sveltejs/kit';
+import { json, error as httpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 const MAX_HIGHLIGHTS = 3;
+
+async function requireAdmin(locals: App.Locals) {
+	if (!locals.user) {
+		httpError(401, 'Authentication required');
+	}
+
+	const { data: profile } = await locals.supabase
+		.from('profiles')
+		.select('can_publish_sites')
+		.eq('id', locals.user.id)
+		.single();
+
+	if (!profile?.can_publish_sites) {
+		httpError(403, 'Admin access required');
+	}
+}
 
 export const GET: RequestHandler = async ({ locals }) => {
 	const { data, error } = await locals.supabase
@@ -10,16 +26,15 @@ export const GET: RequestHandler = async ({ locals }) => {
 		.order('position', { ascending: true });
 
 	if (error) {
-		return json({ error: error.message }, { status: 500 });
+		console.error('Failed to load landing highlights:', error);
+		return json({ error: 'Failed to load highlights' }, { status: 500 });
 	}
 
 	return json(data);
 };
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	if (!locals.user) {
-		return json({ error: 'Unauthorized' }, { status: 401 });
-	}
+	await requireAdmin(locals);
 
 	// Enforce max 3 highlights
 	const { count } = await locals.supabase
@@ -30,7 +45,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return json({ error: `Maximum ${MAX_HIGHLIGHTS} highlights allowed` }, { status: 400 });
 	}
 
-	const body = await request.json();
+	let body: Record<string, unknown>;
+	try {
+		body = await request.json();
+	} catch {
+		return json({ error: 'Invalid JSON body' }, { status: 400 });
+	}
 	const { title, subtitle, image_url, link, position, canvas_id, format } = body;
 
 	if (!title && !canvas_id) {
@@ -113,7 +133,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const { data, error } = await locals.supabase
 		.from('landing_highlights')
 		.insert({
-			user_id: locals.user.id,
+			user_id: locals.user!.id,
 			title: finalTitle || 'Untitled',
 			subtitle: subtitle || null,
 			image_url: finalImageUrl || null,
@@ -126,18 +146,22 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		.single();
 
 	if (error) {
-		return json({ error: error.message }, { status: 500 });
+		console.error('Failed to create landing highlight:', error);
+		return json({ error: 'Failed to create highlight' }, { status: 500 });
 	}
 
 	return json(data, { status: 201 });
 };
 
 export const PUT: RequestHandler = async ({ request, locals }) => {
-	if (!locals.user) {
-		return json({ error: 'Unauthorized' }, { status: 401 });
-	}
+	await requireAdmin(locals);
 
-	const body = await request.json();
+	let body: Record<string, unknown>;
+	try {
+		body = await request.json();
+	} catch {
+		return json({ error: 'Invalid JSON body' }, { status: 400 });
+	}
 	const { id, title, subtitle, image_url, link, position, format } = body;
 
 	if (!id) {
@@ -160,18 +184,22 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 		.single();
 
 	if (error) {
-		return json({ error: error.message }, { status: 500 });
+		console.error('Failed to update landing highlight:', error);
+		return json({ error: 'Failed to update highlight' }, { status: 500 });
 	}
 
 	return json(data);
 };
 
 export const DELETE: RequestHandler = async ({ request, locals }) => {
-	if (!locals.user) {
-		return json({ error: 'Unauthorized' }, { status: 401 });
-	}
+	await requireAdmin(locals);
 
-	const body = await request.json();
+	let body: Record<string, unknown>;
+	try {
+		body = await request.json();
+	} catch {
+		return json({ error: 'Invalid JSON body' }, { status: 400 });
+	}
 	const { id, canvas_id } = body;
 
 	if (!id && !canvas_id) {
@@ -188,7 +216,8 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 	const { error } = await query;
 
 	if (error) {
-		return json({ error: error.message }, { status: 500 });
+		console.error('Failed to delete landing highlight:', error);
+		return json({ error: 'Failed to delete highlight' }, { status: 500 });
 	}
 
 	return json({ success: true });

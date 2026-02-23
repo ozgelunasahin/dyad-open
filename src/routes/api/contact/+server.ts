@@ -93,13 +93,10 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 
 	// Send welcome email (fire-and-forget — don't block the response)
 	const displayName = (typeof name === 'string' && name.trim()) || 'there';
-	console.log('[contact] RESEND_API_KEY present:', !!env.RESEND_API_KEY, 'length:', env.RESEND_API_KEY?.length ?? 0);
 	if (env.RESEND_API_KEY) {
 		const resend = new Resend(env.RESEND_API_KEY);
-		let emailResult: unknown = null;
-		let emailError: unknown = null;
 		try {
-			emailResult = await resend.emails.send({
+			await resend.emails.send({
 				from: 'dyad. <hello@dyad.berlin>',
 				to: email.trim(),
 				subject: "What's in a conversation?",
@@ -119,10 +116,9 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 				`
 			});
 		} catch (err) {
-			emailError = err instanceof Error ? err.message : String(err);
+			console.error('[contact] Failed to send welcome email:', err);
 		}
-		return json({ ok: true, debug: { resendKeyPresent: true, resendKeyLength: env.RESEND_API_KEY?.length ?? 0, emailResult, emailError } });
-	} else {
-		return json({ ok: true, debug: { resendKeyPresent: false, resendKeyLength: 0 } });
 	}
+
+	return json({ ok: true });
 };
