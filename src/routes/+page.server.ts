@@ -1,6 +1,109 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { renderTiptapToHtml } from '$lib/utils/tiptap-html';
+import type { ConversationData } from '$lib/types';
+
+// Fallback sample conversations shown when no landing_highlights are configured.
+function getSampleConversations(): ConversationData[] {
+	return [
+		{
+			id: 'sample-1',
+			title: 'What does it mean to truly listen?',
+			subtitle: null,
+			image_url: null,
+			bodyHtml:
+				'<p>Listening is not merely the absence of speaking. It is an act of attention that requires us to suspend our own internal monologue — the constant hum of interpretation, judgment, and anticipation — long enough to receive what another person is actually offering.</p>',
+			position: 0,
+			proposed_date_1: '2026-03-22T19:00:00+01:00',
+			proposed_date_2: '2026-03-24T18:00:00+01:00',
+			neighborhood: 'Prenzlauer Berg'
+		},
+		{
+			id: 'sample-2',
+			title: 'On arriving in a city you didn\'t choose',
+			subtitle: null,
+			image_url: null,
+			bodyHtml:
+				'<p>There is a particular feeling that arrives when you have left somewhere but not yet arrived somewhere else. Not the physical transit — airports and trains are just corridors — but the interior version of it. You carry a history of gestures and references that belong to another place.</p>',
+			position: 1,
+			proposed_date_1: '2026-03-23T20:00:00+01:00',
+			proposed_date_2: null,
+			neighborhood: 'Kreuzberg'
+		},
+		{
+			id: 'sample-3',
+			title: 'The art of disagreeing well',
+			subtitle: null,
+			image_url: null,
+			bodyHtml:
+				'<p>Somewhere between argument and agreement lies a space most conversations never reach: the place where two people genuinely hold different views and are both changed by the encounter. Disagreement, done well, is an act of respect.</p>',
+			position: 2,
+			proposed_date_1: '2026-03-25T19:00:00+01:00',
+			proposed_date_2: '2026-03-26T17:30:00+01:00',
+			neighborhood: 'Neukölln'
+		},
+		{
+			id: 'sample-4',
+			title: 'On solitude and the city',
+			subtitle: null,
+			image_url: null,
+			bodyHtml:
+				'<p>A city is the only place where you can be completely alone in a crowd. Urban solitude is not the same as rural isolation — it is something chosen, curated, and paradoxically social. You carry yourself through other people\'s lives without ever touching them.</p>',
+			position: 3,
+			proposed_date_1: '2026-03-27T18:30:00+01:00',
+			proposed_date_2: null,
+			neighborhood: 'Mitte'
+		},
+		{
+			id: 'sample-5',
+			title: 'What we owe each other as strangers',
+			subtitle: null,
+			image_url: null,
+			bodyHtml:
+				'<p>The stranger is a peculiar figure — neither friend nor enemy, neither known nor entirely unknown. What is the minimum we owe someone we will never see again? And what might we gain if we treated that encounter as if it mattered?</p>',
+			position: 4,
+			proposed_date_1: '2026-03-28T19:30:00+01:00',
+			proposed_date_2: '2026-03-29T18:00:00+01:00',
+			neighborhood: 'Friedrichshain'
+		},
+		{
+			id: 'sample-6',
+			title: 'On the pleasure of changing your mind',
+			subtitle: null,
+			image_url: null,
+			bodyHtml:
+				'<p>We treat consistency as a virtue and revision as weakness. But the mind that never changes is not a strong mind — it is a closed one. What would it mean to treat changing your position not as defeat, but as evidence that the conversation worked?</p>',
+			position: 5,
+			proposed_date_1: '2026-04-01T20:00:00+01:00',
+			proposed_date_2: null,
+			neighborhood: 'Schöneberg'
+		},
+		{
+			id: 'sample-7',
+			title: 'Language and what slips through it',
+			subtitle: null,
+			image_url: null,
+			bodyHtml:
+				'<p>Every language carves the world differently. Some have words for experiences that others cannot name — and with that name comes the ability to notice, to feel, to share. What gets lost in translation is not just vocabulary; it is whole ways of being.</p>',
+			position: 6,
+			proposed_date_1: '2026-04-03T19:00:00+01:00',
+			proposed_date_2: '2026-04-04T17:30:00+01:00',
+			neighborhood: 'Mitte'
+		},
+		{
+			id: 'sample-8',
+			title: 'On being a beginner again',
+			subtitle: null,
+			image_url: null,
+			bodyHtml:
+				'<p>There is a particular humility required to be a beginner. Most of us spend our adult lives avoiding it — performing competence, staying in lanes we already know. But the beginner\'s mind is where curiosity lives, unencumbered by the weight of expertise.</p>',
+			position: 7,
+			proposed_date_1: '2026-04-05T18:30:00+01:00',
+			proposed_date_2: null,
+			neighborhood: 'Charlottenburg'
+		}
+	];
+}
 
 export const load: PageServerLoad = async ({ locals, setHeaders, url }) => {
 	const isEditMode = url.searchParams.has('edit') && !!locals.user;
@@ -19,188 +122,138 @@ export const load: PageServerLoad = async ({ locals, setHeaders, url }) => {
 		redirect(302, '/dashboard');
 	}
 
-	// Non-logged-in users see the landing page
-	// Load published "dyad" and "weaving" canvases directly by slug
-	const { data: canvases } = await locals.supabase
-		.from('canvases')
-		.select('id, name, slug, entry_point_note_id, user_id, cover_image_url')
-		.eq('is_published', true)
-		.in('slug', ['dyad', 'weaving'])
-		.order('slug', { ascending: true }); // dyad first, then weaving
+	// Load landing highlights (max 3, ordered by position)
+	const { data: highlights } = await locals.supabase
+		.from('landing_highlights')
+		.select('*')
+		.order('position', { ascending: true })
+		.limit(8);
 
-	if (!canvases || canvases.length === 0) {
-		return { sections: [], navItems: [] };
-	}
+	const conversations: ConversationData[] = [];
 
-	// Build sections and navItems
-	const sections = [];
-	const navItems = [];
+	if (highlights && highlights.length > 0) {
+		const canvasIds = highlights
+			.map((h) => h.canvas_id)
+			.filter((id): id is string => !!id);
 
-	for (const canvas of canvases) {
-		// Load all notes and positions for each canvas
-		const [notesResult, positionsResult] = await Promise.all([
-			locals.supabase
-				.from('notes')
-				.select('slug, title, content, wikilinks')
-				.eq('canvas_id', canvas.id),
-			locals.supabase
-				.from('card_positions')
-				.select('*')
-				.eq('canvas_id', canvas.id)
+		const [canvasesResult, positionsResult] = await Promise.all([
+			canvasIds.length > 0
+				? locals.supabase
+						.from('canvases')
+						.select('id, name, entry_point_note_id, cover_image_url')
+						.in('id', canvasIds)
+				: Promise.resolve({ data: [] }),
+			canvasIds.length > 0
+				? locals.supabase
+						.from('card_positions')
+						.select('note_id, x, y, canvas_id')
+						.in('canvas_id', canvasIds)
+				: Promise.resolve({ data: [] })
 		]);
 
-		// Derive entry point: explicit setting > primary card on canvas > first note
-		const entryPointSlug = canvas.entry_point_note_id || (() => {
-			const positions = positionsResult.data;
-			if (positions && positions.length > 0) {
-				// Primary card = closest to canvas origin (0,0)
-				const primary = positions.reduce((best, pos) => {
-					const distBest = best.x * best.x + best.y * best.y;
-					const distPos = pos.x * pos.x + pos.y * pos.y;
-					return distPos < distBest ? pos : best;
-				});
-				return primary.note_id;
+		const canvasMap = new Map(
+			(canvasesResult.data ?? []).map((c) => [c.id, c])
+		);
+		const positionsByCanvas = new Map<string, Array<{ note_id: string; x: number; y: number }>>();
+		for (const pos of positionsResult.data ?? []) {
+			const list = positionsByCanvas.get(pos.canvas_id) ?? [];
+			list.push(pos);
+			positionsByCanvas.set(pos.canvas_id, list);
+		}
+
+		const entrySlugByCanvas = new Map<string, string>();
+		for (const canvas of canvasesResult.data ?? []) {
+			const entrySlug = canvas.entry_point_note_id || (() => {
+				const positions = positionsByCanvas.get(canvas.id) ?? [];
+				if (positions.length > 0) {
+					const primary = positions.reduce((best, pos) => {
+						const distBest = best.x * best.x + best.y * best.y;
+						const distPos = pos.x * pos.x + pos.y * pos.y;
+						return distPos < distBest ? pos : best;
+					});
+					return primary.note_id;
+				}
+				return null;
+			})();
+			if (entrySlug) entrySlugByCanvas.set(canvas.id, entrySlug);
+		}
+
+		const entrySlugPairs = [...entrySlugByCanvas.entries()];
+		const notesByKey = new Map<string, { content: unknown }>();
+
+		if (entrySlugPairs.length > 0) {
+			const { data: allNotes } = await locals.supabase
+				.from('notes')
+				.select('slug, content, canvas_id')
+				.in('canvas_id', canvasIds)
+				.in('slug', entrySlugPairs.map(([, slug]) => slug));
+
+			for (const note of allNotes ?? []) {
+				notesByKey.set(`${note.canvas_id}:${note.slug}`, { content: note.content });
 			}
-			return notesResult.data?.[0]?.slug || '';
-		})();
+		}
 
-		const vault = {
-			notes: Object.fromEntries(
-				(notesResult.data || []).map(n => [n.slug, {
-					id: n.slug,
-					canvasId: canvas.id,
-					title: n.title,
-					content: n.content,
-					wikilinks: n.wikilinks || []
-				}])
-			),
-			entryPoint: entryPointSlug
-		};
+		for (const highlight of highlights) {
+			if (!highlight.canvas_id) {
+				conversations.push({
+					id: highlight.id,
+					title: highlight.title,
+					subtitle: highlight.subtitle ?? null,
+					image_url: highlight.image_url ?? null,
+					bodyHtml: highlight.body ? `<p>${highlight.body}</p>` : '',
+					position: highlight.position,
+					proposed_date_1: highlight.proposed_date_1 ?? null,
+					proposed_date_2: highlight.proposed_date_2 ?? null,
+					neighborhood: highlight.neighborhood ?? null
+				});
+				continue;
+			}
 
-		const cardPositions = (positionsResult.data || []).map(pos => ({
-			id: pos.id,
-			noteId: pos.note_id,
-			x: pos.x,
-			y: pos.y,
-			width: pos.width,
-			height: pos.height,
-			parentCardId: pos.parent_card_id ?? null,
-			sourceLinkX: pos.source_link_x ?? null,
-			sourceLinkY: pos.source_link_y ?? null
-		}));
+			const canvas = canvasMap.get(highlight.canvas_id);
+			if (!canvas) continue;
 
-		// Extract first image from entry point note content, fall back to cover_image_url
-		let coverImageUrl: string | null = null;
-		if (notesResult.data) {
-			// Check entry point note first, then other notes
-			const entryNote = notesResult.data.find(n => n.slug === entryPointSlug);
-			const orderedNotes = entryNote
-				? [entryNote, ...notesResult.data.filter(n => n.slug !== entryPointSlug)]
-				: notesResult.data;
+			const entrySlug = entrySlugByCanvas.get(canvas.id);
+			const note = entrySlug ? notesByKey.get(`${canvas.id}:${entrySlug}`) : null;
 
-			for (const note of orderedNotes) {
-				if (note.content && typeof note.content === 'object') {
+			let imageUrl: string | null = highlight.image_url ?? canvas.cover_image_url ?? null;
+			let bodyHtml = '';
+
+			if (note?.content) {
+				if (!imageUrl) {
 					const findFirstImage = (node: any): string | null => {
-						if (node.type === 'image' && node.attrs?.src) {
-							return node.attrs.src;
-						}
+						if (node.type === 'image' && node.attrs?.src) return node.attrs.src;
 						if (node.content && Array.isArray(node.content)) {
 							for (const child of node.content) {
-								const imageUrl = findFirstImage(child);
-								if (imageUrl) return imageUrl;
+								const img = findFirstImage(child);
+								if (img) return img;
 							}
 						}
 						return null;
 					};
-					coverImageUrl = findFirstImage(note.content);
-					if (coverImageUrl) break;
+					imageUrl = findFirstImage(note.content);
 				}
+				bodyHtml = renderTiptapToHtml(note.content as any);
 			}
-		}
-		if (!coverImageUrl) {
-			coverImageUrl = canvas.cover_image_url;
-		}
 
-		// Strip the first image from the entry point note so it doesn't
-		// render inside the canvas card (it's already the hero image)
-		if (coverImageUrl && vault.notes[entryPointSlug]) {
-			const note = vault.notes[entryPointSlug];
-			if (note.content?.content) {
-				let removed = false;
-				const stripFirstImage = (nodes: any[]): any[] =>
-					nodes.reduce((acc: any[], node: any) => {
-						if (removed) {
-							acc.push(node);
-							return acc;
-						}
-						// Remove a paragraph/node that contains only an image
-						if (node.type === 'paragraph' && node.content?.length === 1 && node.content[0].type === 'image') {
-							removed = true;
-							return acc; // skip entire paragraph
-						}
-						// Remove a bare image node
-						if (node.type === 'image') {
-							removed = true;
-							return acc;
-						}
-						// Recurse into children
-						if (node.content) {
-							acc.push({ ...node, content: stripFirstImage(node.content) });
-						} else {
-							acc.push(node);
-						}
-						return acc;
-					}, []);
-				note.content = { ...note.content, content: stripFirstImage(note.content.content) };
-				console.log(`[Landing] Stripped first image from ${entryPointSlug}: removed=${removed}`);
-			}
-		} else {
-			console.log(`[Landing] No stripping for ${canvas.slug}: coverImageUrl=${!!coverImageUrl}, entryNote=${!!vault.notes[entryPointSlug]}, entryPointSlug=${entryPointSlug}`);
+			conversations.push({
+				id: highlight.id,
+				title: highlight.title || canvas.name,
+				subtitle: highlight.subtitle ?? null,
+				image_url: imageUrl,
+				bodyHtml,
+				position: highlight.position,
+				proposed_date_1: highlight.proposed_date_1 ?? null,
+				proposed_date_2: highlight.proposed_date_2 ?? null,
+				neighborhood: highlight.neighborhood ?? null
+			});
 		}
-
-		// Render entry point note as HTML for hero overlay text
-		let coverHtml = '';
-		if (coverImageUrl && vault.notes[entryPointSlug]) {
-			coverHtml = renderTiptapToHtml(vault.notes[entryPointSlug].content);
-		}
-
-		sections.push({
-			type: 'canvas',
-			sectionId: canvas.slug,
-			name: canvas.name,
-			canvasId: canvas.id,
-			vault,
-			cardPositions,
-			coverImageUrl,
-			coverHtml
-		});
-
-		navItems.push({
-			name: canvas.name,
-			slug: canvas.slug
-		});
 	}
 
-	// Load landing highlights
-	const { data: highlights } = await locals.supabase
-		.from('landing_highlights')
-		.select('*')
-		.order('position', { ascending: true });
+	const finalConversations = conversations.length > 0 ? conversations : getSampleConversations();
 
-	// Add field-notes to nav only if there are highlights
-	if (highlights && highlights.length > 0) {
-		navItems.push({
-			name: 'field notes',
-			slug: 'field-notes'
-		});
-	}
-
-	// Cache for anonymous users (skip in edit mode)
 	if (!isEditMode) {
-		setHeaders({
-			'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300'
-		});
+		setHeaders({ 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' });
 	}
 
-	return { sections, navItems, highlights: highlights || [], isEditMode };
+	return { conversations: finalConversations, isEditMode };
 };

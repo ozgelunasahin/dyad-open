@@ -42,7 +42,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 		return json({ error: 'Invalid JSON body' }, { status: 400 });
 	}
 
-	const { email, name, based_in, freewrite } = body as Record<string, unknown>;
+	const { email, name, based_in, freewrite, expression_url, expression_file_url } = body as Record<string, unknown>;
 
 	if (!email || typeof email !== 'string') {
 		error(400, 'Email is required');
@@ -79,7 +79,9 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 			email: email.trim(),
 			name: (typeof name === 'string' ? name.trim() : null) || null,
 			based_in: (typeof based_in === 'string' ? based_in.trim() : null) || null,
-			freewrite: (typeof freewrite === 'string' ? freewrite.trim() : null) || null
+			freewrite: (typeof freewrite === 'string' ? freewrite.trim() : null) || null,
+			expression_url: (typeof expression_url === 'string' ? expression_url.trim() : null) || null,
+			expression_file_url: (typeof expression_file_url === 'string' ? expression_file_url.trim() : null) || null
 		});
 
 	if (dbError) {

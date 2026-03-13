@@ -1,603 +1,885 @@
 <script lang="ts">
-	import { tick, onMount } from 'svelte';
-	import { fade } from 'svelte/transition';
+	import { onMount } from 'svelte';
+	import { fade, fly } from 'svelte/transition';
 	import { themeStore } from '$lib/stores/theme.svelte';
-	import { canvasStore } from '$lib/stores/canvas.svelte';
-	import Canvas from '$lib/components/Canvas.svelte';
-	import SiteNav from '$lib/components/SiteNav.svelte';
-	import ExpandableContent from '$lib/components/ExpandableContent.svelte';
-	import SiteFooter from '$lib/components/SiteFooter.svelte';
-	import FieldNotesSection from '$lib/components/FieldNotesSection.svelte';
-	import JoinSection from '$lib/components/JoinSection.svelte';
+	import { createBrowserClient } from '@supabase/ssr';
+	import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+	import ConversationCard from '$lib/components/ConversationCard.svelte';
+	import RotatingConversationHeadline from '$lib/components/RotatingConversationHeadline.svelte';
 
 	let { data } = $props();
 
-	// Mobile detection
-	let isMobile = $state(false);
+	const supabase = createBrowserClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
+
+	// ── Join modal ──────────────────────────────────────────────────────────────
+	let showJoinForm = $state(false);
+	let joinName = $state('');
+	let joinEmail = $state('');
+	let joinBasedIn = $state('');
+	let joinFreewrite = $state('');
+	let joinExpressionUrl = $state('');
+	let joinStatus = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
+	let joinError = $state('');
+
+	// City typeahead
+	const CITIES = ['Berlin', 'London', 'Amsterdam', 'Paris', 'Vienna', 'Zürich', 'Istanbul', 'New York', 'Barcelona', 'Rome', 'Lisbon', 'Stockholm', 'Copenhagen', 'Oslo', 'Helsinki', 'Warsaw', 'Prague', 'Budapest', 'Athens', 'Other'];
+	let cityDropdownOpen = $state(false);
+	let citySuggestions = $derived.by(() => {
+		if (!joinBasedIn.trim()) return CITIES;
+		const q = joinBasedIn.toLowerCase();
+		return CITIES.filter(c => c.toLowerCase().includes(q));
+	});
+	function selectCity(city: string) {
+		joinBasedIn = city;
+		cityDropdownOpen = false;
+	}
+
+	function openJoin() { showJoinForm = true; }
+	function closeJoin() { if (joinStatus !== 'sending') showJoinForm = false; }
+
+	async function handleJoinSubmit(e: Event) {
+		e.preventDefault();
+		if (!joinFreewrite.trim()) {
+			joinError = 'Please share why you want to join.';
+			joinStatus = 'error';
+			return;
+		}
+		joinStatus = 'sending';
+		joinError = '';
+		try {
+			const res = await fetch('/api/contact', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					email: joinEmail.trim(),
+					name: joinName.trim() || undefined,
+					based_in: joinBasedIn.trim() || undefined,
+					freewrite: joinFreewrite.trim(),
+					expression_url: joinExpressionUrl.trim() || undefined
+				})
+			});
+			if (!res.ok) {
+				const d = await res.json();
+				throw new Error(d.error || 'Something went wrong');
+			}
+			joinStatus = 'sent';
+		} catch (err) {
+			joinError = err instanceof Error ? err.message : 'Something went wrong';
+			joinStatus = 'error';
+		}
+	}
+
+	// ── Login modal ─────────────────────────────────────────────────────────────
+	let showLoginForm = $state(false);
+	let loginMode = $state<'login' | 'reset'>('login');
+	let loginEmail = $state('');
+	let loginPassword = $state('');
+	let loginStatus = $state<'idle' | 'loading' | 'reset_sent' | 'error'>('idle');
+	let loginError = $state('');
+
+	function openLogin() { showLoginForm = true; loginMode = 'login'; loginError = ''; }
+	function closeLogin() { if (loginStatus !== 'loading') showLoginForm = false; }
+
+	async function handleLogin(e: Event) {
+		e.preventDefault();
+		loginStatus = 'loading';
+		loginError = '';
+		if (loginMode === 'reset') {
+			const { error } = await supabase.auth.resetPasswordForEmail(loginEmail.trim(), {
+				redirectTo: `${window.location.origin}/auth/callback?type=recovery`
+			});
+			if (error) {
+				loginError = error.message;
+				loginStatus = 'error';
+			} else {
+				loginStatus = 'reset_sent';
+			}
+			return;
+		}
+		const { error } = await supabase.auth.signInWithPassword({
+			email: loginEmail.trim(),
+			password: loginPassword
+		});
+		if (error) {
+			loginError = error.message;
+			loginStatus = 'error';
+		} else {
+			window.location.href = '/dashboard';
+		}
+	}
+
+	// ── City rotation ───────────────────────────────────────────────────────────
+	const cities = ['Berlin'];
+	let cityIndex = $state(0);
+	let cityVisible = $state(true);
 
 	onMount(() => {
-		const mq = window.matchMedia('(max-width: 768px)');
-		isMobile = mq.matches;
-		const mqHandler = (e: MediaQueryListEvent) => { isMobile = e.matches; };
-		mq.addEventListener('change', mqHandler);
-		return () => mq.removeEventListener('change', mqHandler);
+		if (cities.length < 2) return;
+		const interval = setInterval(() => {
+			cityVisible = false;
+			setTimeout(() => {
+				cityIndex = (cityIndex + 1) % cities.length;
+				cityVisible = true;
+			}, 250);
+		}, 2000);
+		return () => clearInterval(interval);
 	});
-
-	// Scroll and section state
-	let scrollContainer: HTMLElement | null = $state(null);
-	let sectionEls: Record<string, HTMLElement> = $state({});
-	let activeSlug = $state('');
-	let activeCanvasSection = $state<string | null>(null);
-	let navHidden = $state(false);
-	let lastScrollY = 0;
-
-	// Generation counter prevents stale async canvas activation
-	let activationGeneration = 0;
-
-	// Canvas expand/fullscreen state
-	let expandedCanvas = $state<string | null>(null);
-
-	function toggleExpand(slug: string) {
-		expandedCanvas = expandedCanvas === slug ? null : slug;
-	}
-
-	// Set initial active section
-	$effect(() => {
-		if (activeSlug === '' && data.sections?.length > 0) {
-			activeSlug = data.sections[0].sectionId ?? '';
-		}
-	});
-
-	// IntersectionObserver to track active section
-	$effect(() => {
-		if (!scrollContainer) return;
-
-		const els = Object.values(sectionEls).filter(Boolean);
-		if (els.length === 0) return;
-
-		const navObserver = new IntersectionObserver(
-			(entries) => {
-				for (const entry of entries) {
-					if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
-						const slug = entry.target.getAttribute('data-section-slug');
-						if (slug) activeSlug = slug;
-					}
-				}
-			},
-			{
-				root: scrollContainer,
-				threshold: 0.5
-			}
-		);
-
-		for (const el of els) {
-			navObserver.observe(el);
-		}
-
-		return () => {
-			navObserver.disconnect();
-		};
-	});
-
-	// Canvas auto-activation: only on desktop
-	$effect(() => {
-		if (isMobile || !data.sections) return;
-
-		const currentSection = data.sections.find((s) => s.sectionId === activeSlug);
-
-		if (currentSection?.type === 'canvas' && currentSection.sectionId) {
-			activateCanvas(currentSection.sectionId);
-		} else if (activeCanvasSection) {
-			deactivateCanvas();
-		}
-	});
-
-	// Event handlers
-	function handleScroll(e: Event) {
-		const target = e.target as HTMLElement;
-		const y = target.scrollTop;
-		if (y > lastScrollY && y > 80) {
-			navHidden = true;
-		} else if (y < lastScrollY) {
-			navHidden = false;
-		}
-		lastScrollY = y;
-	}
-
-	function handleNavClick(slug: string) {
-		const el = sectionEls[slug];
-		if (el) {
-			el.scrollIntoView({ behavior: 'smooth' });
-		}
-	}
-
-	function handleKeydown(e: KeyboardEvent) {
-		if (data.sections) {
-			const slugs = data.sections.map(s => s.sectionId ?? '');
-			const currentIdx = slugs.indexOf(activeSlug);
-
-			if (e.key === 'PageDown' || e.key === 'ArrowDown') {
-				const nextIdx = Math.min(currentIdx + 1, slugs.length - 1);
-				if (nextIdx !== currentIdx) {
-					e.preventDefault();
-					handleNavClick(slugs[nextIdx]);
-				}
-			} else if (e.key === 'PageUp' || e.key === 'ArrowUp') {
-				const prevIdx = Math.max(currentIdx - 1, 0);
-				if (prevIdx !== currentIdx) {
-					e.preventDefault();
-					handleNavClick(slugs[prevIdx]);
-				}
-			}
-		}
-	}
-
-	// Canvas lifecycle — desktop only
-	async function activateCanvas(sectionId: string) {
-		if (isMobile) return;
-		if (activeCanvasSection === sectionId) return;
-
-		const myGeneration = ++activationGeneration;
-
-		const section = data.sections?.find(
-			(s) => s.type === 'canvas' && s.sectionId === sectionId
-		);
-		if (!section || section.type !== 'canvas') return;
-
-		// Suspend previous canvas (snapshot state for fast resume later)
-		if (activeCanvasSection && activeCanvasSection !== sectionId) {
-			canvasStore.suspend();
-		}
-
-		activeCanvasSection = sectionId;
-		// Use 'site-landing' so the store skips localStorage restoration
-		// and opens only the entry note fresh — wikilinks visible but not expanded
-		canvasStore.initialize(section.vault, 'site-landing');
-		await tick();
-
-		if (activationGeneration !== myGeneration) return;
-	}
-
-	function deactivateCanvas() {
-		activationGeneration++;
-		activeCanvasSection = null;
-		canvasStore.suspend();
-	}
-
-	function handleBoundaryExit(direction: 'up' | 'down') {
-		if (!data.sections) return;
-		const slugs = data.sections.map(s => s.sectionId ?? '');
-		const currentIdx = slugs.indexOf(activeSlug);
-		if (currentIdx === -1) return;
-
-		const targetIdx =
-			direction === 'down'
-				? Math.min(currentIdx + 1, slugs.length - 1)
-				: Math.max(currentIdx - 1, 0);
-
-		if (targetIdx !== currentIdx) {
-			deactivateCanvas();
-			handleNavClick(slugs[targetIdx]);
-		}
-	}
 </script>
-
-<svelte:window onkeydown={handleKeydown} />
 
 <svelte:head>
 	<title>dyad. cultivating a culture of conversation</title>
 	<meta name="description" content="Social civic infrastructure for community bridging in Berlin." />
 </svelte:head>
 
-{#if data.sections && data.sections.length > 0}
-	<SiteNav
-		items={data.navItems}
-		activeSlug={activeSlug}
-		siteName="dyad.berlin"
-		hidden={navHidden}
-		onNavigate={handleNavClick}
-	/>
+<!-- ═══════════════════════════════════════════════════════ Split layout ══ -->
+<div class="landing">
 
-	<div
-		class="scroll-container"
-		bind:this={scrollContainer}
-		onscroll={handleScroll}
-	>
-		{#each data.sections as section}
-			{@const slug = section.sectionId ?? ''}
-			{@const isCanvasActive = activeCanvasSection === slug}
+	<!-- Left: fixed hero panel -->
+	<div class="left-col">
+		<div class="left-top">
+			<img
+				src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/logo.png"
+				alt="dyad."
+				class="logo"
+			/>
+			<button class="login-link" onclick={openLogin}>log in</button>
+		</div>
 
-			<section
-				class="snap-section"
-				data-section-slug={slug}
-				bind:this={sectionEls[slug]}
-			>
-				{#if section.type === 'canvas'}
-					<div class="section-card">
-						<div class="canvas-area" class:expanded={expandedCanvas === slug}>
-							{#if slug !== 'dyad'}<span class="section-tag">{section.name}</span>{/if}
-							{#if isMobile}
-								{@const entryNote = section.vault?.notes?.[section.vault?.entryPoint]}
-								{#if entryNote}
-									<div class="entry-text">
-										<ExpandableContent
-											content={entryNote.content}
-											vault={section.vault}
-										/>
-									</div>
-								{/if}
-							{:else}
-								{#if isCanvasActive}
-									<div class="canvas-frame" transition:fade={{ duration: 300 }}>
-										<Canvas readOnly captureWheel={false} onBoundaryExit={handleBoundaryExit} />
-									</div>
-								{/if}
-							{/if}
-							{#if !isMobile}
-								<button class="expand-btn" onclick={() => toggleExpand(slug)} aria-label={expandedCanvas === slug ? 'Collapse canvas' : 'Expand canvas'}>
-									{#if expandedCanvas === slug}
-										<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-											<path d="M9 1h4v4M5 13H1V9M13 1L8.5 5.5M1 13l4.5-4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-										</svg>
-									{:else}
-										<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-											<path d="M1 5V1h4M13 9v4H9M1 1l4.5 4.5M13 13L8.5 8.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-										</svg>
-									{/if}
-								</button>
-							{/if}
-						</div>
-						{#if section.coverImageUrl}
-							<div class="section-cover">
-								{#if /\.(mp4|webm|mov)(\?|$)/i.test(section.coverImageUrl)}
-									<video src={section.coverImageUrl} autoplay loop muted playsinline></video>
-								{:else}
-									<img src={section.coverImageUrl} alt="" />
-								{/if}
-							</div>
-						{/if}
-					</div>
+		<div class="hero-content">
+			<RotatingConversationHeadline />
+
+			<p class="tagline">cultivating a culture<br />of conversation</p>
+
+			<div class="city-row">
+				<span class="city-dot" aria-hidden="true"></span>
+				<span class="city-name" class:city-hidden={!cityVisible}>
+					{cities[cityIndex]}
+				</span>
+			</div>
+
+			<button class="join-btn" onclick={openJoin}>
+				join waitlist <span class="arrow" aria-hidden="true">→</span>
+			</button>
+		</div>
+
+		<div class="left-footer">
+			<button class="theme-toggle" onclick={() => themeStore.toggle()} aria-label="Toggle theme">
+				{#if themeStore.current === 'light'}
+					<svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+						<circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5" />
+						<path d="M8 1V2.5M8 13.5V15M1 8H2.5M13.5 8H15M3.05 3.05L4.11 4.11M11.89 11.89L12.95 12.95M3.05 12.95L4.11 11.89M11.89 4.11L12.95 3.05" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+					</svg>
+				{:else}
+					<svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+						<path d="M14 8.5A6 6 0 117.5 2a4.5 4.5 0 006.5 6.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+					</svg>
 				{/if}
-			</section>
-		{/each}
-
-		<!-- Field Notes + Footer section -->
-		{#if data.highlights && data.highlights.length > 0 || data.isEditMode}
-			<section
-				class="snap-section field-notes-section"
-				data-section-slug="field-notes"
-				bind:this={sectionEls['field-notes']}
-			>
-				<FieldNotesSection highlights={data.highlights || []} isEditMode={data.isEditMode} />
-				<JoinSection />
-				<div class="footer-area">
-					<SiteFooter />
+			</button>
+			<div class="footer-legal">
+				<p class="copyright">&copy; Monad Engineering, {new Date().getFullYear()}</p>
+				<div class="legal-links">
+					<a href="/privacy" class="legal-link">privacy policy</a>
+					<span class="legal-sep">|</span>
+					<a href="/terms" class="legal-link">terms of service</a>
 				</div>
-			</section>
-		{:else}
-			<section class="snap-section footer-only-section">
-				<div class="footer-area">
-					<SiteFooter />
-				</div>
-			</section>
-		{/if}
+			</div>
+		</div>
 	</div>
 
-	<button class="theme-toggle" onclick={() => themeStore.toggle()} aria-label="Toggle theme">
-		{#if themeStore.current === 'light'}
-			<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-				<circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5" />
-				<path d="M8 1V2.5M8 13.5V15M1 8H2.5M13.5 8H15M3.05 3.05L4.11 4.11M11.89 11.89L12.95 12.95M3.05 12.95L4.11 11.89M11.89 4.11L12.95 3.05" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-			</svg>
-		{:else}
-			<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-				<path d="M14 8.5A6 6 0 117.5 2a4.5 4.5 0 006.5 6.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-			</svg>
-		{/if}
-	</button>
-{:else}
-	<!-- Fallback -->
-	<div class="fallback">
-		<h1 class="splash-logo">dyad.berlin</h1>
-		<p class="splash-tagline">Social civic infrastructure for Berlin</p>
+	<!-- Right: scrollable conversation cards -->
+	<div class="right-col">
+		<div class="cards-scroll">
+			{#if data.conversations && data.conversations.length > 0}
+				{#each data.conversations as conv}
+					<ConversationCard conversation={conv} onopen={openJoin} />
+				{/each}
+			{:else}
+				<p class="empty-state">No conversations yet.</p>
+			{/if}
+		</div>
+	</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ Login modal ══ -->
+{#if showLoginForm}
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<div class="modal-backdrop" onclick={closeLogin} transition:fade={{ duration: 200 }}>
+		<div
+			class="modal"
+			onclick={(e) => e.stopPropagation()}
+			transition:fly={{ y: 20, duration: 260, opacity: 0 }}
+			role="dialog"
+			aria-modal="true"
+			aria-label="Log in"
+			tabindex="-1"
+		>
+			<div class="modal-header">
+				<h2 class="modal-title">
+					{loginMode === 'login' ? 'Welcome back' : 'Reset password'}
+				</h2>
+				<button class="modal-close" onclick={closeLogin} aria-label="Close">
+					<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+						<path d="M2 2l12 12M14 2L2 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+					</svg>
+				</button>
+			</div>
+
+			{#if loginStatus === 'reset_sent'}
+				<p class="modal-desc">Check your email for a reset link.</p>
+				<button class="close-link" onclick={() => { loginMode = 'login'; loginStatus = 'idle'; }}>
+					Back to sign in
+				</button>
+			{:else}
+				<form class="modal-form" onsubmit={handleLogin}>
+					<div class="field">
+						<label for="l-email">Email</label>
+						<input
+							id="l-email"
+							type="email"
+							bind:value={loginEmail}
+							required
+							disabled={loginStatus === 'loading'}
+							autocomplete="email"
+						/>
+					</div>
+
+					{#if loginMode === 'login'}
+						<div class="field">
+							<label for="l-password">Password</label>
+							<input
+								id="l-password"
+								type="password"
+								bind:value={loginPassword}
+								required
+								disabled={loginStatus === 'loading'}
+								autocomplete="current-password"
+							/>
+						</div>
+					{/if}
+
+					{#if loginStatus === 'error'}
+						<p class="form-error">{loginError}</p>
+					{/if}
+
+					<button type="submit" class="submit-btn" disabled={loginStatus === 'loading'}>
+						{#if loginStatus === 'loading'}
+							{loginMode === 'login' ? 'Signing in…' : 'Sending…'}
+						{:else}
+							{loginMode === 'login' ? 'Sign in' : 'Send reset link'}
+						{/if}
+					</button>
+
+					<div class="auth-links">
+						{#if loginMode === 'login'}
+							<button type="button" class="text-link" onclick={() => { loginMode = 'reset'; loginError = ''; loginStatus = 'idle'; }}>
+								Forgot password?
+							</button>
+						{:else}
+							<button type="button" class="text-link" onclick={() => { loginMode = 'login'; loginError = ''; loginStatus = 'idle'; }}>
+								Back to sign in
+							</button>
+						{/if}
+					</div>
+				</form>
+			{/if}
+		</div>
+	</div>
+{/if}
+
+<!-- ═══════════════════════════════════════════════════════ Join modal ══ -->
+{#if showJoinForm}
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<div class="modal-backdrop" onclick={closeJoin} transition:fade={{ duration: 200 }}>
+		<div
+			class="modal"
+			onclick={(e) => e.stopPropagation()}
+			transition:fly={{ y: 20, duration: 260, opacity: 0 }}
+			role="dialog"
+			aria-modal="true"
+			aria-label="Request to join"
+			tabindex="-1"
+		>
+			{#if joinStatus === 'sent'}
+				<div class="modal-sent">
+					<p class="sent-msg">Thank you. We'll be in touch.</p>
+					<button class="close-link" onclick={() => { showJoinForm = false; joinStatus = 'idle'; }}>
+						Close
+					</button>
+				</div>
+			{:else}
+				<div class="modal-header">
+					<h2 class="modal-title">Request to join</h2>
+					<button class="modal-close" onclick={closeJoin} aria-label="Close">
+						<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+							<path d="M2 2l12 12M14 2L2 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+						</svg>
+					</button>
+				</div>
+
+				<p class="modal-desc">For those who seek conversation for its own sake.</p>
+
+				<form class="modal-form" onsubmit={handleJoinSubmit}>
+					<div class="field-row">
+						<input
+							type="text"
+							placeholder="Name"
+							bind:value={joinName}
+							disabled={joinStatus === 'sending'}
+						/>
+						<input
+							type="email"
+							placeholder="Email"
+							bind:value={joinEmail}
+							required
+							disabled={joinStatus === 'sending'}
+						/>
+					</div>
+
+					<div class="field">
+						<label for="m-freewrite">Why do you want to join?</label>
+						<textarea
+							id="m-freewrite"
+							placeholder="What's in a conversation?"
+							bind:value={joinFreewrite}
+							rows={4}
+							maxlength={2000}
+							required
+							disabled={joinStatus === 'sending'}
+						></textarea>
+					</div>
+
+					<div class="field">
+						<label for="m-based">Where are you based?</label>
+						<div class="city-wrap">
+							<input
+								id="m-based"
+								type="text"
+								placeholder="Type a city…"
+								bind:value={joinBasedIn}
+								disabled={joinStatus === 'sending'}
+								onfocus={() => cityDropdownOpen = true}
+								oninput={() => cityDropdownOpen = true}
+								onblur={() => setTimeout(() => cityDropdownOpen = false, 150)}
+								autocomplete="off"
+							/>
+							{#if cityDropdownOpen && citySuggestions.length > 0}
+								<div class="city-dropdown">
+									{#each citySuggestions as city}
+										<button
+											type="button"
+											class="city-option"
+											onmousedown={(e) => { e.preventDefault(); selectCity(city); }}
+										>{city}</button>
+									{/each}
+								</div>
+							{/if}
+						</div>
+						<span class="field-hint">We're currently running conversations in Berlin.</span>
+					</div>
+
+					<div class="field">
+						<label for="m-expression">Share one thing about yourself</label>
+						<input
+							id="m-expression"
+							type="url"
+							placeholder="A link — website, Instagram, project, article…"
+							bind:value={joinExpressionUrl}
+							disabled={joinStatus === 'sending'}
+						/>
+					</div>
+
+					<button type="submit" class="submit-btn" disabled={joinStatus === 'sending'}>
+						{joinStatus === 'sending' ? 'Sending…' : 'Request to join'}
+					</button>
+
+					{#if joinStatus === 'error'}
+						<p class="form-error">{joinError}</p>
+					{/if}
+				</form>
+
+				<p class="join-login-hint">
+					Already a member?
+					<button type="button" class="text-link" onclick={() => { closeJoin(); openLogin(); }}>
+						Log in
+					</button>
+				</p>
+			{/if}
+		</div>
 	</div>
 {/if}
 
 <style>
-	/* === Scroll-Snap Container === */
-	.scroll-container {
+	/* ── Layout ──────────────────────────────────────────────────────────────── */
+	.landing {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
 		height: 100vh;
-		overflow-y: auto;
-		scroll-behavior: smooth;
-		scroll-snap-type: y mandatory;
-	}
-
-	.snap-section {
-		height: 100vh;
-		min-height: 100vh;
-		scroll-snap-align: start;
-		scroll-snap-stop: always;
-		display: flex;
-		flex-direction: column;
-		position: relative;
-		box-sizing: border-box;
-	}
-
-	/* === Section Card — horizontal split: canvas left, image right === */
-	.section-card {
-		width: 100%;
-		height: 100%;
-		display: flex;
-		flex-direction: row;
 		overflow: hidden;
-	}
-
-	/* Cover image — right half with grain overlay */
-	.section-cover {
-		width: 50%;
-		height: 100%;
-		position: relative;
-		padding: 16px 16px 16px 0;
-		box-sizing: border-box;
-	}
-
-	.section-cover img,
-	.section-cover video {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-		object-position: center;
-		display: block;
-		border-radius: 8px;
-	}
-
-	/* Film grain overlay — matches image inset */
-	.section-cover::after {
-		content: '';
-		position: absolute;
-		top: 16px;
-		right: 16px;
-		bottom: 16px;
-		left: 0;
-		border-radius: 8px;
-		background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.4'/%3E%3C/svg%3E");
-		background-size: 128px 128px;
-		mix-blend-mode: overlay;
-		pointer-events: none;
-		z-index: 1;
-	}
-
-	/* Section tag — monospace label above canvas content */
-	.section-tag {
-		font-family: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace;
-		font-size: 11px;
-		font-weight: 500;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		color: var(--text-muted, #666);
-		position: absolute;
-		top: 40px;
-		left: 32px;
-		z-index: 4;
-	}
-
-	/* Canvas/text area — left half */
-	.canvas-area {
-		width: 50%;
-		height: 100%;
-		position: relative;
-		overflow: hidden;
-		transition: width 0.6s ease;
-		display: flex;
-		flex-direction: column;
-	}
-
-	/* When expanded, canvas takes the full section */
-	.canvas-area.expanded {
-		width: 100%;
-		position: absolute;
-		inset: 0;
-		z-index: 3;
-	}
-
-	.canvas-frame {
-		width: 100%;
-		height: 100%;
-		overflow: hidden;
-		touch-action: none;
-	}
-
-	/* Entry text — mobile text rendering of canvas content */
-	.entry-text {
-		width: 100%;
 		background: var(--bg-canvas);
-		padding: 16px 14px 80px;
+	}
+
+	/* ── Left column ─────────────────────────────────────────────────────────── */
+	.left-col {
+		height: 100vh;
+		display: flex;
+		flex-direction: column;
+		padding: 24px 40px 28px;
 		box-sizing: border-box;
+		border-right: 1px solid var(--border-link, rgba(0, 0, 0, 0.08));
+		overflow: hidden;
 	}
 
-	.entry-title {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
-		font-size: 1.4rem;
-		font-weight: 700;
-		margin: 0 0 0.5rem 0;
-		color: var(--text-primary);
-	}
-
-	/* Expand/collapse button */
-	.expand-btn {
-		position: absolute;
-		bottom: 16px;
-		right: 16px;
-		width: 28px;
-		height: 28px;
-		border: none;
-		border-radius: 6px;
-		background: rgba(0, 0, 0, 0.5);
-		color: rgba(255, 255, 255, 0.8);
-		cursor: pointer;
+	.left-top {
 		display: flex;
 		align-items: center;
-		justify-content: center;
-		z-index: 3;
-		transition: background 0.15s, color 0.15s;
+		justify-content: space-between;
+		flex-shrink: 0;
 	}
 
-	.expand-btn:hover {
-		background: rgba(0, 0, 0, 0.7);
-		color: #fff;
+	.logo {
+		height: 28px;
+		width: auto;
+		filter: brightness(0);
+		transition: filter 0.2s ease;
 	}
 
-	/* Hide duplicate image inside canvas */
-	.section-card :global(.canvas img) {
-		display: none !important;
+	:global([data-theme='dark']) .logo {
+		filter: none;
 	}
 
-	/* === Theme toggle === */
+	.login-link {
+		font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+		font-size: 11px;
+		letter-spacing: 0.06em;
+		text-transform: lowercase;
+		color: var(--text-muted, #999);
+		background: none;
+		border: none;
+		padding: 0;
+		cursor: pointer;
+		transition: color 0.15s;
+	}
+
+	.login-link:hover { color: var(--text-primary, #1a1a1a); }
+
+	.hero-content {
+		margin-top: auto;
+		padding-bottom: 8px;
+	}
+
+.tagline {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: clamp(0.82rem, 1.1vw, 0.95rem);
+		font-weight: normal;
+		line-height: 1.55;
+		color: var(--text-primary, #1a1a1a);
+		margin: 0 0 32px;
+		border-left: 2px solid var(--text-primary, #1a1a1a);
+		padding-left: 12px;
+	}
+
+	.city-row {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin-bottom: 28px;
+	}
+
+	.city-dot {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background: #3d9e5a;
+		flex-shrink: 0;
+		animation: pulse 2.5s ease-in-out infinite;
+	}
+
+	@keyframes pulse {
+		0%, 100% { opacity: 1; }
+		50% { opacity: 0.4; }
+	}
+
+	.city-name {
+		font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+		font-size: 11px;
+		font-weight: 500;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--text-muted, #666);
+		transition: opacity 0.25s ease;
+	}
+
+	.city-hidden { opacity: 0; }
+
+	.join-btn {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 14px;
+		color: var(--bg-canvas, #f5f3f0);
+		background: var(--text-primary, #1a1a1a);
+		border: 1px solid var(--text-primary, #1a1a1a);
+		border-radius: 6px;
+		padding: 10px 20px;
+		cursor: pointer;
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		transition: opacity 0.15s;
+	}
+
+	.join-btn:hover { opacity: 0.82; }
+	.arrow { font-size: 13px; }
+
+	.left-footer {
+		display: flex;
+		align-items: flex-end;
+		justify-content: space-between;
+		margin-top: 24px;
+		flex-shrink: 0;
+	}
+
+	.footer-legal {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+		gap: 4px;
+	}
+
+	.copyright {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 11px;
+		color: var(--text-muted, #999);
+		margin: 0;
+	}
+
+	.legal-links {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+
+	.legal-link {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 11px;
+		color: var(--text-muted, #999);
+		text-decoration: none;
+		transition: color 0.15s;
+	}
+
+	.legal-link:hover { color: var(--text-primary, #1a1a1a); }
+
+	.legal-sep {
+		font-size: 11px;
+		color: var(--text-muted, #bbb);
+	}
+
 	.theme-toggle {
-		position: fixed;
-		bottom: 24px;
-		left: 24px;
-		width: 32px;
-		height: 32px;
+		width: 28px;
+		height: 28px;
 		border: none;
 		border-radius: 4px;
 		background: var(--bg-control, rgba(0, 0, 0, 0.04));
 		cursor: pointer;
-		color: var(--control-color, #8b7355);
+		color: var(--text-muted, #8b7355);
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		transition: all 0.2s ease;
-		opacity: 0.4;
-		z-index: 100;
+		opacity: 0.5;
+		flex-shrink: 0;
 	}
 
-	.theme-toggle:hover {
-		background: var(--bg-control-hover, rgba(0, 0, 0, 0.08));
-		color: var(--control-color-hover, #1a1a1a);
-		opacity: 1;
+	.theme-toggle:hover { opacity: 1; color: var(--text-primary, #1a1a1a); }
+
+	/* ── Right column ────────────────────────────────────────────────────────── */
+	.right-col {
+		height: 100vh;
+		overflow: hidden;
+		position: relative;
 	}
 
-	/* Fallback */
-	.fallback {
-		min-height: 100vh;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		background: var(--bg-canvas);
-		color: var(--text-primary);
-		padding: 2rem;
-		text-align: center;
+	.cards-scroll {
+		height: 100%;
+		overflow-y: auto;
+		padding: 28px 32px 48px;
+		box-sizing: border-box;
 	}
 
-	.splash-logo {
+	.cards-scroll::-webkit-scrollbar { width: 4px; }
+	.cards-scroll::-webkit-scrollbar-track { background: transparent; }
+	.cards-scroll::-webkit-scrollbar-thumb {
+		background: var(--border-link, rgba(0, 0, 0, 0.12));
+		border-radius: 2px;
+	}
+
+	.empty-state {
 		font-family: 'SangBleu Sunrise', Georgia, serif;
-		font-size: 2.5rem;
-		font-weight: normal;
-		margin: 0 0 0.75rem 0;
-	}
-
-	.splash-tagline {
-		font-size: 1.1rem;
-		color: var(--text-muted);
+		font-size: 14px;
+		color: var(--text-muted, #999);
 		margin: 0;
 	}
 
-	/* === Field Notes section === */
-	.field-notes-section {
-		background: var(--bg-canvas);
-		height: auto;
-		min-height: 100vh;
+	/* ── Shared modal styles ─────────────────────────────────────────────────── */
+	.modal-backdrop {
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.32);
+		backdrop-filter: blur(4px);
+		-webkit-backdrop-filter: blur(4px);
+		z-index: 400;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 24px;
+	}
+
+	.modal {
+		background: var(--bg-canvas, #f5f3f0);
+		border-radius: 12px;
+		padding: 36px 40px;
+		width: 100%;
+		max-width: 440px;
+		max-height: 90vh;
+		overflow-y: auto;
+		box-shadow: 0 24px 64px rgba(0, 0, 0, 0.18);
+		box-sizing: border-box;
+	}
+
+	.modal-header {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		margin-bottom: 12px;
+	}
+
+	.modal-title {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 1.4rem;
+		font-weight: normal;
+		color: var(--text-primary, #1a1a1a);
+		margin: 0;
+	}
+
+	.modal-close {
+		background: none;
+		border: none;
+		padding: 2px;
+		cursor: pointer;
+		color: var(--text-muted, #999);
+		display: flex;
+		align-items: center;
+		transition: color 0.15s;
+		flex-shrink: 0;
+		margin-left: 16px;
+		margin-top: 4px;
+	}
+
+	.modal-close:hover { color: var(--text-primary, #1a1a1a); }
+
+	.modal-desc {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 14px;
+		font-style: italic;
+		color: var(--text-muted, #666);
+		margin: 0 0 28px;
+		line-height: 1.6;
+	}
+
+	.modal-form {
 		display: flex;
 		flex-direction: column;
 	}
 
-	.footer-only-section {
-		background: var(--bg-canvas);
+	.field {
 		display: flex;
-		align-items: flex-end;
+		flex-direction: column;
+		gap: 7px;
+		margin-bottom: 18px;
 	}
 
-	.footer-area {
-		margin-top: auto;
+	.field label {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 13px;
+		color: var(--text-muted, #666);
+		font-style: italic;
+	}
+
+	.city-wrap {
+		position: relative;
+	}
+
+	.city-dropdown {
+		position: absolute;
+		top: 100%;
+		left: 0;
+		right: 0;
+		background: var(--bg-canvas, #f5f3f0);
+		border: 1px solid var(--border-link, rgba(0,0,0,0.12));
+		border-top: none;
+		border-radius: 0 0 6px 6px;
+		max-height: 180px;
+		overflow-y: auto;
+		z-index: 10;
+		box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+	}
+
+	.city-option {
+		display: block;
+		width: 100%;
+		text-align: left;
+		padding: 9px 14px;
+		background: none;
+		border: none;
+		border-bottom: 1px solid var(--border-link, rgba(0,0,0,0.06));
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 14px;
+		color: var(--text-primary, #1a1a1a);
+		cursor: pointer;
+		transition: background 0.1s;
+	}
+
+	.city-option:last-child { border-bottom: none; }
+	.city-option:hover { background: var(--bg-control, rgba(0,0,0,0.03)); }
+
+	.field-hint {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 12px;
+		color: var(--text-muted, #999);
+	}
+
+	.field-row {
+		display: flex;
+		gap: 10px;
+		margin-bottom: 20px;
+	}
+
+	.field-row input { flex: 1; }
+
+	textarea,
+	input[type='text'],
+	input[type='email'],
+	input[type='url'],
+	input[type='password'] {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 14px;
+		padding: 10px 14px;
+		border: 1px solid var(--border-link, rgba(0, 0, 0, 0.12));
+		border-radius: 6px;
+		background: transparent;
+		color: var(--text-primary, #1a1a1a);
+		transition: border-color 0.15s;
+		box-sizing: border-box;
 		width: 100%;
 	}
 
-	/* === Mobile — free-scrolling article layout === */
-	@media (max-width: 768px) {
-		.scroll-container {
-			scroll-snap-type: none;
-		}
+	textarea { resize: vertical; line-height: 1.6; }
 
-		.snap-section {
-			height: auto;
-			min-height: 0;
-			scroll-snap-align: none;
-			scroll-snap-stop: normal;
-		}
-
-		.section-card {
-			height: auto;
-			flex-direction: column-reverse;
-			overflow: visible;
-		}
-
-		.section-cover {
-			width: 100%;
-			height: 70vh;
-			padding: 8px 8px 0 8px;
-		}
-
-		.section-cover img,
-		.section-cover video {
-			border-radius: 6px;
-		}
-
-		.section-cover::after {
-			top: 8px;
-			right: 8px;
-			bottom: 0;
-			left: 8px;
-			border-radius: 6px;
-		}
-
-		.canvas-area {
-			width: 100%;
-			position: relative;
-			height: auto;
-		}
-
-		.section-tag {
-			position: static;
-			display: block;
-			padding: 16px 14px 0;
-		}
-
-		.entry-text {
-			padding: 12px 8px 40px;
-			font-size: 14px !important;
-		}
-
-		.entry-text :global(*) {
-			font-size: 14px !important;
-		}
-
-		.field-notes-section {
-			min-height: auto;
-			scroll-snap-align: none;
-			padding: 40px 0;
-		}
-
-		.footer-section {
-			padding-top: 40px;
-		}
+	textarea:focus, input:focus {
+		outline: none;
+		border-color: var(--text-muted, #666);
 	}
 
-	/* === Reduced motion === */
-	@media (prefers-reduced-motion: reduce) {
-		.scroll-container {
-			scroll-behavior: auto;
+	textarea:disabled, input:disabled { opacity: 0.6; }
+	textarea::placeholder, input::placeholder { color: var(--text-muted, #999); }
+
+	.submit-btn {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 14px;
+		padding: 11px 28px;
+		border: 1px solid var(--text-primary, #1a1a1a);
+		border-radius: 6px;
+		background: var(--text-primary, #1a1a1a);
+		color: var(--bg-canvas, #f5f3f0);
+		cursor: pointer;
+		transition: opacity 0.15s;
+		align-self: flex-start;
+		width: 100%;
+	}
+
+	.submit-btn:hover:not(:disabled) { opacity: 0.85; }
+	.submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+	.form-error {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 13px;
+		color: #c00;
+		margin: 10px 0 0;
+	}
+
+	.auth-links {
+		margin-top: 16px;
+		display: flex;
+		gap: 16px;
+	}
+
+	.text-link {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 13px;
+		color: var(--text-muted, #666);
+		background: none;
+		border: none;
+		border-bottom: 1px solid var(--border-link, rgba(0, 0, 0, 0.15));
+		padding: 0 0 1px;
+		cursor: pointer;
+		transition: color 0.15s;
+	}
+
+	.text-link:hover { color: var(--text-primary, #1a1a1a); }
+
+	.modal-sent {
+		text-align: center;
+		padding: 16px 0;
+	}
+
+	.sent-msg {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 16px;
+		color: var(--text-primary, #1a1a1a);
+		margin: 0 0 20px;
+	}
+
+	.join-login-hint {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 13px;
+		color: var(--text-muted, #999);
+		margin: 20px 0 0;
+		text-align: center;
+	}
+
+	.close-link {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 14px;
+		color: var(--text-muted, #666);
+		background: none;
+		border: none;
+		cursor: pointer;
+		padding: 0;
+		text-decoration: underline;
+	}
+
+	/* ── Mobile ──────────────────────────────────────────────────────────────── */
+	@media (max-width: 768px) {
+		.landing {
+			grid-template-columns: 1fr;
+			height: auto;
+			overflow: auto;
 		}
+
+		.left-col {
+			height: auto;
+			min-height: 85vh;
+			border-right: none;
+			border-bottom: 1px solid var(--border-link, rgba(0, 0, 0, 0.08));
+			padding: 20px 20px 28px;
+		}
+
+		.hero-text { font-size: clamp(2.8rem, 12vw, 4rem); }
+
+		.right-col { height: auto; overflow: visible; }
+		.cards-scroll { height: auto; padding: 24px 16px 48px; }
+
+		.modal { padding: 28px 24px; }
+		.field-row { flex-direction: column; }
 	}
 </style>
