@@ -57,51 +57,39 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		error(401, 'Authentication required');
 	}
 
-	const body = await request.json();
+	let body: Record<string, unknown>;
+	try {
+		body = await request.json();
+	} catch {
+		return json({ error: 'Invalid JSON body' }, { status: 400 });
+	}
 	const { canvas_id, invitee_id, location, proposed_time, message } = body;
 
 	if (!canvas_id || !invitee_id) {
 		error(400, 'canvas_id and invitee_id are required');
 	}
 
-	// Comment gate: verify the inviter has at least one comment on the conversation
-	const { data: userHighlights } = await locals.supabase
-		.from('highlights')
-		.select('id, comments (id)')
-		.eq('canvas_id', canvas_id)
-		.eq('user_id', locals.user.id);
-
-	const hasCommented = (userHighlights ?? []).some(
-		(h) => h.comments && (h.comments as any[]).length > 0
-	);
-
-	// Also check if user has commented on someone else's highlights
-	if (!hasCommented) {
-		const { data: allHighlights } = await locals.supabase
+	// Comment gate: user must have left a note (canvas_comment) or a highlight comment
+	const [{ data: canvasComments }, { data: highlightComments }] = await Promise.all([
+		locals.supabase
+			.from('canvas_comments')
+			.select('id')
+			.eq('canvas_id', canvas_id)
+			.eq('user_id', locals.user.id)
+			.limit(1),
+		locals.supabase
 			.from('highlights')
 			.select('id, comments (id, user_id)')
-			.eq('canvas_id', canvas_id);
+			.eq('canvas_id', canvas_id)
+	]);
 
-		const hasCommentedOnOthers = (allHighlights ?? []).some(
-			(h) => (h.comments as any[] ?? []).some((c: any) => c.user_id === locals.user.id)
-		);
+	const hasCanvasComment = (canvasComments?.length ?? 0) > 0;
+	const hasHighlightComment = (highlightComments ?? []).some(
+		(h) => (h.comments as any[] ?? []).some((c: any) => c.user_id === locals.user.id)
+	);
 
-		if (!hasCommentedOnOthers) {
-			error(403, 'You must comment on this conversation before sending a meeting invite');
-		}
-	}
-
-	// City-based check: both users should be berlin_based
-	const { data: profiles } = await locals.supabase
-		.from('profiles')
-		.select('id, berlin_based')
-		.in('id', [locals.user.id, invitee_id]);
-
-	const inviterProfile = profiles?.find((p) => p.id === locals.user.id);
-	const inviteeProfile = profiles?.find((p) => p.id === invitee_id);
-
-	if (!inviterProfile?.berlin_based || !inviteeProfile?.berlin_based) {
-		error(403, 'Meeting invitations are currently limited to Berlin-based users');
+	if (!hasCanvasComment && !hasHighlightComment) {
+		error(403, 'You must leave a note on this conversation before sending a meeting invite');
 	}
 
 	const { data, error: dbError } = await locals.supabase
@@ -156,7 +144,12 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
 		error(401, 'Authentication required');
 	}
 
-	const body = await request.json();
+	let body: Record<string, unknown>;
+	try {
+		body = await request.json();
+	} catch {
+		return json({ error: 'Invalid JSON body' }, { status: 400 });
+	}
 	const { id, status: newStatus } = body;
 
 	if (!id || !newStatus) {

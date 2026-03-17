@@ -135,6 +135,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			id: c.id,
 			name: displayName,
 			slug: c.slug,
+			userId: c.user_id,
 			username: usernameMap.get(c.user_id) ?? 'unknown',
 			updatedAt: c.updated_at,
 			snippet,

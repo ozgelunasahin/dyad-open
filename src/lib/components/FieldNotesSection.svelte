@@ -167,7 +167,7 @@
 			{#each items as item, i (item.id)}
 				{@const isSaving = saving === item.id}
 				{@const teaserFormats = ['essay', 'essay', 'interview']}
-				{@const teaserDates = ['February 23rd, 2026', 'March 9th, 2026', 'March 9th, 2026']}
+				{@const teaserDates = ['March 23rd, 2026', 'March 23rd, 2026', 'March 23rd, 2026']}
 				<div class="card">
 					<!-- Format tag -->
 					<span class="format-tag">{isEditMode ? (item.format || 'essay') : teaserFormats[i] ?? 'essay'}</span>
