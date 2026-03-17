@@ -4,13 +4,16 @@ import { renderTiptapToHtml } from '$lib/utils/tiptap-html';
 import type { ConversationData } from '$lib/types';
 
 // Fallback sample conversations shown when no landing_highlights are configured.
+const IMG = (n: number) =>
+	`https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/landing%20page%20images/${n}.png`;
+
 function getSampleConversations(): ConversationData[] {
 	return [
 		{
 			id: 'sample-1',
 			title: 'What does it mean to truly listen?',
 			subtitle: null,
-			image_url: null,
+			image_url: IMG(1),
 			bodyHtml:
 				'<p>Listening is not merely the absence of speaking. It is an act of attention that requires us to suspend our own internal monologue — the constant hum of interpretation, judgment, and anticipation — long enough to receive what another person is actually offering.</p>',
 			position: 0,
@@ -22,7 +25,7 @@ function getSampleConversations(): ConversationData[] {
 			id: 'sample-2',
 			title: 'On arriving in a city you didn\'t choose',
 			subtitle: null,
-			image_url: null,
+			image_url: IMG(2),
 			bodyHtml:
 				'<p>There is a particular feeling that arrives when you have left somewhere but not yet arrived somewhere else. Not the physical transit — airports and trains are just corridors — but the interior version of it. You carry a history of gestures and references that belong to another place.</p>',
 			position: 1,
@@ -34,7 +37,7 @@ function getSampleConversations(): ConversationData[] {
 			id: 'sample-3',
 			title: 'The art of disagreeing well',
 			subtitle: null,
-			image_url: null,
+			image_url: IMG(3),
 			bodyHtml:
 				'<p>Somewhere between argument and agreement lies a space most conversations never reach: the place where two people genuinely hold different views and are both changed by the encounter. Disagreement, done well, is an act of respect.</p>',
 			position: 2,
@@ -46,7 +49,7 @@ function getSampleConversations(): ConversationData[] {
 			id: 'sample-4',
 			title: 'On solitude and the city',
 			subtitle: null,
-			image_url: null,
+			image_url: IMG(4),
 			bodyHtml:
 				'<p>A city is the only place where you can be completely alone in a crowd. Urban solitude is not the same as rural isolation — it is something chosen, curated, and paradoxically social. You carry yourself through other people\'s lives without ever touching them.</p>',
 			position: 3,
@@ -58,7 +61,7 @@ function getSampleConversations(): ConversationData[] {
 			id: 'sample-5',
 			title: 'What we owe each other as strangers',
 			subtitle: null,
-			image_url: null,
+			image_url: IMG(5),
 			bodyHtml:
 				'<p>The stranger is a peculiar figure — neither friend nor enemy, neither known nor entirely unknown. What is the minimum we owe someone we will never see again? And what might we gain if we treated that encounter as if it mattered?</p>',
 			position: 4,
@@ -70,7 +73,7 @@ function getSampleConversations(): ConversationData[] {
 			id: 'sample-6',
 			title: 'On the pleasure of changing your mind',
 			subtitle: null,
-			image_url: null,
+			image_url: IMG(6),
 			bodyHtml:
 				'<p>We treat consistency as a virtue and revision as weakness. But the mind that never changes is not a strong mind — it is a closed one. What would it mean to treat changing your position not as defeat, but as evidence that the conversation worked?</p>',
 			position: 5,
@@ -82,7 +85,7 @@ function getSampleConversations(): ConversationData[] {
 			id: 'sample-7',
 			title: 'Language and what slips through it',
 			subtitle: null,
-			image_url: null,
+			image_url: IMG(7),
 			bodyHtml:
 				'<p>Every language carves the world differently. Some have words for experiences that others cannot name — and with that name comes the ability to notice, to feel, to share. What gets lost in translation is not just vocabulary; it is whole ways of being.</p>',
 			position: 6,
@@ -94,7 +97,7 @@ function getSampleConversations(): ConversationData[] {
 			id: 'sample-8',
 			title: 'On being a beginner again',
 			subtitle: null,
-			image_url: null,
+			image_url: IMG(8),
 			bodyHtml:
 				'<p>There is a particular humility required to be a beginner. Most of us spend our adult lives avoiding it — performing competence, staying in lanes we already know. But the beginner\'s mind is where curiosity lives, unencumbered by the weight of expertise.</p>',
 			position: 7,
