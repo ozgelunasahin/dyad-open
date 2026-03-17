@@ -1,0 +1,64 @@
+DYAD — 24-MONTH FINANCIAL PROJECTION (May 2026 – Apr 2028)
+Single-city strategy (Berlin) · Pre-seed €400k closes Sep 2026 · Starting capital €60k founders
+
+ASSUMPTIONS
+Subscription price,€12/month
+Paid conversion rate,25% of active members
+Monthly churn (paid),5%
+CAC at scale,€10
+Founder salaries,€60k gross each (x2) + 20% employer costs = €12k/month
+New hire (Oct 2026+),€60k gross + 20% = €6k/month added
+Infra (M1–4),€500/month
+Infra (M5–12),€800/month
+Infra (M13–24),€1200/month
+Marketing pre-seed,€500/month flat
+Marketing post-seed,new members × €10
+Event ticket price,€25 · 100 attendees = €2500/event
+Event cost,50% of revenue = €1250/event
+
+UNIT ECONOMICS
+Monthly churn rate,5%
+Avg paid user lifetime,20 months (= 1 ÷ 5%)
+LTV per paid user,€240 (= €12 × 20 months)
+CAC at scale,€10
+LTV/CAC ratio,24x
+
+MONTHLY PROJECTION
+Month,Date,Active Members,New Members,Paid Users (25%),Subscription Rev (€),Event Rev (€),Total Revenue (€),Team Cost (€),Marketing Cost (€),Infra Cost (€),Event Cost (€),Total Costs (€),Net Burn (€),Cash Remaining (€),Notes
+1,May 2026,200,200,50,600,0,600,12000,500,500,0,13000,12400,47600,Public launch — founder-led
+2,Jun 2026,290,90,73,870,0,870,12000,500,500,0,13000,12130,35470,Growth experiments
+3,Jul 2026,390,100,98,1170,0,1170,12000,500,500,0,13000,11830,23640,Growth experiments
+4,Aug 2026,500,110,125,1500,0,1500,12000,500,500,0,13000,11500,12140,Growth experiments
+5,Sep 2026,660,160,165,1980,0,1980,12000,500,800,0,13300,11320,400820,★ +€400k pre-seed closes
+6,Oct 2026,870,210,218,2610,0,2610,18000,2100,800,0,20900,18290,382530,★ New hire · scaling channels
+7,Nov 2026,1110,240,278,3330,0,3330,18000,2400,800,0,21200,17870,364660,
+8,Dec 2026,1370,260,343,4110,0,4110,18000,2600,800,0,21400,17290,347370,
+9,Jan 2027,1650,280,413,4950,0,4950,18000,2800,800,0,21600,16650,330720,
+10,Feb 2027,1950,300,488,5850,0,5850,18000,3000,800,0,21800,15950,314770,
+11,Mar 2027,2270,320,568,6810,0,6810,18000,3200,800,0,22000,15190,299580,
+12,Apr 2027,2600,330,650,7800,0,7800,18000,3300,800,0,22100,14300,285280,
+13,May 2027,2940,340,735,8820,0,8820,18000,3400,1200,0,22600,13780,271500,
+14,Jun 2027,3270,330,818,9810,0,9810,18000,3300,1200,0,22500,12690,258810,
+15,Jul 2027,3580,310,895,10740,0,10740,18000,3100,1200,0,22300,11560,247250,
+16,Aug 2027,3860,280,965,11580,0,11580,18000,2800,1200,0,22000,10420,236830,
+17,Sep 2027,4110,250,1028,12330,0,12330,18000,2500,1200,0,21700,9370,227460,
+18,Oct 2027,4330,220,1083,12990,0,12990,18000,2200,1200,0,21400,8410,219050,
+19,Nov 2027,4520,190,1130,13560,2500,16060,18000,1900,1200,1250,22350,6290,212760,★ Event 1
+20,Dec 2027,4690,170,1173,14070,0,14070,18000,1700,1200,0,20900,6830,205930,
+21,Jan 2028,4830,140,1208,14490,2500,16990,18000,1400,1200,1250,21850,4860,201070,★ Event 2
+22,Feb 2028,4930,100,1233,14790,0,14790,18000,1000,1200,0,20200,5410,195660,
+23,Mar 2028,5000,70,1250,15000,2500,17500,18000,700,1200,1250,21150,3650,192010,★ Event 3
+24,Apr 2028,5040,40,1260,15120,0,15120,18000,400,1200,0,19600,4480,187530,
+
+SUMMARY METRICS
+Final members (Apr 2028),5040
+Final paid users,1260
+Final monthly subscription revenue,€15120
+Final monthly total revenue (with events),€15120
+Peak monthly burn,€18290 (Oct 2026)
+Monthly burn by end,€4480 (Apr 2028)
+Net burn improvement,76% reduction peak → end
+Cash remaining at end,€187530
+Total capital deployed,€460000 (€60k founders + €400k pre-seed)
+Break-even trajectory,Net burn falls from €18k → €4k · path to break-even within 18–24 months
+LTV/CAC,24x (LTV €240 · CAC €10)

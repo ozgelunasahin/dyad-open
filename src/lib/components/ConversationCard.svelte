@@ -33,10 +33,8 @@
 	}
 
 	const upcomingDates = $derived.by(() => {
-		const dates: string[] = [];
-		if (conversation.proposed_date_1) dates.push(conversation.proposed_date_1);
-		if (conversation.proposed_date_2) dates.push(conversation.proposed_date_2);
-		return dates;
+		const date = conversation.proposed_date_1 ?? conversation.proposed_date_2 ?? null;
+		return date ? [date] : [];
 	});
 </script>
 

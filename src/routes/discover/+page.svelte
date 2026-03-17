@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { fly } from 'svelte/transition';
+	import { fly, slide } from 'svelte/transition';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -90,6 +90,64 @@
 		selectedDays = new Set();
 		selectedLocations = new Set();
 		locationQuery = '';
+	}
+
+	// --- Comment + invite flow ---
+	let expandedId = $state<string | null>(null);
+	let commentText = $state('');
+	let submitting = $state(false);
+	let inviting = $state(false);
+	let commentedSet = $state<Set<string>>(new Set());
+	let invitedSet = $state<Set<string>>(new Set());
+	let panelError = $state('');
+
+	function toggleCard(id: string) {
+		expandedId = expandedId === id ? null : id;
+		commentText = '';
+		panelError = '';
+	}
+
+	async function submitComment(canvasId: string) {
+		if (!commentText.trim() || submitting) return;
+		submitting = true;
+		panelError = '';
+		try {
+			const res = await fetch('/api/canvas-comments', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ canvas_id: canvasId, body: commentText })
+			});
+			if (res.ok) {
+				commentedSet = new Set([...commentedSet, canvasId]);
+				commentText = '';
+			} else {
+				const err = await res.json().catch(() => ({}));
+				panelError = (err as any).message ?? 'Failed to send note';
+			}
+		} finally {
+			submitting = false;
+		}
+	}
+
+	async function sendInvite(canvasId: string, inviteeId: string) {
+		if (inviting) return;
+		inviting = true;
+		panelError = '';
+		try {
+			const res = await fetch('/api/meetings', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ canvas_id: canvasId, invitee_id: inviteeId })
+			});
+			if (res.ok) {
+				invitedSet = new Set([...invitedSet, canvasId]);
+			} else {
+				const err = await res.json().catch(() => ({}));
+				panelError = (err as any).message ?? 'Failed to send invite';
+			}
+		} finally {
+			inviting = false;
+		}
 	}
 </script>
 
@@ -214,27 +272,73 @@
 				{:else}
 					<div class="conversation-list">
 						{#each filteredConversations as conversation}
-							<a href="/@{conversation.username}/{conversation.slug}" class="conversation-row">
-								<div class="row-thumb">
-									{#if conversation.coverImageUrl}
-										<img src={conversation.coverImageUrl} alt="" class="thumb-img" />
-									{:else}
-										<div class="thumb-placeholder"></div>
-									{/if}
-								</div>
-								<div class="row-body">
-									<div class="row-top">
-										<h3 class="row-title">{conversation.name}</h3>
-										<span class="date">{formatDate(conversation.updatedAt)}</span>
+							<div class="conversation-item">
+								<!-- svelte-ignore a11y_no_static_element_interactions -->
+								<div
+									class="conversation-row"
+									class:expanded={expandedId === conversation.id}
+									role="button"
+									tabindex="0"
+									onclick={() => toggleCard(conversation.id)}
+									onkeydown={(e) => e.key === 'Enter' && toggleCard(conversation.id)}
+								>
+									<div class="row-thumb">
+										{#if conversation.coverImageUrl}
+											<img src={conversation.coverImageUrl} alt="" class="thumb-img" />
+										{:else}
+											<div class="thumb-placeholder"></div>
+										{/if}
 									</div>
-									{#if conversation.snippet}
-										<p class="row-snippet">{conversation.snippet}</p>
-									{/if}
-									<div class="row-meta">
-										<span class="author">@{conversation.username}</span>
+									<div class="row-body">
+										<div class="row-top">
+											<h3 class="row-title">{conversation.name}</h3>
+											<span class="date">{formatDate(conversation.updatedAt)}</span>
+										</div>
+										{#if conversation.snippet}
+											<p class="row-snippet">{conversation.snippet}</p>
+										{/if}
+										<div class="row-meta">
+											<span class="author">@{conversation.username}</span>
+										</div>
 									</div>
 								</div>
-							</a>
+
+								{#if expandedId === conversation.id}
+									<div class="comment-panel" transition:slide={{ duration: 180 }}>
+										{#if invitedSet.has(conversation.id)}
+											<p class="panel-success">Invite sent to @{conversation.username} — they'll be notified.</p>
+										{:else if commentedSet.has(conversation.id)}
+											<p class="panel-success">Your note was sent.</p>
+											<button
+												class="invite-btn"
+												onclick={() => sendInvite(conversation.id, conversation.userId)}
+												disabled={inviting}
+											>
+												{inviting ? 'Sending...' : `Invite @${conversation.username} to meet in person →`}
+											</button>
+										{:else}
+											<textarea
+												class="comment-input"
+												placeholder="Leave a note on this conversation..."
+												value={commentText}
+												oninput={(e) => commentText = (e.target as HTMLTextAreaElement).value}
+												rows={3}
+											></textarea>
+											{#if panelError}
+												<p class="panel-error">{panelError}</p>
+											{/if}
+											<div class="comment-actions">
+												<a href="/@{conversation.username}/{conversation.slug}" class="view-link">View full conversation</a>
+												<button
+													class="submit-btn"
+													onclick={() => submitComment(conversation.id)}
+													disabled={submitting || !commentText.trim()}
+												>{submitting ? 'Sending...' : 'Send note'}</button>
+											</div>
+										{/if}
+									</div>
+								{/if}
+							</div>
 						{/each}
 					</div>
 				{/if}
@@ -821,5 +925,127 @@
 			width: 56px;
 			height: 56px;
 		}
+	}
+
+	/* === Expandable card & comment panel === */
+	.conversation-item {
+		border-bottom: 1px solid var(--border-link);
+	}
+
+	.conversation-item:last-child {
+		border-bottom: none;
+	}
+
+	.conversation-row {
+		cursor: pointer;
+		border-bottom: none;
+		user-select: none;
+	}
+
+	.conversation-row.expanded .row-title {
+		color: var(--text-muted);
+	}
+
+	.comment-panel {
+		padding: 0.75rem 0 1rem 88px; /* align with row body (thumb 72px + gap 16px) */
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.comment-input {
+		width: 100%;
+		padding: 0.6rem 0.75rem;
+		border: 1px solid var(--border-link);
+		border-radius: 6px;
+		font-size: 0.88rem;
+		font-family: inherit;
+		background: var(--bg-canvas);
+		color: var(--text-primary);
+		resize: vertical;
+		box-sizing: border-box;
+		line-height: 1.5;
+	}
+
+	.comment-input:focus {
+		outline: none;
+		border-color: var(--text-muted);
+	}
+
+	.comment-input::placeholder {
+		color: var(--text-muted);
+	}
+
+	.comment-actions {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 0.75rem;
+	}
+
+	.view-link {
+		font-size: 0.8rem;
+		color: var(--text-muted);
+		text-decoration: none;
+	}
+
+	.view-link:hover {
+		color: var(--text-primary);
+		text-decoration: underline;
+	}
+
+	.submit-btn {
+		padding: 0.45rem 1rem;
+		background: var(--text-primary);
+		color: var(--bg-canvas);
+		border: none;
+		border-radius: 4px;
+		font-size: 0.85rem;
+		font-family: inherit;
+		cursor: pointer;
+		transition: opacity 0.15s;
+	}
+
+	.submit-btn:disabled {
+		opacity: 0.4;
+		cursor: default;
+	}
+
+	.submit-btn:not(:disabled):hover {
+		opacity: 0.8;
+	}
+
+	.invite-btn {
+		padding: 0.5rem 1.1rem;
+		background: var(--text-primary);
+		color: var(--bg-canvas);
+		border: none;
+		border-radius: 4px;
+		font-size: 0.88rem;
+		font-family: inherit;
+		cursor: pointer;
+		transition: opacity 0.15s;
+		align-self: flex-start;
+	}
+
+	.invite-btn:disabled {
+		opacity: 0.5;
+		cursor: default;
+	}
+
+	.invite-btn:not(:disabled):hover {
+		opacity: 0.8;
+	}
+
+	.panel-success {
+		margin: 0;
+		font-size: 0.88rem;
+		color: var(--text-muted);
+	}
+
+	.panel-error {
+		margin: 0;
+		font-size: 0.8rem;
+		color: #c0392b;
 	}
 </style>

@@ -860,6 +860,8 @@
 
 	/* ── Mobile ──────────────────────────────────────────────────────────────── */
 	@media (max-width: 768px) {
+		:global(body) { overflow: auto; }
+
 		.landing {
 			grid-template-columns: 1fr;
 			height: auto;
