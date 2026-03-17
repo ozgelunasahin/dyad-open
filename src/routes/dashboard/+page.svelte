@@ -1,16 +1,18 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { onMount } from 'svelte';
+	import { fly } from 'svelte/transition';
 	import MeetingsSection from '$lib/components/MeetingsSection.svelte';
 	import PlaceSearch from '$lib/components/PlaceSearch.svelte';
 	import type { PageData, ActionData } from './$types';
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+	let mobileMenuOpen = $state(false);
 	let showDeleteModal = $state<string | null>(null);
 	let creating = $state(false);
 	let deleting = $state(false);
 
 	// Tab state
-	let mainTab = $state<'writing' | 'conversations' | 'meetings'>('writing');
+	let mainTab = $state<'writing' | 'conversations' | 'meetings' | 'archive'>('writing');
 	let activeTab = $state<string>('sites');
 	let sidebarView = $state<'profile' | 'dashboard'>('profile');
 
@@ -467,7 +469,7 @@
 </script>
 
 <svelte:head>
-	<title>On My Mind - dyad.berlin</title>
+	<title>dyad.berlin</title>
 </svelte:head>
 
 <div class="app-layout">
@@ -477,20 +479,40 @@
 		</a>
 		<nav class="sidebar-nav">
 			<a href="/discover" class="sidebar-link">Discover</a>
-			<a href="/dashboard" class="sidebar-link" class:active={sidebarView === 'profile'} onclick={(e) => { e.preventDefault(); sidebarView = 'profile'; }}>Profile</a>
 			<a href="/dashboard" class="sidebar-link" class:active={sidebarView === 'dashboard'} onclick={(e) => { e.preventDefault(); sidebarView = 'dashboard'; }}>Dashboard</a>
 		</nav>
 		<div class="sidebar-bottom">
 			<span class="sidebar-username">@{data.username}</span>
 			<a href="/logout" class="sidebar-logout">sign out</a>
 		</div>
+		<button class="mobile-menu-btn" onclick={() => mobileMenuOpen = !mobileMenuOpen} aria-label="Menu">
+			{#if mobileMenuOpen}
+				<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+					<path d="M4 4l12 12M16 4L4 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+				</svg>
+			{:else}
+				<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+					<path d="M3 6h14M3 10h14M3 14h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+				</svg>
+			{/if}
+		</button>
 	</aside>
+	{#if mobileMenuOpen}
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div class="mobile-overlay" onclick={() => mobileMenuOpen = false}></div>
+		<aside class="mobile-panel" transition:fly={{ x: 300, duration: 250 }}>
+			<nav class="mobile-panel-nav">
+				<a href="/discover" onclick={() => mobileMenuOpen = false}>discover</a>
+				<a href="/dashboard" onclick={() => mobileMenuOpen = false}>dashboard</a>
+			</nav>
+			<div class="mobile-panel-bottom">
+				<span class="mobile-panel-user">@{data.username}</span>
+				<a href="/logout" onclick={() => mobileMenuOpen = false}>sign out</a>
+			</div>
+		</aside>
+	{/if}
 
 	<main class="main-content">
-		<header class="page-header">
-			<h1>{sidebarView === 'dashboard' ? 'Dashboard' : 'On My Mind'}</h1>
-		</header>
-
 		{#if form?.error}
 			<div class="error-message">{form.error}</div>
 		{/if}
@@ -500,9 +522,10 @@
 
 		<div class="content">
 		{#if sidebarView === 'profile'}
+
 		<nav class="main-tabs">
 			<button class="main-tab" class:active={mainTab === 'writing'} onclick={() => (mainTab = 'writing')}>
-				Writing
+				Draft
 				{#if data.canvases.length + inactiveConversations.length > 0}<span class="tab-count">{data.canvases.length + inactiveConversations.length}</span>{/if}
 			</button>
 			<button class="main-tab" class:active={mainTab === 'conversations'} onclick={() => (mainTab = 'conversations')}>
@@ -512,6 +535,10 @@
 			<button class="main-tab" class:active={mainTab === 'meetings'} onclick={switchToMeetings}>
 				Meetings
 				{#if unreadMeetingCount > 0}<span class="notification-dot"></span>{/if}
+			</button>
+			<button class="main-tab" class:active={mainTab === 'archive'} onclick={() => (mainTab = 'archive')}>
+				Archive
+				{#if (data.archived ?? []).length > 0}<span class="tab-count">{(data.archived ?? []).length}</span>{/if}
 			</button>
 		</nav>
 
@@ -664,13 +691,16 @@
 				{/if}
 			</section>
 
-			<!-- Archive (only visible under Writing tab) -->
-			{#if (data.archived ?? []).length > 0}
-				<section class="section section-muted">
-					<div class="section-header">
-						<h2 class="section-title section-title-muted">Archive</h2>
-					</div>
+			{/if}
 
+		<!-- ============ ARCHIVE TAB ============ -->
+		{#if mainTab === 'archive'}
+			<section class="section">
+				{#if (data.archived ?? []).length === 0}
+					<div class="empty-state-subtle">
+						<p>Nothing archived yet.</p>
+					</div>
+				{:else}
 					<div class="canvas-grid">
 						{#each data.archived ?? [] as item}
 							<div class="canvas-card archived-card">
@@ -696,8 +726,8 @@
 							</div>
 						{/each}
 					</div>
-				</section>
-			{/if}
+				{/if}
+			</section>
 		{/if}
 
 		<!-- ============ MEETINGS TAB ============ -->
@@ -1278,6 +1308,41 @@
 		max-width: 1200px;
 	}
 
+	/* === Profile header (are.na style) === */
+	.profile-header {
+		border-top: 1px solid var(--border-link);
+		border-bottom: 1px solid var(--border-link);
+		margin-bottom: 2rem;
+	}
+
+	.profile-row {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		padding: 0.6rem 0;
+		border-bottom: 1px solid var(--border-link);
+	}
+
+	.profile-row:last-child {
+		border-bottom: none;
+	}
+
+	.profile-label {
+		color: var(--text-muted);
+		font-size: 0.9rem;
+	}
+
+	.profile-row:first-child .profile-label {
+		color: var(--text-primary);
+		font-weight: 500;
+		font-size: 1rem;
+	}
+
+	.profile-value {
+		color: var(--text-primary);
+		font-size: 0.9rem;
+	}
+
 	/* === Main content tabs (Conversations / Writing) === */
 	.main-tabs {
 		display: flex;
@@ -1325,9 +1390,40 @@
 	}
 
 	/* Mobile: sidebar becomes top bar */
+	/* Hamburger — hidden on desktop */
+	.mobile-menu-btn {
+		display: none;
+		background: none;
+		border: none;
+		padding: 4px;
+		cursor: pointer;
+		color: var(--text-primary, #1a1a1a);
+		align-items: center;
+		justify-content: center;
+	}
+
+	/* Slide-in panel — hidden on desktop */
+	.mobile-overlay, .mobile-panel {
+		display: none;
+	}
+
 	@media (max-width: 768px) {
 		.app-layout {
 			flex-direction: column;
+		}
+
+		.main-tabs {
+			width: 100%;
+		}
+
+		.main-tab {
+			flex: 1;
+			padding: 0.6rem 0.25rem;
+			font-size: 0.8rem;
+			text-align: center;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
 		}
 
 		.sidebar {
@@ -1347,16 +1443,87 @@
 		}
 
 		.sidebar-nav {
-			flex-direction: row;
-			gap: 0.5rem;
+			display: none;
 		}
 
 		.sidebar-bottom {
-			margin-top: 0;
+			display: none;
+		}
+
+		.mobile-menu-btn {
+			display: flex;
 			margin-left: auto;
-			flex-direction: row;
-			align-items: center;
-			gap: 0.75rem;
+		}
+
+		.mobile-overlay {
+			display: block;
+			position: fixed;
+			inset: 0;
+			background: rgba(0, 0, 0, 0.15);
+			z-index: 200;
+		}
+
+		.mobile-panel {
+			display: flex;
+			flex-direction: column;
+			position: fixed;
+			top: 0;
+			right: 0;
+			width: 280px;
+			max-width: 80vw;
+			height: 100vh;
+			background: var(--bg-canvas, #f5f3f0);
+			z-index: 300;
+			padding: 24px;
+			box-sizing: border-box;
+			box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1);
+		}
+
+		.mobile-panel-nav {
+			display: flex;
+			flex-direction: column;
+			gap: 0;
+			margin-top: 32px;
+		}
+
+		.mobile-panel-nav a {
+			font-family: 'SangBleu Sunrise', Georgia, serif;
+			font-size: 18px;
+			font-weight: 500;
+			color: var(--text-primary, #1a1a1a);
+			text-decoration: none;
+			padding: 14px 0;
+			border-bottom: 1px solid var(--border-link, rgba(0, 0, 0, 0.1));
+			transition: color 0.15s;
+		}
+
+		.mobile-panel-nav a:hover {
+			color: var(--text-muted, #666);
+		}
+
+		.mobile-panel-bottom {
+			margin-top: auto;
+			display: flex;
+			flex-direction: column;
+			gap: 12px;
+		}
+
+		.mobile-panel-user {
+			font-family: monospace;
+			font-size: 13px;
+			color: var(--text-muted, #666);
+		}
+
+		.mobile-panel-bottom a {
+			font-family: 'SangBleu Sunrise', Georgia, serif;
+			font-size: 16px;
+			color: var(--text-secondary, #333);
+			text-decoration: none;
+			transition: color 0.15s;
+		}
+
+		.mobile-panel-bottom a:hover {
+			color: var(--text-primary, #1a1a1a);
 		}
 	}
 

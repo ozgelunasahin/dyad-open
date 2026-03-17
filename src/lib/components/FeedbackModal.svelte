@@ -1,326 +1,323 @@
 <script lang="ts">
-	import { canvasStore } from '$lib/stores/canvas.svelte';
-
 	interface Props {
-		open: boolean;
-		onClose: () => void;
-		canvasId: string;
+		meetingId: string;
+		otherUsername: string;
+		onclose: () => void;
+		onsubmitted: () => void;
 	}
 
-	let { open, onClose, canvasId }: Props = $props();
-	let feedbackType = $state<'bug' | 'feature' | 'other'>('bug');
-	let description = $state('');
+	let { meetingId, otherUsername, onclose, onsubmitted }: Props = $props();
+
+	const TAGS = [
+		'showed up',
+		'thoughtful',
+		'good listener',
+		'curious',
+		'open-minded',
+		'punctual',
+		'warm'
+	];
+
+	let step = $state<'met' | 'how-was-it' | 'done'>('met');
+	let selectedTags = $state<Set<string>>(new Set());
+	let note = $state('');
 	let submitting = $state(false);
-	let error = $state<string | null>(null);
-	let success = $state(false);
-	let successTimeoutId: ReturnType<typeof setTimeout> | null = null;
-	let lastSubmitTime = 0;
-	const RATE_LIMIT_MS = 30000; // 30 seconds between submissions
+	let error = $state('');
 
-	// Clean up timeout when component unmounts or modal closes
-	$effect(() => {
-		return () => {
-			if (successTimeoutId) {
-				clearTimeout(successTimeoutId);
-				successTimeoutId = null;
-			}
-		};
-	});
-
-	function captureContext(): Record<string, unknown> {
-		const snapshot = $state.snapshot(canvasStore);
-		return {
-			cardCount: snapshot.cards.size,
-			focusedCardId: snapshot.focusedCardId,
-			camera: { x: snapshot.camera.x, y: snapshot.camera.y, zoom: snapshot.camera.zoom },
-			userAgent: navigator.userAgent,
-			viewport: { width: window.innerWidth, height: window.innerHeight },
-			url: window.location.href,
-			recentErrors: (window as any).__recentErrors || []
-		};
+	function toggleTag(tag: string) {
+		const next = new Set(selectedTags);
+		if (next.has(tag)) next.delete(tag);
+		else next.add(tag);
+		selectedTags = next;
 	}
 
-	async function handleSubmit(event: SubmitEvent) {
-		event.preventDefault();
+	async function submitFeedback() {
 		if (submitting) return;
-
-		// Client-side rate limit
-		const now = Date.now();
-		if (now - lastSubmitTime < RATE_LIMIT_MS) {
-			const waitSecs = Math.ceil((RATE_LIMIT_MS - (now - lastSubmitTime)) / 1000);
-			error = `Please wait ${waitSecs}s before submitting again`;
-			return;
-		}
-
 		submitting = true;
-		error = null;
-		lastSubmitTime = now;
-
+		error = '';
 		try {
-			const formData = new FormData();
-			formData.append('type', feedbackType);
-			formData.append('description', description);
-			formData.append('canvasId', canvasId);
-			formData.append('context', JSON.stringify(captureContext()));
-
-			const response = await fetch('/api/feedback', {
+			const res = await fetch('/api/meeting-feedback', {
 				method: 'POST',
-				body: formData
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					meeting_id: meetingId,
+					did_meet: true,
+					tags: [...selectedTags],
+					body: note.trim() || null
+				})
 			});
-
-			const result = await response.json();
-
-			if (!response.ok) {
-				error = result.error || 'Failed to send feedback';
-				return;
+			if (res.ok) {
+				step = 'done';
+				setTimeout(() => onsubmitted(), 1600);
+			} else {
+				const data = await res.json().catch(() => ({}));
+				error = (data as any).message ?? 'Something went wrong';
 			}
-
-			// Success
-			success = true;
-			description = '';
-			feedbackType = 'bug';
-
-			// Close after brief delay to show success (timeout is cleaned up on unmount)
-			successTimeoutId = setTimeout(() => {
-				successTimeoutId = null;
-				success = false;
-				onClose();
-			}, 1500);
-		} catch (e) {
-			error = 'Network error. Please try again.';
 		} finally {
 			submitting = false;
 		}
 	}
 
-	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Escape') {
-			onClose();
+	async function answerMet(answer: boolean) {
+		if (!answer) {
+			submitting = true;
+			error = '';
+			try {
+				const res = await fetch('/api/meeting-feedback', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ meeting_id: meetingId, did_meet: false, tags: [], body: null })
+				});
+				if (res.ok) {
+					step = 'done';
+					setTimeout(() => onsubmitted(), 1600);
+				} else {
+					const data = await res.json().catch(() => ({}));
+					error = (data as any).message ?? 'Something went wrong';
+				}
+			} finally {
+				submitting = false;
+			}
+		} else {
+			step = 'how-was-it';
 		}
 	}
 </script>
 
-<svelte:window onkeydown={open ? handleKeydown : undefined} />
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="overlay" onclick={onclose}>
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div class="modal" onclick={(e) => e.stopPropagation()}>
+		{#if step === 'done'}
+			<div class="done-state">
+				<p class="done-text">Thank you — this helps build trust in the community.</p>
+			</div>
 
-{#if open}
-	<div class="modal-overlay" onclick={onClose}>
-		<div class="modal" onclick={(e) => e.stopPropagation()}>
-			{#if success}
-				<div class="success-message">
-					<svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-						<path
-							d="M20 6L9 17L4 12"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						/>
-					</svg>
-					<span>Thanks for your feedback!</span>
-				</div>
-			{:else}
-				<h2>Send Feedback</h2>
-
-				{#if error}
-					<div class="error-message">{error}</div>
-				{/if}
-
-				<form onsubmit={handleSubmit}>
-					<fieldset>
-						<legend>Type</legend>
-						<label>
-							<input type="radio" name="type" value="bug" bind:group={feedbackType} />
-							bug report
-						</label>
-						<label>
-							<input type="radio" name="type" value="feature" bind:group={feedbackType} />
-							feature request
-						</label>
-						<label>
-							<input type="radio" name="type" value="other" bind:group={feedbackType} />
-							other
-						</label>
-					</fieldset>
-
-					<label class="description-label">
-						Description
-						<textarea
-							name="description"
-							bind:value={description}
-							placeholder={feedbackType === 'bug'
-								? 'What happened? What did you expect?'
-								: 'Describe your idea...'}
-							required
-							minlength={10}
-							maxlength={5000}
-							rows={5}
-						></textarea>
-					</label>
-
-					<div class="modal-actions">
-						<button type="button" class="cancel-btn" onclick={onClose}>cancel</button>
-						<button
-							type="submit"
-							class="submit-btn"
-							disabled={submitting || description.trim().length < 10}
-						>
-							{submitting ? 'sending...' : 'send feedback'}
-						</button>
-					</div>
-				</form>
+		{:else if step === 'met'}
+			<p class="question">Did you meet with <strong>@{otherUsername}</strong>?</p>
+			{#if error}
+				<p class="error-msg">{error}</p>
 			{/if}
-		</div>
+			<div class="yn-row">
+				<button class="yn-btn yes" onclick={() => answerMet(true)} disabled={submitting}>
+					Yes, we met
+				</button>
+				<button class="yn-btn no" onclick={() => answerMet(false)} disabled={submitting}>
+					No, it didn't happen
+				</button>
+			</div>
+
+		{:else}
+			<p class="question">How was it? <span class="opt">(optional)</span></p>
+			<div class="tags">
+				{#each TAGS as tag}
+					<button
+						type="button"
+						class="tag"
+						class:selected={selectedTags.has(tag)}
+						onclick={() => toggleTag(tag)}
+					>{tag}</button>
+				{/each}
+			</div>
+			<textarea
+				class="note-input"
+				placeholder="Add a note... (private)"
+				value={note}
+				oninput={(e) => note = (e.target as HTMLTextAreaElement).value}
+				rows={3}
+			></textarea>
+			{#if error}
+				<p class="error-msg">{error}</p>
+			{/if}
+			<div class="actions">
+				<button class="skip-btn" onclick={submitFeedback} disabled={submitting}>
+					{selectedTags.size === 0 && !note.trim() ? 'Skip' : (submitting ? 'Saving...' : 'Save')}
+				</button>
+				<button
+					class="submit-btn"
+					onclick={submitFeedback}
+					disabled={submitting || selectedTags.size === 0}
+				>
+					{submitting ? 'Saving...' : 'Submit feedback'}
+				</button>
+			</div>
+		{/if}
 	</div>
-{/if}
+</div>
 
 <style>
-	.modal-overlay {
+	.overlay {
 		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		background: rgba(0, 0, 0, 0.5);
+		inset: 0;
+		background: rgba(0, 0, 0, 0.35);
+		z-index: 500;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		z-index: 1000;
+		padding: 1rem;
 	}
 
 	.modal {
-		background: var(--bg-canvas);
-		border-radius: 8px;
-		padding: 24px;
+		background: var(--bg-canvas, #f5f3f0);
+		border: 1px solid var(--border-link, rgba(0, 0, 0, 0.1));
+		border-radius: 10px;
+		padding: 2rem;
 		width: 100%;
-		max-width: 420px;
-		margin: 16px;
+		max-width: 440px;
+		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
 	}
 
-	.modal h2 {
-		margin: 0 0 16px 0;
-		font-size: 1.25rem;
-		font-weight: normal;
-		color: var(--text-primary);
+	.question {
+		margin: 0 0 1.5rem;
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 1.1rem;
+		color: var(--text-primary, #1a1a1a);
+		line-height: 1.4;
 	}
 
-	.error-message {
-		background: rgba(220, 53, 69, 0.1);
-		border: 1px solid rgba(220, 53, 69, 0.3);
-		color: #dc3545;
-		padding: 10px 14px;
-		border-radius: 4px;
-		margin-bottom: 16px;
-		font-size: 0.9rem;
-	}
-
-	.success-message {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 12px;
-		padding: 32px 16px;
-		color: #10b981;
-		font-size: 1rem;
-	}
-
-	fieldset {
-		border: none;
-		padding: 0;
-		margin: 0 0 16px 0;
-	}
-
-	fieldset legend {
-		font-size: 0.9rem;
-		color: var(--text-muted);
-		margin-bottom: 8px;
-	}
-
-	fieldset label {
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-		margin-right: 16px;
-		font-size: 0.95rem;
-		color: var(--text-secondary);
-		cursor: pointer;
-	}
-
-	fieldset input[type='radio'] {
-		accent-color: var(--text-primary);
-	}
-
-	.description-label {
-		display: block;
-		font-size: 0.9rem;
-		color: var(--text-muted);
-		margin-bottom: 20px;
-	}
-
-	.description-label textarea {
-		display: block;
-		width: 100%;
-		margin-top: 8px;
-		padding: 10px 12px;
-		border: 1px solid var(--border-link);
-		border-radius: 4px;
-		font-size: 0.95rem;
+	.opt {
+		font-size: 0.85rem;
+		color: var(--text-muted, #888);
 		font-family: inherit;
-		background: var(--bg-canvas);
-		color: var(--text-primary);
-		resize: vertical;
-		min-height: 100px;
 	}
 
-	.description-label textarea:focus {
-		outline: none;
-		border-color: var(--text-link-hover);
-	}
-
-	.description-label textarea::placeholder {
-		color: var(--text-muted);
-	}
-
-	.modal-actions {
+	.yn-row {
 		display: flex;
-		gap: 12px;
-		justify-content: flex-end;
+		gap: 0.75rem;
 	}
 
-	.cancel-btn {
-		padding: 10px 16px;
+	.yn-btn {
+		flex: 1;
+		padding: 0.75rem 1rem;
+		border-radius: 6px;
+		font-size: 0.9rem;
+		font-family: inherit;
+		cursor: pointer;
+		transition: opacity 0.15s;
+		border: 1px solid var(--border-link);
+	}
+
+	.yn-btn:disabled { opacity: 0.4; cursor: default; }
+
+	.yn-btn.yes {
+		background: var(--text-primary, #1a1a1a);
+		color: var(--bg-canvas, #f5f3f0);
+		border-color: var(--text-primary, #1a1a1a);
+	}
+
+	.yn-btn.yes:not(:disabled):hover { opacity: 0.8; }
+
+	.yn-btn.no {
 		background: none;
-		border: 1px solid var(--border-link);
-		border-radius: 4px;
-		color: var(--text-secondary);
-		font-size: 0.95rem;
-		font-family: inherit;
-		cursor: pointer;
-		transition: border-color 0.2s;
+		color: var(--text-muted, #888);
 	}
 
-	.cancel-btn:hover {
-		border-color: var(--border-link-hover);
+	.yn-btn.no:not(:disabled):hover { color: var(--text-primary, #1a1a1a); }
+
+	.tags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+		margin-bottom: 1rem;
 	}
+
+	.tag {
+		padding: 0.35rem 0.75rem;
+		border: 1px solid var(--border-link, rgba(0, 0, 0, 0.12));
+		border-radius: 16px;
+		background: none;
+		font-size: 0.82rem;
+		font-family: inherit;
+		color: var(--text-secondary, #444);
+		cursor: pointer;
+		transition: background 0.15s, color 0.15s, border-color 0.15s;
+	}
+
+	.tag:hover {
+		border-color: var(--text-primary, #1a1a1a);
+		color: var(--text-primary, #1a1a1a);
+	}
+
+	.tag.selected {
+		background: var(--text-primary, #1a1a1a);
+		color: var(--bg-canvas, #f5f3f0);
+		border-color: var(--text-primary, #1a1a1a);
+	}
+
+	.note-input {
+		width: 100%;
+		padding: 0.6rem 0.75rem;
+		border: 1px solid var(--border-link, rgba(0, 0, 0, 0.1));
+		border-radius: 6px;
+		font-size: 0.85rem;
+		font-family: inherit;
+		background: var(--bg-canvas, #f5f3f0);
+		color: var(--text-primary, #1a1a1a);
+		resize: vertical;
+		box-sizing: border-box;
+		line-height: 1.5;
+		margin-bottom: 1rem;
+	}
+
+	.note-input:focus { outline: none; border-color: var(--text-muted, #888); }
+	.note-input::placeholder { color: var(--text-muted, #aaa); }
+
+	.actions {
+		display: flex;
+		justify-content: flex-end;
+		gap: 0.5rem;
+	}
+
+	.skip-btn {
+		padding: 0.5rem 1rem;
+		background: none;
+		border: 1px solid var(--border-link, rgba(0, 0, 0, 0.12));
+		border-radius: 4px;
+		font-size: 0.85rem;
+		font-family: inherit;
+		color: var(--text-muted, #888);
+		cursor: pointer;
+		transition: color 0.15s, border-color 0.15s;
+	}
+
+	.skip-btn:not(:disabled):hover {
+		color: var(--text-primary, #1a1a1a);
+		border-color: var(--text-primary, #1a1a1a);
+	}
+
+	.skip-btn:disabled { opacity: 0.4; cursor: default; }
 
 	.submit-btn {
-		padding: 10px 16px;
-		background: var(--text-primary);
-		color: var(--bg-canvas);
+		padding: 0.5rem 1.1rem;
+		background: var(--text-primary, #1a1a1a);
+		color: var(--bg-canvas, #f5f3f0);
 		border: none;
 		border-radius: 4px;
-		font-size: 0.95rem;
+		font-size: 0.85rem;
 		font-family: inherit;
 		cursor: pointer;
-		transition: opacity 0.2s;
+		transition: opacity 0.15s;
 	}
 
-	.submit-btn:hover:not(:disabled) {
-		opacity: 0.9;
+	.submit-btn:disabled { opacity: 0.4; cursor: default; }
+	.submit-btn:not(:disabled):hover { opacity: 0.8; }
+
+	.error-msg {
+		margin: 0 0 0.75rem;
+		font-size: 0.8rem;
+		color: #c0392b;
 	}
 
-	.submit-btn:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
+	.done-state {
+		text-align: center;
+		padding: 1rem 0;
+	}
+
+	.done-text {
+		margin: 0;
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 1rem;
+		color: var(--text-muted, #888);
+		line-height: 1.5;
 	}
 </style>

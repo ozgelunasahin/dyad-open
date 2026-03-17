@@ -21,7 +21,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.order('updated_at', { ascending: false }),
 		locals.supabase
 			.from('profiles')
-			.select('onboarded, username, can_publish_sites')
+			.select('onboarded, username, can_publish_sites, created_at')
 			.eq('id', userId)
 			.single(),
 		locals.supabase
@@ -87,6 +87,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const isOnboarded = profileResult.data?.onboarded ?? false;
 	const username = profileResult.data?.username ?? '';
 	const canPublishSites = profileResult.data?.can_publish_sites ?? false;
+	const joinedAt = profileResult.data?.created_at ?? null;
+
+	// Count accepted meetings (conversations held)
+	const { count: meetingsHeld } = await locals.supabase
+		.from('meeting_invitations')
+		.select('id', { count: 'exact', head: true })
+		.eq('status', 'accepted')
+		.or(`inviter_id.eq.${userId},invitee_id.eq.${userId}`);
 
 	// Transform sites to include canvas count
 	const sites = (sitesResult.data ?? []).map((site) => ({
@@ -207,6 +215,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		return {
 			user: locals.user,
 			username,
+			joinedAt,
+			meetingsHeld: meetingsHeld ?? 0,
 			canvases: newCanvases ?? [],
 			publishedCanvases,
 			canPublishSites,
@@ -222,6 +232,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 	return {
 		user: locals.user,
 		username,
+		joinedAt,
+		meetingsHeld: meetingsHeld ?? 0,
 		canvases: canvases ?? [],
 		publishedCanvases,
 		canPublishSites,

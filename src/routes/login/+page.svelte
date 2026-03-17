@@ -99,7 +99,7 @@
 					<button type="button" class="link-btn" onclick={() => (mode = 'login')}>Sign in</button>
 					<a href="/#join" class="link-btn">Join</a>
 				{:else}
-					<a href="/dashboard" class="link-btn">Go to dashboard</a>
+					<a href="/discover" class="link-btn">Go to dashboard</a>
 				{/if}
 			</div>
 		</div>

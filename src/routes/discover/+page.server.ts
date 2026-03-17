@@ -146,9 +146,82 @@ export const load: PageServerLoad = async ({ locals }) => {
 		};
 	});
 
+	// --- Post-meeting feedback detection ---
+	// Find accepted meetings where user is a participant and hasn't submitted feedback yet
+	const [{ data: acceptedMeetings }, { data: submittedFeedback }] = await Promise.all([
+		locals.supabase
+			.from('meeting_invitations')
+			.select('id, inviter_id, invitee_id, proposed_time, updated_at')
+			.eq('status', 'accepted')
+			.or(`inviter_id.eq.${userId},invitee_id.eq.${userId}`),
+		locals.supabase
+			.from('meeting_feedback')
+			.select('meeting_id')
+			.eq('reviewer_id', userId)
+	]);
+
+	const reviewedMeetingIds = new Set((submittedFeedback ?? []).map((f) => f.meeting_id));
+
+	// Fetch usernames for meeting participants not already in usernameMap
+	const meetingParticipantIds = new Set<string>();
+	for (const m of acceptedMeetings ?? []) {
+		if (!usernameMap.has(m.inviter_id)) meetingParticipantIds.add(m.inviter_id);
+		if (!usernameMap.has(m.invitee_id)) meetingParticipantIds.add(m.invitee_id);
+	}
+	if (meetingParticipantIds.size > 0) {
+		const { data: extraProfiles } = await locals.supabase
+			.from('profiles')
+			.select('id, username')
+			.in('id', [...meetingParticipantIds]);
+		for (const p of extraProfiles ?? []) usernameMap.set(p.id, p.username);
+	}
+
+	// Filter to meetings where time has passed (or no time set) and no feedback submitted
+	const now = Date.now();
+	const pendingFeedback: Array<{
+		meetingId: string;
+		otherUserId: string;
+		otherUsername: string;
+		proposedTime: string | null;
+	}> = [];
+
+	for (const meeting of acceptedMeetings ?? []) {
+		if (reviewedMeetingIds.has(meeting.id)) continue;
+
+		// Try to determine if meeting time has passed
+		// Default true only when no proposed_time (unknown when it was)
+		let meetingTimePassed = !meeting.proposed_time;
+		if (meeting.proposed_time) {
+			try {
+				// Format: "Wednesday, March 18 at 7:00 PM"
+				// Strip day-of-week and replace " at " to get a parseable string
+				const currentYear = new Date().getFullYear();
+				const cleaned = meeting.proposed_time
+					.replace(/^[A-Za-z]+,\s*/, '') // remove "Wednesday, "
+					.replace(' at ', ' ');          // remove " at "
+				const parsed = new Date(`${cleaned} ${currentYear}`);
+				if (!isNaN(parsed.getTime())) {
+					meetingTimePassed = parsed.getTime() < now;
+				}
+			} catch { /* leave as false — don't show prematurely */ }
+		}
+
+		if (!meetingTimePassed) continue;
+
+		const otherUserId = meeting.inviter_id === userId ? meeting.invitee_id : meeting.inviter_id;
+		const otherUsername = usernameMap.get(otherUserId) ?? 'them';
+		pendingFeedback.push({
+			meetingId: meeting.id,
+			otherUserId,
+			otherUsername,
+			proposedTime: meeting.proposed_time ?? null
+		});
+	}
+
 	return {
 		user: locals.user,
 		username: profile?.username ?? '',
-		conversations: enrichedConversations
+		conversations: enrichedConversations,
+		pendingFeedback
 	};
 };
