@@ -42,7 +42,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 		return json({ error: 'Invalid JSON body' }, { status: 400 });
 	}
 
-	const { email, name, based_in, freewrite } = body as Record<string, unknown>;
+	const { email, name, based_in, freewrite, expression_url, expression_file_url } = body as Record<string, unknown>;
 
 	if (!email || typeof email !== 'string') {
 		error(400, 'Email is required');
@@ -79,7 +79,9 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 			email: email.trim(),
 			name: (typeof name === 'string' ? name.trim() : null) || null,
 			based_in: (typeof based_in === 'string' ? based_in.trim() : null) || null,
-			freewrite: (typeof freewrite === 'string' ? freewrite.trim() : null) || null
+			freewrite: (typeof freewrite === 'string' ? freewrite.trim() : null) || null,
+			expression_url: (typeof expression_url === 'string' ? expression_url.trim() : null) || null,
+			expression_file_url: (typeof expression_file_url === 'string' ? expression_file_url.trim() : null) || null
 		});
 
 	if (dbError) {
@@ -93,13 +95,10 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 
 	// Send welcome email (fire-and-forget — don't block the response)
 	const displayName = (typeof name === 'string' && name.trim()) || 'there';
-	console.log('[contact] RESEND_API_KEY present:', !!env.RESEND_API_KEY, 'length:', env.RESEND_API_KEY?.length ?? 0);
 	if (env.RESEND_API_KEY) {
 		const resend = new Resend(env.RESEND_API_KEY);
-		let emailResult: unknown = null;
-		let emailError: unknown = null;
 		try {
-			emailResult = await resend.emails.send({
+			await resend.emails.send({
 				from: 'dyad. <hello@dyad.berlin>',
 				to: email.trim(),
 				subject: "What's in a conversation?",
@@ -119,10 +118,9 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 				`
 			});
 		} catch (err) {
-			emailError = err instanceof Error ? err.message : String(err);
+			console.error('[contact] Failed to send welcome email:', err);
 		}
-		return json({ ok: true, debug: { resendKeyPresent: true, resendKeyLength: env.RESEND_API_KEY?.length ?? 0, emailResult, emailError } });
-	} else {
-		return json({ ok: true, debug: { resendKeyPresent: false, resendKeyLength: 0 } });
 	}
+
+	return json({ ok: true });
 };

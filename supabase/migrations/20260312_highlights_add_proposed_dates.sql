@@ -1,0 +1,3 @@
+ALTER TABLE landing_highlights
+  ADD COLUMN IF NOT EXISTS proposed_date_1 TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS proposed_date_2 TIMESTAMPTZ;

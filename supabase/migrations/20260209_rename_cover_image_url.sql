@@ -1,5 +1,2 @@
--- Rename cover_image_url to cover_image
-ALTER TABLE canvases
-RENAME COLUMN cover_image_url TO cover_image;
-
-COMMENT ON COLUMN canvases.cover_image IS 'Supabase Storage path to cover image PNG displayed on landing page';
+-- No-op: column rename reverted to keep existing cover_image_url references working.
+-- See PR #23 finding 042.

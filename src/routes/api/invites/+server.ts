@@ -25,7 +25,12 @@ async function requireAdmin(locals: App.Locals) {
 export const POST: RequestHandler = async ({ request, locals }) => {
 	await requireAdmin(locals);
 
-	const body = await request.json();
+	let body: Record<string, unknown>;
+	try {
+		body = await request.json();
+	} catch {
+		return json({ error: 'Invalid JSON body' }, { status: 400 });
+	}
 	const { email, name } = body;
 
 	if (!email || typeof email !== 'string') {
@@ -87,13 +92,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	// Send invite email
 	const displayName = (typeof name === 'string' && name.trim()) || 'there';
-	console.log('[invites] RESEND_API_KEY present:', !!env.RESEND_API_KEY, 'length:', env.RESEND_API_KEY?.length ?? 0);
 	if (env.RESEND_API_KEY) {
 		const resend = new Resend(env.RESEND_API_KEY);
-		let emailResult: unknown = null;
-		let emailError: unknown = null;
 		try {
-			emailResult = await resend.emails.send({
+			await resend.emails.send({
 				from: 'dyad. <hello@dyad.berlin>',
 				to: email.trim(),
 				subject: "Welcome to dyad.",
@@ -110,10 +112,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				`
 			});
 		} catch (err) {
-			emailError = err instanceof Error ? err.message : String(err);
+			console.error('[invites] Failed to send invite email:', err);
 		}
-		return json({ ok: true, inviteUrl, debug: { resendKeyPresent: true, resendKeyLength: env.RESEND_API_KEY?.length ?? 0, emailResult, emailError } });
-	} else {
-		return json({ ok: true, inviteUrl, debug: { resendKeyPresent: false, resendKeyLength: 0 } });
 	}
+
+	return json({ ok: true, inviteUrl });
 };

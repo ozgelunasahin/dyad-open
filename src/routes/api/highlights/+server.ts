@@ -56,7 +56,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		error(401, 'Authentication required');
 	}
 
-	const body = await request.json();
+	let body: Record<string, unknown>;
+	try {
+		body = await request.json();
+	} catch {
+		return json({ error: 'Invalid JSON body' }, { status: 400 });
+	}
 	const { canvas_id, note_slug, selected_text, start_offset, end_offset } = body;
 
 	if (!canvas_id || !note_slug || !selected_text || start_offset == null || end_offset == null) {
