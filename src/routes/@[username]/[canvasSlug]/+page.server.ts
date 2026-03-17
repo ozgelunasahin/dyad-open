@@ -29,8 +29,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 	}
 
 	// If owner is viewing their own canvas, redirect to edit view
-	// Unless readonly mode is explicitly requested (for site preview/publish)
-	if (isOwner && !forceReadOnly) {
+	// Exception: conversation canvases — authors need to read comments and invite people
+	if (isOwner && !forceReadOnly && !canvas.is_conversation) {
 		redirect(302, `/canvas/${canvas.id}`);
 	}
 
@@ -138,6 +138,30 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		}));
 	}
 
+	// Load canvas-level notes (canvas_comments)
+	const { data: rawCanvasComments } = await locals.supabase
+		.from('canvas_comments')
+		.select('id, user_id, body, created_at')
+		.eq('canvas_id', canvas.id)
+		.order('created_at', { ascending: true });
+
+	let canvasComments: Array<{ id: string; userId: string; username: string; body: string; created_at: string }> = [];
+	if (rawCanvasComments && rawCanvasComments.length > 0) {
+		const commenterIds = [...new Set(rawCanvasComments.map((c) => c.user_id))];
+		const { data: commenterProfiles } = await locals.supabase
+			.from('profiles')
+			.select('id, username')
+			.in('id', commenterIds);
+		const usernameMap = new Map(commenterProfiles?.map((p) => [p.id, p.username]) ?? []);
+		canvasComments = rawCanvasComments.map((c) => ({
+			id: c.id,
+			userId: c.user_id,
+			username: usernameMap.get(c.user_id) ?? 'unknown',
+			body: c.body,
+			created_at: c.created_at
+		}));
+	}
+
 	return {
 		canvas: {
 			id: canvas.id,
@@ -156,6 +180,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		vault,
 		readOnly: true,
 		highlights,
+		canvasComments,
 		currentUserId: locals.user?.id ?? null
 	};
 };

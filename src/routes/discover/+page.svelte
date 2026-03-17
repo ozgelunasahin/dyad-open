@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { fly, slide } from 'svelte/transition';
 	import type { PageData } from './$types';
+	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
 
 	let { data }: { data: PageData } = $props();
 	let mobileMenuOpen = $state(false);
@@ -92,6 +93,21 @@
 		locationQuery = '';
 	}
 
+	// --- Post-meeting feedback modal ---
+	// Show the first pending feedback on load
+	let activeFeedback = $state(
+		data.pendingFeedback && data.pendingFeedback.length > 0 ? data.pendingFeedback[0] : null
+	);
+
+	function dismissFeedback() {
+		// Move to next pending or clear
+		const idx = activeFeedback
+			? data.pendingFeedback.findIndex((f) => f.meetingId === activeFeedback!.meetingId)
+			: -1;
+		const next = data.pendingFeedback[idx + 1] ?? null;
+		activeFeedback = next;
+	}
+
 	// --- Comment + invite flow ---
 	let expandedId = $state<string | null>(null);
 	let commentText = $state('');
@@ -101,7 +117,11 @@
 	let invitedSet = $state<Set<string>>(new Set());
 	let panelError = $state('');
 
-	function toggleCard(id: string) {
+	function toggleCard(id: string, username: string, slug: string) {
+		if (window.innerWidth <= 600) {
+			window.location.href = `/@${username}/${slug}`;
+			return;
+		}
 		expandedId = expandedId === id ? null : id;
 		commentText = '';
 		panelError = '';
@@ -162,7 +182,7 @@
 		</a>
 		<nav class="sidebar-nav">
 			<a href="/discover" class="sidebar-link active">Discover</a>
-			<a href="/dashboard" class="sidebar-link">Profile</a>
+			<a href="/dashboard" class="sidebar-link">Dashboard</a>
 		</nav>
 		<div class="sidebar-bottom">
 			<span class="sidebar-username">@{data.username}</span>
@@ -185,8 +205,7 @@
 		<div class="mobile-overlay" onclick={() => mobileMenuOpen = false}></div>
 		<aside class="mobile-panel" transition:fly={{ x: 300, duration: 250 }}>
 			<nav class="mobile-panel-nav">
-				<a href="/dashboard" onclick={() => mobileMenuOpen = false}>profile</a>
-				<a href="/" onclick={() => mobileMenuOpen = false}>home</a>
+				<a href="/dashboard" onclick={() => mobileMenuOpen = false}>dashboard</a>
 			</nav>
 			<div class="mobile-panel-bottom">
 				<span class="mobile-panel-user">@{data.username}</span>
@@ -195,11 +214,16 @@
 		</aside>
 	{/if}
 
+	{#if activeFeedback}
+		<FeedbackModal
+			meetingId={activeFeedback.meetingId}
+			otherUsername={activeFeedback.otherUsername}
+			onclose={dismissFeedback}
+			onsubmitted={dismissFeedback}
+		/>
+	{/if}
+
 	<main class="main-content">
-		<header class="page-header">
-			<h1>Discover</h1>
-			<p class="subtitle">Active conversations from the community this week.</p>
-		</header>
 
 		<div class="content">
 			{#if data.conversations.length === 0}
@@ -279,8 +303,8 @@
 									class:expanded={expandedId === conversation.id}
 									role="button"
 									tabindex="0"
-									onclick={() => toggleCard(conversation.id)}
-									onkeydown={(e) => e.key === 'Enter' && toggleCard(conversation.id)}
+									onclick={() => toggleCard(conversation.id, conversation.username, conversation.slug)}
+									onkeydown={(e) => e.key === 'Enter' && toggleCard(conversation.id, conversation.username, conversation.slug)}
 								>
 									<div class="row-thumb">
 										{#if conversation.coverImageUrl}
@@ -292,14 +316,11 @@
 									<div class="row-body">
 										<div class="row-top">
 											<h3 class="row-title">{conversation.name}</h3>
-											<span class="date">{formatDate(conversation.updatedAt)}</span>
+											<span class="date">{conversation.days.length > 0 ? conversation.days.join(' · ') : formatDate(conversation.updatedAt)}</span>
 										</div>
 										{#if conversation.snippet}
 											<p class="row-snippet">{conversation.snippet}</p>
 										{/if}
-										<div class="row-meta">
-											<span class="author">@{conversation.username}</span>
-										</div>
 									</div>
 								</div>
 
@@ -809,20 +830,18 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0;
+		margin-top: 2rem;
+		margin-bottom: 3rem;
 	}
 
 	.conversation-row {
 		display: flex;
-		gap: 1rem;
-		padding: 1rem 0;
+		gap: 1.25rem;
+		padding: 1.5rem 0;
 		border-bottom: 1px solid var(--border-link);
 		text-decoration: none;
 		transition: background 0.15s;
 		align-items: flex-start;
-	}
-
-	.conversation-row:first-child {
-		padding-top: 0;
 	}
 
 	.conversation-row:last-child {
@@ -831,17 +850,17 @@
 
 	.conversation-row:hover {
 		background: var(--bg-control, rgba(0, 0, 0, 0.02));
-		margin: 0 -0.5rem;
-		padding-left: 0.5rem;
-		padding-right: 0.5rem;
+		margin: 0 -0.75rem;
+		padding-left: 0.75rem;
+		padding-right: 0.75rem;
 		border-radius: 4px;
 	}
 
 	/* Thumbnail */
 	.row-thumb {
 		flex-shrink: 0;
-		width: 72px;
-		height: 72px;
+		width: 88px;
+		height: 88px;
 		border-radius: 6px;
 		overflow: hidden;
 	}
@@ -891,12 +910,12 @@
 	}
 
 	.row-snippet {
-		margin: 0.3rem 0 0;
+		margin: 0.4rem 0 0;
 		color: var(--text-secondary);
-		font-size: 0.88rem;
-		line-height: 1.45;
+		font-size: 0.9rem;
+		line-height: 1.55;
 		display: -webkit-box;
-		-webkit-line-clamp: 2;
+		-webkit-line-clamp: 3;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 	}
@@ -918,12 +937,29 @@
 	/* Responsive: stack on mobile */
 	@media (max-width: 600px) {
 		.conversation-row {
-			flex-wrap: wrap;
+			align-items: stretch;
 		}
 
 		.row-thumb {
-			width: 56px;
-			height: 56px;
+			width: 100px;
+			height: auto;
+			align-self: stretch;
+		}
+
+		.row-thumb .thumb-img,
+		.row-thumb .thumb-placeholder {
+			height: 100%;
+		}
+
+		.row-top {
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 0.2rem;
+		}
+
+		.date {
+			font-size: 0.75rem;
+			color: var(--text-muted);
 		}
 	}
 
@@ -947,7 +983,7 @@
 	}
 
 	.comment-panel {
-		padding: 0.75rem 0 1rem 88px; /* align with row body (thumb 72px + gap 16px) */
+		padding: 0.75rem 0 1rem 108px; /* align with row body (thumb 88px + gap 20px) */
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
