@@ -18,12 +18,16 @@
 			return;
 		}
 
+			// Read referral cookie if present
+	const dyadRef = document.cookie.split('; ').find(r => r.startsWith('dyad_ref='))?.split('=')[1];
+	const referredByUsername = dyadRef ? decodeURIComponent(dyadRef) : undefined;
+
 		status = 'sending';
 		try {
 			const res = await fetch('/api/contact', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ email: email.trim(), name: name.trim() || undefined, based_in: basedIn.trim() || undefined, freewrite: freewrite.trim() || undefined })
+				body: JSON.stringify({ email: email.trim(), name: name.trim() || undefined, based_in: basedIn.trim() || undefined, freewrite: freewrite.trim() || undefined, referred_by_username: referredByUsername })
 			});
 
 			if (!res.ok) {
@@ -55,7 +59,7 @@
 	</div>
 	<div class="form-half">
 		<div class="auth-card">
-			<h1>Join</h1>
+			<h1>Request to join</h1>
 			<p class="subtitle">For those who seek conversation for its own sake and meet others with humility, critical thinking and deep listening.</p>
 
 			{#if status === 'sent'}
@@ -94,7 +98,7 @@
 						/>
 					</div>
 					<button type="submit" class="submit-btn" disabled={status === 'sending'}>
-						{status === 'sending' ? 'Sending...' : 'Join'}
+						{status === 'sending' ? 'Sending...' : 'Request to join'}
 					</button>
 					{#if status === 'error'}
 						<p class="error-text">{errorMsg}</p>
@@ -131,7 +135,7 @@
 	}
 
 	:global([data-theme='dark']) .site-logo {
-		filter: none;
+		filter: brightness(0) invert(1) opacity(0.7);
 	}
 
 	/* === Split layout — mirrors landing page === */
@@ -307,7 +311,7 @@
 	}
 
 	/* === Mobile — image on top, form below === */
-	@media (max-width: 768px) {
+	@media (max-width: 430px) {
 		.split-layout {
 			flex-direction: column;
 			height: auto;

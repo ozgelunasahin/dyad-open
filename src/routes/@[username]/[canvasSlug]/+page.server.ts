@@ -19,7 +19,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 	// Get the canvas for that user (check publish status based on ownership)
 	const { data: canvas, error: canvasError } = await locals.supabase
 		.from('canvases')
-		.select('id, name, slug, user_id, entry_point_note_id, is_published, is_conversation, preferred_location, preferred_time_slots')
+		.select('id, name, slug, user_id, entry_point_note_id, is_published, is_conversation, preferred_location, preferred_time_slots, cover_image_url')
 		.eq('user_id', profile.id)
 		.eq('slug', params.canvasSlug)
 		.single();
@@ -162,6 +162,27 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		}));
 	}
 
+	// Load current user's username + bookmark/follow state in parallel
+	let currentUsername: string | null = null;
+	let initialBookmarked = false;
+	let initialFollowing = false;
+
+	if (locals.user) {
+		const profileResult = await locals.supabase.from('profiles').select('username').eq('id', locals.user.id).single();
+		currentUsername = profileResult.data?.username ?? null;
+
+		try {
+			const [bookmarkResult, followResult] = await Promise.all([
+				locals.supabase.from('bookmarks').select('id').eq('user_id', locals.user.id).eq('canvas_id', canvas.id).maybeSingle(),
+				locals.supabase.from('follows').select('id').eq('follower_id', locals.user.id).eq('following_id', profile.id).maybeSingle()
+			]);
+			initialBookmarked = !!bookmarkResult.data;
+			initialFollowing = !!followResult.data;
+		} catch {
+			// Tables may not exist yet — fail gracefully
+		}
+	}
+
 	return {
 		canvas: {
 			id: canvas.id,
@@ -170,7 +191,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 			entryPointNoteId: canvas.entry_point_note_id,
 			isConversation: canvas.is_conversation ?? false,
 			preferredLocation: canvas.preferred_location ?? '',
-			preferredTimeSlots: canvas.preferred_time_slots ?? ''
+			preferredTimeSlots: canvas.preferred_time_slots ?? '',
+			coverImageUrl: canvas.cover_image_url ?? null
 		},
 		author: {
 			id: profile.id,
@@ -181,6 +203,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		readOnly: true,
 		highlights,
 		canvasComments,
-		currentUserId: locals.user?.id ?? null
+		currentUserId: locals.user?.id ?? null,
+		currentUsername,
+		initialBookmarked,
+		initialFollowing
 	};
 };

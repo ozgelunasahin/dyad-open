@@ -46,6 +46,16 @@
 	}
 
 	onMount(async () => {
+		// Capture ?ref= referral tag into a 30-day cookie
+		const refParam = new URLSearchParams(window.location.search).get('ref');
+		if (refParam) {
+			const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toUTCString();
+			document.cookie = `dyad_ref=${encodeURIComponent(refParam)}; path=/; expires=${expires}; SameSite=Lax`;
+			// Clean the ?ref= from the URL without reloading
+			const clean = window.location.pathname;
+			window.history.replaceState({}, '', clean);
+		}
+
 		const mq = window.matchMedia('(max-width: 768px)');
 		isMobile = mq.matches;
 		const mqHandler = (e: MediaQueryListEvent) => { isMobile = e.matches; };
@@ -176,17 +186,106 @@
 
 	// Discussion section ref for scrolling
 	let discussionRef = $state<HTMLElement | null>(null);
-	let bookmarked = $state(false);
+	let bookmarked = $state(data.initialBookmarked ?? false);
 
 	function scrollToDiscussion() {
 		discussionRef?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 	}
 
+	// Text highlight → comment
+	let selectionPopover = $state<{ x: number; y: number; text: string } | null>(null);
+	let highlightInput = $state('');
+	let highlightSubmitting = $state(false);
+
+	function handleTextSelection() {
+		if (!data.currentUserId || !data.canvas.isConversation) return;
+		const sel = window.getSelection();
+		if (!sel || sel.isCollapsed) { selectionPopover = null; return; }
+		const text = sel.toString().trim();
+		if (!text || text.length < 5) { selectionPopover = null; return; }
+		const range = sel.getRangeAt(0);
+		const rect = range.getBoundingClientRect();
+		selectionPopover = {
+			x: rect.left + rect.width / 2,
+			y: rect.top + window.scrollY - 8,
+			text
+		};
+	}
+
+	async function submitHighlight() {
+		if (!selectionPopover || !highlightInput.trim() || highlightSubmitting) return;
+		highlightSubmitting = true;
+		try {
+			const res = await fetch('/api/highlights', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					canvas_id: data.canvas.id,
+					note_slug: data.vault?.entryPoint ?? '',
+					selected_text: selectionPopover.text,
+					comment_body: highlightInput.trim()
+				})
+			});
+			if (res.ok) {
+				const saved = await res.json();
+				highlights = [...highlights, {
+					id: saved.id,
+					canvas_id: data.canvas.id,
+					note_slug: data.vault?.entryPoint ?? '',
+					user_id: data.currentUserId!,
+					username: data.currentUsername ?? 'you',
+					selected_text: selectionPopover.text,
+					start_offset: 0,
+					end_offset: 0,
+					created_at: new Date().toISOString(),
+					comments: [{
+						id: crypto.randomUUID(),
+						user_id: data.currentUserId!,
+						username: data.currentUsername ?? 'you',
+						body: highlightInput.trim(),
+						created_at: new Date().toISOString()
+					}]
+				}];
+				selectionPopover = null;
+				highlightInput = '';
+				setTimeout(scrollToDiscussion, 100);
+			}
+		} finally {
+			highlightSubmitting = false;
+		}
+	}
+
+	async function toggleBookmark() {
+		if (!data.currentUserId) return;
+		bookmarked = !bookmarked; // optimistic
+		try {
+			const res = await fetch('/api/bookmarks', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ canvas_id: data.canvas.id })
+			});
+			if (res.ok) {
+				const { bookmarked: confirmed } = await res.json();
+				bookmarked = confirmed;
+			} else {
+				bookmarked = !bookmarked; // revert
+			}
+		} catch {
+			bookmarked = !bookmarked; // revert
+		}
+	}
+
+
 	function shareCanvas() {
+		// Append ?ref=username for logged-in members so referrals are tracked
+		const base = `${window.location.origin}${window.location.pathname}`;
+		const url = data.currentUserId && data.currentUsername
+			? `${base}?ref=${encodeURIComponent(data.currentUsername)}`
+			: base;
 		if (navigator.share) {
-			navigator.share({ title: data.canvas.name, url: window.location.href });
+			navigator.share({ title: data.canvas.name, url });
 		} else {
-			navigator.clipboard.writeText(window.location.href);
+			navigator.clipboard.writeText(url);
 		}
 	}
 
@@ -286,8 +385,8 @@
 			<p>{error}</p>
 			<button onclick={() => window.location.reload()}>Retry</button>
 		</div>
-	{:else if isMobile}
-		<div class="mobile-reading" in:fade={{ duration: 200 }}>
+	{:else if isMobile || !data.currentUserId || data.canvas.isConversation}
+		<div class="mobile-reading" class:desktop-reading={!isMobile && data.canvas.isConversation} in:fade={{ duration: 200 }}>
 			<nav class="mobile-nav">
 				<a href={data.currentUserId ? '/discover' : '/'} class="logo-link" aria-label="Back">
 					<img src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/logo.png" alt="dyad" class="site-logo" />
@@ -321,10 +420,15 @@
 					</nav>
 				</aside>
 			{/if}
+			{#if data.canvas.coverImageUrl}
+				<div class="cover-image-wrap">
+					<img src={data.canvas.coverImageUrl} alt="" class="cover-image" />
+				</div>
+			{/if}
 			<div class="mobile-article-header">
 				<hr class="mobile-article-divider" />
 				<div class="mobile-article-meta">
-					<span class="mobile-article-author">@{data.author.username}</span>
+					<a href="/@{data.author.username}" class="mobile-article-author">@{data.author.username}</a>
 					{#if availableDates.length > 0}
 						<span class="mobile-article-date">{availableDates[0]}</span>
 					{/if}
@@ -334,26 +438,56 @@
 			</div>
 
 			{#if entryNote()}
-				<ExpandableContent
-					content={entryNote().content}
-					vault={data.vault}
-				/>
+				<!-- svelte-ignore a11y_no_static_element_interactions -->
+				<div class="selectable-content" onmouseup={handleTextSelection}>
+					<ExpandableContent
+						content={entryNote().content}
+						vault={data.vault}
+					/>
+				</div>
+			{/if}
+
+			{#if selectionPopover && data.currentUserId}
+				<div
+					class="highlight-popover"
+					style="left: {selectionPopover.x}px; top: {selectionPopover.y}px;"
+					transition:fade={{ duration: 150 }}
+				>
+					<p class="highlight-quote-preview">"{selectionPopover.text.slice(0, 80)}{selectionPopover.text.length > 80 ? '…' : ''}"</p>
+					<textarea
+						class="highlight-input"
+						placeholder="Your comment on this passage..."
+						bind:value={highlightInput}
+						rows={2}
+					></textarea>
+					<div class="highlight-actions">
+						<button class="highlight-cancel" onclick={() => { selectionPopover = null; highlightInput = ''; }}>Cancel</button>
+						<button
+							class="highlight-submit"
+							onclick={submitHighlight}
+							disabled={!highlightInput.trim() || highlightSubmitting}
+						>{highlightSubmitting ? 'Saving…' : 'Comment'}</button>
+					</div>
+				</div>
 			{/if}
 
 			{#if data.canvas.isConversation}
 				<!-- Action bar -->
 				<div class="action-bar">
 					<div class="action-bar-left">
-						<button
-							class="action-btn"
-							class:active={bookmarked}
-							onclick={() => bookmarked = !bookmarked}
-							aria-label="Bookmark"
-						>
-							<svg width="18" height="18" viewBox="0 0 24 24" fill={bookmarked ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-								<path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/>
-							</svg>
-						</button>
+						{#if data.currentUserId}
+							<button
+								class="action-btn"
+								class:active={bookmarked}
+								onclick={toggleBookmark}
+								aria-label={bookmarked ? 'Remove bookmark' : 'Bookmark'}
+							>
+								<svg width="18" height="18" viewBox="0 0 24 24" fill={bookmarked ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+									<path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/>
+								</svg>
+							</button>
+						{/if}
+
 						<button class="action-btn" onclick={scrollToDiscussion} aria-label="Comments">
 							<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
 								<path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
@@ -384,7 +518,13 @@
 				<div class="discussion" bind:this={discussionRef}>
 					<h2 class="discussion-title">Comments</h2>
 
-					{#if data.currentUserId && data.currentUserId !== data.author.id && !alreadyCommented && !mobileNoteSubmitted}
+					{#if !data.currentUserId}
+					<div class="visitor-cta">
+						<p class="visitor-cta-text">dyad is a space for real conversations between people who think in public. To comment and meet the author, request an invite.</p>
+						<a href="/waitlist" class="visitor-cta-btn">Request an invite</a>
+						<p class="visitor-cta-login">Already a member? <a href="/login">Log in</a></p>
+					</div>
+				{:else if data.currentUserId && data.currentUserId !== data.author.id && !alreadyCommented && !mobileNoteSubmitted}
 						<div class="write-note-box">
 							<textarea
 								class="write-note-input"
@@ -404,8 +544,6 @@
 								{mobileNoteSubmitting ? 'Sending...' : 'Send'}
 							</button>
 						</div>
-					{:else if mobileNoteSubmitted}
-						<p class="note-sent-msg">Comment sent.</p>
 					{/if}
 
 					{#if comments.length > 0}
@@ -435,6 +573,23 @@
 						</div>
 					{:else if data.currentUserId}
 						<p class="discussion-empty">No notes yet. Be the first.</p>
+					{/if}
+
+					{#if highlights.length > 0}
+						<div class="highlights-section">
+							<h3 class="highlights-title">Highlighted passages</h3>
+							{#each highlights as h (h.id)}
+								<div class="highlight-item">
+									<blockquote class="highlight-selected-text">{h.selected_text}</blockquote>
+									{#each h.comments as c (c.id)}
+										<div class="highlight-comment-row">
+											<span class="highlight-comment-author">@{c.username}</span>
+											<p class="highlight-comment-body">{c.body}</p>
+										</div>
+									{/each}
+								</div>
+							{/each}
+						</div>
 					{/if}
 					</div>
 			{/if}
@@ -599,10 +754,24 @@
 
 	/* Mobile reading view — scrollable with toggle wikilinks */
 	.mobile-reading {
-		padding: 0 20px 80px;
+		padding: 0 2rem 80px;
 		overflow-y: auto;
 		height: 100%;
 		box-sizing: border-box;
+		position: relative;
+	}
+
+	.cover-image-wrap {
+		margin: 0 -2rem 0;
+		overflow: hidden;
+		max-height: 260px;
+	}
+
+	.cover-image {
+		width: 100%;
+		height: 260px;
+		object-fit: cover;
+		display: block;
 	}
 
 	.mobile-article-header {
@@ -632,6 +801,11 @@
 		font-size: 11px;
 		letter-spacing: 0.06em;
 		color: var(--text-muted, #888);
+		text-decoration: none;
+	}
+
+	a.mobile-article-author:hover {
+		color: var(--text-primary, #1a1a1a);
 	}
 
 	.mobile-article-date {
@@ -687,6 +861,7 @@
 		font-size: 0.8rem;
 	}
 
+
 	.action-invite-text {
 		font-size: 0.85rem;
 		color: var(--text-muted, #888);
@@ -723,6 +898,167 @@
 		font-weight: normal;
 		color: var(--text-primary, #1a1a1a);
 		margin: 0 0 1.25rem;
+	}
+
+	/* Desktop reading view — wider, centered */
+	.desktop-reading {
+		max-width: 680px;
+		margin: 0 auto;
+		padding: 0 40px 120px;
+	}
+
+	/* Text selection highlight popover */
+	.highlight-popover {
+		position: absolute;
+		transform: translateX(-50%) translateY(-100%);
+		background: var(--bg-primary, #fff);
+		border: 1px solid var(--border-link, rgba(0,0,0,0.12));
+		border-radius: 10px;
+		padding: 12px 14px;
+		box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+		z-index: 100;
+		width: 280px;
+	}
+
+	.highlight-quote-preview {
+		font-size: 12px;
+		color: var(--text-muted, #888);
+		font-style: italic;
+		margin: 0 0 8px 0;
+		line-height: 1.4;
+		border-left: 2px solid var(--border-link, rgba(0,0,0,0.15));
+		padding-left: 8px;
+	}
+
+	.highlight-input {
+		width: 100%;
+		box-sizing: border-box;
+		border: 1px solid var(--border-link, rgba(0,0,0,0.12));
+		border-radius: 6px;
+		padding: 8px 10px;
+		font: inherit;
+		font-size: 14px;
+		resize: none;
+		background: var(--bg-canvas, #f9f7f4);
+		color: var(--text-primary, #1a1a1a);
+	}
+
+	.highlight-actions {
+		display: flex;
+		justify-content: flex-end;
+		gap: 8px;
+		margin-top: 8px;
+	}
+
+	.highlight-cancel {
+		background: none;
+		border: none;
+		font: inherit;
+		font-size: 13px;
+		color: var(--text-muted, #888);
+		cursor: pointer;
+		padding: 4px 8px;
+	}
+
+	.highlight-submit {
+		background: var(--text-primary, #1a1a1a);
+		color: var(--bg-primary, #fff);
+		border: none;
+		border-radius: 6px;
+		font: inherit;
+		font-size: 13px;
+		padding: 5px 14px;
+		cursor: pointer;
+	}
+
+	.highlight-submit:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+	}
+
+	/* Highlights in discussion */
+	.highlights-section {
+		margin-top: 2rem;
+		border-top: 1px solid var(--border-link, rgba(0,0,0,0.08));
+		padding-top: 1.25rem;
+	}
+
+	.highlights-title {
+		font-size: 13px;
+		font-weight: 500;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: var(--text-muted, #888);
+		margin: 0 0 1rem 0;
+	}
+
+	.highlight-item {
+		margin-bottom: 1.5rem;
+	}
+
+	.highlight-selected-text {
+		font-style: italic;
+		font-size: 14px;
+		color: var(--text-secondary, #555);
+		border-left: 2px solid var(--text-muted, #c5b9ac);
+		margin: 0 0 8px 0;
+		padding: 4px 0 4px 12px;
+		line-height: 1.5;
+	}
+
+	.highlight-comment-row {
+		padding-left: 14px;
+	}
+
+	.highlight-comment-author {
+		font-size: 12px;
+		font-weight: 600;
+		color: var(--text-primary, #1a1a1a);
+	}
+
+	.highlight-comment-body {
+		font-size: 14px;
+		color: var(--text-secondary, #4a4a4a);
+		margin: 2px 0 0 0;
+	}
+
+	.visitor-cta {
+		padding: 1.25rem 0 1.5rem;
+		border-bottom: 1px solid var(--border-link);
+		margin-bottom: 1.5rem;
+	}
+
+	.visitor-cta-text {
+		margin: 0 0 1rem;
+		color: var(--text-muted);
+		font-size: 0.9rem;
+		line-height: 1.6;
+	}
+
+	.visitor-cta-btn {
+		display: inline-block;
+		padding: 0.55rem 1.1rem;
+		background: var(--text-primary, #1a1a1a);
+		color: var(--bg-canvas, #f5f3f0);
+		border-radius: 4px;
+		font-size: 0.9rem;
+		text-decoration: none;
+		transition: opacity 0.15s;
+	}
+
+	.visitor-cta-btn:hover {
+		opacity: 0.85;
+	}
+
+	.visitor-cta-login {
+		margin: 0.85rem 0 0;
+		font-size: 0.8rem;
+		color: var(--text-muted);
+	}
+
+	.visitor-cta-login a {
+		color: var(--text-primary);
+		text-decoration: underline;
 	}
 
 	.write-note-box {
@@ -765,12 +1101,6 @@
 	.write-note-btn:disabled { opacity: 0.4; cursor: default; }
 	.write-note-btn:not(:disabled):hover { opacity: 0.8; }
 
-	.note-sent-msg {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
-		font-size: 0.9rem;
-		color: var(--text-muted, #888);
-		margin: 0 0 1.5rem;
-	}
 
 	.mobile-note-error {
 		font-size: 0.8rem;
@@ -865,7 +1195,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 16px 0;
+		padding: 0.75rem 0;
 		margin-bottom: 8px;
 	}
 
@@ -883,7 +1213,7 @@
 	}
 
 	:global([data-theme='dark']) .site-logo {
-		filter: none;
+		filter: brightness(0) invert(1) opacity(0.7);
 	}
 
 	.menu-btn {
@@ -1202,6 +1532,10 @@
 		background: var(--bg-control-hover);
 		color: var(--control-color-hover);
 		opacity: 1;
+	}
+
+	@media (max-width: 430px) {
+		.theme-toggle { display: none; }
 	}
 
 	/* Back navigation header (desktop) */

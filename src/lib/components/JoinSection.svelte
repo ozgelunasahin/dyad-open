@@ -255,7 +255,7 @@
 		margin: 8px 0 0;
 	}
 
-	@media (max-width: 768px) {
+	@media (max-width: 430px) {
 		.join-section {
 			padding: 0 8px;
 		}

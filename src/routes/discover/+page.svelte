@@ -118,13 +118,7 @@
 	let panelError = $state('');
 
 	function toggleCard(id: string, username: string, slug: string) {
-		if (window.innerWidth <= 600) {
-			window.location.href = `/@${username}/${slug}`;
-			return;
-		}
-		expandedId = expandedId === id ? null : id;
-		commentText = '';
-		panelError = '';
+		window.location.href = `/@${username}/${slug}`;
 	}
 
 	async function submitComment(canvasId: string) {
@@ -182,7 +176,10 @@
 		</a>
 		<nav class="sidebar-nav">
 			<a href="/discover" class="sidebar-link active">Discover</a>
-			<a href="/dashboard" class="sidebar-link">Dashboard</a>
+			<a href="/dashboard" class="sidebar-link">Profile</a>
+			{#if data.canPublishSites}
+				<a href="/dashboard#admin" class="sidebar-link">Admin</a>
+			{/if}
 		</nav>
 		<div class="sidebar-bottom">
 			<span class="sidebar-username">@{data.username}</span>
@@ -406,6 +403,10 @@
 		filter: brightness(0) opacity(0.4);
 	}
 
+	:global([data-theme='dark']) .sidebar-logo-img {
+		filter: brightness(0) invert(1) opacity(0.7);
+	}
+
 	.sidebar-nav {
 		display: flex;
 		flex-direction: column;
@@ -477,10 +478,14 @@
 		flex: 1;
 		min-width: 0;
 		padding: 2rem;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
 	}
 
 	.page-header {
 		margin-bottom: 2rem;
+		width: 100%;
 		max-width: 800px;
 	}
 
@@ -498,11 +503,12 @@
 	}
 
 	.content {
+		width: 100%;
 		max-width: 800px;
 	}
 
 	/* Mobile: sidebar becomes top bar */
-	@media (max-width: 768px) {
+	@media (max-width: 430px) {
 		.app-layout {
 			flex-direction: column;
 		}
@@ -513,7 +519,7 @@
 			position: static;
 			flex-direction: row;
 			align-items: center;
-			padding: 0.75rem 1rem;
+			padding: 1rem 1.5rem;
 			border-right: none;
 			border-bottom: 1px solid var(--border-link);
 			gap: 1rem;
@@ -521,6 +527,12 @@
 
 		.sidebar-logo {
 			margin-bottom: 0;
+			padding: 0;
+		}
+
+		.sidebar-logo-img {
+			width: 28px;
+			height: auto;
 		}
 
 		.sidebar-nav {
@@ -841,7 +853,7 @@
 		border-bottom: 1px solid var(--border-link);
 		text-decoration: none;
 		transition: background 0.15s;
-		align-items: flex-start;
+		align-items: stretch;
 	}
 
 	.conversation-row:last-child {
@@ -858,26 +870,28 @@
 
 	/* Thumbnail */
 	.row-thumb {
+		position: relative;
 		flex-shrink: 0;
 		width: 88px;
-		height: 88px;
+		min-height: 96px;
 		border-radius: 6px;
 		overflow: hidden;
+		align-self: stretch;
 	}
 
 	.thumb-img {
+		position: absolute;
+		inset: 0;
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
-		display: block;
 	}
 
 	.thumb-placeholder {
-		width: 100%;
-		height: 100%;
+		position: absolute;
+		inset: 0;
 		background: var(--bg-control, rgba(0, 0, 0, 0.05));
 		border: 1px solid var(--border-link);
-		border-radius: 6px;
 	}
 
 	/* Body */
@@ -915,7 +929,7 @@
 		font-size: 0.9rem;
 		line-height: 1.55;
 		display: -webkit-box;
-		-webkit-line-clamp: 3;
+		-webkit-line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 	}
@@ -935,20 +949,14 @@
 	}
 
 	/* Responsive: stack on mobile */
-	@media (max-width: 600px) {
+	@media (max-width: 430px) {
 		.conversation-row {
 			align-items: stretch;
 		}
 
 		.row-thumb {
-			width: 100px;
-			height: auto;
+			width: 88px;
 			align-self: stretch;
-		}
-
-		.row-thumb .thumb-img,
-		.row-thumb .thumb-placeholder {
-			height: 100%;
 		}
 
 		.row-top {

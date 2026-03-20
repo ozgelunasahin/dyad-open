@@ -281,7 +281,7 @@
 		color: var(--text-muted, #999);
 	}
 
-	@media (max-width: 768px) {
+	@media (max-width: 430px) {
 		.field-row {
 			flex-direction: column;
 		}

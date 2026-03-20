@@ -506,7 +506,7 @@
 	}
 
 	/* === Mobile === */
-	@media (max-width: 768px) {
+	@media (max-width: 430px) {
 		.field-notes {
 			padding: 40px 8px;
 		}
