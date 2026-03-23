@@ -1,5 +1,17 @@
 import type { JSONContent } from '@tiptap/core';
 
+export interface ConversationData {
+	id: string;
+	title: string;
+	subtitle: string | null;
+	image_url: string | null;
+	bodyHtml: string;
+	position: number;
+	proposed_date_1: string | null;
+	proposed_date_2: string | null;
+	neighborhood: string | null;
+}
+
 export interface Point {
 	x: number;
 	y: number;

@@ -95,6 +95,7 @@
 					break;
 				case 'link':
 					if (mark.attrs?.href) {
+						if (/^(javascript|data|vbscript):/i.test(mark.attrs.href)) break;
 						const href = escapeHtml(mark.attrs.href);
 						text = `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
 					}

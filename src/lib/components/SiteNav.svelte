@@ -178,7 +178,7 @@
 	}
 
 	/* === Mobile === */
-	@media (max-width: 768px) {
+	@media (max-width: 430px) {
 		.site-nav {
 			top: 0;
 			left: 0;
@@ -206,7 +206,7 @@
 		}
 
 		.site-logo {
-			height: 24px;
+			height: 30px;
 			filter: brightness(100);
 		}
 

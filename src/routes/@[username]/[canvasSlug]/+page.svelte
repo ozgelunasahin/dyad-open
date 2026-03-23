@@ -46,6 +46,16 @@
 	}
 
 	onMount(async () => {
+		// Capture ?ref= referral tag into a 30-day cookie
+		const refParam = new URLSearchParams(window.location.search).get('ref');
+		if (refParam) {
+			const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toUTCString();
+			document.cookie = `dyad_ref=${encodeURIComponent(refParam)}; path=/; expires=${expires}; SameSite=Lax`;
+			// Clean the ?ref= from the URL without reloading
+			const clean = window.location.pathname;
+			window.history.replaceState({}, '', clean);
+		}
+
 		const mq = window.matchMedia('(max-width: 768px)');
 		isMobile = mq.matches;
 		const mqHandler = (e: MediaQueryListEvent) => { isMobile = e.matches; };
@@ -148,20 +158,215 @@
 	// Meeting state
 	let showMeetingModal = $state(false);
 	let meetingSent = $state(false);
+	let meetingInviteeId = $state(data.author.id);
+	let meetingInviteeUsername = $state(data.author.username);
 
-	// Show Meet option: conversation canvas, not the author, user has commented
-	let canMeet = $derived(
-		data.canvas.isConversation &&
-		data.currentUserId &&
-		data.currentUserId !== data.author.id &&
-		userHasCommented
+	function openMeetModal(inviteeId: string, inviteeUsername: string) {
+		meetingInviteeId = inviteeId;
+		meetingInviteeUsername = inviteeUsername;
+		showMeetingModal = true;
+	}
+
+	// Letter icon on comments: only visible to the author (to invite each commenter)
+	function canShowInvite(comment: { userId: string }) {
+		if (!data.currentUserId || !data.canvas.isConversation) return false;
+		return data.currentUserId === data.author.id && comment.userId !== data.currentUserId;
+	}
+
+	function handleCommentInvite(comment: { userId: string; username: string }) {
+		openMeetModal(comment.userId, comment.username);
+	}
+
+	// Local reactive comment list — starts from server data, updated optimistically on submit
+	let comments = $state([...data.canvasComments]);
+
+	let alreadyCommented = $derived(
+		comments.some((c) => c.userId === data.currentUserId)
 	);
+
+	// Discussion section ref for scrolling
+	let discussionRef = $state<HTMLElement | null>(null);
+	let bookmarked = $state(data.initialBookmarked ?? false);
+
+	function scrollToDiscussion() {
+		discussionRef?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+	}
+
+	// Text highlight → comment
+	let selectionPopover = $state<{ x: number; y: number; text: string } | null>(null);
+	let highlightInput = $state('');
+	let highlightSubmitting = $state(false);
+
+	function handleTextSelection() {
+		if (!data.currentUserId || !data.canvas.isConversation) return;
+		const sel = window.getSelection();
+		if (!sel || sel.isCollapsed) { selectionPopover = null; return; }
+		const text = sel.toString().trim();
+		if (!text || text.length < 5) { selectionPopover = null; return; }
+		const range = sel.getRangeAt(0);
+		const rect = range.getBoundingClientRect();
+		selectionPopover = {
+			x: rect.left + rect.width / 2,
+			y: rect.top + window.scrollY - 8,
+			text
+		};
+	}
+
+	async function submitHighlight() {
+		if (!selectionPopover || !highlightInput.trim() || highlightSubmitting) return;
+		highlightSubmitting = true;
+		try {
+			const res = await fetch('/api/highlights', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					canvas_id: data.canvas.id,
+					note_slug: data.vault?.entryPoint ?? '',
+					selected_text: selectionPopover.text,
+					comment_body: highlightInput.trim()
+				})
+			});
+			if (res.ok) {
+				const saved = await res.json();
+				highlights = [...highlights, {
+					id: saved.id,
+					canvas_id: data.canvas.id,
+					note_slug: data.vault?.entryPoint ?? '',
+					user_id: data.currentUserId!,
+					username: data.currentUsername ?? 'you',
+					selected_text: selectionPopover.text,
+					start_offset: 0,
+					end_offset: 0,
+					created_at: new Date().toISOString(),
+					comments: [{
+						id: crypto.randomUUID(),
+						user_id: data.currentUserId!,
+						username: data.currentUsername ?? 'you',
+						body: highlightInput.trim(),
+						created_at: new Date().toISOString()
+					}]
+				}];
+				selectionPopover = null;
+				highlightInput = '';
+				setTimeout(scrollToDiscussion, 100);
+			}
+		} finally {
+			highlightSubmitting = false;
+		}
+	}
+
+	async function toggleBookmark() {
+		if (!data.currentUserId) return;
+		bookmarked = !bookmarked; // optimistic
+		try {
+			const res = await fetch('/api/bookmarks', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ canvas_id: data.canvas.id })
+			});
+			if (res.ok) {
+				const { bookmarked: confirmed } = await res.json();
+				bookmarked = confirmed;
+			} else {
+				bookmarked = !bookmarked; // revert
+			}
+		} catch {
+			bookmarked = !bookmarked; // revert
+		}
+	}
+
+
+	function shareCanvas() {
+		// Append ?ref=username for logged-in members so referrals are tracked
+		const base = `${window.location.origin}${window.location.pathname}`;
+		const url = data.currentUserId && data.currentUsername
+			? `${base}?ref=${encodeURIComponent(data.currentUsername)}`
+			: base;
+		if (navigator.share) {
+			navigator.share({ title: data.canvas.name, url });
+		} else {
+			navigator.clipboard.writeText(url);
+		}
+	}
+
+	function formatCommentTime(iso: string) {
+		const d = new Date(iso);
+		return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+	}
 
 	// Get the entry note for mobile ExpandableContent view
 	let entryNote = $derived(() => {
 		const entryId = data.vault?.entryPoint;
 		return entryId ? data.vault?.notes?.[entryId] : null;
 	});
+
+	// Parse available dates from preferredTimeSlots
+	let availableDates = $derived.by(() => {
+		if (!data.canvas.preferredTimeSlots) return [];
+		try {
+			const parsed = JSON.parse(data.canvas.preferredTimeSlots);
+			const results: string[] = [];
+			if (Array.isArray(parsed.slots)) {
+				for (const slot of parsed.slots) {
+					if (!slot.date) continue;
+					const d = new Date(slot.date + 'T12:00:00');
+					const dayStr = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+					const timeStr = slot.startTime
+						? new Date(`2000-01-01T${slot.startTime}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+						: '';
+					results.push(timeStr ? `${dayStr} at ${timeStr}` : dayStr);
+				}
+			} else if (Array.isArray(parsed.dates)) {
+				for (const date of parsed.dates) {
+					const d = new Date(date + 'T12:00:00');
+					const dayStr = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+					const timeStr = parsed.startTime
+						? new Date(`2000-01-01T${parsed.startTime}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+						: '';
+					results.push(timeStr ? `${dayStr} at ${timeStr}` : dayStr);
+				}
+			}
+			return results;
+		} catch { return []; }
+	});
+
+	// Mobile note state
+	let mobileNoteText = $state('');
+	let mobileNoteSubmitting = $state(false);
+	let mobileNoteSubmitted = $state(false);
+	let mobileNoteError = $state('');
+
+	async function submitMobileNote() {
+		if (!mobileNoteText.trim() || mobileNoteSubmitting || !data.currentUserId) return;
+		mobileNoteSubmitting = true;
+		mobileNoteError = '';
+		const body = mobileNoteText.trim();
+		try {
+			const res = await fetch('/api/canvas-comments', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ canvas_id: data.canvas.id, body })
+			});
+			if (res.ok) {
+				// Append optimistically so it shows immediately
+				const saved = await res.json().catch(() => null);
+				comments = [...comments, {
+					id: saved?.id ?? crypto.randomUUID(),
+					userId: data.currentUserId!,
+					username: saved?.username ?? 'you',
+					body,
+					created_at: new Date().toISOString()
+				}];
+				mobileNoteSubmitted = true;
+				mobileNoteText = '';
+			} else {
+				const d = await res.json().catch(() => ({}));
+				mobileNoteError = (d as any).message ?? 'Failed to send';
+			}
+		} finally {
+			mobileNoteSubmitting = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -180,10 +385,10 @@
 			<p>{error}</p>
 			<button onclick={() => window.location.reload()}>Retry</button>
 		</div>
-	{:else if isMobile}
-		<div class="mobile-reading" in:fade={{ duration: 200 }}>
+	{:else if isMobile || !data.currentUserId || data.canvas.isConversation}
+		<div class="mobile-reading" class:desktop-reading={!isMobile && data.canvas.isConversation} in:fade={{ duration: 200 }}>
 			<nav class="mobile-nav">
-				<a href="/" class="logo-link" aria-label="Back to home">
+				<a href={data.currentUserId ? '/discover' : '/'} class="logo-link" aria-label="Back">
 					<img src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/logo.png" alt="dyad" class="site-logo" />
 				</a>
 				<button class="menu-btn" onclick={() => mobileMenuOpen = !mobileMenuOpen} aria-label="Menu">
@@ -203,18 +408,192 @@
 				<div class="mobile-overlay" onclick={() => mobileMenuOpen = false}></div>
 				<aside class="mobile-panel" transition:fly={{ x: 300, duration: 250 }}>
 					<nav class="mobile-panel-nav">
-						<a href="/" onclick={() => mobileMenuOpen = false}>home</a>
-						<a href="/#join" onclick={() => mobileMenuOpen = false}>join</a>
-						<a href="/login" onclick={() => mobileMenuOpen = false}>log in</a>
+						{#if data.currentUserId}
+							<a href="/discover" onclick={() => mobileMenuOpen = false}>discover</a>
+							<a href="/dashboard" onclick={() => mobileMenuOpen = false}>profile</a>
+							<a href="/logout" onclick={() => mobileMenuOpen = false}>sign out</a>
+						{:else}
+							<a href="/" onclick={() => mobileMenuOpen = false}>home</a>
+							<a href="/#join" onclick={() => mobileMenuOpen = false}>join</a>
+							<a href="/login" onclick={() => mobileMenuOpen = false}>log in</a>
+						{/if}
 					</nav>
 				</aside>
 			{/if}
-			{#if entryNote()}
-				<ExpandableContent
-					content={entryNote().content}
-					vault={data.vault}
-				/>
+			{#if data.canvas.coverImageUrl}
+				<div class="cover-image-wrap">
+					<img src={data.canvas.coverImageUrl} alt="" class="cover-image" />
+				</div>
 			{/if}
+			<div class="mobile-article-header">
+				<hr class="mobile-article-divider" />
+				<div class="mobile-article-meta">
+					<a href="/@{data.author.username}" class="mobile-article-author">@{data.author.username}</a>
+					{#if availableDates.length > 0}
+						<span class="mobile-article-date">{availableDates[0]}</span>
+					{/if}
+				</div>
+				<h1 class="mobile-article-title">{data.canvas.name}</h1>
+				<hr class="mobile-article-divider" />
+			</div>
+
+			{#if entryNote()}
+				<!-- svelte-ignore a11y_no_static_element_interactions -->
+				<div class="selectable-content" onmouseup={handleTextSelection}>
+					<ExpandableContent
+						content={entryNote().content}
+						vault={data.vault}
+					/>
+				</div>
+			{/if}
+
+			{#if selectionPopover && data.currentUserId}
+				<div
+					class="highlight-popover"
+					style="left: {selectionPopover.x}px; top: {selectionPopover.y}px;"
+					transition:fade={{ duration: 150 }}
+				>
+					<p class="highlight-quote-preview">"{selectionPopover.text.slice(0, 80)}{selectionPopover.text.length > 80 ? '…' : ''}"</p>
+					<textarea
+						class="highlight-input"
+						placeholder="Your comment on this passage..."
+						bind:value={highlightInput}
+						rows={2}
+					></textarea>
+					<div class="highlight-actions">
+						<button class="highlight-cancel" onclick={() => { selectionPopover = null; highlightInput = ''; }}>Cancel</button>
+						<button
+							class="highlight-submit"
+							onclick={submitHighlight}
+							disabled={!highlightInput.trim() || highlightSubmitting}
+						>{highlightSubmitting ? 'Saving…' : 'Comment'}</button>
+					</div>
+				</div>
+			{/if}
+
+			{#if data.canvas.isConversation}
+				<!-- Action bar -->
+				<div class="action-bar">
+					<div class="action-bar-left">
+						{#if data.currentUserId}
+							<button
+								class="action-btn"
+								class:active={bookmarked}
+								onclick={toggleBookmark}
+								aria-label={bookmarked ? 'Remove bookmark' : 'Bookmark'}
+							>
+								<svg width="18" height="18" viewBox="0 0 24 24" fill={bookmarked ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+									<path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/>
+								</svg>
+							</button>
+						{/if}
+
+						<button class="action-btn" onclick={scrollToDiscussion} aria-label="Comments">
+							<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+								<path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+							</svg>
+							{#if comments.length > 0}
+								<span class="action-count">{comments.length}</span>
+							{/if}
+						</button>
+						{#if data.currentUserId && data.currentUserId !== data.author.id && (alreadyCommented || mobileNoteSubmitted)}
+							{#if !meetingSent}
+								<button class="action-btn action-invite-text" onclick={() => openMeetModal(data.author.id, data.author.username)}>
+									invite to meet
+								</button>
+							{:else}
+								<span class="action-invite-sent">invite sent</span>
+							{/if}
+						{/if}
+					</div>
+					<button class="action-btn action-share" onclick={shareCanvas} aria-label="Share">
+						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/>
+						</svg>
+						<span>Share</span>
+					</button>
+				</div>
+
+				<!-- Discussion section -->
+				<div class="discussion" bind:this={discussionRef}>
+					<h2 class="discussion-title">Comments</h2>
+
+					{#if !data.currentUserId}
+					<div class="visitor-cta">
+						<p class="visitor-cta-text">dyad is a space for real conversations between people who think in public. To comment and meet the author, request an invite.</p>
+						<a href="/waitlist" class="visitor-cta-btn">Request an invite</a>
+						<p class="visitor-cta-login">Already a member? <a href="/login">Log in</a></p>
+					</div>
+				{:else if data.currentUserId && data.currentUserId !== data.author.id && !alreadyCommented && !mobileNoteSubmitted}
+						<div class="write-note-box">
+							<textarea
+								class="write-note-input"
+								placeholder="Write a comment..."
+								value={mobileNoteText}
+								oninput={(e) => mobileNoteText = (e.target as HTMLTextAreaElement).value}
+								rows={3}
+							></textarea>
+							{#if mobileNoteError}
+								<p class="mobile-note-error">{mobileNoteError}</p>
+							{/if}
+							<button
+								class="write-note-btn"
+								onclick={submitMobileNote}
+								disabled={mobileNoteSubmitting || !mobileNoteText.trim()}
+							>
+								{mobileNoteSubmitting ? 'Sending...' : 'Send'}
+							</button>
+						</div>
+					{/if}
+
+					{#if comments.length > 0}
+						<div class="discussion-comments">
+							{#each comments as comment (comment.id)}
+								<div class="discussion-comment">
+									<div class="discussion-comment-header">
+										<span class="discussion-comment-author">@{comment.username}</span>
+										<span class="discussion-comment-date">{formatCommentTime(comment.created_at)}</span>
+										{#if canShowInvite(comment)}
+											<button
+												class="letter-btn"
+												onclick={() => handleCommentInvite(comment)}
+												aria-label="Invite to meet"
+												title="Invite to meet in person"
+											>
+												<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+													<rect x="2" y="4" width="20" height="16" rx="2"/>
+													<path d="M2 7l10 7 10-7"/>
+												</svg>
+											</button>
+										{/if}
+									</div>
+									<p class="discussion-comment-body">{comment.body}</p>
+								</div>
+							{/each}
+						</div>
+					{:else if data.currentUserId}
+						<p class="discussion-empty">No notes yet. Be the first.</p>
+					{/if}
+
+					{#if highlights.length > 0}
+						<div class="highlights-section">
+							<h3 class="highlights-title">Highlighted passages</h3>
+							{#each highlights as h (h.id)}
+								<div class="highlight-item">
+									<blockquote class="highlight-selected-text">{h.selected_text}</blockquote>
+									{#each h.comments as c (c.id)}
+										<div class="highlight-comment-row">
+											<span class="highlight-comment-author">@{c.username}</span>
+											<p class="highlight-comment-body">{c.body}</p>
+										</div>
+									{/each}
+								</div>
+							{/each}
+						</div>
+					{/if}
+					</div>
+			{/if}
+
 			<button class="theme-toggle" onclick={toggleTheme} aria-label="Toggle theme">
 			{#if themeStore.current === 'light'}
 				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -344,8 +723,8 @@
 {#if showMeetingModal}
 	<MeetingInviteModal
 		canvasId={data.canvas.id}
-		inviteeId={data.author.id}
-		inviteeUsername={data.author.username}
+		inviteeId={meetingInviteeId}
+		inviteeUsername={meetingInviteeUsername}
 		preferredTimeSlots={data.canvas.preferredTimeSlots}
 		onClose={() => (showMeetingModal = false)}
 		onSent={() => {
@@ -375,17 +754,448 @@
 
 	/* Mobile reading view — scrollable with toggle wikilinks */
 	.mobile-reading {
-		padding: 0 20px 80px;
+		padding: 0 2rem 80px;
 		overflow-y: auto;
 		height: 100%;
 		box-sizing: border-box;
+		position: relative;
 	}
+
+	.cover-image-wrap {
+		margin: 0 -2rem 0;
+		overflow: hidden;
+		max-height: 260px;
+	}
+
+	.cover-image {
+		width: 100%;
+		height: 260px;
+		object-fit: cover;
+		display: block;
+	}
+
+	.mobile-article-header {
+		margin-bottom: 1.5rem;
+	}
+
+	.mobile-article-title {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: clamp(1.6rem, 7vw, 2rem);
+		font-weight: normal;
+		line-height: 1.25;
+		color: var(--text-primary, #1a1a1a);
+		margin: 0.85rem 0;
+	}
+
+	.mobile-article-meta {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 0.5rem;
+		margin-top: 0.85rem;
+		margin-bottom: 0.85rem;
+	}
+
+	.mobile-article-author {
+		font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+		font-size: 11px;
+		letter-spacing: 0.06em;
+		color: var(--text-muted, #888);
+		text-decoration: none;
+	}
+
+	a.mobile-article-author:hover {
+		color: var(--text-primary, #1a1a1a);
+	}
+
+	.mobile-article-date {
+		font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+		font-size: 11px;
+		letter-spacing: 0.04em;
+		color: var(--text-muted, #888);
+		text-align: right;
+		white-space: nowrap;
+	}
+
+	.mobile-article-divider {
+		border: none;
+		border-top: 1px solid var(--border-link, rgba(0,0,0,0.1));
+		margin: 0;
+	}
+
+	.action-bar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.85rem 0;
+		border-top: 1px solid var(--border-link, rgba(0,0,0,0.1));
+		border-bottom: 1px solid var(--border-link, rgba(0,0,0,0.1));
+		margin: 1.5rem 0 0;
+	}
+
+	.action-bar-left {
+		display: flex;
+		gap: 0.25rem;
+	}
+
+	.action-btn {
+		display: flex;
+		align-items: center;
+		gap: 0.35rem;
+		background: none;
+		border: none;
+		padding: 0.45rem 0.6rem;
+		border-radius: 20px;
+		cursor: pointer;
+		color: var(--text-muted, #888);
+		font-size: 0.8rem;
+		font-family: inherit;
+		transition: background 0.15s, color 0.15s;
+	}
+
+	.action-btn:hover { background: rgba(0,0,0,0.05); color: var(--text-primary, #1a1a1a); }
+	.action-btn.active { color: var(--text-primary, #1a1a1a); }
+
+	.action-share {
+		gap: 0.4rem;
+		font-size: 0.8rem;
+	}
+
+
+	.action-invite-text {
+		font-size: 0.85rem;
+		color: var(--text-muted, #888);
+		padding: 0.35rem 0.75rem;
+		border: 1px solid var(--border-link, rgba(0,0,0,0.15));
+		border-radius: 20px;
+		background: none;
+	}
+
+	.action-invite-text:hover {
+		color: var(--text-primary, #1a1a1a);
+		border-color: var(--text-muted, #888);
+		background: none;
+	}
+
+	.action-invite-sent {
+		font-size: 0.85rem;
+		color: var(--text-muted, #888);
+		padding: 0.35rem 0.6rem;
+	}
+
+	.action-count {
+		font-size: 0.75rem;
+		color: inherit;
+	}
+
+	.discussion {
+		margin: 1.5rem 0 3rem;
+	}
+
+	.discussion-title {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 1rem;
+		font-weight: normal;
+		color: var(--text-primary, #1a1a1a);
+		margin: 0 0 1.25rem;
+	}
+
+	/* Desktop reading view — wider, centered */
+	.desktop-reading {
+		max-width: 680px;
+		margin: 0 auto;
+		padding: 0 40px 120px;
+	}
+
+	/* Text selection highlight popover */
+	.highlight-popover {
+		position: absolute;
+		transform: translateX(-50%) translateY(-100%);
+		background: var(--bg-primary, #fff);
+		border: 1px solid var(--border-link, rgba(0,0,0,0.12));
+		border-radius: 10px;
+		padding: 12px 14px;
+		box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+		z-index: 100;
+		width: 280px;
+	}
+
+	.highlight-quote-preview {
+		font-size: 12px;
+		color: var(--text-muted, #888);
+		font-style: italic;
+		margin: 0 0 8px 0;
+		line-height: 1.4;
+		border-left: 2px solid var(--border-link, rgba(0,0,0,0.15));
+		padding-left: 8px;
+	}
+
+	.highlight-input {
+		width: 100%;
+		box-sizing: border-box;
+		border: 1px solid var(--border-link, rgba(0,0,0,0.12));
+		border-radius: 6px;
+		padding: 8px 10px;
+		font: inherit;
+		font-size: 14px;
+		resize: none;
+		background: var(--bg-canvas, #f9f7f4);
+		color: var(--text-primary, #1a1a1a);
+	}
+
+	.highlight-actions {
+		display: flex;
+		justify-content: flex-end;
+		gap: 8px;
+		margin-top: 8px;
+	}
+
+	.highlight-cancel {
+		background: none;
+		border: none;
+		font: inherit;
+		font-size: 13px;
+		color: var(--text-muted, #888);
+		cursor: pointer;
+		padding: 4px 8px;
+	}
+
+	.highlight-submit {
+		background: var(--text-primary, #1a1a1a);
+		color: var(--bg-primary, #fff);
+		border: none;
+		border-radius: 6px;
+		font: inherit;
+		font-size: 13px;
+		padding: 5px 14px;
+		cursor: pointer;
+	}
+
+	.highlight-submit:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+	}
+
+	/* Highlights in discussion */
+	.highlights-section {
+		margin-top: 2rem;
+		border-top: 1px solid var(--border-link, rgba(0,0,0,0.08));
+		padding-top: 1.25rem;
+	}
+
+	.highlights-title {
+		font-size: 13px;
+		font-weight: 500;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: var(--text-muted, #888);
+		margin: 0 0 1rem 0;
+	}
+
+	.highlight-item {
+		margin-bottom: 1.5rem;
+	}
+
+	.highlight-selected-text {
+		font-style: italic;
+		font-size: 14px;
+		color: var(--text-secondary, #555);
+		border-left: 2px solid var(--text-muted, #c5b9ac);
+		margin: 0 0 8px 0;
+		padding: 4px 0 4px 12px;
+		line-height: 1.5;
+	}
+
+	.highlight-comment-row {
+		padding-left: 14px;
+	}
+
+	.highlight-comment-author {
+		font-size: 12px;
+		font-weight: 600;
+		color: var(--text-primary, #1a1a1a);
+	}
+
+	.highlight-comment-body {
+		font-size: 14px;
+		color: var(--text-secondary, #4a4a4a);
+		margin: 2px 0 0 0;
+	}
+
+	.visitor-cta {
+		padding: 1.25rem 0 1.5rem;
+		border-bottom: 1px solid var(--border-link);
+		margin-bottom: 1.5rem;
+	}
+
+	.visitor-cta-text {
+		margin: 0 0 1rem;
+		color: var(--text-muted);
+		font-size: 0.9rem;
+		line-height: 1.6;
+	}
+
+	.visitor-cta-btn {
+		display: inline-block;
+		padding: 0.55rem 1.1rem;
+		background: var(--text-primary, #1a1a1a);
+		color: var(--bg-canvas, #f5f3f0);
+		border-radius: 4px;
+		font-size: 0.9rem;
+		text-decoration: none;
+		transition: opacity 0.15s;
+	}
+
+	.visitor-cta-btn:hover {
+		opacity: 0.85;
+	}
+
+	.visitor-cta-login {
+		margin: 0.85rem 0 0;
+		font-size: 0.8rem;
+		color: var(--text-muted);
+	}
+
+	.visitor-cta-login a {
+		color: var(--text-primary);
+		text-decoration: underline;
+	}
+
+	.write-note-box {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		margin-bottom: 1.5rem;
+	}
+
+	.write-note-input {
+		width: 100%;
+		padding: 0.75rem;
+		border: 1px solid var(--border-link, rgba(0,0,0,0.12));
+		border-radius: 8px;
+		font-size: 0.9rem;
+		font-family: inherit;
+		background: var(--bg-canvas, #f5f3f0);
+		color: var(--text-primary, #1a1a1a);
+		resize: vertical;
+		box-sizing: border-box;
+		line-height: 1.5;
+	}
+
+	.write-note-input:focus { outline: none; border-color: var(--text-muted, #888); }
+	.write-note-input::placeholder { color: var(--text-muted, #aaa); }
+
+	.write-note-btn {
+		align-self: flex-end;
+		padding: 0.45rem 1.1rem;
+		background: var(--text-primary, #1a1a1a);
+		color: var(--bg-canvas, #f5f3f0);
+		border: none;
+		border-radius: 20px;
+		font-size: 0.85rem;
+		font-family: inherit;
+		cursor: pointer;
+		transition: opacity 0.15s;
+	}
+
+	.write-note-btn:disabled { opacity: 0.4; cursor: default; }
+	.write-note-btn:not(:disabled):hover { opacity: 0.8; }
+
+
+	.mobile-note-error {
+		font-size: 0.8rem;
+		color: #c0392b;
+		margin: 0;
+	}
+
+	.discussion-comments {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.discussion-comment {
+		padding: 1rem 0;
+		border-bottom: 1px solid var(--border-link, rgba(0,0,0,0.08));
+	}
+
+	.discussion-comment-header {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin-bottom: 0.4rem;
+	}
+
+	.discussion-comment-author {
+		font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+		font-size: 11px;
+		letter-spacing: 0.05em;
+		color: var(--text-primary, #1a1a1a);
+		font-weight: 500;
+	}
+
+	.discussion-comment-date {
+		font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+		font-size: 10px;
+		color: var(--text-muted, #aaa);
+		flex: 1;
+	}
+
+	.letter-btn {
+		background: none;
+		border: none;
+		padding: 0.2rem;
+		cursor: pointer;
+		color: var(--text-muted, #bbb);
+		display: flex;
+		align-items: center;
+		transition: color 0.15s;
+		border-radius: 4px;
+	}
+
+	.letter-btn:hover { color: var(--text-primary, #1a1a1a); }
+
+	.discussion-comment-body {
+		margin: 0;
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 0.95rem;
+		line-height: 1.55;
+		color: var(--text-primary, #1a1a1a);
+	}
+
+	.discussion-empty {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 0.9rem;
+		color: var(--text-muted, #aaa);
+		margin: 0.5rem 0;
+	}
+
+	.commenter-invite-btn {
+		display: flex;
+		align-items: center;
+		gap: 0.45rem;
+		margin-top: 1.5rem;
+		padding: 0.55rem 1rem;
+		background: none;
+		border: 1px solid var(--border-link, rgba(0,0,0,0.15));
+		border-radius: 20px;
+		font-size: 0.82rem;
+		font-family: inherit;
+		color: var(--text-muted, #888);
+		cursor: pointer;
+		transition: border-color 0.15s, color 0.15s;
+	}
+
+	.commenter-invite-btn:hover {
+		border-color: var(--text-primary, #1a1a1a);
+		color: var(--text-primary, #1a1a1a);
+	}
+
 
 	.mobile-nav {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 16px 0;
+		padding: 0.75rem 0;
 		margin-bottom: 8px;
 	}
 
@@ -403,7 +1213,7 @@
 	}
 
 	:global([data-theme='dark']) .site-logo {
-		filter: none;
+		filter: brightness(0) invert(1) opacity(0.7);
 	}
 
 	.menu-btn {
@@ -722,6 +1532,10 @@
 		background: var(--bg-control-hover);
 		color: var(--control-color-hover);
 		opacity: 1;
+	}
+
+	@media (max-width: 430px) {
+		.theme-toggle { display: none; }
 	}
 
 	/* Back navigation header (desktop) */

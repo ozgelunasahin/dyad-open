@@ -200,7 +200,7 @@
 		overflow: hidden;
 	}
 
-	@media (max-width: 768px) {
+	@media (max-width: 430px) {
 		.nav-panel {
 			position: absolute;
 			left: 0;

@@ -1,9 +1,12 @@
 <script lang="ts">
-	import { fly } from 'svelte/transition';
+	import { fly, slide } from 'svelte/transition';
 	import type { PageData } from './$types';
+	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
+	import MapView from '$lib/components/MapView.svelte';
 
 	let { data }: { data: PageData } = $props();
 	let mobileMenuOpen = $state(false);
+	let viewMode = $state<'list' | 'map'>('list');
 
 	function formatDate(date: string): string {
 		return new Intl.DateTimeFormat('en-US', {
@@ -91,6 +94,77 @@
 		selectedLocations = new Set();
 		locationQuery = '';
 	}
+
+	// --- Post-meeting feedback modal ---
+	// Show the first pending feedback on load
+	let activeFeedback = $state(
+		data.pendingFeedback && data.pendingFeedback.length > 0 ? data.pendingFeedback[0] : null
+	);
+
+	function dismissFeedback() {
+		// Move to next pending or clear
+		const idx = activeFeedback
+			? data.pendingFeedback.findIndex((f) => f.meetingId === activeFeedback!.meetingId)
+			: -1;
+		const next = data.pendingFeedback[idx + 1] ?? null;
+		activeFeedback = next;
+	}
+
+	// --- Comment + invite flow ---
+	let expandedId = $state<string | null>(null);
+	let commentText = $state('');
+	let submitting = $state(false);
+	let inviting = $state(false);
+	let commentedSet = $state<Set<string>>(new Set());
+	let invitedSet = $state<Set<string>>(new Set());
+	let panelError = $state('');
+
+	function toggleCard(id: string, username: string, slug: string) {
+		window.location.href = `/@${username}/${slug}`;
+	}
+
+	async function submitComment(canvasId: string) {
+		if (!commentText.trim() || submitting) return;
+		submitting = true;
+		panelError = '';
+		try {
+			const res = await fetch('/api/canvas-comments', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ canvas_id: canvasId, body: commentText })
+			});
+			if (res.ok) {
+				commentedSet = new Set([...commentedSet, canvasId]);
+				commentText = '';
+			} else {
+				const err = await res.json().catch(() => ({}));
+				panelError = (err as any).message ?? 'Failed to send note';
+			}
+		} finally {
+			submitting = false;
+		}
+	}
+
+	async function sendInvite(canvasId: string, inviteeId: string) {
+		if (inviting) return;
+		inviting = true;
+		panelError = '';
+		try {
+			const res = await fetch('/api/meetings', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ canvas_id: canvasId, invitee_id: inviteeId })
+			});
+			if (res.ok) {
+				invitedSet = new Set([...invitedSet, canvasId]);
+			} else {
+				const err = await res.json().catch(() => ({}));
+				panelError = (err as any).message ?? 'Failed to send invite';
+			}
+		} finally {
+			inviting = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -105,6 +179,9 @@
 		<nav class="sidebar-nav">
 			<a href="/discover" class="sidebar-link active">Discover</a>
 			<a href="/dashboard" class="sidebar-link">Profile</a>
+			{#if data.canPublishSites}
+				<a href="/dashboard#admin" class="sidebar-link">Admin</a>
+			{/if}
 		</nav>
 		<div class="sidebar-bottom">
 			<span class="sidebar-username">@{data.username}</span>
@@ -127,8 +204,7 @@
 		<div class="mobile-overlay" onclick={() => mobileMenuOpen = false}></div>
 		<aside class="mobile-panel" transition:fly={{ x: 300, duration: 250 }}>
 			<nav class="mobile-panel-nav">
-				<a href="/dashboard" onclick={() => mobileMenuOpen = false}>profile</a>
-				<a href="/" onclick={() => mobileMenuOpen = false}>home</a>
+				<a href="/dashboard" onclick={() => mobileMenuOpen = false}>dashboard</a>
 			</nav>
 			<div class="mobile-panel-bottom">
 				<span class="mobile-panel-user">@{data.username}</span>
@@ -137,11 +213,16 @@
 		</aside>
 	{/if}
 
+	{#if activeFeedback}
+		<FeedbackModal
+			meetingId={activeFeedback.meetingId}
+			otherUsername={activeFeedback.otherUsername}
+			onclose={dismissFeedback}
+			onsubmitted={dismissFeedback}
+		/>
+	{/if}
+
 	<main class="main-content">
-		<header class="page-header">
-			<h1>Discover</h1>
-			<p class="subtitle">Active conversations from the community this week.</p>
-		</header>
 
 		<div class="content">
 			{#if data.conversations.length === 0}
@@ -167,7 +248,7 @@
 							{/each}
 						</div>
 					</div>
-					<div class="filter-group">
+					<div class="filter-group where-group">
 						<span class="filter-label">Where</span>
 						<div class="location-filter">
 							{#each [...selectedLocations] as loc}
@@ -200,13 +281,32 @@
 								{/if}
 							</div>
 						</div>
+						<button
+							class="map-toggle-btn"
+							class:active={viewMode === 'map'}
+							onclick={() => viewMode = viewMode === 'map' ? 'list' : 'map'}
+							title={viewMode === 'map' ? 'Switch to list' : 'Switch to map'}
+						>
+							{#if viewMode === 'map'}
+								<svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+									<rect x="1" y="3" width="14" height="2" rx="1" fill="currentColor"/>
+									<rect x="1" y="7" width="14" height="2" rx="1" fill="currentColor"/>
+									<rect x="1" y="11" width="14" height="2" rx="1" fill="currentColor"/>
+								</svg>
+							{:else}
+								<svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+									<path d="M1 3l4 1.5L9 3l6 2v8l-6-2-4 1.5L1 11V3z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+									<path d="M5 4.5v9M9 3v8" stroke="currentColor" stroke-width="1.4"/>
+								</svg>
+							{/if}
+						</button>
 					</div>
 					{#if hasFilters}
 						<button class="clear-filters" onclick={clearFilters}>Clear all</button>
 					{/if}
 				</div>
 
-				{#if filteredConversations.length === 0}
+				{#if filteredConversations.length === 0 && viewMode !== 'map'}
 					<div class="empty-state">
 						<p>No conversations match your filters.</p>
 						<button class="clear-filters-link" onclick={clearFilters}>Clear filters</button>
@@ -214,33 +314,85 @@
 				{:else}
 					<div class="conversation-list">
 						{#each filteredConversations as conversation}
-							<a href="/@{conversation.username}/{conversation.slug}" class="conversation-row">
-								<div class="row-thumb">
-									{#if conversation.coverImageUrl}
-										<img src={conversation.coverImageUrl} alt="" class="thumb-img" />
-									{:else}
-										<div class="thumb-placeholder"></div>
-									{/if}
-								</div>
-								<div class="row-body">
-									<div class="row-top">
-										<h3 class="row-title">{conversation.name}</h3>
-										<span class="date">{formatDate(conversation.updatedAt)}</span>
+							<div class="conversation-item">
+								<!-- svelte-ignore a11y_no_static_element_interactions -->
+								<div
+									class="conversation-row"
+									class:expanded={expandedId === conversation.id}
+									role="button"
+									tabindex="0"
+									onclick={() => toggleCard(conversation.id, conversation.username, conversation.slug)}
+									onkeydown={(e) => e.key === 'Enter' && toggleCard(conversation.id, conversation.username, conversation.slug)}
+								>
+									<div class="row-thumb">
+										{#if conversation.coverImageUrl}
+											<img src={conversation.coverImageUrl} alt="" class="thumb-img" />
+										{:else}
+											<div class="thumb-placeholder"></div>
+										{/if}
 									</div>
-									{#if conversation.snippet}
-										<p class="row-snippet">{conversation.snippet}</p>
-									{/if}
-									<div class="row-meta">
-										<span class="author">@{conversation.username}</span>
+									<div class="row-body">
+										<div class="row-top">
+											<h3 class="row-title">{conversation.name}</h3>
+											<span class="date">{conversation.days.length > 0 ? conversation.days.join(' · ') : formatDate(conversation.updatedAt)}</span>
+										</div>
+										{#if conversation.snippet}
+											<p class="row-snippet">{conversation.snippet}</p>
+										{/if}
 									</div>
 								</div>
-							</a>
+
+								{#if expandedId === conversation.id}
+									<div class="comment-panel" transition:slide={{ duration: 180 }}>
+										{#if invitedSet.has(conversation.id)}
+											<p class="panel-success">Invite sent to @{conversation.username} — they'll be notified.</p>
+										{:else if commentedSet.has(conversation.id)}
+											<p class="panel-success">Your note was sent.</p>
+											<button
+												class="invite-btn"
+												onclick={() => sendInvite(conversation.id, conversation.userId)}
+												disabled={inviting}
+											>
+												{inviting ? 'Sending...' : `Invite @${conversation.username} to meet in person →`}
+											</button>
+										{:else}
+											<textarea
+												class="comment-input"
+												placeholder="Leave a note on this conversation..."
+												value={commentText}
+												oninput={(e) => commentText = (e.target as HTMLTextAreaElement).value}
+												rows={3}
+											></textarea>
+											{#if panelError}
+												<p class="panel-error">{panelError}</p>
+											{/if}
+											<div class="comment-actions">
+												<a href="/@{conversation.username}/{conversation.slug}" class="view-link">View full conversation</a>
+												<button
+													class="submit-btn"
+													onclick={() => submitComment(conversation.id)}
+													disabled={submitting || !commentText.trim()}
+												>{submitting ? 'Sending...' : 'Send note'}</button>
+											</div>
+										{/if}
+									</div>
+								{/if}
+							</div>
 						{/each}
 					</div>
 				{/if}
 			{/if}
 		</div>
 	</main>
+	{#if viewMode === 'map'}
+		<MapView
+			conversations={filteredConversations}
+			weekDates={weekDates}
+			selectedDays={selectedDays}
+			onToggleDay={toggleDay}
+			onClose={() => viewMode = 'list'}
+		/>
+	{/if}
 </div>
 
 <style>
@@ -279,6 +431,10 @@
 		height: auto;
 		object-fit: contain;
 		filter: brightness(0) opacity(0.4);
+	}
+
+	:global([data-theme='dark']) .sidebar-logo-img {
+		filter: brightness(0) invert(1) opacity(0.7);
 	}
 
 	.sidebar-nav {
@@ -352,10 +508,14 @@
 		flex: 1;
 		min-width: 0;
 		padding: 2rem;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
 	}
 
 	.page-header {
 		margin-bottom: 2rem;
+		width: 100%;
 		max-width: 800px;
 	}
 
@@ -373,11 +533,12 @@
 	}
 
 	.content {
+		width: 100%;
 		max-width: 800px;
 	}
 
 	/* Mobile: sidebar becomes top bar */
-	@media (max-width: 768px) {
+	@media (max-width: 430px) {
 		.app-layout {
 			flex-direction: column;
 		}
@@ -388,7 +549,7 @@
 			position: static;
 			flex-direction: row;
 			align-items: center;
-			padding: 0.75rem 1rem;
+			padding: 1rem 1.5rem;
 			border-right: none;
 			border-bottom: 1px solid var(--border-link);
 			gap: 1rem;
@@ -396,6 +557,12 @@
 
 		.sidebar-logo {
 			margin-bottom: 0;
+			padding: 0;
+		}
+
+		.sidebar-logo-img {
+			width: 28px;
+			height: auto;
 		}
 
 		.sidebar-nav {
@@ -700,25 +867,56 @@
 		color: var(--text-primary);
 	}
 
+	/* === Map toggle === */
+	.where-group {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.map-toggle-btn {
+		flex-shrink: 0;
+		width: 32px;
+		height: 32px;
+		border: 1px solid var(--border-link);
+		border-radius: 6px;
+		background: none;
+		color: var(--text-muted);
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: background 0.15s, color 0.15s;
+	}
+
+	.map-toggle-btn:hover {
+		background: var(--bg-control);
+		color: var(--text-primary);
+	}
+
+	.map-toggle-btn.active {
+		background: var(--text-primary);
+		color: var(--bg-canvas);
+		border-color: var(--text-primary);
+	}
+
 	/* === Conversation list === */
 	.conversation-list {
 		display: flex;
 		flex-direction: column;
 		gap: 0;
+		margin-top: 2rem;
+		margin-bottom: 3rem;
 	}
 
 	.conversation-row {
 		display: flex;
-		gap: 1rem;
-		padding: 1rem 0;
+		gap: 1.25rem;
+		padding: 1.5rem 0;
 		border-bottom: 1px solid var(--border-link);
 		text-decoration: none;
 		transition: background 0.15s;
-		align-items: flex-start;
-	}
-
-	.conversation-row:first-child {
-		padding-top: 0;
+		align-items: stretch;
 	}
 
 	.conversation-row:last-child {
@@ -727,34 +925,36 @@
 
 	.conversation-row:hover {
 		background: var(--bg-control, rgba(0, 0, 0, 0.02));
-		margin: 0 -0.5rem;
-		padding-left: 0.5rem;
-		padding-right: 0.5rem;
+		margin: 0 -0.75rem;
+		padding-left: 0.75rem;
+		padding-right: 0.75rem;
 		border-radius: 4px;
 	}
 
 	/* Thumbnail */
 	.row-thumb {
+		position: relative;
 		flex-shrink: 0;
-		width: 72px;
-		height: 72px;
+		width: 88px;
+		min-height: 96px;
 		border-radius: 6px;
 		overflow: hidden;
+		align-self: stretch;
 	}
 
 	.thumb-img {
+		position: absolute;
+		inset: 0;
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
-		display: block;
 	}
 
 	.thumb-placeholder {
-		width: 100%;
-		height: 100%;
+		position: absolute;
+		inset: 0;
 		background: var(--bg-control, rgba(0, 0, 0, 0.05));
 		border: 1px solid var(--border-link);
-		border-radius: 6px;
 	}
 
 	/* Body */
@@ -787,10 +987,10 @@
 	}
 
 	.row-snippet {
-		margin: 0.3rem 0 0;
+		margin: 0.4rem 0 0;
 		color: var(--text-secondary);
-		font-size: 0.88rem;
-		line-height: 1.45;
+		font-size: 0.9rem;
+		line-height: 1.55;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
 		-webkit-box-orient: vertical;
@@ -812,14 +1012,147 @@
 	}
 
 	/* Responsive: stack on mobile */
-	@media (max-width: 600px) {
+	@media (max-width: 430px) {
 		.conversation-row {
-			flex-wrap: wrap;
+			align-items: stretch;
 		}
 
 		.row-thumb {
-			width: 56px;
-			height: 56px;
+			width: 88px;
+			align-self: stretch;
 		}
+
+		.row-top {
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 0.2rem;
+		}
+
+		.date {
+			font-size: 0.75rem;
+			color: var(--text-muted);
+		}
+	}
+
+	/* === Expandable card & comment panel === */
+	.conversation-item {
+		border-bottom: 1px solid var(--border-link);
+	}
+
+	.conversation-item:last-child {
+		border-bottom: none;
+	}
+
+	.conversation-row {
+		cursor: pointer;
+		border-bottom: none;
+		user-select: none;
+	}
+
+	.conversation-row.expanded .row-title {
+		color: var(--text-muted);
+	}
+
+	.comment-panel {
+		padding: 0.75rem 0 1rem 108px; /* align with row body (thumb 88px + gap 20px) */
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.comment-input {
+		width: 100%;
+		padding: 0.6rem 0.75rem;
+		border: 1px solid var(--border-link);
+		border-radius: 6px;
+		font-size: 0.88rem;
+		font-family: inherit;
+		background: var(--bg-canvas);
+		color: var(--text-primary);
+		resize: vertical;
+		box-sizing: border-box;
+		line-height: 1.5;
+	}
+
+	.comment-input:focus {
+		outline: none;
+		border-color: var(--text-muted);
+	}
+
+	.comment-input::placeholder {
+		color: var(--text-muted);
+	}
+
+	.comment-actions {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 0.75rem;
+	}
+
+	.view-link {
+		font-size: 0.8rem;
+		color: var(--text-muted);
+		text-decoration: none;
+	}
+
+	.view-link:hover {
+		color: var(--text-primary);
+		text-decoration: underline;
+	}
+
+	.submit-btn {
+		padding: 0.45rem 1rem;
+		background: var(--text-primary);
+		color: var(--bg-canvas);
+		border: none;
+		border-radius: 4px;
+		font-size: 0.85rem;
+		font-family: inherit;
+		cursor: pointer;
+		transition: opacity 0.15s;
+	}
+
+	.submit-btn:disabled {
+		opacity: 0.4;
+		cursor: default;
+	}
+
+	.submit-btn:not(:disabled):hover {
+		opacity: 0.8;
+	}
+
+	.invite-btn {
+		padding: 0.5rem 1.1rem;
+		background: var(--text-primary);
+		color: var(--bg-canvas);
+		border: none;
+		border-radius: 4px;
+		font-size: 0.88rem;
+		font-family: inherit;
+		cursor: pointer;
+		transition: opacity 0.15s;
+		align-self: flex-start;
+	}
+
+	.invite-btn:disabled {
+		opacity: 0.5;
+		cursor: default;
+	}
+
+	.invite-btn:not(:disabled):hover {
+		opacity: 0.8;
+	}
+
+	.panel-success {
+		margin: 0;
+		font-size: 0.88rem;
+		color: var(--text-muted);
+	}
+
+	.panel-error {
+		margin: 0;
+		font-size: 0.8rem;
+		color: #c0392b;
 	}
 </style>

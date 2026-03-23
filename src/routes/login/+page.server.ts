@@ -7,7 +7,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	// Allow update password mode even if logged in (for recovery flow)
 	if (session && mode !== 'update') {
-		redirect(302, '/dashboard');
+		redirect(302, '/discover');
 	}
 
 	return { mode };
@@ -36,7 +36,7 @@ export const actions: Actions = {
 			return fail(400, { email: email.toString(), error: error.message });
 		}
 
-		redirect(302, '/dashboard');
+		redirect(302, '/discover');
 	},
 
 	logout: async ({ locals }) => {
@@ -77,6 +77,6 @@ export const actions: Actions = {
 			return fail(400, { error: error.message });
 		}
 
-		redirect(302, '/dashboard');
+		redirect(302, '/discover');
 	}
 };

@@ -500,7 +500,7 @@
 	}
 
 	/* === Responsive === */
-	@media (max-width: 768px) {
+	@media (max-width: 430px) {
 		.snap-section {
 			padding-top: 48px;
 		}

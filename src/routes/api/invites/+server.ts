@@ -25,7 +25,12 @@ async function requireAdmin(locals: App.Locals) {
 export const POST: RequestHandler = async ({ request, locals }) => {
 	await requireAdmin(locals);
 
-	const body = await request.json();
+	let body: Record<string, unknown>;
+	try {
+		body = await request.json();
+	} catch {
+		return json({ error: 'Invalid JSON body' }, { status: 400 });
+	}
 	const { email, name } = body;
 
 	if (!email || typeof email !== 'string') {
@@ -74,7 +79,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		.insert({
 			email: email.trim(),
 			token,
-			expires_at: expiresAt.toISOString()
+			expires_at: expiresAt.toISOString(),
+			invited_by: locals.user.id
 		});
 
 	if (dbError) {
@@ -89,22 +95,26 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const displayName = (typeof name === 'string' && name.trim()) || 'there';
 	if (env.RESEND_API_KEY) {
 		const resend = new Resend(env.RESEND_API_KEY);
-		resend.emails.send({
-		from: 'dyad. <hello@dyad.berlin>',
-		to: email.trim(),
-		subject: "You're invited to dyad.",
-		html: `
-			<div style="font-family: Georgia, serif; max-width: 520px; margin: 0 auto; padding: 40px 20px; color: #1a1a1a; line-height: 1.7;">
-				<p>Hi ${displayName},</p>
-				<p>You've been invited to join dyad — a community of independent thinkers who meet through writing.</p>
-				<p>Your invitation link:</p>
-				<p><a href="${inviteUrl}" style="color: #1a1a1a; font-weight: bold;">${inviteUrl}</a></p>
-				<p style="font-size: 14px; color: #666;">This link expires in ${INVITE_EXPIRY_DAYS} days.</p>
-				<hr style="border: none; border-top: 1px solid #e0ddd8; margin: 32px 0 16px;" />
-				<p style="font-size: 12px; color: #999;">dyad.berlin — cultivating a culture of conversation</p>
-			</div>
-		`
-		}).catch(err => console.error('Failed to send invite email:', err));
+		try {
+			await resend.emails.send({
+				from: 'dyad. <hello@dyad.berlin>',
+				to: email.trim(),
+				subject: "Welcome to dyad.",
+				html: `
+					<div style="font-family: Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 40px 20px; color: #1a1a1a; line-height: 1.7;">
+						<p>Hi ${displayName},</p>
+						<p>You've been invited to join dyad — a community of independent thinkers who meet through writing.</p>
+						<p><a href="${inviteUrl}" style="color: #1a1a1a; font-weight: bold; text-decoration: underline;">Join dyad</a></p>
+						<p style="font-size: 14px; color: #666;">This link expires in ${INVITE_EXPIRY_DAYS} days.</p>
+						<hr style="border: none; border-top: 1px solid #e0ddd8; margin: 32px 0 16px;" />
+						<a href="https://dyad.berlin" style="display: inline-block;"><img src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/logo%20dark.png" alt="dyad" style="height: 32px; width: auto; margin-bottom: 8px;" /></a>
+						<p style="font-size: 12px; color: #999; margin: 0;">cultivating a culture of conversation</p>
+					</div>
+				`
+			});
+		} catch (err) {
+			console.error('[invites] Failed to send invite email:', err);
+		}
 	}
 
 	return json({ ok: true, inviteUrl });
