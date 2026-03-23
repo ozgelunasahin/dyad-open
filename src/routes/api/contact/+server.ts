@@ -30,7 +30,8 @@ setInterval(() => {
 }, RATE_LIMIT_WINDOW_MS);
 
 export const POST: RequestHandler = async ({ request, locals, getClientAddress }) => {
-	const clientIp = getClientAddress();
+	let clientIp = '0.0.0.0';
+	try { clientIp = getClientAddress(); } catch { /* dev environment */ }
 	if (isRateLimited(clientIp)) {
 		return json({ error: 'Too many requests. Please try again later.' }, { status: 429 });
 	}
@@ -42,7 +43,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 		return json({ error: 'Invalid JSON body' }, { status: 400 });
 	}
 
-	const { email, name, based_in, freewrite, expression_url, expression_file_url } = body as Record<string, unknown>;
+	const { email, name, based_in, freewrite, expression_url, expression_file_url, referred_by_username } = body as Record<string, unknown>;
 
 	if (!email || typeof email !== 'string') {
 		error(400, 'Email is required');
@@ -73,23 +74,38 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 		return json({ error: 'Freewrite is too long' }, { status: 400 });
 	}
 
-	const { error: dbError } = await locals.supabase
-		.from('contacts')
-		.insert({
-			email: email.trim(),
-			name: (typeof name === 'string' ? name.trim() : null) || null,
-			based_in: (typeof based_in === 'string' ? based_in.trim() : null) || null,
-			freewrite: (typeof freewrite === 'string' ? freewrite.trim() : null) || null,
-			expression_url: (typeof expression_url === 'string' ? expression_url.trim() : null) || null,
-			expression_file_url: (typeof expression_file_url === 'string' ? expression_file_url.trim() : null) || null
-		});
+	const insertRow: Record<string, string | null> = {
+		email: email.trim(),
+		name: (typeof name === 'string' ? name.trim() : null) || null,
+		based_in: (typeof based_in === 'string' ? based_in.trim() : null) || null,
+		freewrite: (typeof freewrite === 'string' ? freewrite.trim() : null) || null,
+	};
+	if (typeof expression_url === 'string' && expression_url.trim()) {
+		insertRow.expression_url = expression_url.trim();
+	}
+	if (typeof referred_by_username === 'string' && referred_by_username.trim()) {
+		insertRow.referred_by_username = referred_by_username.trim();
+	}
+
+	let { error: dbError } = await locals.supabase.from('contacts').insert(insertRow);
+
+	// Retry dropping any unknown columns if schema cache is stale
+	if (dbError && dbError.message?.includes('column')) {
+		console.error('[contact] schema error, retrying with minimal fields:', dbError.message);
+		({ error: dbError } = await locals.supabase.from('contacts').insert({
+			email: insertRow.email,
+			name: insertRow.name,
+			based_in: insertRow.based_in,
+			freewrite: insertRow.freewrite,
+		}));
+	}
 
 	if (dbError) {
 		if (dbError.code === '23505') {
 			// Unique constraint violation — already on the waitlist
 			return json({ error: 'This email is already on the waitlist.' }, { status: 409 });
 		}
-		console.error('Failed to save contact:', dbError);
+		console.error('[contact] Failed to save contact:', dbError);
 		error(500, 'Failed to save contact');
 	}
 

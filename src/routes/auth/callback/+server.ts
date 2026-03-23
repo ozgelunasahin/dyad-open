@@ -14,5 +14,5 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		redirect(303, '/login?mode=update');
 	}
 
-	redirect(303, '/dashboard');
+	redirect(303, '/discover');
 };
