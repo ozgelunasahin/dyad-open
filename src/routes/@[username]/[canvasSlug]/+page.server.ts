@@ -64,7 +64,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 	const { data: notes } = await locals.supabase
 		.from('notes')
 		.select('slug, title, content, wikilinks, canvas_id')
-		.eq('canvas_id', canvas.id);
+		.eq('canvas_id', canvas.id)
+		.order('created_at', { ascending: true });
 
 	// Build vault object for the canvas store
 	const vault = {
