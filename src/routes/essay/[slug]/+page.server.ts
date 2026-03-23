@@ -32,7 +32,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		locals.supabase
 			.from('notes')
 			.select('slug, title, content, wikilinks, canvas_id')
-			.eq('canvas_id', canvas.id),
+			.eq('canvas_id', canvas.id)
+			.order('created_at', { ascending: true }),
 		locals.supabase
 			.from('card_positions')
 			.select('id, note_id, x, y, width, height, parent_card_id, source_link_x, source_link_y')

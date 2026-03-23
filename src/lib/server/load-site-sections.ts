@@ -95,7 +95,8 @@ export async function loadSiteSections(
 			supabase
 				.from('notes')
 				.select('slug, title, content, wikilinks, canvas_id')
-				.in('canvas_id', canvasIds),
+				.in('canvas_id', canvasIds)
+				.order('created_at', { ascending: true }),
 			supabase
 				.from('card_positions')
 				.select('id, note_id, x, y, width, height, parent_card_id, source_link_x, source_link_y, canvas_id')
