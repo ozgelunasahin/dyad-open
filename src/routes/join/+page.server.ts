@@ -30,7 +30,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 };
 
 export const actions: Actions = {
-	signup: async ({ request, locals }) => {
+	signup: async ({ request, locals, cookies }) => {
 		const formData = await request.formData();
 		const token = formData.get('token');
 		const username = formData.get('username');
@@ -103,14 +103,48 @@ export const actions: Actions = {
 			locals.supabase.rpc('confirm_user_email', { user_email: email })
 		]);
 
-		// Sign in immediately so the user doesn't have to log in again
+		// Resolve referred_by: check invitation's invited_by first, then dyad_ref cookie
+		let referredById: string | null = null;
+
+		// 1. Check if invitation has invited_by
+		const { data: invRow } = await locals.supabase
+			.from('invitations')
+			.select('invited_by')
+			.eq('token', token)
+			.single();
+		if (invRow?.invited_by) {
+			referredById = invRow.invited_by;
+		}
+
+		// 2. Fall back to dyad_ref cookie (username → resolve to user id)
+		if (!referredById) {
+			const refUsername = cookies.get('dyad_ref');
+			if (refUsername) {
+				const { data: refProfile } = await locals.supabase
+					.from('profiles')
+					.select('id')
+					.eq('username', refUsername)
+					.single();
+				if (refProfile) referredById = refProfile.id;
+			}
+		}
+
+		// Sign in immediately so we can update the profile
 		const { error: signInError } = await locals.supabase.auth.signInWithPassword({
 			email,
 			password
 		});
 
+		// Set referred_by on the new user's profile (look up by username since we just signed in)
+		if (referredById) {
+			await locals.supabase
+				.from('profiles')
+				.update({ referred_by: referredById })
+				.eq('username', username as string);
+		}
+
 		if (!signInError) {
-			redirect(302, '/dashboard');
+			redirect(302, '/discover');
 		}
 
 		// Fallback if auto-sign-in fails (e.g., email confirmation required)

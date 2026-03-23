@@ -18,7 +18,7 @@
 		updated_at: string;
 	}
 
-	let { currentUserId }: { currentUserId: string } = $props();
+	let { currentUserId, upcomingCount = $bindable(0) }: { currentUserId: string; upcomingCount?: number } = $props();
 
 	let meetings = $state<Meeting[]>([]);
 	let loading = $state(true);
@@ -67,9 +67,25 @@
 		}).format(new Date(dateStr));
 	}
 
+	function isMeetingInPast(proposedTime: string | null): boolean {
+		if (!proposedTime) return false;
+		try {
+			const currentYear = new Date().getFullYear();
+			const cleaned = proposedTime.replace(/^[A-Za-z]+,\s*/, '').replace(' at ', ' ');
+			const parsed = new Date(`${cleaned} ${currentYear}`);
+			if (isNaN(parsed.getTime())) return false;
+			return parsed.getTime() + 2 * 60 * 60 * 1000 < Date.now();
+		} catch { return false; }
+	}
+
 	let pendingMeetings = $derived(meetings.filter((m) => m.status === 'pending'));
-	let acceptedMeetings = $derived(meetings.filter((m) => m.status === 'accepted'));
+	let upcomingMeetings = $derived(meetings.filter((m) => m.status === 'accepted' && !isMeetingInPast(m.proposed_time)));
+	let pastMeetings = $derived(meetings.filter((m) => m.status === 'accepted' && isMeetingInPast(m.proposed_time)));
 	let declinedMeetings = $derived(meetings.filter((m) => m.status === 'declined'));
+
+	$effect(() => {
+		upcomingCount = upcomingMeetings.length;
+	});
 </script>
 
 {#if loading}
@@ -123,10 +139,10 @@
 		</div>
 	{/if}
 
-	{#if acceptedMeetings.length > 0}
+	{#if upcomingMeetings.length > 0}
 		<div class="meeting-group">
 			<h3 class="group-label">Confirmed</h3>
-			{#each acceptedMeetings as meeting (meeting.id)}
+			{#each upcomingMeetings as meeting (meeting.id)}
 				{@const isInvitee = meeting.invitee_id === currentUserId}
 				<div class="meeting-card confirmed">
 					<div class="meeting-header">
@@ -141,6 +157,26 @@
 					{/if}
 					{#if meeting.proposed_time}
 						<p class="meeting-detail">Time: {meeting.proposed_time}</p>
+					{/if}
+				</div>
+			{/each}
+		</div>
+	{/if}
+
+	{#if pastMeetings.length > 0}
+		<div class="meeting-group">
+			<h3 class="group-label">Past</h3>
+			{#each pastMeetings as meeting (meeting.id)}
+				{@const isInvitee = meeting.invitee_id === currentUserId}
+				<div class="meeting-card past">
+					<div class="meeting-header">
+						<span class="meeting-with">
+							With @{isInvitee ? meeting.inviter_username : meeting.invitee_username}
+						</span>
+					</div>
+					<p class="meeting-canvas">Re: {meeting.canvas_name}</p>
+					{#if meeting.proposed_time}
+						<p class="meeting-detail">{meeting.proposed_time}</p>
 					{/if}
 				</div>
 			{/each}
@@ -206,6 +242,10 @@
 
 	.meeting-card.confirmed {
 		border-color: rgba(40, 167, 69, 0.3);
+	}
+
+	.meeting-card.past {
+		opacity: 0.55;
 	}
 
 	.meeting-card.declined {

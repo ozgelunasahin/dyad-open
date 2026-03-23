@@ -1,21 +1,24 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { onMount } from 'svelte';
+	import { fly } from 'svelte/transition';
 	import MeetingsSection from '$lib/components/MeetingsSection.svelte';
 	import PlaceSearch from '$lib/components/PlaceSearch.svelte';
 	import type { PageData, ActionData } from './$types';
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+	let mobileMenuOpen = $state(false);
 	let showDeleteModal = $state<string | null>(null);
 	let creating = $state(false);
 	let deleting = $state(false);
 
 	// Tab state
-	let mainTab = $state<'writing' | 'conversations' | 'meetings'>('writing');
+	let mainTab = $state<'conversations' | 'meetings' | 'bookmarks' | 'archive'>('conversations');
 	let activeTab = $state<string>('sites');
-	let sidebarView = $state<'profile' | 'dashboard'>('profile');
+	let sidebarView = $state<'profile' | 'dashboard' | 'archive'>('profile');
 
 	// Notification state for meetings tab badge
 	let unreadMeetingCount = $state(0);
+	let upcomingMeetingCount = $state(0);
 
 	onMount(async () => {
 		try {
@@ -467,7 +470,7 @@
 </script>
 
 <svelte:head>
-	<title>On My Mind - dyad.berlin</title>
+	<title>dyad.berlin</title>
 </svelte:head>
 
 <div class="app-layout">
@@ -478,19 +481,43 @@
 		<nav class="sidebar-nav">
 			<a href="/discover" class="sidebar-link">Discover</a>
 			<a href="/dashboard" class="sidebar-link" class:active={sidebarView === 'profile'} onclick={(e) => { e.preventDefault(); sidebarView = 'profile'; }}>Profile</a>
-			<a href="/dashboard" class="sidebar-link" class:active={sidebarView === 'dashboard'} onclick={(e) => { e.preventDefault(); sidebarView = 'dashboard'; }}>Dashboard</a>
+			<a href="/dashboard" class="sidebar-link" class:active={sidebarView === 'archive'} onclick={(e) => { e.preventDefault(); sidebarView = 'archive'; }}>Archive{#if (data.archived ?? []).length > 0} <span class="sidebar-count">{(data.archived ?? []).length}</span>{/if}</a>
+			{#if data.canPublishSites}
+				<a href="/dashboard" class="sidebar-link" class:active={sidebarView === 'dashboard'} onclick={(e) => { e.preventDefault(); sidebarView = 'dashboard'; }}>Admin</a>
+			{/if}
 		</nav>
 		<div class="sidebar-bottom">
 			<span class="sidebar-username">@{data.username}</span>
 			<a href="/logout" class="sidebar-logout">sign out</a>
 		</div>
+		<button class="mobile-menu-btn" onclick={() => mobileMenuOpen = !mobileMenuOpen} aria-label="Menu">
+			{#if mobileMenuOpen}
+				<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+					<path d="M4 4l12 12M16 4L4 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+				</svg>
+			{:else}
+				<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+					<path d="M3 6h14M3 10h14M3 14h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+				</svg>
+			{/if}
+		</button>
 	</aside>
+	{#if mobileMenuOpen}
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div class="mobile-overlay" onclick={() => mobileMenuOpen = false}></div>
+		<aside class="mobile-panel" transition:fly={{ x: 300, duration: 250 }}>
+			<nav class="mobile-panel-nav">
+				<a href="/discover" onclick={() => mobileMenuOpen = false}>discover</a>
+				<a href="/dashboard" onclick={() => mobileMenuOpen = false}>dashboard</a>
+			</nav>
+			<div class="mobile-panel-bottom">
+				<span class="mobile-panel-user">@{data.username}</span>
+				<a href="/logout" onclick={() => mobileMenuOpen = false}>sign out</a>
+			</div>
+		</aside>
+	{/if}
 
 	<main class="main-content">
-		<header class="page-header">
-			<h1>{sidebarView === 'dashboard' ? 'Dashboard' : 'On My Mind'}</h1>
-		</header>
-
 		{#if form?.error}
 			<div class="error-message">{form.error}</div>
 		{/if}
@@ -500,18 +527,20 @@
 
 		<div class="content">
 		{#if sidebarView === 'profile'}
+
 		<nav class="main-tabs">
-			<button class="main-tab" class:active={mainTab === 'writing'} onclick={() => (mainTab = 'writing')}>
-				Writing
-				{#if data.canvases.length + inactiveConversations.length > 0}<span class="tab-count">{data.canvases.length + inactiveConversations.length}</span>{/if}
-			</button>
 			<button class="main-tab" class:active={mainTab === 'conversations'} onclick={() => (mainTab = 'conversations')}>
 				Conversations
-				{#if activeConversations.length > 0}<span class="tab-count">{activeConversations.length}</span>{/if}
+				{#if data.conversations.length > 0}<span class="tab-count">{data.conversations.length}</span>{/if}
 			</button>
 			<button class="main-tab" class:active={mainTab === 'meetings'} onclick={switchToMeetings}>
 				Meetings
+				{#if upcomingMeetingCount > 0}<span class="tab-count">{upcomingMeetingCount}</span>{/if}
 				{#if unreadMeetingCount > 0}<span class="notification-dot"></span>{/if}
+			</button>
+			<button class="main-tab" class:active={mainTab === 'bookmarks'} onclick={() => (mainTab = 'bookmarks')}>
+				Bookmarks
+				{#if data.bookmarks.length > 0}<span class="tab-count">{data.bookmarks.length}</span>{/if}
 			</button>
 		</nav>
 
@@ -532,48 +561,60 @@
 					</form>
 				</div>
 
-				{#if activeConversations.length === 0}
+				{#if data.conversations.length === 0}
 					<div class="empty-state">
-						<p>No active conversations this week.</p>
+						<p>No conversations yet.</p>
 					</div>
 				{:else}
 					<div class="canvas-grid">
-						{#each activeConversations as conversation}
-							<div class="canvas-card conversation-card">
+						{#each data.conversations as conversation}
+							<div class="canvas-card conversation-card" class:inactive={!conversation.active_this_week}>
 								<a href="/canvas/{conversation.id}" class="conversation-link">
 									<div class="canvas-header">
 										<h3 class:untitled={conversation.name === 'Untitled'}>{conversation.name === 'Untitled' ? 'Untitled conversation' : conversation.name}</h3>
 										<span class="date">{formatDate(conversation.updated_at)}</span>
 									</div>
+									{#if !conversation.active_this_week}
+										<span class="inactive-badge">inactive</span>
+									{/if}
 								</a>
 								<div class="conversation-actions">
-									<button
-										class="toggle-btn"
-										onclick={(e) => { e.preventDefault(); e.stopPropagation(); openAvailabilityModal(conversation.id, conversation.preferred_time_slots, true); }}
-									>
-										Edit availability
-									</button>
-									<form
-										method="POST"
-										action="?/toggleActiveThisWeek"
-										use:enhance={() => {
-											togglingConversation = conversation.id;
-											return async ({ update }) => {
-												togglingConversation = null;
-												await update();
-											};
-										}}
-									>
-										<input type="hidden" name="canvasId" value={conversation.id} />
-										<input type="hidden" name="action" value="deactivate" />
+									{#if conversation.active_this_week}
 										<button
-											type="submit"
-											class="toggle-btn active"
-											disabled={togglingConversation === conversation.id}
+											class="toggle-btn"
+											onclick={(e) => { e.preventDefault(); e.stopPropagation(); openAvailabilityModal(conversation.id, conversation.preferred_time_slots, true); }}
 										>
-											Active this week
+											Edit availability
 										</button>
-									</form>
+										<form
+											method="POST"
+											action="?/toggleActiveThisWeek"
+											use:enhance={() => {
+												togglingConversation = conversation.id;
+												return async ({ update }) => {
+													togglingConversation = null;
+													await update();
+												};
+											}}
+										>
+											<input type="hidden" name="canvasId" value={conversation.id} />
+											<input type="hidden" name="action" value="deactivate" />
+											<button
+												type="submit"
+												class="toggle-btn active"
+												disabled={togglingConversation === conversation.id}
+											>
+												Active this week
+											</button>
+										</form>
+									{:else}
+										<button
+											class="toggle-btn"
+											onclick={(e) => { e.preventDefault(); e.stopPropagation(); openAvailabilityModal(conversation.id, conversation.preferred_time_slots); }}
+										>
+											publish this week
+										</button>
+									{/if}
 									<form method="POST" action="?/toggleArchive" use:enhance>
 										<input type="hidden" name="canvasId" value={conversation.id} />
 										<input type="hidden" name="archive" value="true" />
@@ -589,88 +630,58 @@
 			</section>
 		{/if}
 
-		<!-- ============ WRITING TAB ============ -->
-		{#if mainTab === 'writing'}
+		<!-- ============ MEETINGS TAB ============ -->
+		{#if mainTab === 'meetings'}
 			<section class="section">
-				<div class="section-header">
-					<form method="POST" action="?/createWriting" use:enhance={() => {
-						creating = true;
-						return async ({ update }) => {
-							creating = false;
-							await update();
-						};
-					}}>
-						<button type="submit" class="create-btn" disabled={creating}>
-							{creating ? 'creating...' : '+ new canvas'}
-						</button>
-					</form>
-				</div>
+				<MeetingsSection currentUserId={data.user.id} bind:upcomingCount={upcomingMeetingCount} />
+			</section>
+		{/if}
 
-				{#if data.canvases.length === 0 && inactiveConversations.length === 0}
+		<!-- ============ BOOKMARKS TAB ============ -->
+		{#if mainTab === 'bookmarks'}
+			<section class="section">
+				{#if data.bookmarks.length === 0}
 					<div class="empty-state-subtle">
-						<p>Your writing lives here.</p>
+						<p>Save conversations you want to return to.</p>
 					</div>
 				{:else}
 					<div class="canvas-grid">
-						{#each inactiveConversations as conversation}
+						{#each data.bookmarks as bookmark}
 							<div class="canvas-card">
-								<a href="/canvas/{conversation.id}" class="conversation-link">
+								<a href="/@{bookmark.username}/{bookmark.slug}" class="conversation-link">
 									<div class="canvas-header">
-										<h3 class:untitled={conversation.name === 'Untitled'}>{conversation.name === 'Untitled' ? 'Untitled conversation' : conversation.name}</h3>
-										<span class="date">{formatDate(conversation.updated_at)}</span>
+										<h3>{bookmark.name}</h3>
+										<span class="date">@{bookmark.username}</span>
 									</div>
 								</a>
-								<div class="conversation-actions">
-									<button
-										class="toggle-btn"
-										onclick={(e) => { e.preventDefault(); e.stopPropagation(); openAvailabilityModal(conversation.id, conversation.preferred_time_slots); }}
-									>
-										publish as conversation
-									</button>
-									<form method="POST" action="?/toggleArchive" use:enhance>
-										<input type="hidden" name="canvasId" value={conversation.id} />
-										<input type="hidden" name="archive" value="true" />
-										<button type="submit" class="archive-btn" title="Archive">
-											<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="2" width="14" height="4" rx="1" /><path d="M2 6v7a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V6" /><path d="M6 9h4" /></svg>
-										</button>
-									</form>
-								</div>
-							</div>
-						{/each}
-						{#each data.canvases as canvas}
-							<div class="canvas-card">
-								<a href="/canvas/{canvas.id}" class="conversation-link">
-									<div class="canvas-header">
-										<h3>{canvas.name}</h3>
-										<span class="date">{formatDate(canvas.updated_at)}</span>
-									</div>
-								</a>
-								<div class="conversation-actions">
-									<form method="POST" action="?/publishAsConversation" use:enhance>
-										<input type="hidden" name="canvasId" value={canvas.id} />
-										<button type="submit" class="toggle-btn">publish as conversation</button>
-									</form>
-									<form method="POST" action="?/toggleArchive" use:enhance>
-										<input type="hidden" name="canvasId" value={canvas.id} />
-										<input type="hidden" name="archive" value="true" />
-										<button type="submit" class="archive-btn" title="Archive">
-											<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="2" width="14" height="4" rx="1" /><path d="M2 6v7a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V6" /><path d="M6 9h4" /></svg>
-										</button>
-									</form>
-								</div>
 							</div>
 						{/each}
 					</div>
 				{/if}
 			</section>
+		{/if}
 
-			<!-- Archive (only visible under Writing tab) -->
-			{#if (data.archived ?? []).length > 0}
-				<section class="section section-muted">
-					<div class="section-header">
-						<h2 class="section-title section-title-muted">Archive</h2>
+		<!-- ====== CONNECTIONS TREE ====== -->
+		{#if data.referrals && data.referrals.length > 0}
+			<div class="connections-tree">
+				<div class="connections-root">@{data.username}</div>
+				{#each data.referrals as referral}
+					<div class="connections-child">└→ @{referral.username}</div>
+				{/each}
+			</div>
+		{/if}
+
+		{/if}
+
+		<!-- ============ ARCHIVE VIEW (sidebar nav) ============ -->
+		{#if sidebarView === 'archive'}
+			<section class="section">
+				<h2 class="section-title" style="margin-bottom: 1.5rem">Archive</h2>
+				{#if (data.archived ?? []).length === 0}
+					<div class="empty-state-subtle">
+						<p>Nothing archived yet.</p>
 					</div>
-
+				{:else}
 					<div class="canvas-grid">
 						{#each data.archived ?? [] as item}
 							<div class="canvas-card archived-card">
@@ -696,17 +707,8 @@
 							</div>
 						{/each}
 					</div>
-				</section>
-			{/if}
-		{/if}
-
-		<!-- ============ MEETINGS TAB ============ -->
-		{#if mainTab === 'meetings'}
-			<section class="section">
-				<MeetingsSection currentUserId={data.user.id} />
+				{/if}
 			</section>
-		{/if}
-
 		{/if}
 
 		<!-- ============ DASHBOARD VIEW (admin) ============ -->
@@ -1205,6 +1207,10 @@
 		filter: brightness(0) opacity(0.4);
 	}
 
+	:global([data-theme='dark']) .sidebar-logo-img {
+		filter: brightness(0) invert(1) opacity(0.7);
+	}
+
 	.sidebar-nav {
 		display: flex;
 		flex-direction: column;
@@ -1229,6 +1235,27 @@
 	.sidebar-link.active {
 		color: var(--text-primary);
 		font-weight: 500;
+	}
+
+	.sidebar-count {
+		display: inline-block;
+		background: var(--bg-control);
+		border-radius: 8px;
+		padding: 0 5px;
+		font-size: 0.7rem;
+		color: var(--text-muted);
+		vertical-align: middle;
+		margin-left: 2px;
+	}
+
+	.inactive-badge {
+		font-size: 0.7rem;
+		color: var(--text-muted);
+		background: var(--bg-control);
+		border-radius: 4px;
+		padding: 1px 6px;
+		margin-top: 4px;
+		display: inline-block;
 	}
 
 	.sidebar-bottom {
@@ -1278,6 +1305,60 @@
 		max-width: 1200px;
 	}
 
+	/* === Connections tree === */
+	.connections-tree {
+		margin-top: 2.5rem;
+		padding-top: 1.5rem;
+		border-top: 1px solid var(--border-link);
+		font-size: 0.9rem;
+		line-height: 2;
+	}
+
+	.connections-root {
+		color: var(--text-primary);
+		font-weight: 500;
+	}
+
+	.connections-child {
+		color: var(--text-muted);
+		padding-left: 0.5rem;
+	}
+
+	/* === Profile header (are.na style) === */
+	.profile-header {
+		border-top: 1px solid var(--border-link);
+		border-bottom: 1px solid var(--border-link);
+		margin-bottom: 2rem;
+	}
+
+	.profile-row {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		padding: 0.6rem 0;
+		border-bottom: 1px solid var(--border-link);
+	}
+
+	.profile-row:last-child {
+		border-bottom: none;
+	}
+
+	.profile-label {
+		color: var(--text-muted);
+		font-size: 0.9rem;
+	}
+
+	.profile-row:first-child .profile-label {
+		color: var(--text-primary);
+		font-weight: 500;
+		font-size: 1rem;
+	}
+
+	.profile-value {
+		color: var(--text-primary);
+		font-size: 0.9rem;
+	}
+
 	/* === Main content tabs (Conversations / Writing) === */
 	.main-tabs {
 		display: flex;
@@ -1325,9 +1406,40 @@
 	}
 
 	/* Mobile: sidebar becomes top bar */
-	@media (max-width: 768px) {
+	/* Hamburger — hidden on desktop */
+	.mobile-menu-btn {
+		display: none;
+		background: none;
+		border: none;
+		padding: 4px;
+		cursor: pointer;
+		color: var(--text-primary, #1a1a1a);
+		align-items: center;
+		justify-content: center;
+	}
+
+	/* Slide-in panel — hidden on desktop */
+	.mobile-overlay, .mobile-panel {
+		display: none;
+	}
+
+	@media (max-width: 430px) {
 		.app-layout {
 			flex-direction: column;
+		}
+
+		.main-tabs {
+			width: 100%;
+		}
+
+		.main-tab {
+			flex: 1;
+			padding: 0.6rem 0.25rem;
+			font-size: 0.8rem;
+			text-align: center;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
 		}
 
 		.sidebar {
@@ -1336,7 +1448,7 @@
 			position: static;
 			flex-direction: row;
 			align-items: center;
-			padding: 0.75rem 1rem;
+			padding: 0.75rem 2rem;
 			border-right: none;
 			border-bottom: 1px solid var(--border-link);
 			gap: 1rem;
@@ -1347,16 +1459,87 @@
 		}
 
 		.sidebar-nav {
-			flex-direction: row;
-			gap: 0.5rem;
+			display: none;
 		}
 
 		.sidebar-bottom {
-			margin-top: 0;
+			display: none;
+		}
+
+		.mobile-menu-btn {
+			display: flex;
 			margin-left: auto;
-			flex-direction: row;
-			align-items: center;
-			gap: 0.75rem;
+		}
+
+		.mobile-overlay {
+			display: block;
+			position: fixed;
+			inset: 0;
+			background: rgba(0, 0, 0, 0.15);
+			z-index: 200;
+		}
+
+		.mobile-panel {
+			display: flex;
+			flex-direction: column;
+			position: fixed;
+			top: 0;
+			right: 0;
+			width: 280px;
+			max-width: 80vw;
+			height: 100vh;
+			background: var(--bg-canvas, #f5f3f0);
+			z-index: 300;
+			padding: 24px;
+			box-sizing: border-box;
+			box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1);
+		}
+
+		.mobile-panel-nav {
+			display: flex;
+			flex-direction: column;
+			gap: 0;
+			margin-top: 32px;
+		}
+
+		.mobile-panel-nav a {
+			font-family: 'SangBleu Sunrise', Georgia, serif;
+			font-size: 18px;
+			font-weight: 500;
+			color: var(--text-primary, #1a1a1a);
+			text-decoration: none;
+			padding: 14px 0;
+			border-bottom: 1px solid var(--border-link, rgba(0, 0, 0, 0.1));
+			transition: color 0.15s;
+		}
+
+		.mobile-panel-nav a:hover {
+			color: var(--text-muted, #666);
+		}
+
+		.mobile-panel-bottom {
+			margin-top: auto;
+			display: flex;
+			flex-direction: column;
+			gap: 12px;
+		}
+
+		.mobile-panel-user {
+			font-family: monospace;
+			font-size: 13px;
+			color: var(--text-muted, #666);
+		}
+
+		.mobile-panel-bottom a {
+			font-family: 'SangBleu Sunrise', Georgia, serif;
+			font-size: 16px;
+			color: var(--text-secondary, #333);
+			text-decoration: none;
+			transition: color 0.15s;
+		}
+
+		.mobile-panel-bottom a:hover {
+			color: var(--text-primary, #1a1a1a);
 		}
 	}
 

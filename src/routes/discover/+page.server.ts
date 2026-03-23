@@ -2,6 +2,79 @@ import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { jsonToPlainText } from '$lib/utils/json-content';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function loadPendingFeedback(
+	supabase: any,
+	userId: string,
+	usernameMap: Map<string, string>
+) {
+	const [{ data: acceptedMeetings }, { data: submittedFeedback }] = await Promise.all([
+		supabase
+			.from('meeting_invitations')
+			.select('id, inviter_id, invitee_id, proposed_time, updated_at')
+			.eq('status', 'accepted')
+			.or(`inviter_id.eq.${userId},invitee_id.eq.${userId}`),
+		supabase
+			.from('meeting_feedback')
+			.select('meeting_id')
+			.eq('reviewer_id', userId)
+	]);
+
+	const reviewedMeetingIds = new Set((submittedFeedback ?? []).map((f: { meeting_id: string }) => f.meeting_id));
+
+	// Fetch usernames for meeting participants not already in usernameMap
+	const meetingParticipantIds = new Set<string>();
+	for (const m of acceptedMeetings ?? []) {
+		if (!usernameMap.has(m.inviter_id)) meetingParticipantIds.add(m.inviter_id);
+		if (!usernameMap.has(m.invitee_id)) meetingParticipantIds.add(m.invitee_id);
+	}
+	if (meetingParticipantIds.size > 0) {
+		const { data: extraProfiles } = await supabase
+			.from('profiles')
+			.select('id, username')
+			.in('id', [...meetingParticipantIds]);
+		for (const p of extraProfiles ?? []) usernameMap.set(p.id, p.username);
+	}
+
+	const now = Date.now();
+	const pendingFeedback: Array<{
+		meetingId: string;
+		otherUserId: string;
+		otherUsername: string;
+		proposedTime: string | null;
+	}> = [];
+
+	for (const meeting of acceptedMeetings ?? []) {
+		if (reviewedMeetingIds.has(meeting.id)) continue;
+
+		let meetingTimePassed = false;
+		if (meeting.proposed_time) {
+			try {
+				const currentYear = new Date().getFullYear();
+				const cleaned = meeting.proposed_time
+					.replace(/^[A-Za-z]+,\s*/, '')
+					.replace(' at ', ' ');
+				const parsed = new Date(`${cleaned} ${currentYear}`);
+				if (!isNaN(parsed.getTime())) {
+					meetingTimePassed = parsed.getTime() + 2 * 60 * 60 * 1000 < now;
+				}
+			} catch { /* leave as false */ }
+		}
+
+		if (!meetingTimePassed) continue;
+
+		const otherUserId = meeting.inviter_id === userId ? meeting.invitee_id : meeting.inviter_id;
+		pendingFeedback.push({
+			meetingId: meeting.id,
+			otherUserId,
+			otherUsername: usernameMap.get(otherUserId) ?? 'them',
+			proposedTime: meeting.proposed_time ?? null
+		});
+	}
+
+	return pendingFeedback;
+}
+
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) {
 		redirect(302, '/login');
@@ -12,7 +85,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	// Get the current user's profile
 	const { data: profile } = await locals.supabase
 		.from('profiles')
-		.select('username')
+		.select('username, can_publish_sites')
 		.eq('id', userId)
 		.single();
 
@@ -27,22 +100,25 @@ export const load: PageServerLoad = async ({ locals }) => {
 		.order('updated_at', { ascending: false })
 		.limit(50);
 
+	// Fetch author usernames (needed for both conversations and meeting feedback)
+	const authorIds = [...new Set((conversations ?? []).map((c) => c.user_id))];
+	const { data: profiles } = authorIds.length > 0
+		? await locals.supabase.from('profiles').select('id, username').in('id', authorIds)
+		: { data: [] };
+
+	const usernameMap = new Map(profiles?.map((p) => [p.id, p.username]) ?? []);
+
 	if (!conversations || conversations.length === 0) {
+		// Still need to check for pending feedback even with no conversations
+		const pendingFeedback = await loadPendingFeedback(locals.supabase, userId, usernameMap);
 		return {
 			user: locals.user,
 			username: profile?.username ?? '',
-			conversations: []
+			canPublishSites: profile?.can_publish_sites ?? false,
+			conversations: [],
+			pendingFeedback
 		};
 	}
-
-	// Fetch author usernames
-	const authorIds = [...new Set(conversations.map((c) => c.user_id))];
-	const { data: profiles } = await locals.supabase
-		.from('profiles')
-		.select('id, username')
-		.in('id', authorIds);
-
-	const usernameMap = new Map(profiles?.map((p) => [p.id, p.username]) ?? []);
 
 	// Fetch entry-point notes for text snippets
 	const canvasIds = conversations.map((c) => c.id);
@@ -76,7 +152,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	for (const note of notes ?? []) {
 		if (!snippetMap.has(note.canvas_id)) {
 			const plainText = jsonToPlainText(note.content);
-			snippetMap.set(note.canvas_id, plainText.slice(0, 200));
+			snippetMap.set(note.canvas_id, plainText.slice(0, 400));
 		}
 		if (!imageMap.has(note.canvas_id)) {
 			const img = findFirstImage(note.content);
@@ -146,9 +222,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 		};
 	});
 
+	const pendingFeedback = await loadPendingFeedback(locals.supabase, userId, usernameMap);
+
 	return {
 		user: locals.user,
 		username: profile?.username ?? '',
-		conversations: enrichedConversations
+		canPublishSites: profile?.can_publish_sites ?? false,
+		conversations: enrichedConversations,
+		pendingFeedback
 	};
 };

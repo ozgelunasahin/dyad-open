@@ -10,8 +10,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const userId = locals.user.id;
 
-	// Load user's canvases, profile, published canvases, sites, highlights, and conversations in parallel
-	const [canvasesResult, profileResult, publishedCanvasesResult, sitesResult, highlightsResult, conversationsResult, archivedResult] = await Promise.all([
+	// Load user's canvases, profile, published canvases, sites, highlights, conversations, and bookmarks in parallel
+	const [canvasesResult, profileResult, publishedCanvasesResult, sitesResult, highlightsResult, conversationsResult, archivedResult, bookmarksResult] = await Promise.all([
 		locals.supabase
 			.from('canvases')
 			.select('id, name, slug, is_published, entry_point_note_id, created_at, updated_at, cover_image_url')
@@ -21,7 +21,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.order('updated_at', { ascending: false }),
 		locals.supabase
 			.from('profiles')
-			.select('onboarded, username, can_publish_sites')
+			.select('onboarded, username, can_publish_sites, created_at')
 			.eq('id', userId)
 			.single(),
 		locals.supabase
@@ -52,7 +52,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.select('id, name, slug, is_published, is_conversation, active_this_week, created_at, updated_at')
 			.eq('user_id', userId)
 			.eq('is_archived', true)
-			.order('updated_at', { ascending: false })
+			.order('updated_at', { ascending: false }),
+		locals.supabase
+			.from('bookmarks')
+			.select('canvas_id, canvases(id, name, slug, user_id, cover_image_url, updated_at)')
+			.eq('user_id', userId)
+			.order('created_at', { ascending: false })
 	]);
 
 	// Fetch usernames for published canvases (separate query since no direct FK)
@@ -87,6 +92,21 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const isOnboarded = profileResult.data?.onboarded ?? false;
 	const username = profileResult.data?.username ?? '';
 	const canPublishSites = profileResult.data?.can_publish_sites ?? false;
+	const joinedAt = profileResult.data?.created_at ?? null;
+
+	// Count accepted meetings (conversations held)
+	const { count: meetingsHeld } = await locals.supabase
+		.from('meeting_invitations')
+		.select('id', { count: 'exact', head: true })
+		.eq('status', 'accepted')
+		.or(`inviter_id.eq.${userId},invitee_id.eq.${userId}`);
+
+	// Referral tree: direct connections (profiles where referred_by = me)
+	const { data: referralRows } = await locals.supabase
+		.from('profiles')
+		.select('id, username')
+		.eq('referred_by', userId)
+		.order('created_at', { ascending: true });
 
 	// Transform sites to include canvas count
 	const sites = (sitesResult.data ?? []).map((site) => ({
@@ -104,6 +124,34 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const highlights = highlightsResult.data ?? [];
 	const conversations = conversationsResult.data ?? [];
 	const archived = archivedResult.data ?? [];
+
+	// Resolve bookmarks with canvas info + author usernames (table may not exist yet)
+	const rawBookmarks = bookmarksResult.error ? [] : (bookmarksResult.data ?? []);
+	const bookmarkUserIds = [...new Set(rawBookmarks.map((b) => {
+		const c = b.canvases as { user_id: string } | null;
+		return c?.user_id;
+	}).filter(Boolean))] as string[];
+	let bookmarkUsernameMap = new Map<string, string>();
+	if (bookmarkUserIds.length > 0) {
+		const { data: bProfiles } = await locals.supabase
+			.from('profiles')
+			.select('id, username')
+			.in('id', bookmarkUserIds);
+		bookmarkUsernameMap = new Map(bProfiles?.map((p) => [p.id, p.username]) ?? []);
+	}
+	const bookmarks = rawBookmarks
+		.filter((b) => b.canvases)
+		.map((b) => {
+			const c = b.canvases as { id: string; name: string; slug: string; user_id: string; cover_image_url: string | null; updated_at: string };
+			return {
+				canvasId: c.id,
+				name: c.name,
+				slug: c.slug,
+				coverImageUrl: c.cover_image_url ?? null,
+				username: bookmarkUsernameMap.get(c.user_id) ?? 'unknown',
+				updatedAt: c.updated_at
+			};
+		});
 
 	// Load waitlist contacts and existing members for admin users
 	let waitlist: Array<{ id: string; email: string; name: string | null; freewrite: string | null; created_at: string; invited: boolean }> = [];
@@ -207,6 +255,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 		return {
 			user: locals.user,
 			username,
+			joinedAt,
+			meetingsHeld: meetingsHeld ?? 0,
+			referrals: referralRows ?? [],
 			canvases: newCanvases ?? [],
 			publishedCanvases,
 			canPublishSites,
@@ -214,6 +265,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			highlights,
 			conversations,
 			archived,
+			bookmarks,
 			waitlist,
 			members
 		};
@@ -222,6 +274,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 	return {
 		user: locals.user,
 		username,
+		joinedAt,
+		meetingsHeld: meetingsHeld ?? 0,
+		referrals: referralRows ?? [],
 		canvases: canvases ?? [],
 		publishedCanvases,
 		canPublishSites,
@@ -229,6 +284,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		highlights,
 		conversations,
 		archived,
+		bookmarks,
 		waitlist,
 		members
 	};

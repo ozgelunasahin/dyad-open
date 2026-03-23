@@ -177,6 +177,14 @@
 		font-style: italic;
 	}
 
+	@media (max-width: 430px) {
+		.title {
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+	}
+
 	/* Excerpt */
 	.snippet {
 		margin: 0;

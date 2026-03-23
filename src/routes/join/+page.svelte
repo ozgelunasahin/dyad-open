@@ -151,7 +151,7 @@
 	}
 
 	:global([data-theme='dark']) .site-logo {
-		filter: none;
+		filter: brightness(0) invert(1) opacity(0.7);
 	}
 
 	/* === Split layout — mirrors login page === */
@@ -342,7 +342,7 @@
 	}
 
 	/* === Mobile — image on top, form below === */
-	@media (max-width: 768px) {
+	@media (max-width: 430px) {
 		.split-layout {
 			flex-direction: column;
 			height: auto;

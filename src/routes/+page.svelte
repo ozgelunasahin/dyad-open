@@ -104,7 +104,7 @@
 			loginError = error.message;
 			loginStatus = 'error';
 		} else {
-			window.location.href = '/dashboard';
+			window.location.href = '/discover';
 		}
 	}
 
@@ -176,7 +176,6 @@
 				{/if}
 			</button>
 			<div class="footer-legal">
-				<p class="copyright">&copy; Monad Engineering, {new Date().getFullYear()}</p>
 				<div class="legal-links">
 					<a href="/privacy" class="legal-link">privacy policy</a>
 					<span class="legal-sep">|</span>
@@ -592,25 +591,53 @@
 
 	.theme-toggle:hover { opacity: 1; color: var(--text-primary, #1a1a1a); }
 
+	@media (max-width: 430px) {
+		.theme-toggle { display: none; }
+	}
+
 	/* ── Right column ────────────────────────────────────────────────────────── */
 	.right-col {
 		height: 100vh;
 		overflow: hidden;
-		position: relative;
-	}
-
-	.cards-scroll {
-		height: 100%;
-		overflow-y: auto;
-		padding: 28px 32px 48px;
+		display: flex;
+		flex-direction: column;
+		padding: 24px 32px;
 		box-sizing: border-box;
 	}
 
-	.cards-scroll::-webkit-scrollbar { width: 4px; }
-	.cards-scroll::-webkit-scrollbar-track { background: transparent; }
-	.cards-scroll::-webkit-scrollbar-thumb {
-		background: var(--border-link, rgba(0, 0, 0, 0.12));
-		border-radius: 2px;
+	.cards-scroll {
+		flex: 1;
+		min-height: 0;
+		overflow: hidden;
+		display: flex;
+		flex-direction: column;
+	}
+
+	/* Distribute cards to fill full height with no scroll */
+	.cards-scroll :global(.row) {
+		flex: 1;
+		min-height: 0;
+		padding: 0;
+		align-items: center;
+	}
+
+	.cards-scroll :global(.thumb) {
+		width: 96px;
+		height: 96px;
+		flex-shrink: 0;
+	}
+
+	.cards-scroll :global(.snippet) {
+		-webkit-line-clamp: 2;
+	}
+
+	.cards-scroll :global(.title) {
+		font-size: 0.95rem;
+		margin: 2px 0 3px;
+	}
+
+	.cards-scroll :global(.meta-row) {
+		margin-bottom: 2px;
 	}
 
 	.empty-state {
@@ -859,7 +886,7 @@
 	}
 
 	/* ── Mobile ──────────────────────────────────────────────────────────────── */
-	@media (max-width: 768px) {
+	@media (max-width: 430px) {
 		:global(body) { overflow: auto; }
 
 		.landing {
@@ -869,17 +896,49 @@
 		}
 
 		.left-col {
-			height: auto;
-			min-height: 85vh;
+			height: 100vh;
+			min-height: 100vh;
 			border-right: none;
 			border-bottom: 1px solid var(--border-link, rgba(0, 0, 0, 0.08));
 			padding: 20px 20px 28px;
+			overflow: hidden;
 		}
 
-		.hero-text { font-size: clamp(2.8rem, 12vw, 4rem); }
+		/* hero-text font handled in RotatingConversationHeadline */
 
-		.right-col { height: auto; overflow: visible; }
-		.cards-scroll { height: auto; padding: 24px 16px 48px; }
+		.right-col {
+			height: 100vh;
+			overflow: hidden;
+			padding: 0;
+			display: flex;
+			flex-direction: column;
+		}
+		.cards-scroll {
+			flex: 1;
+			min-height: 0;
+			overflow-y: auto;
+			display: block;
+			padding: 24px 16px 48px;
+		}
+		.cards-scroll :global(.row) {
+			flex: unset;
+			padding: 14px 0;
+			align-items: flex-start;
+		}
+		.cards-scroll :global(.thumb) {
+			width: 72px;
+			height: 72px;
+		}
+		.cards-scroll :global(.snippet) {
+			-webkit-line-clamp: 2;
+		}
+		.cards-scroll :global(.title) {
+			font-size: 1rem;
+			margin: 4px 0 5px;
+		}
+		.cards-scroll :global(.meta-row) {
+			margin-bottom: 5px;
+		}
 
 		.modal { padding: 28px 24px; }
 		.field-row { flex-direction: column; }

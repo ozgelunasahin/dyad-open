@@ -119,10 +119,7 @@ export const load: PageServerLoad = async ({ locals, setHeaders, url }) => {
 			.order('updated_at', { ascending: false })
 			.limit(1);
 
-		if (canvases && canvases.length > 0) {
-			redirect(302, `/canvas/${canvases[0].id}`);
-		}
-		redirect(302, '/dashboard');
+		redirect(302, '/discover');
 	}
 
 	// Load landing highlights (max 3, ordered by position)

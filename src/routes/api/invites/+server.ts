@@ -79,7 +79,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		.insert({
 			email: email.trim(),
 			token,
-			expires_at: expiresAt.toISOString()
+			expires_at: expiresAt.toISOString(),
+			invited_by: locals.user.id
 		});
 
 	if (dbError) {

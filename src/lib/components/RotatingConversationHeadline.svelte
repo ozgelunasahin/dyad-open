@@ -69,4 +69,10 @@
 	.static {
 		display: inline;
 	}
+
+	@media (max-width: 430px) {
+		.headline {
+			font-size: 11vw;
+		}
+	}
 </style>

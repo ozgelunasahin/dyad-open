@@ -9,7 +9,6 @@
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import Canvas from '$lib/components/Canvas.svelte';
 	import HelpBar from '$lib/components/HelpBar.svelte';
-	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
 	import PlaceSearch from '$lib/components/PlaceSearch.svelte';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -22,7 +21,6 @@
 	let creatingNote = $state(false);
 	let newNoteName = $state('');
 	let showHelp = $state(false);
-	let showFeedbackModal = $state(false);
 	let coverImageUrl = $state(data.canvas.cover_image_url || '');
 	let uploadingCover = $state(false);
 	let dragOverCover = $state(false);
@@ -704,24 +702,7 @@
 			{/if}
 		</button>
 
-		<!-- Feedback button -->
-		<button
-			class="feedback-btn"
-			onclick={() => (showFeedbackModal = true)}
-			title="send feedback"
-			aria-label="Send feedback"
-		>
-			<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-				<path d="M2 3h12v8H4l-2 2V3z" stroke="currentColor" stroke-width="1.5" />
-			</svg>
-		</button>
 
-		<!-- Feedback Modal -->
-		<FeedbackModal
-			open={showFeedbackModal}
-			onClose={() => (showFeedbackModal = false)}
-			canvasId={data.canvas.id}
-		/>
 
 		<!-- Activate for Discover Modal (conversations only) -->
 		{#if showActivateModal && isConversation}

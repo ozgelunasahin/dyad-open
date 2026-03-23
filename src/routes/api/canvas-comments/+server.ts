@@ -19,7 +19,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		error(400, 'canvas_id and body are required');
 	}
 
-	const { data, error: dbError } = await locals.supabase
+	const { data: comment, error: dbError } = await locals.supabase
 		.from('canvas_comments')
 		.insert({ canvas_id, user_id: locals.user.id, body: (text as string).trim() })
 		.select()
@@ -30,5 +30,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		error(500, 'Failed to save comment');
 	}
 
-	return json(data, { status: 201 });
+	// Fetch username so client can display immediately
+	const { data: profile } = await locals.supabase
+		.from('profiles')
+		.select('username')
+		.eq('id', locals.user.id)
+		.single();
+
+	return json({ ...comment, username: profile?.username ?? 'you' }, { status: 201 });
 };
