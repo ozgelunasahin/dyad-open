@@ -2,9 +2,11 @@
 	import { fly, slide } from 'svelte/transition';
 	import type { PageData } from './$types';
 	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
+	import MapView from '$lib/components/MapView.svelte';
 
 	let { data }: { data: PageData } = $props();
 	let mobileMenuOpen = $state(false);
+	let viewMode = $state<'list' | 'map'>('list');
 
 	function formatDate(date: string): string {
 		return new Intl.DateTimeFormat('en-US', {
@@ -246,7 +248,7 @@
 							{/each}
 						</div>
 					</div>
-					<div class="filter-group">
+					<div class="filter-group where-group">
 						<span class="filter-label">Where</span>
 						<div class="location-filter">
 							{#each [...selectedLocations] as loc}
@@ -279,13 +281,32 @@
 								{/if}
 							</div>
 						</div>
+						<button
+							class="map-toggle-btn"
+							class:active={viewMode === 'map'}
+							onclick={() => viewMode = viewMode === 'map' ? 'list' : 'map'}
+							title={viewMode === 'map' ? 'Switch to list' : 'Switch to map'}
+						>
+							{#if viewMode === 'map'}
+								<svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+									<rect x="1" y="3" width="14" height="2" rx="1" fill="currentColor"/>
+									<rect x="1" y="7" width="14" height="2" rx="1" fill="currentColor"/>
+									<rect x="1" y="11" width="14" height="2" rx="1" fill="currentColor"/>
+								</svg>
+							{:else}
+								<svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+									<path d="M1 3l4 1.5L9 3l6 2v8l-6-2-4 1.5L1 11V3z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+									<path d="M5 4.5v9M9 3v8" stroke="currentColor" stroke-width="1.4"/>
+								</svg>
+							{/if}
+						</button>
 					</div>
 					{#if hasFilters}
 						<button class="clear-filters" onclick={clearFilters}>Clear all</button>
 					{/if}
 				</div>
 
-				{#if filteredConversations.length === 0}
+				{#if filteredConversations.length === 0 && viewMode !== 'map'}
 					<div class="empty-state">
 						<p>No conversations match your filters.</p>
 						<button class="clear-filters-link" onclick={clearFilters}>Clear filters</button>
@@ -363,6 +384,15 @@
 			{/if}
 		</div>
 	</main>
+	{#if viewMode === 'map'}
+		<MapView
+			conversations={filteredConversations}
+			weekDates={weekDates}
+			selectedDays={selectedDays}
+			onToggleDay={toggleDay}
+			onClose={() => viewMode = 'list'}
+		/>
+	{/if}
 </div>
 
 <style>
@@ -835,6 +865,39 @@
 
 	.clear-filters-link:hover {
 		color: var(--text-primary);
+	}
+
+	/* === Map toggle === */
+	.where-group {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.map-toggle-btn {
+		flex-shrink: 0;
+		width: 32px;
+		height: 32px;
+		border: 1px solid var(--border-link);
+		border-radius: 6px;
+		background: none;
+		color: var(--text-muted);
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: background 0.15s, color 0.15s;
+	}
+
+	.map-toggle-btn:hover {
+		background: var(--bg-control);
+		color: var(--text-primary);
+	}
+
+	.map-toggle-btn.active {
+		background: var(--text-primary);
+		color: var(--bg-canvas);
+		border-color: var(--text-primary);
 	}
 
 	/* === Conversation list === */

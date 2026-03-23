@@ -62,9 +62,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	} catch {
 		return json({ error: 'Invalid JSON body' }, { status: 400 });
 	}
-	const { canvas_id, note_slug, selected_text, start_offset, end_offset } = body;
+	const { canvas_id, note_slug, selected_text, start_offset, end_offset, comment_body } = body;
 
-	if (!canvas_id || !note_slug || !selected_text || start_offset == null || end_offset == null) {
+	if (!canvas_id || !selected_text) {
 		error(400, 'Missing required fields');
 	}
 
@@ -76,11 +76,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		.from('highlights')
 		.insert({
 			canvas_id,
-			note_slug,
+			note_slug: note_slug ?? '',
 			user_id: locals.user.id,
 			selected_text,
-			start_offset,
-			end_offset
+			start_offset: start_offset ?? 0,
+			end_offset: end_offset ?? 0
 		})
 		.select('id, canvas_id, note_slug, user_id, selected_text, start_offset, end_offset, created_at')
 		.single();
@@ -88,6 +88,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	if (dbError) {
 		console.error('Failed to create highlight:', dbError);
 		error(500, 'Failed to create highlight');
+	}
+
+	// If a comment body is provided, save it alongside the highlight
+	if (comment_body && typeof comment_body === 'string' && comment_body.trim()) {
+		const { error: cErr } = await locals.supabase
+			.from('comments')
+			.insert({
+				highlight_id: data.id,
+				user_id: locals.user.id,
+				body: comment_body.trim()
+			});
+		if (cErr) console.error('Failed to save comment on highlight:', cErr);
 	}
 
 	return json(data, { status: 201 });
