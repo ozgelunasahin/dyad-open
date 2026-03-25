@@ -423,13 +423,13 @@ export interface LocationService {
 
 #### Phase 4: Discover Feed Rewrite
 
-- [ ] Rewrite `src/routes/discover/+page.server.ts` to use PromptQueryService.getPublishedPrompts
-- [ ] Discover ordering: by soonest upcoming available slot
-- [ ] Exclude author's own prompts from their discover feed
-- [ ] Exclude slots within 12h of start_time (past the invitation cutoff)
+- [x] Rewrite `src/routes/discover/+page.server.ts` to use PromptQueryService.getPublishedPrompts
+- [x] Discover ordering: by soonest upcoming available slot
+- [x] Exclude author's own prompts from their discover feed
+- [x] Exclude slots within 12h of start_time (past the invitation cutoff)
 - [ ] Exclude slots conflicting with user's existing meetings (query meeting_invitations for accepted status — initially returns nothing since meetings don't exist yet)
-- [ ] Return PromptSummary[] with body_snippet, available_slots, general areas
-- [ ] Map data: general_area_lat/lng for map pins (neighbourhood centroids)
+- [x] Return PromptSummary[] with body_snippet, available_slots, general areas
+- [ ] Map data: general_area_lat/lng for map pins (neighbourhood centroids) — MapView removed, rebuild separately
 
 #### Phase 5: pg_cron for Auto-Archival
 
