@@ -148,3 +148,12 @@ Dyad directly addresses:
 - **"Mental health and overload"** (Micro/Future): "I feel fed up. I need silence." Dyad is a quiet app by design.
 - **"Intergenerational connection"** (Micro/Now): The platform doesn't age-gate or segment by demographic.
 - **"Belonging"**: Dyad builds tools and infrastructure to help people build and develop diverse, intersected communities within cities. It is an enabler of in-person community, not a replacement for it. The comment-without-invitation flow allows low-stakes meaningful participation without committing to a meeting.
+
+## Inclusive Language
+
+The core value is supporting diverse, interconnected communities. Diversity across many dimensions (background, interests, identity, age, profession) must be actively encouraged — in the product and in how we describe it.
+
+- **Avoid intellectualism signals.** Language like "independent thinkers" or "meet through writing" creates invisible barriers. Not everyone identifies as a "thinker" — but everyone can benefit from genuine conversation.
+- **Test copy against the question:** Would a nurse, a barista, a retiree feel addressed by this language? If not, rewrite.
+- **The platform is for people who want connection**, not for people who want to be seen as intellectual.
+- **Curiosity, not expertise.** Prompts should invite exploration, not signal that you need to be well-read to participate.

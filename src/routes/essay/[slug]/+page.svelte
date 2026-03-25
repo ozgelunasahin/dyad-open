@@ -86,7 +86,7 @@
 		<div class="mobile-reading" in:fade={{ duration: 200 }}>
 			<nav class="mobile-nav">
 				<a href="/" class="logo-link" aria-label="Back to home">
-					<img src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/logo.png" alt="dyad" class="site-logo" />
+					<img src="/images/logo.png" alt="dyad" class="site-logo" />
 				</a>
 				<button class="menu-btn" onclick={() => mobileMenuOpen = !mobileMenuOpen} aria-label="Menu">
 					{#if mobileMenuOpen}

@@ -138,7 +138,7 @@
 	<div class="left-col">
 		<div class="left-top">
 			<img
-				src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/logo.png"
+				src="/images/logo.png"
 				alt="dyad."
 				class="logo"
 			/>

@@ -13,13 +13,13 @@
 
 <nav class="login-nav">
 	<a href="/" class="logo-link" aria-label="Back to home">
-		<img src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/logo.png" alt="dyad" class="site-logo" />
+		<img src="/images/logo.png" alt="dyad" class="site-logo" />
 	</a>
 </nav>
 
 <div class="split-layout">
 	<div class="image-half">
-		<img src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/log%20in.jpeg" alt="" />
+		<img src="/images/log-in.jpeg" alt="" />
 	</div>
 	<div class="form-half">
 		<div class="auth-card">

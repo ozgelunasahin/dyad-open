@@ -389,7 +389,7 @@
 		<div class="mobile-reading" class:desktop-reading={!isMobile && data.canvas.isConversation} in:fade={{ duration: 200 }}>
 			<nav class="mobile-nav">
 				<a href={data.currentUserId ? '/discover' : '/'} class="logo-link" aria-label="Back">
-					<img src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/logo.png" alt="dyad" class="site-logo" />
+					<img src="/images/logo.png" alt="dyad" class="site-logo" />
 				</a>
 				<button class="menu-btn" onclick={() => mobileMenuOpen = !mobileMenuOpen} aria-label="Menu">
 					{#if mobileMenuOpen}

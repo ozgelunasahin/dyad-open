@@ -150,3 +150,27 @@ These choices compound over time. Getting them right early avoids painful migrat
 This analysis maps directly to the interop working group's mandate. The shared infrastructure opportunities identified here are not theoretical — they're things Dyad needs to build anyway. The question is whether to build them as internal components or as shared infrastructure that the Rebuild community maintains together.
 
 The working group's first mapping exercise (what is being built, by whom, what overlaps exist) would surface which of these opportunities have the most energy behind them. Dyad's contribution to that exercise is this document and a willingness to build in the open where the infrastructure layer allows it.
+
+## Extraction principles (added 2026-03-25)
+
+**Don't extract prematurely.** A technically portable module is not the same as a useful open-source project. Extraction has maintenance cost. Only extract when other builders would actually use and contribute to it.
+
+**Criteria for extraction:**
+- Would other Rebuild builders use this? Would they contribute?
+- Is it novel enough to justify separate maintenance?
+- Is the pattern proven in production, not just architecturally clean?
+
+**Patterns to watch as they mature:**
+
+| Pattern | Novelty | Extract when |
+|---|---|---|
+| Privacy-preserving location (exact → general area → conditional reveal) | High | Proves useful across 2+ contexts |
+| Regional verification / presence proof | Very high | Approach validated with real users |
+| Feedback gate / accountability middleware | Medium | Generalises beyond dyad's specific rules |
+| Reputation without scores (adjective vocabulary + signals) | Medium | Model proves effective in practice |
+
+**What stays proprietary** (and why that's fine per Rebuild principles):
+- Feedback gate UX, single-shot comment model, invitation mechanics, discover matching
+- These are product decisions, not infrastructure. Other platforms can be inspired without requiring interop.
+
+**Current state** (2026-03-25): See `docs/design/shared-infrastructure-review-2026-03-25.md` for the full sovereignty scorecard and coupling analysis.
