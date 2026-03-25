@@ -1,49 +1,54 @@
-import nodemailer from 'nodemailer';
 import { env } from '$env/dynamic/private';
 
 /**
- * Send an email via SMTP.
- * Local dev: Mailpit on localhost:54325 (captured at http://localhost:54324)
- * Production: any EU SMTP provider (Mailjet, Postal, etc.)
+ * Send an email.
  *
- * Environment variables:
- *   SMTP_HOST (default: localhost)
- *   SMTP_PORT (default: 54325 for Mailpit)
- *   SMTP_USER (optional)
- *   SMTP_PASS (optional)
- *   SMTP_FROM (default: hello@dyad.berlin)
+ * Currently a no-op stub that logs the email details.
+ * For production, implement with an EU SMTP provider via fetch-based API
+ * (not nodemailer, which requires Node.js built-ins incompatible with edge runtimes).
+ *
+ * Local dev: emails can be viewed via Mailpit at http://localhost:54324
+ * when sent through Supabase Auth flows.
+ *
+ * Environment variables (for future implementation):
+ *   EMAIL_API_URL — EU email provider API endpoint
+ *   EMAIL_API_KEY — API key for the email provider
+ *   EMAIL_FROM — sender address (default: hello@dyad.berlin)
  */
 export async function sendEmail(params: {
 	to: string;
 	subject: string;
 	html: string;
 }): Promise<boolean> {
-	const host = env.SMTP_HOST || 'localhost';
-	const port = parseInt(env.SMTP_PORT || '54325', 10);
-	const user = env.SMTP_USER;
-	const pass = env.SMTP_PASS;
-	const from = env.SMTP_FROM || 'hello@dyad.berlin';
+	const apiUrl = env.EMAIL_API_URL;
+	const apiKey = env.EMAIL_API_KEY;
 
-	// Skip if no SMTP configured and not localhost (backward compat with Resend guard)
-	if (host !== 'localhost' && !user) {
-		console.log('[email] SMTP not configured, skipping send');
+	if (!apiUrl || !apiKey) {
+		console.log(`[email] Skipped (no EMAIL_API_URL configured): "${params.subject}" → ${params.to}`);
 		return false;
 	}
 
+	const from = env.EMAIL_FROM || 'hello@dyad.berlin';
+
 	try {
-		const transport = nodemailer.createTransport({
-			host,
-			port,
-			secure: port === 465,
-			...(user && pass ? { auth: { user, pass } } : {})
+		const res = await fetch(apiUrl, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'Authorization': `Bearer ${apiKey}`
+			},
+			body: JSON.stringify({
+				from,
+				to: params.to,
+				subject: params.subject,
+				html: params.html
+			})
 		});
 
-		await transport.sendMail({
-			from,
-			to: params.to,
-			subject: params.subject,
-			html: params.html
-		});
+		if (!res.ok) {
+			console.error('[email] API error:', res.status, await res.text());
+			return false;
+		}
 
 		return true;
 	} catch (err) {
