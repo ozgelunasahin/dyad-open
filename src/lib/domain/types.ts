@@ -70,3 +70,30 @@ export interface PromptDetail extends PromptSummary {
 	body: JSONContent;
 	body_html: string; // server-rendered TipTap HTML (sanitized)
 }
+
+// Engagement types
+
+export type InvitationState = 'pending' | 'accepted' | 'cancelled' | 'expired';
+
+export interface Comment {
+	id: string;
+	prompt_id: string;
+	author_id: string;
+	body: string;
+	created_at: string;
+	updated_at: string;
+	// "edited" derived in UI: updated_at > created_at
+}
+
+export interface MeetingInvitation {
+	id: string;
+	prompt_id: string;
+	slot_id: string;
+	inviter_id: string;
+	invitee_id: string;
+	comment_id: string | null;
+	message: string | null;
+	state: InvitationState;
+	created_at: string;
+	resolved_at: string | null;
+}
