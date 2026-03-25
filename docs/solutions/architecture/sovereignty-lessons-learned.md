@@ -1,71 +1,62 @@
 ---
-title: Where sovereignty issues hide in a SvelteKit + Supabase stack
+title: Where sovereignty issues hide in modern web apps
 category: architecture
-tags: [sovereignty, eu-infrastructure, supabase, rebuild, lessons-learned]
+tags: [sovereignty, eu-infrastructure, rebuild, lessons-learned]
 date: 2026-03-25
 prs: [37]
 ---
 
 # Where Sovereignty Issues Hide
 
-Lessons from auditing a SvelteKit + Supabase app for EU sovereignty compliance. These are the non-obvious places where US dependencies crept in despite a stated commitment to European infrastructure.
+Lessons from auditing a web application for EU sovereignty compliance. These are the non-obvious places where US dependencies creep in despite an explicit commitment to European infrastructure.
 
-## 1. CDN-hosted CSS and icons
+## 1. Libraries that phone home for runtime assets
 
-**What happened**: Leaflet map icons and CSS were loaded from `unpkg.com` — a US CDN backed by Cloudflare. Every user who opened the map page leaked their IP address to a US service.
+**The issue**: A mapping library was installed locally via npm, but its default configuration loaded icons, CSS, and font files from a US-hosted CDN at runtime. The JavaScript was bundled locally — but every page view made external requests that leaked user IP addresses.
 
-**Why it's non-obvious**: The Leaflet npm package was installed locally, but the component loaded *runtime assets* from the CDN because Leaflet's default icon config points there. The code looked local (`import L from 'leaflet'`) but the browser made external requests.
+**Why it's non-obvious**: The import statement looks local. The bundle is local. But the browser's network tab tells a different story. Many libraries ship with default asset URLs pointing to public CDNs (unpkg, cdnjs, Google Fonts). These defaults persist unless explicitly overridden.
 
-**Solution**: Copy the 6 static files (CSS + PNGs) to `static/leaflet/` and reference them as local paths. The npm package provides the JS; the static files provide the assets. No CDN needed.
+**What to do**: Self-host all runtime assets. Copy them from `node_modules` into your static directory. Override default asset URLs in library configuration. Check the network tab in your browser, not just your import statements — if a request leaves your domain, it's a sovereignty leak.
 
-**Pattern**: Any library that loads runtime assets (fonts, icons, CSS) from external CDNs is a sovereignty leak, even if the JS is bundled locally. Check the network tab, not just the import statements.
+## 2. Hardcoded service URLs masquerading as content
 
-## 2. Hardcoded storage URLs that look like config
+**The issue**: Static assets (logos, background images) were referenced by their full cloud storage URL across 17 files. They worked perfectly — but they coupled the entire frontend to a specific cloud provider instance.
 
-**What happened**: 17 files contained `https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/logo.png` — the Supabase project's storage URL baked into component templates. This couples every page render to a specific Supabase instance.
+**Why it's non-obvious**: Public asset URLs feel harmless. They're just images. But each one is a hard dependency on a specific provider, region, and account. Moving the backend to a different host means find-and-replace across the codebase.
 
-**Why it's non-obvious**: The URLs were for *public* assets (logos, background images). They worked in dev and production. There was no error, no warning. But they made the app impossible to self-host on a different Supabase instance without find-and-replace across 17 files.
+**What to do**: Truly static assets (logos, icons, backgrounds) belong in your repository's static directory, not in cloud storage. Dynamic assets (user uploads) should reference a base URL from environment configuration, never a hardcoded provider URL. Search your codebase for your provider's domain — every match is a portability problem.
 
-**Solution**: Move static assets (logo, auth backgrounds) to `static/images/`. For dynamic assets (user uploads, landing page images), use the `PUBLIC_SUPABASE_URL` env var. Zero hardcoded project URLs in source.
+## 3. Email as an afterthought
 
-**Pattern**: Search your codebase for your Supabase project ID. Every occurrence is a portability problem. Static assets should be in `static/`, not in remote storage.
+**The issue**: A US-based email delivery service was chosen for its developer-friendly SDK. Every transactional email (welcome messages, invitations) routed user names, email addresses, and authentication tokens through US infrastructure.
 
-## 3. Email provider as an afterthought
+**Why it's non-obvious**: Email feels like commodity infrastructure. You pick a provider, get an API key, and move on. But email carries PII — names, addresses, content — and the provider choice has direct GDPR implications. A convenient API and nice documentation aren't sovereignty criteria.
 
-**What happened**: Resend (US company, YC-backed) was used for transactional email. Two API endpoints passed user email addresses, names, and invite tokens through US infrastructure.
+**What to do**: Use SMTP as your email interface, not vendor-specific SDKs. Any SMTP server can be swapped by changing environment variables. For local development, use a mail capture tool (Mailpit, MailHog, Inbucket) that catches all outgoing email without sending it. For production, pick an EU-hosted SMTP provider. The abstraction costs nothing and gives you complete provider independence.
 
-**Why it's non-obvious**: Email providers feel like commodity infrastructure — you pick one, get an API key, done. But email carries PII (addresses, names, content) and the provider choice has direct GDPR implications. Resend was chosen for developer convenience (nice SDK), not for data residency.
+## 4. Auth provider functions baked into every database policy
 
-**Solution**: Replace with nodemailer over SMTP. Local dev uses Supabase's built-in Mailpit (port 54325, viewable at :54324). Production uses any EU SMTP provider. The email utility (`src/lib/server/email.ts`) is provider-agnostic — swap by changing env vars, not code.
+**The issue**: The auth provider exposes a convenience function (`auth.uid()`) for use in row-level security policies. It feels like a database function, but it's actually a provider-specific function that reads JWT claims in a provider-specific format. After building 6 backend features, this function appeared 27 times across 5 migration files. Every security policy depends on it.
 
-**Pattern**: Don't pick email providers for their SDK. Pick for their data residency. SMTP is the universal interface — use it, and you can swap providers without code changes.
+**Why it's non-obvious**: The function integrates seamlessly with PostgreSQL. It's called in SQL, returns a UUID, works in RLS policies and stored procedures. It *feels* native. But it's a vendor extension that doesn't exist in a standard PostgreSQL installation. Moving to a different auth provider means rewriting every policy that references it.
 
-## 4. `auth.uid()` in every RLS policy — the deepest coupling
+**What we learned**: Use `IS NOT NULL` checks rather than role-specific checks (more portable across auth systems). More importantly: create your own wrapper function (`app.current_user_id()`) from day one that delegates to the provider's function internally. When you switch providers, you change one function definition — not 27 policies.
 
-**What happened**: 27 references to `auth.uid()` across 5 migration files. Every RLS policy and SECURITY DEFINER function depends on Supabase GoTrue's JWT claims structure. This is the hardest thing to change if we ever move to a different auth provider.
+## 5. Hosting coupling: deep vs shallow
 
-**Why it's non-obvious**: `auth.uid()` feels like a PostgreSQL function — it's called in SQL, it returns a UUID. But it's actually a GoTrue-specific function that reads `request.jwt.claims.sub` from the Supabase PostgREST context. It doesn't exist in plain PostgreSQL. Swapping to Authentik/Keycloak would require either creating a compatible `auth.uid()` function or rewriting 27 policy definitions.
+**The issue**: The app used a platform-specific build adapter (Cloudflare Pages). This looked like lock-in but was actually a shallow coupling — one config file, no platform-specific APIs. The real hosting dependency was the backend-as-a-service, not the frontend deployment target.
 
-**What we did right**: Used `auth.uid() IS NOT NULL` instead of `auth.role() = 'authenticated'` throughout. The `IS NOT NULL` pattern is more portable — any auth system that sets a user context can satisfy it. The `role` check is GoTrue-specific.
+**Why it's non-obvious (in the other direction)**: Shallow hosting coupling isn't urgent. If your app doesn't use platform-specific APIs (edge functions, KV stores, object storage via proprietary SDK), the build adapter is a trivial swap. The deep coupling is in the services your app depends on at runtime — database, auth, storage, email. Focus your sovereignty effort there.
 
-**What we'd do differently**: Create an `app.current_user_id()` wrapper function from the start that calls `auth.uid()` internally. Then swapping auth means changing one function, not 27 policies.
-
-**Pattern**: Wrap vendor-specific SQL functions in your own function from day one. The 5 minutes it costs to create the wrapper saves days of migration later.
-
-## 5. The adapter lock-in that isn't really lock-in
-
-**What happened**: `@sveltejs/adapter-cloudflare` in `svelte.config.js`. This looks like a hard dependency on Cloudflare Pages, but it's actually a 1-line config change to swap to `adapter-node`.
-
-**Why it's non-obvious (in the other direction)**: It *seems* like a big deal but it's not. The SvelteKit adapter is a build-time concern, not a runtime coupling. No Cloudflare-specific APIs (KV, Durable Objects, R2) are used. The app is a standard SSR app that happens to deploy on Cloudflare. Swapping to Hetzner + Node.js is trivial.
-
-**Pattern**: Check whether your hosting coupling is deep (using platform APIs) or shallow (just the build adapter). Shallow coupling is fine to defer.
+**What to do**: Distinguish between build-time coupling (adapters, CI pipelines — cheap to change) and runtime coupling (database queries, auth flows, storage APIs — expensive to change). Prioritise decoupling the runtime dependencies.
 
 ## Prevention checklist
 
-When adding any dependency or writing any component:
+When adding any dependency or building any feature:
 
-- [ ] Search the network tab for external requests — are CDN assets loading from US servers?
-- [ ] Search your codebase for your Supabase project ID — any hardcoded instance URLs?
-- [ ] Does your email provider store data in the EU?
-- [ ] Are your SQL functions using vendor-specific auth calls? Could they be wrapped?
-- [ ] Is your hosting lock-in deep (platform APIs) or shallow (build adapter)?
+- [ ] Check the browser network tab — are runtime assets loading from external CDNs?
+- [ ] Search your codebase for provider-specific domain names — any hardcoded URLs?
+- [ ] Does your email provider store and process data in the EU?
+- [ ] Are your database security policies using provider-specific functions? Could they be wrapped?
+- [ ] Is your hosting coupling deep (platform APIs) or shallow (build config)?
+- [ ] For any new service integration: where does the data physically reside?
