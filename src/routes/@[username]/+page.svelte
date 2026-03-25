@@ -44,7 +44,7 @@
 <div class="profile-page">
 	<nav class="top-nav">
 		<a href="/discover" class="nav-logo">
-			<img src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/logo.png" alt="dyad" class="logo-img" />
+			<img src="/images/logo.png" alt="dyad" class="logo-img" />
 		</a>
 		<div class="nav-right">
 			{#if data.currentUserId}

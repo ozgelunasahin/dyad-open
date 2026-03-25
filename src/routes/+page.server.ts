@@ -4,8 +4,10 @@ import { renderTiptapToHtml } from '$lib/utils/tiptap-html';
 import type { ConversationData } from '$lib/types';
 
 // Fallback sample conversations shown when no landing_highlights are configured.
+import { PUBLIC_SUPABASE_URL } from '$env/static/public';
+
 const IMG = (n: number) =>
-	`https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/landing%20page%20images/${n}.png`;
+	`${PUBLIC_SUPABASE_URL}/storage/v1/object/public/uploads/landing%20page%20images/${n}.png`;
 
 function getSampleConversations(): ConversationData[] {
 	return [
