@@ -476,7 +476,7 @@
 <div class="app-layout">
 	<aside class="sidebar">
 		<a href="/discover" class="sidebar-logo">
-			<img src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/logo.png" alt="dyad" class="sidebar-logo-img" />
+			<img src="/images/logo.png" alt="dyad" class="sidebar-logo-img" />
 		</a>
 		<nav class="sidebar-nav">
 			<a href="/discover" class="sidebar-link">Discover</a>

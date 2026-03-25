@@ -58,29 +58,21 @@ export const handle: Handle = async ({ event, resolve }) => {
 			pathname.startsWith('/favicon');
 
 		if (!isExempt) {
-			try {
-				const { data: gatedForm } = await event.locals.supabase
-					.from('feedback_forms')
-					.select('id')
-					.eq('reviewer_id', user.id)
-					.eq('state', 'due')
-					.limit(1)
-					.maybeSingle();
+			const { SupabaseGateService } = await import('$lib/services/gate.js');
+			const gateService = new SupabaseGateService(event.locals.supabase);
+			const gateStatus = await gateService.checkGate(user.id);
 
-				if (gatedForm) {
-					if (pathname.startsWith('/api/')) {
-						return new Response(JSON.stringify({ error: 'gated', feedbackFormId: gatedForm.id }), {
-							status: 403,
-							headers: { 'Content-Type': 'application/json' }
-						});
-					}
-					return new Response(null, {
-						status: 303,
-						headers: { Location: `/feedback/${gatedForm.id}` }
+			if (gateStatus.gated && gateStatus.feedbackFormId) {
+				if (pathname.startsWith('/api/')) {
+					return new Response(JSON.stringify({ error: 'gated', feedbackFormId: gateStatus.feedbackFormId }), {
+						status: 403,
+						headers: { 'Content-Type': 'application/json' }
 					});
 				}
-			} catch {
-				// Gate check failed — fail open, don't block the user
+				return new Response(null, {
+					status: 303,
+					headers: { Location: `/feedback/${gateStatus.feedbackFormId}` }
+				});
 			}
 		}
 	}

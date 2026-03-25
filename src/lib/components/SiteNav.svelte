@@ -17,7 +17,7 @@
 <nav class="site-nav" class:hidden aria-label="Site navigation">
 	<!-- Left: logo -->
 	<button class="logo-btn" onclick={() => onNavigate(items[0]?.slug ?? '')} aria-label={siteName}>
-		<img src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/logo.png" alt={siteName} class="site-logo" />
+		<img src="/images/logo.png" alt={siteName} class="site-logo" />
 	</button>
 
 	<!-- Center: section links (desktop) -->

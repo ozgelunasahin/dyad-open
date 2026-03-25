@@ -41,7 +41,7 @@
 
 <div class="join-section" id="join">
 	<div class="join-cover">
-		<img src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/log%20in.jpeg" alt="" />
+		<img src="/images/log-in.jpeg" alt="" />
 	</div>
 	<div class="layout">
 		<div class="label-col">

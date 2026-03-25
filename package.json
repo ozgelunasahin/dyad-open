@@ -50,7 +50,6 @@
 		"d3-zoom": "^3.0.0",
 		"isomorphic-dompurify": "^2.35.0",
 		"leaflet": "^1.9.4",
-		"nanoid": "^5.1.6",
-		"resend": "^6.9.2"
+		"nanoid": "^5.1.6"
 	}
 }
