@@ -123,6 +123,9 @@ export class SupabasePromptCommandService implements PromptCommandService {
 			throw new Error('Cannot edit an accepted slot');
 		}
 
+		// Auto-expire pending invitations when slot is modified
+		await this.expirePendingInvitations(slotId);
+
 		const fields: Record<string, unknown> = {};
 		if (updates.start_time !== undefined) fields.start_time = updates.start_time;
 		if (updates.duration_minutes !== undefined) fields.duration_minutes = updates.duration_minutes;
@@ -152,6 +155,9 @@ export class SupabasePromptCommandService implements PromptCommandService {
 		if (slot.accepted) {
 			throw new Error('Cannot remove an accepted slot');
 		}
+
+		// Auto-expire pending invitations when slot is removed
+		await this.expirePendingInvitations(slotId);
 
 		const { error } = await this.supabase
 			.from('time_slots')
@@ -213,6 +219,14 @@ export class SupabasePromptCommandService implements PromptCommandService {
 	}
 
 	// Private helpers
+
+	/** Expire pending invitations for a slot being modified/removed via SECURITY DEFINER RPC. */
+	private async expirePendingInvitations(slotId: string): Promise<void> {
+		const { error } = await this.supabase.rpc('expire_slot_invitations', {
+			p_slot_id: slotId
+		});
+		if (error) throw new Error(`Failed to expire slot invitations: ${error.message}`);
+	}
 
 	private async getOwnPrompt(promptId: string, authorId: string): Promise<Prompt> {
 		const { data, error } = await this.supabase

@@ -7,10 +7,20 @@ import {
 	SupabasePromptQueryService,
 	type PromptQueryService
 } from '../../src/lib/services/prompt-query.js';
+import {
+	SupabaseCommentService,
+	type CommentService
+} from '../../src/lib/services/comment.js';
+import {
+	SupabaseInvitationService,
+	type InvitationService
+} from '../../src/lib/services/invitation.js';
 
 export interface Services {
 	promptCommand: PromptCommandService;
 	promptQuery: PromptQueryService;
+	comment: CommentService;
+	invitation: InvitationService;
 }
 
 /**
@@ -21,6 +31,8 @@ export interface Services {
 export function createServices(supabase: SupabaseClient): Services {
 	return {
 		promptCommand: new SupabasePromptCommandService(supabase),
-		promptQuery: new SupabasePromptQueryService(supabase)
+		promptQuery: new SupabasePromptQueryService(supabase),
+		comment: new SupabaseCommentService(supabase),
+		invitation: new SupabaseInvitationService(supabase)
 	};
 }

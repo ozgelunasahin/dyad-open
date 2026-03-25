@@ -412,27 +412,27 @@ export function canAccept(invitation: MeetingInvitation, userId: string): boolea
 
 #### Phase 1: Schema + Domain + Services
 
-- [ ] `supabase/migrations/20260328_create_comments_invitations.sql` — both tables, RLS, indexes, `accept_invitation` function, `expire_stale_invitations` function, invitee enforcement trigger, execution restrictions
-- [ ] `src/lib/domain/types.ts` — add Comment, MeetingInvitation, InvitationState
-- [ ] `src/lib/domain/engagement.ts` — canComment, canInvite, canCancel, canAccept guards
-- [ ] `src/lib/domain/engagement.test.ts` — unit tests for all guards
-- [ ] `src/lib/services/comment.ts` — CommentService interface + SupabaseCommentService (upsert, two-party queries)
-- [ ] `src/lib/services/invitation.ts` — InvitationService interface + SupabaseInvitationService (create, cancel, accept via RPC, pending queries)
-- [ ] Update `tests/helpers/db.ts` — add CommentService + InvitationService to factory
-- [ ] Update `src/lib/services/prompt-command.ts` — add pending-invitation check to `editSlot` and `removeSlot` (slot locking)
-- [ ] Update `supabase/seed.sql` — add seed comments and invitations for testing
+- [x] `supabase/migrations/20260328_create_comments_invitations.sql` — both tables, RLS, indexes, `accept_invitation` function, `expire_stale_invitations` function, invitee enforcement trigger, execution restrictions
+- [x] `src/lib/domain/types.ts` — add Comment, MeetingInvitation, InvitationState
+- [x] `src/lib/domain/engagement.ts` — canComment, canInvite, canCancel, canAccept guards
+- [x] `src/lib/domain/engagement.test.ts` — unit tests for all guards
+- [x] `src/lib/services/comment.ts` — CommentService interface + SupabaseCommentService (upsert, two-party queries)
+- [x] `src/lib/services/invitation.ts` — InvitationService interface + SupabaseInvitationService (create, cancel, accept via RPC, pending queries)
+- [x] Update `tests/helpers/db.ts` — add CommentService + InvitationService to factory
+- [x] Update `src/lib/services/prompt-command.ts` — add pending-invitation check to `editSlot` and `removeSlot` (slot locking)
+- [x] Update `supabase/seed.sql` — add seed comments and invitations for testing
 
 #### Phase 2: API Endpoints + Integration Tests
 
-- [ ] `POST /api/prompts/[id]/comments` — create or edit comment (upsert). `author_id` from session, never request body.
-- [ ] `GET /api/prompts/[id]/comments` — prompt author sees all; others see own
-- [ ] `POST /api/prompts/[id]/invitations` — create invitation (select slot + message)
-- [ ] `DELETE /api/invitations/[id]` — withdraw pending invitation
+- [x] `POST /api/prompts/[id]/comments` — create or edit comment (upsert). `author_id` from session, never request body.
+- [x] `GET /api/prompts/[id]/comments` — prompt author sees all; others see own
+- [x] `POST /api/prompts/[id]/invitations` — create invitation (select slot + message)
+- [x] `DELETE /api/invitations/[id]` — withdraw pending invitation
 - [ ] `POST /api/invitations/[id]/accept` — accept invitation (calls RPC)
 - [ ] `supabase/tests/rls_comments.test.sql` — two-party visibility, one-per-user enforcement, can't comment on own prompt
 - [ ] `supabase/tests/rls_invitations.test.sql` — inviter/invitee visibility, slot booking atomicity
-- [ ] `tests/integration/comment-lifecycle.test.ts` — create, edit (upsert sets updated_at), author visibility, cross-user invisibility
-- [ ] `tests/integration/invitation-lifecycle.test.ts` — create, cancel, accept (slot marked booked, other invitations cancelled), expire via function call
+- [x] `tests/integration/comment-lifecycle.test.ts` — create, edit (upsert sets updated_at), author visibility, cross-user invisibility
+- [x] `tests/integration/invitation-lifecycle.test.ts` — create, cancel, accept (slot marked booked, other invitations cancelled), expire via function call
 
 ## Acceptance Criteria
 
