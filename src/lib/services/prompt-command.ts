@@ -101,12 +101,14 @@ export class SupabasePromptCommandService implements PromptCommandService {
 			throw new Error('Can only add slots to a published prompt');
 		}
 
-		// Check total non-accepted slots won't exceed 3
+		// Check total future non-accepted slots won't exceed 3
+		// (exclude expired slots — they're functionally dead)
 		const { count } = await this.supabase
 			.from('time_slots')
 			.select('id', { count: 'exact', head: true })
 			.eq('prompt_id', promptId)
-			.eq('accepted', false);
+			.eq('accepted', false)
+			.gt('start_time', new Date().toISOString());
 
 		if ((count ?? 0) + slots.length > 3) {
 			throw new Error('Cannot exceed 3 available slots per prompt');

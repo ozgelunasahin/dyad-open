@@ -77,3 +77,16 @@ CREATE POLICY "Authenticated users can read slots of published prompts"
     )
     AND auth.uid() IS NOT NULL
   );
+
+-- Public view: excludes exact_location for privacy.
+-- The discover feed and prompt detail queries use this view.
+-- Only the author (via direct time_slots table access through FOR ALL policy)
+-- or the service role can read exact_location.
+CREATE VIEW time_slots_public AS
+  SELECT id, prompt_id, start_time, duration_minutes,
+         general_area, general_area_lat, general_area_lng,
+         accepted, created_at
+  FROM time_slots;
+
+-- Grant the view to authenticated (inherits RLS from underlying table)
+GRANT SELECT ON time_slots_public TO authenticated;
