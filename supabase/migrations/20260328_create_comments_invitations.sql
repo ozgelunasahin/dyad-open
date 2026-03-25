@@ -53,7 +53,7 @@ CREATE TABLE prompt_invitations (
   slot_id UUID NOT NULL REFERENCES time_slots(id) ON DELETE CASCADE,
   inviter_id UUID NOT NULL REFERENCES auth.users(id),
   invitee_id UUID NOT NULL REFERENCES auth.users(id),
-  comment_id UUID REFERENCES prompt_comments(id),
+  comment_id UUID REFERENCES prompt_comments(id) ON DELETE SET NULL,
   message TEXT CHECK (message IS NULL OR char_length(message) BETWEEN 1 AND 500),
   state TEXT NOT NULL DEFAULT 'pending'
     CHECK (state IN ('pending', 'accepted', 'cancelled', 'expired')),
