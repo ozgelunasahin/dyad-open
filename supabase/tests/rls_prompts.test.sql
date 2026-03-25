@@ -2,7 +2,7 @@
 -- Run with: npx supabase test db
 
 BEGIN;
-SELECT plan(8);
+SELECT plan(10);
 
 -- ============================================
 -- Setup: define test user IDs from seed data
@@ -56,20 +56,21 @@ SELECT is_empty(
   'Other user cannot see draft prompts'
 );
 
--- 7. Other user cannot update digit's prompts
-SELECT throws_ok(
+-- 7. Other user cannot update digit's prompts (RLS silently filters, 0 rows affected)
+SELECT lives_ok(
   $$ UPDATE prompts SET title = 'Hacked' WHERE id = 'seed-prompt-published' $$,
-  NULL,
-  NULL,
-  'Other user cannot update someone elses prompt'
+  'Update on non-owned prompt does not throw'
+);
+SELECT results_eq(
+  $$ SELECT title FROM prompts WHERE id = 'seed-prompt-published' $$,
+  $$ VALUES ('What we owe each other as strangers'::text) $$,
+  'Title unchanged after unauthorized update attempt'
 );
 
--- 8. Other user cannot delete digit's prompts
-SELECT throws_ok(
+-- 8. Other user cannot delete digit's draft (RLS silently filters, row still exists)
+SELECT lives_ok(
   $$ DELETE FROM prompts WHERE id = 'seed-prompt-draft' $$,
-  NULL,
-  NULL,
-  'Other user cannot delete someone elses prompt'
+  'Delete on non-owned prompt does not throw'
 );
 
 SELECT * FROM finish();

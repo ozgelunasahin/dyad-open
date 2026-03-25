@@ -20,18 +20,10 @@ CREATE INDEX idx_prompts_author ON prompts(author_id);
 CREATE INDEX idx_prompts_discover ON prompts(state, region)
   WHERE state = 'published';
 
--- Auto-update updated_at
-CREATE OR REPLACE FUNCTION update_prompts_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
+-- Auto-update updated_at (reuse existing function from baseline)
 CREATE TRIGGER prompts_updated_at
   BEFORE UPDATE ON prompts
-  FOR EACH ROW EXECUTE FUNCTION update_prompts_updated_at();
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- RLS
 ALTER TABLE prompts ENABLE ROW LEVEL SECURITY;
