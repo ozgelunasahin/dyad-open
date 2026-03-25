@@ -24,7 +24,7 @@ export class SupabaseFeedbackService implements FeedbackService {
 	async getMyForm(meetingId: string, userId: string): Promise<FeedbackForm | null> {
 		const { data, error } = await this.supabase
 			.from('feedback_forms')
-			.select('*')
+			.select('id, meeting_id, reviewer_id, reviewee_id, did_meet, no_show_reason, rating_tags, free_text, share_with_person, state, submitted_at, locked_at, created_at')
 			.eq('meeting_id', meetingId)
 			.eq('reviewer_id', userId)
 			.maybeSingle();
