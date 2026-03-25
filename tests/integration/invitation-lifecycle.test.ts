@@ -149,9 +149,10 @@ describe('Invitation lifecycle', () => {
 			invitationId = invitation.id;
 		});
 
-		it('invitee accepts — slot is booked atomically', async () => {
-			const accepted = await otherServices.invitation.accept(invitationId);
-			expect(accepted).toBe(true);
+		it('invitee accepts — meeting created atomically', async () => {
+			const meetingId = await otherServices.invitation.accept(invitationId);
+			expect(meetingId).toBeTruthy();
+			expect(typeof meetingId).toBe('string');
 
 			// Slot should now be marked as accepted
 			const slots = await otherServices.promptQuery.getAvailableSlots(
