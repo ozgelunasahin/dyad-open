@@ -129,3 +129,4 @@ When squashing migrations into a baseline via `pg_dump`, you inherit all existin
 - `todos/048-pending-p2-extract-configuration-constants.md` — hardcoded constants to extract
 - `todos/049-pending-p1-input-validation-timeslot-fields.md` — validation gap found in security review
 - `todos/051-pending-p2-extract-location-service-interface.md` — LocationService portability gap found in architecture review
+- `docs/solutions/security-issues/column-level-access-and-security-definer-patterns.md` — column-level grants, SECURITY DEFINER patterns from Steps 4-5

@@ -392,29 +392,29 @@ export interface MeetingService {
 
 #### Phase 0: Prerequisite — Fix time_slots exact_location access
 
-- [ ] `supabase/migrations/20260329_fix_time_slots_exact_location_access.sql` — REVOKE SELECT on `time_slots` from `authenticated`, grant SELECT only on `time_slots_public` view. Prompt authors retain full access via `FOR ALL` RLS policy. This is a pre-existing security gap (exact_location readable by any authenticated user via direct table query).
+- [x] `supabase/migrations/20260329_fix_time_slots_exact_location_access.sql` — REVOKE SELECT on `time_slots` from `authenticated`, grant SELECT only on `time_slots_public` view. Prompt authors retain full access via `FOR ALL` RLS policy. This is a pre-existing security gap (exact_location readable by any authenticated user via direct table query).
 
 #### Phase 1: Schema + Domain + Services
 
-- [ ] `supabase/migrations/20260330_create_meetings.sql` — meetings table (ON DELETE RESTRICT for prompt_id, no_self_meeting CHECK), cancellation_records table, RLS, cancel_meeting function, advance_scheduled_meetings function, get_meeting_with_location + get_meeting_detail functions, execution restrictions
-- [ ] `supabase/migrations/20260331_extend_accept_with_meeting.sql` — replace accept_invitation to create meeting + return UUID + guard against expired invitations (reject if slot starts within 12h)
-- [ ] `src/lib/domain/types.ts` — add Meeting, MeetingWithLocation, MeetingState, CancellationRecord, CancellationTier
-- [ ] `src/lib/domain/meeting.ts` — canCancel, deriveCancellationTier, isAwaitingFeedback guards
+- [x] `supabase/migrations/20260330_create_meetings.sql` — meetings table (ON DELETE RESTRICT for prompt_id, no_self_meeting CHECK), cancellation_records table, RLS, cancel_meeting function, advance_scheduled_meetings function, get_meeting_with_location + get_meeting_detail functions, execution restrictions
+- [x] `supabase/migrations/20260331_extend_accept_with_meeting.sql` — replace accept_invitation to create meeting + return UUID + guard against expired invitations (reject if slot starts within 12h)
+- [x] `src/lib/domain/types.ts` — add Meeting, MeetingWithLocation, MeetingState, CancellationRecord, CancellationTier
+- [x] `src/lib/domain/meeting.ts` — canCancel, deriveCancellationTier, isAwaitingFeedback guards
 - [ ] `src/lib/domain/meeting.test.ts` — unit tests for all guards
-- [ ] `src/lib/services/meeting.ts` — MeetingService interface + SupabaseMeetingService
-- [ ] Update `src/lib/services/invitation.ts` — accept returns `string | null` (meeting ID) instead of boolean
-- [ ] Update `tests/helpers/db.ts` — add MeetingService to factory
+- [x] `src/lib/services/meeting.ts` — MeetingService interface + SupabaseMeetingService
+- [x] Update `src/lib/services/invitation.ts` — accept returns `string | null` (meeting ID) instead of boolean
+- [x] Update `tests/helpers/db.ts` — add MeetingService to factory
 - [ ] Update `supabase/seed.sql` — add a seed meeting (accepted invitation → meeting)
 
 #### Phase 2: API Endpoints + Integration Tests
 
-- [ ] Update `POST /api/invitations/[id]/accept` — return meeting ID + details
-- [ ] `GET /api/meetings` — list my meetings (both participants)
-- [ ] `GET /api/meetings/[id]` — meeting detail: active meetings get exact location, cancelled meetings get general area + cancellation info
-- [ ] `POST /api/meetings/[id]/cancel` — cancel with optional reason
+- [x] Update `POST /api/invitations/[id]/accept` — return meeting ID + details
+- [x] `GET /api/meetings` — list my meetings (both participants)
+- [x] `GET /api/meetings/[id]` — meeting detail: active meetings get exact location, cancelled meetings get general area + cancellation info
+- [x] `POST /api/meetings/[id]/cancel` — cancel with optional reason
 - [ ] `supabase/tests/rls_meetings.test.sql` — participant visibility, no direct mutations, cancellation record access
-- [ ] `tests/integration/meeting-lifecycle.test.ts` — accept creates meeting, cancel (early/late tiers), location reveal, slot release on early cancel, advance_scheduled_meetings function
-- [ ] Update `tests/integration/invitation-lifecycle.test.ts` — accept now returns meeting ID
+- [x] `tests/integration/meeting-lifecycle.test.ts` — accept creates meeting, cancel (early/late tiers), location reveal, slot release on early cancel, advance_scheduled_meetings function
+- [x] Update `tests/integration/invitation-lifecycle.test.ts` — accept now returns meeting ID
 
 ## Acceptance Criteria
 

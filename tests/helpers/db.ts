@@ -15,12 +15,17 @@ import {
 	SupabaseInvitationService,
 	type InvitationService
 } from '../../src/lib/services/invitation.js';
+import {
+	SupabaseMeetingService,
+	type MeetingService
+} from '../../src/lib/services/meeting.js';
 
 export interface Services {
 	promptCommand: PromptCommandService;
 	promptQuery: PromptQueryService;
 	comment: CommentService;
 	invitation: InvitationService;
+	meeting: MeetingService;
 }
 
 /**
@@ -33,6 +38,7 @@ export function createServices(supabase: SupabaseClient): Services {
 		promptCommand: new SupabasePromptCommandService(supabase),
 		promptQuery: new SupabasePromptQueryService(supabase),
 		comment: new SupabaseCommentService(supabase),
-		invitation: new SupabaseInvitationService(supabase)
+		invitation: new SupabaseInvitationService(supabase),
+		meeting: new SupabaseMeetingService(supabase)
 	};
 }
