@@ -396,30 +396,30 @@ export interface LocationService {
 
 #### Phase 1: Schema + Domain Types + Shared Utilities
 
-- [ ] `supabase/migrations/YYYYMMDD_create_prompts.sql` — prompts table, time_slots table, RLS policies, indexes, updated_at trigger
-- [ ] `src/lib/domain/types.ts` — all TypeScript interfaces and enums listed above
-- [ ] `src/lib/domain/prompt.ts` — state machine guards (canPublish, canUnpublish, canRepublish, isWithinRollingWindow)
-- [ ] `src/lib/domain/time-slot.ts` — slot state derivation (isAvailable, isExpired, isClosing, isConflicting)
-- [ ] `src/lib/server/username-lookup.ts` — extract buildUsernameMap from existing code
-- [ ] `src/lib/server/parse-body.ts` — extract parseJsonBody from existing code
-- [ ] `src/lib/server/auth.ts` — extract requireAuth, requireAdmin from existing code
+- [x] `supabase/migrations/YYYYMMDD_create_prompts.sql` — prompts table, time_slots table, RLS policies, indexes, updated_at trigger
+- [x] `src/lib/domain/types.ts` — all TypeScript interfaces and enums listed above
+- [x] `src/lib/domain/prompt.ts` — state machine guards (canPublish, canUnpublish, canRepublish, isWithinRollingWindow)
+- [x] `src/lib/domain/time-slot.ts` — slot state derivation (isAvailable, isExpired, isClosing, isConflicting)
+- [x] `src/lib/server/username-lookup.ts` — extract buildUsernameMap from existing code
+- [x] `src/lib/server/parse-body.ts` — extract parseJsonBody from existing code
+- [x] `src/lib/server/auth.ts` — extract requireAuth, requireAdmin from existing code
 
 #### Phase 2: Services + Location Integration
 
-- [ ] `src/lib/services/location.ts` — Nominatim search (adapt CitySearch.svelte backend), reverse geocoding for general area derivation, region validation
-- [ ] `src/lib/services/prompt-command.ts` — PromptCommandService implementation (create, update, publish, addSlots, editSlot, removeSlot, unpublish, republish, deleteDraft)
-- [ ] `src/lib/services/prompt-query.ts` — PromptQueryService implementation (getPublishedPrompts with ordering/filtering, getPromptDetail with HTML rendering, getMyPrompts, getAvailableSlots)
+- [x] `src/lib/services/location.ts` — Nominatim search (adapt CitySearch.svelte backend), reverse geocoding for general area derivation, region validation
+- [x] `src/lib/services/prompt-command.ts` — PromptCommandService implementation (create, update, publish, addSlots, editSlot, removeSlot, unpublish, republish, deleteDraft)
+- [x] `src/lib/services/prompt-query.ts` — PromptQueryService implementation (getPublishedPrompts with ordering/filtering, getPromptDetail with HTML rendering, getMyPrompts, getAvailableSlots)
 
 #### Phase 3: API Endpoints
 
-- [ ] `POST /api/prompts` — create draft (calls PromptCommandService.create)
-- [ ] `GET /api/prompts/[id]` — prompt detail (calls PromptQueryService.getPromptDetail)
-- [ ] `PATCH /api/prompts/[id]` — update content/image (calls PromptCommandService.update)
-- [ ] `POST /api/prompts/[id]/publish` — publish with slots (calls PromptCommandService.publish)
-- [ ] `PATCH /api/prompts/[id]/slots` — add/edit/remove slots (calls addSlots/editSlot/removeSlot)
-- [ ] `POST /api/prompts/[id]/unpublish` — unpublish (calls PromptCommandService.unpublish)
-- [ ] `POST /api/prompts/[id]/republish` — republish (calls PromptCommandService.republish)
-- [ ] `DELETE /api/prompts/[id]` — delete draft (calls PromptCommandService.deleteDraft)
+- [x] `POST /api/prompts` — create draft (calls PromptCommandService.create)
+- [x] `GET /api/prompts/[id]` — prompt detail (calls PromptQueryService.getPromptDetail)
+- [x] `PATCH /api/prompts/[id]` — update content/image (calls PromptCommandService.update)
+- [x] `POST /api/prompts/[id]/publish` — publish with slots (calls PromptCommandService.publish)
+- [x] `PATCH /api/prompts/[id]/slots` — add/edit/remove slots (calls addSlots/editSlot/removeSlot)
+- [x] `POST /api/prompts/[id]/unpublish` — unpublish (calls PromptCommandService.unpublish)
+- [x] `POST /api/prompts/[id]/republish` — republish (calls PromptCommandService.republish)
+- [x] `DELETE /api/prompts/[id]` — delete draft (calls PromptCommandService.deleteDraft)
 
 #### Phase 4: Discover Feed Rewrite
 

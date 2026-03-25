@@ -1,0 +1,39 @@
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { requireAuth } from '$lib/server/auth.js';
+import { parseJsonBody } from '$lib/server/parse-body.js';
+import { SupabasePromptCommandService } from '$lib/services/prompt-command.js';
+import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
+
+/** POST /api/prompts — create a draft prompt */
+export const POST: RequestHandler = async ({ request, locals }) => {
+	const user = requireAuth(locals.user);
+
+	const [body, errorResponse] = await parseJsonBody<{
+		title?: string;
+		body?: unknown;
+		coverImageUrl?: string;
+	}>(request);
+	if (errorResponse) return errorResponse;
+
+	const service = new SupabasePromptCommandService(locals.supabase);
+	try {
+		const prompt = await service.create(user.id, {
+			title: body.title,
+			body: body.body as import('@tiptap/core').JSONContent | undefined,
+			coverImageUrl: body.coverImageUrl
+		});
+		return json(prompt, { status: 201 });
+	} catch (err) {
+		return json({ error: (err as Error).message }, { status: 400 });
+	}
+};
+
+/** GET /api/prompts — list the current user's prompts */
+export const GET: RequestHandler = async ({ locals }) => {
+	const user = requireAuth(locals.user);
+
+	const service = new SupabasePromptQueryService(locals.supabase);
+	const prompts = await service.getMyPrompts(user.id);
+	return json(prompts);
+};
