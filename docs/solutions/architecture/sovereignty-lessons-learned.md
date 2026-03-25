@@ -8,7 +8,24 @@ prs: [37]
 
 # Where Sovereignty Issues Hide
 
-Lessons from auditing a web application for EU sovereignty compliance. These are the non-obvious places where US dependencies creep in despite an explicit commitment to European infrastructure.
+Lessons from auditing a web application for sovereignty compliance. These are the non-obvious places where dependencies creep in despite an explicit commitment to sovereign infrastructure.
+
+## Sovereignty is a spectrum, not a checkbox
+
+"Is it EU-hosted?" is only the first question. Sovereignty has multiple dimensions:
+
+| Level | Example | What you control |
+|---|---|---|
+| US cloud service | AWS us-east-1, Google Cloud | Nothing — data subject to CLOUD Act, FISA |
+| US company, EU-hosted | AWS Frankfurt, Cloudflare EU edge | Data location, but not jurisdiction. US government can compel access. |
+| EU company, managed service | Mailjet, Hetzner Cloud | Jurisdiction + data location. But you depend on the company's continuity and terms. |
+| Open-source, managed hosting | Supabase Cloud EU, PostHog Cloud EU | Jurisdiction + exit path. If provider changes, you can self-host. |
+| Self-hosted open-source | Supabase on Hetzner, PostHog on your VPS | Full control. But you carry the operational burden. |
+| Community-governed open-source | Matrix/Element, Mastodon | Full control + collective governance. Roadmap isn't driven by a single company's investors. |
+
+Each level up gives you more control but more operational responsibility. The right level depends on the sensitivity of the data and the criticality of the service. Auth and user data warrant a higher sovereignty level than, say, a CSS CDN.
+
+When evaluating a dependency, ask not just "where is the data?" but also: who owns the company? Who can compel access? What happens if the service disappears? Can you migrate away without rewriting code?
 
 ## 1. Libraries that phone home for runtime assets
 
@@ -60,3 +77,6 @@ When adding any dependency or building any feature:
 - [ ] Are your database security policies using provider-specific functions? Could they be wrapped?
 - [ ] Is your hosting coupling deep (platform APIs) or shallow (build config)?
 - [ ] For any new service integration: where does the data physically reside?
+- [ ] What sovereignty level does this service operate at? (see spectrum above)
+- [ ] Who owns the company behind this service? Who are their investors? What jurisdiction are they subject to?
+- [ ] If this service disappears tomorrow, can you self-host or migrate?
