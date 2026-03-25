@@ -123,6 +123,9 @@ export class SupabasePromptCommandService implements PromptCommandService {
 			throw new Error('Cannot edit an accepted slot');
 		}
 
+		// Slot locking: reject edits when pending invitations exist
+		await this.checkNoPendingInvitations(slotId);
+
 		const fields: Record<string, unknown> = {};
 		if (updates.start_time !== undefined) fields.start_time = updates.start_time;
 		if (updates.duration_minutes !== undefined) fields.duration_minutes = updates.duration_minutes;
@@ -152,6 +155,9 @@ export class SupabasePromptCommandService implements PromptCommandService {
 		if (slot.accepted) {
 			throw new Error('Cannot remove an accepted slot');
 		}
+
+		// Slot locking: reject removal when pending invitations exist
+		await this.checkNoPendingInvitations(slotId);
 
 		const { error } = await this.supabase
 			.from('time_slots')
@@ -213,6 +219,18 @@ export class SupabasePromptCommandService implements PromptCommandService {
 	}
 
 	// Private helpers
+
+	private async checkNoPendingInvitations(slotId: string): Promise<void> {
+		const { count } = await this.supabase
+			.from('prompt_invitations')
+			.select('id', { count: 'exact', head: true })
+			.eq('slot_id', slotId)
+			.eq('state', 'pending');
+
+		if ((count ?? 0) > 0) {
+			throw new Error('Cannot modify a slot with pending invitations');
+		}
+	}
 
 	private async getOwnPrompt(promptId: string, authorId: string): Promise<Prompt> {
 		const { data, error } = await this.supabase
