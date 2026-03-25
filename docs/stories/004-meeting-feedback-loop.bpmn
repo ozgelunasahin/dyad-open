@@ -1,0 +1,1018 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="bpmn-js (https://demo.bpmn.io)" exporterVersion="18.13.1">
+  <bpmn:collaboration id="Collaboration_MeetingFeedback">
+    <bpmn:participant id="Pool_Tom" name="Tom" processRef="Process_Tom" />
+    <bpmn:participant id="Pool_Sophie" name="Sophie" processRef="Process_Sophie" />
+    <bpmn:participant id="Pool_System" name="System" processRef="Process_System" />
+    <bpmn:messageFlow id="MsgFlow_Tom_CalendarAdd" name="Calendar add" sourceRef="Task_Tom_AddCalendar" targetRef="Task_Sys_GenerateCalendarLink" />
+    <bpmn:messageFlow id="MsgFlow_Tom_Cancellation" name="Cancellation" sourceRef="Task_Tom_Explanation" targetRef="Task_Sys_HandleCancellation" />
+    <bpmn:messageFlow id="MsgFlow_Tom_CancelLate" name="Late cancel / no-show" sourceRef="Task_Tom_ReputationMark" targetRef="Task_Sys_HandleCancellation" />
+    <bpmn:messageFlow id="MsgFlow_Tom_Feedback" name="Tom&#39;s feedback" sourceRef="Task_Tom_SubmitFeedback" targetRef="Task_Sys_ReceiveHoldFeedback" />
+    <bpmn:messageFlow id="MsgFlow_Sophie_Feedback" name="Sophie&#39;s feedback" sourceRef="Task_Sophie_SubmitFeedback" targetRef="Task_Sys_ReceiveHoldFeedback" />
+    <bpmn:messageFlow id="MsgFlow_Sys_Tom_Details" name="Meeting details" sourceRef="Task_Sys_DisplayDetails" targetRef="Task_Tom_ViewDetails" />
+    <bpmn:messageFlow id="MsgFlow_Sys_Tom_FeedbackReveal" name="Feedback reveal" sourceRef="Task_Sys_RevealFeedback" targetRef="ICE_Tom_BothSubmitted" />
+    <bpmn:messageFlow id="MsgFlow_Sys_Sophie_FeedbackReveal" name="Feedback reveal" sourceRef="Task_Sys_RevealFeedback" targetRef="ICE_Sophie_BothSubmitted" />
+    <bpmn:textAnnotation id="Annot_CancelEarly">
+      <bpmn:text>Requires free-text explanation (at least, once meeting is scheduled). Explanation logged for moderation pattern detection.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="Annot_CancelLate">
+      <bpmn:text>maybe 1 free pass before reputation mark becomes visible on profile. Not a blacklist but visible signals. repeated cancels/no-shows trigger moderation</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="Annot_FeedbackForm">
+      <bpmn:text>Full form: Did it take place? (if no, why?) / How was it? / What do you think of [person] as conversation partner? / Select adjectives (admin-curated vocabulary) + free text / What to share with the other person / What to share with the platform / Any comments for the platform</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="Annot_AppGating">
+      <bpmn:text>Explore/map view and creating/responding to new conversations are gated. Users can still manage existing invitations (confirm/cancel meetings)</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="Annot_TimerActivation">
+      <bpmn:text>Activates at meeting START time, not end. Feedback can be given immediately (no-show after 15 min, short meeting, etc).</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="Annot_ModeratorMinimal">
+      <bpmn:text>Community is self-moderating through structure. Moderator intervention should be minimised.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="Annot_SimultaneousReveal">
+      <bpmn:text>Simultaneous reveal prevents retaliation bias. Neither party sees feedback until both have submitted.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="TextAnnotation_1n6p7k9">
+      <bpmn:text>≥12h: cancel + reactivate; &lt;12h: reputation mark)</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_SimultaneousReveal" associationDirection="None" sourceRef="Task_Sys_RevealFeedback" targetRef="Annot_SimultaneousReveal" />
+    <bpmn:association id="Assoc_ModeratorMinimal" associationDirection="None" sourceRef="Task_Sys_ModeratorIntervention" targetRef="Annot_ModeratorMinimal" />
+    <bpmn:association id="Association_1sf331o" associationDirection="None" sourceRef="Task_Sys_HandleCancellation" targetRef="TextAnnotation_1n6p7k9" />
+    <bpmn:association id="Assoc_CancelEarly" associationDirection="None" sourceRef="GW_Tom_Cancel" targetRef="Annot_CancelEarly" />
+    <bpmn:association id="Assoc_CancelLate" associationDirection="None" sourceRef="End_Tom_CancelLate" targetRef="Annot_CancelLate" />
+    <bpmn:association id="Assoc_TimerActivation" associationDirection="None" sourceRef="Timer_Tom_NextLogin" targetRef="Annot_TimerActivation" />
+    <bpmn:association id="Assoc_FeedbackForm" associationDirection="None" sourceRef="Task_Tom_FillFeedback" targetRef="Annot_FeedbackForm" />
+    <bpmn:association id="Assoc_AppGating" associationDirection="None" sourceRef="Task_Tom_AppGated" targetRef="Annot_AppGating" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_Tom" isExecutable="false">
+    <bpmn:task id="Task_Tom_MeetingCancelled" name="Meeting cancelled, conversation reappears">
+      <bpmn:incoming>Flow_Tom_CancelEarly2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_CancelEarlyEnd</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="End_Tom_CancelEarly" name="Cancelled (no penalty)">
+      <bpmn:incoming>Flow_Tom_CancelEarlyEnd</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:startEvent id="Start_Tom" name="Receives confirmation">
+      <bpmn:outgoing>Flow_Tom_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Task_Tom_ViewDetails" name="Views scheduled meeting details (exact location)">
+      <bpmn:incoming>Flow_Tom_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Tom_ViewCancelPolicy" name="Views cancellation policy (12h window)">
+      <bpmn:incoming>Flow_Tom_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_3</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Tom_AddCalendar" name="(Optional) Adds to calendar">
+      <bpmn:incoming>Flow_Tom_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_4</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="GW_Tom_Cancel" name="Cancel?">
+      <bpmn:incoming>Flow_Tom_4</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_CancelEarly</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Tom_CancelLate</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Tom_NoCancel</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Task_Tom_ShowUp" name="Shows up at agreed time and place">
+      <bpmn:incoming>Flow_Tom_NoCancel</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_5</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Tom_MeetsSophie" name="Meets Sophie, has conversation">
+      <bpmn:incoming>Flow_Tom_5</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_6</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Tom_ReputationMark" name="Reputation mark applied">
+      <bpmn:incoming>Flow_Tom_CancelLate</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_CancelLateEnd</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="End_Tom_CancelLate" name="Cancelled (reputation mark)">
+      <bpmn:incoming>Flow_Tom_CancelLateEnd</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:task id="Task_Tom_PartsWays" name="Conversation ends, parts ways">
+      <bpmn:incoming>Flow_Tom_6</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_7</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:intermediateCatchEvent id="Timer_Tom_NextLogin" name="Next login after meeting start time">
+      <bpmn:incoming>Flow_Tom_7</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_8</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TimerDef_Tom" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:task id="Task_Tom_AppGated" name="Explore/new conversations gated: must give feedback">
+      <bpmn:incoming>Flow_Tom_8</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_9</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Tom_FillFeedback" name="Fills out feedback form">
+      <bpmn:incoming>Flow_Tom_9</bpmn:incoming>
+      <bpmn:incoming>Flow_Tom_EditYes</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_10</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="GW_Tom_EditFeedback" name="Edit feedback? (editable until both submit)">
+      <bpmn:incoming>Flow_Tom_11</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_EditYes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Tom_EditNo</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Task_Tom_SubmitFeedback" name="Submits feedback">
+      <bpmn:incoming>Flow_Tom_10</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_11</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Tom_ViewFeedback" name="Views Sophie&#39;s feedback">
+      <bpmn:incoming>Flow_Tom_13</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_14</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:intermediateCatchEvent id="IWait_Tom" name="Waits for Sophie&#39;s feedback">
+      <bpmn:incoming>Flow_Tom_EditNo</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_12</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgDef_Tom_Wait" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:intermediateCatchEvent id="ICE_Tom_BothSubmitted" name="Both feedbacks submitted">
+      <bpmn:incoming>Flow_Tom_12</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_13</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgDef_Tom_BothSubmitted" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:task id="Task_Tom_ChooseProfile" name="Chooses whether to show feedback on profile">
+      <bpmn:incoming>Flow_Tom_14</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_15</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="End_Tom" name="Feedback complete, app unlocked">
+      <bpmn:incoming>Flow_Tom_15</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:task id="Task_Tom_Explanation" name="Provides explanation">
+      <bpmn:incoming>Flow_Tom_CancelEarly</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_CancelEarly2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="Flow_Tom_CancelEarly2" sourceRef="Task_Tom_Explanation" targetRef="Task_Tom_MeetingCancelled" />
+    <bpmn:sequenceFlow id="Flow_Tom_CancelEarlyEnd" sourceRef="Task_Tom_MeetingCancelled" targetRef="End_Tom_CancelEarly" />
+    <bpmn:sequenceFlow id="Flow_Tom_1" sourceRef="Start_Tom" targetRef="Task_Tom_ViewDetails" />
+    <bpmn:sequenceFlow id="Flow_Tom_2" sourceRef="Task_Tom_ViewDetails" targetRef="Task_Tom_ViewCancelPolicy" />
+    <bpmn:sequenceFlow id="Flow_Tom_3" sourceRef="Task_Tom_ViewCancelPolicy" targetRef="Task_Tom_AddCalendar" />
+    <bpmn:sequenceFlow id="Flow_Tom_4" sourceRef="Task_Tom_AddCalendar" targetRef="GW_Tom_Cancel" />
+    <bpmn:sequenceFlow id="Flow_Tom_CancelEarly" name="Cancel ≥12h before" sourceRef="GW_Tom_Cancel" targetRef="Task_Tom_Explanation" />
+    <bpmn:sequenceFlow id="Flow_Tom_CancelLate" name="Cancel &#60;12h / no-show" sourceRef="GW_Tom_Cancel" targetRef="Task_Tom_ReputationMark" />
+    <bpmn:sequenceFlow id="Flow_Tom_NoCancel" name="No" sourceRef="GW_Tom_Cancel" targetRef="Task_Tom_ShowUp" />
+    <bpmn:sequenceFlow id="Flow_Tom_5" sourceRef="Task_Tom_ShowUp" targetRef="Task_Tom_MeetsSophie" />
+    <bpmn:sequenceFlow id="Flow_Tom_6" sourceRef="Task_Tom_MeetsSophie" targetRef="Task_Tom_PartsWays" />
+    <bpmn:sequenceFlow id="Flow_Tom_CancelLateEnd" sourceRef="Task_Tom_ReputationMark" targetRef="End_Tom_CancelLate" />
+    <bpmn:sequenceFlow id="Flow_Tom_7" sourceRef="Task_Tom_PartsWays" targetRef="Timer_Tom_NextLogin" />
+    <bpmn:sequenceFlow id="Flow_Tom_8" sourceRef="Timer_Tom_NextLogin" targetRef="Task_Tom_AppGated" />
+    <bpmn:sequenceFlow id="Flow_Tom_9" sourceRef="Task_Tom_AppGated" targetRef="Task_Tom_FillFeedback" />
+    <bpmn:sequenceFlow id="Flow_Tom_EditYes" name="Yes (edit)" sourceRef="GW_Tom_EditFeedback" targetRef="Task_Tom_FillFeedback" />
+    <bpmn:sequenceFlow id="Flow_Tom_10" sourceRef="Task_Tom_FillFeedback" targetRef="Task_Tom_SubmitFeedback" />
+    <bpmn:sequenceFlow id="Flow_Tom_11" sourceRef="Task_Tom_SubmitFeedback" targetRef="GW_Tom_EditFeedback" />
+    <bpmn:sequenceFlow id="Flow_Tom_EditNo" name="No (done)" sourceRef="GW_Tom_EditFeedback" targetRef="IWait_Tom" />
+    <bpmn:sequenceFlow id="Flow_Tom_13" sourceRef="ICE_Tom_BothSubmitted" targetRef="Task_Tom_ViewFeedback" />
+    <bpmn:sequenceFlow id="Flow_Tom_14" sourceRef="Task_Tom_ViewFeedback" targetRef="Task_Tom_ChooseProfile" />
+    <bpmn:sequenceFlow id="Flow_Tom_12" sourceRef="IWait_Tom" targetRef="ICE_Tom_BothSubmitted" />
+    <bpmn:sequenceFlow id="Flow_Tom_15" sourceRef="Task_Tom_ChooseProfile" targetRef="End_Tom" />
+  </bpmn:process>
+  <bpmn:process id="Process_Sophie" isExecutable="false">
+    <bpmn:startEvent id="Start_Sophie" name="Post-meeting">
+      <bpmn:outgoing>Flow_Sophie_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:intermediateCatchEvent id="Timer_Sophie_NextLogin" name="Next login after meeting start time">
+      <bpmn:incoming>Flow_Sophie_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sophie_2</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TimerDef_Sophie" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:task id="Task_Sophie_AppGated" name="Explore/new conversations gated: must give feedback">
+      <bpmn:incoming>Flow_Sophie_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sophie_3</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Sophie_FillFeedback" name="Fills out feedback form (about Tom)">
+      <bpmn:incoming>Flow_Sophie_3</bpmn:incoming>
+      <bpmn:incoming>Flow_Sophie_EditYes</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sophie_4</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Sophie_SubmitFeedback" name="Submits feedback">
+      <bpmn:incoming>Flow_Sophie_4</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sophie_5</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="GW_Sophie_EditFeedback" name="Edit feedback? (editable until both submit)">
+      <bpmn:incoming>Flow_Sophie_5</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sophie_EditYes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Sophie_EditNo</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:intermediateCatchEvent id="IWait_Sophie" name="Waits for Tom&#39;s feedback">
+      <bpmn:incoming>Flow_Sophie_EditNo</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sophie_6</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgDef_Sophie_Wait" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:intermediateCatchEvent id="ICE_Sophie_BothSubmitted" name="Both feedbacks submitted">
+      <bpmn:incoming>Flow_Sophie_6</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sophie_7</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgDef_Sophie_BothSubmitted" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:task id="Task_Sophie_ViewFeedback" name="Views Tom&#39;s feedback">
+      <bpmn:incoming>Flow_Sophie_7</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sophie_8</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Sophie_ChooseProfile" name="Chooses whether to show feedback on profile">
+      <bpmn:incoming>Flow_Sophie_8</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sophie_9</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="End_Sophie" name="Feedback complete, app unlocked">
+      <bpmn:incoming>Flow_Sophie_9</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_Sophie_1" sourceRef="Start_Sophie" targetRef="Timer_Sophie_NextLogin" />
+    <bpmn:sequenceFlow id="Flow_Sophie_2" sourceRef="Timer_Sophie_NextLogin" targetRef="Task_Sophie_AppGated" />
+    <bpmn:sequenceFlow id="Flow_Sophie_3" sourceRef="Task_Sophie_AppGated" targetRef="Task_Sophie_FillFeedback" />
+    <bpmn:sequenceFlow id="Flow_Sophie_EditYes" name="Yes (edit)" sourceRef="GW_Sophie_EditFeedback" targetRef="Task_Sophie_FillFeedback" />
+    <bpmn:sequenceFlow id="Flow_Sophie_4" sourceRef="Task_Sophie_FillFeedback" targetRef="Task_Sophie_SubmitFeedback" />
+    <bpmn:sequenceFlow id="Flow_Sophie_5" sourceRef="Task_Sophie_SubmitFeedback" targetRef="GW_Sophie_EditFeedback" />
+    <bpmn:sequenceFlow id="Flow_Sophie_EditNo" name="No (done)" sourceRef="GW_Sophie_EditFeedback" targetRef="IWait_Sophie" />
+    <bpmn:sequenceFlow id="Flow_Sophie_6" sourceRef="IWait_Sophie" targetRef="ICE_Sophie_BothSubmitted" />
+    <bpmn:sequenceFlow id="Flow_Sophie_7" sourceRef="ICE_Sophie_BothSubmitted" targetRef="Task_Sophie_ViewFeedback" />
+    <bpmn:sequenceFlow id="Flow_Sophie_8" sourceRef="Task_Sophie_ViewFeedback" targetRef="Task_Sophie_ChooseProfile" />
+    <bpmn:sequenceFlow id="Flow_Sophie_9" sourceRef="Task_Sophie_ChooseProfile" targetRef="End_Sophie" />
+  </bpmn:process>
+  <bpmn:process id="Process_System" isExecutable="false">
+    <bpmn:startEvent id="Start_System" name="Meeting confirmed">
+      <bpmn:outgoing>Flow_Sys_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Task_Sys_DisplayDetails" name="Displays meeting details + cancellation policy">
+      <bpmn:incoming>Flow_Sys_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_ToWait</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:intermediateCatchEvent id="Timer_Sys_GateApps" name="Meeting start time reached">
+      <bpmn:incoming>Flow_Sys_ToTimerCatch</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_5</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TimerDef_Sys" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:task id="Task_Sys_PresentFeedbackForm" name="Presents feedback form, gates both apps">
+      <bpmn:incoming>Flow_Sys_5</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_6</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="GW_Sys_BothSubmitted" name="Both submitted?">
+      <bpmn:incoming>Flow_Sys_7</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_NotBoth</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Sys_YesBoth</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Task_Sys_RevealFeedback" name="Simultaneously reveals feedback">
+      <bpmn:incoming>Flow_Sys_YesBoth</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_8</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Sys_RoutePlatformFeedback" name="Routes platform feedback to admin">
+      <bpmn:incoming>Flow_Sys_8</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_9</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Sys_UpdateProfiles" name="Updates profiles">
+      <bpmn:incoming>Flow_Sys_9</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_10</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Sys_UnlockApp" name="Unlocks app for both users">
+      <bpmn:incoming>Flow_Sys_10</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_End</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="End_System" name="Process complete">
+      <bpmn:incoming>Flow_Sys_End</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:task id="Task_Sys_ReceiveHoldFeedback" name="Receives and holds each party&#39;s feedback">
+      <bpmn:incoming>Flow_Sys_ToReceive</bpmn:incoming>
+      <bpmn:incoming>Flow_Sys_NotBoth</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_7</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Sys_ModeratorIntervention" name="Moderator intervention (can ungate waiting party)">
+      <bpmn:incoming>Flow_Sys_ToModeratorIntervention</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_ModeratorDone</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="End_Sys_ModeratorUngate" name="Moderator ungated">
+      <bpmn:incoming>Flow_Sys_ModeratorDone</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:exclusiveGateway id="GW_Sys_MergeToFeedback" name="Merge">
+      <bpmn:incoming>Flow_Sys_MeetingHappened</bpmn:incoming>
+      <bpmn:incoming>Flow_Sys_NoShowToFeedback</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_ToReceive</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:exclusiveGateway id="GW_Sys_DidItTakePlace" name="Did the meeting take place?">
+      <bpmn:incoming>Flow_Sys_6</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_NoShow</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Sys_MeetingHappened</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Task_Sys_CaptureReason" name="Captures no-show reason">
+      <bpmn:incoming>Flow_Sys_NoShow</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_NoShow2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Sys_RouteModerator" name="Routes no-show report to moderator">
+      <bpmn:incoming>Flow_Sys_NoShow2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_NoShowToFeedback</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="End_Sys_Cancel" name="Meeting cancelled">
+      <bpmn:incoming>Flow_Sys_CancelEnd</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:task id="Task_Sys_LogExplanation" name="Logs explanation for moderation patterns">
+      <bpmn:incoming>Flow_Sys_CancelToLog</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_CancelEnd</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:intermediateCatchEvent id="ICE_Sys_CancelReceived" name="Cancellation received">
+      <bpmn:incoming>Flow_Sys_ToCancelCatch</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_CancelToHandle</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgDef_Sys_Cancel" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:eventBasedGateway id="GW_Sys_WaitForEvent" name="Await cancellation or meeting time">
+      <bpmn:incoming>Flow_Sys_ToWait</bpmn:incoming>
+      <bpmn:incoming>Flow_Sys_CalDone</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_ToCancelCatch</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Sys_ToTimerCatch</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+    <bpmn:task id="Task_Sys_GenerateCalendarLink" name="Generates calendar event link">
+      <bpmn:outgoing>Flow_Sys_CalDone</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Sys_HandleCancellation" name="Handles cancellation">
+      <bpmn:incoming>Flow_Sys_CancelToHandle</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_CancelToLog</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:boundaryEvent id="BoundaryTimer_NeverSubmits" name="Submission timeout" cancelActivity="false" attachedToRef="Task_Sys_ReceiveHoldFeedback">
+      <bpmn:outgoing>Flow_Sys_ToModeratorIntervention</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TimerDef_NeverSubmits" />
+    </bpmn:boundaryEvent>
+    <bpmn:sequenceFlow id="Flow_Sys_1" sourceRef="Start_System" targetRef="Task_Sys_DisplayDetails" />
+    <bpmn:sequenceFlow id="Flow_Sys_ToWait" sourceRef="Task_Sys_DisplayDetails" targetRef="GW_Sys_WaitForEvent" />
+    <bpmn:sequenceFlow id="Flow_Sys_ToTimerCatch" sourceRef="GW_Sys_WaitForEvent" targetRef="Timer_Sys_GateApps" />
+    <bpmn:sequenceFlow id="Flow_Sys_5" sourceRef="Timer_Sys_GateApps" targetRef="Task_Sys_PresentFeedbackForm" />
+    <bpmn:sequenceFlow id="Flow_Sys_6" sourceRef="Task_Sys_PresentFeedbackForm" targetRef="GW_Sys_DidItTakePlace" />
+    <bpmn:sequenceFlow id="Flow_Sys_7" sourceRef="Task_Sys_ReceiveHoldFeedback" targetRef="GW_Sys_BothSubmitted" />
+    <bpmn:sequenceFlow id="Flow_Sys_NotBoth" name="No" sourceRef="GW_Sys_BothSubmitted" targetRef="Task_Sys_ReceiveHoldFeedback" />
+    <bpmn:sequenceFlow id="Flow_Sys_YesBoth" name="Yes" sourceRef="GW_Sys_BothSubmitted" targetRef="Task_Sys_RevealFeedback" />
+    <bpmn:sequenceFlow id="Flow_Sys_8" sourceRef="Task_Sys_RevealFeedback" targetRef="Task_Sys_RoutePlatformFeedback" />
+    <bpmn:sequenceFlow id="Flow_Sys_9" sourceRef="Task_Sys_RoutePlatformFeedback" targetRef="Task_Sys_UpdateProfiles" />
+    <bpmn:sequenceFlow id="Flow_Sys_10" sourceRef="Task_Sys_UpdateProfiles" targetRef="Task_Sys_UnlockApp" />
+    <bpmn:sequenceFlow id="Flow_Sys_End" sourceRef="Task_Sys_UnlockApp" targetRef="End_System" />
+    <bpmn:sequenceFlow id="Flow_Sys_ToReceive" sourceRef="GW_Sys_MergeToFeedback" targetRef="Task_Sys_ReceiveHoldFeedback" />
+    <bpmn:sequenceFlow id="Flow_Sys_ToModeratorIntervention" sourceRef="BoundaryTimer_NeverSubmits" targetRef="Task_Sys_ModeratorIntervention" />
+    <bpmn:sequenceFlow id="Flow_Sys_ModeratorDone" sourceRef="Task_Sys_ModeratorIntervention" targetRef="End_Sys_ModeratorUngate" />
+    <bpmn:sequenceFlow id="Flow_Sys_MeetingHappened" name="Yes" sourceRef="GW_Sys_DidItTakePlace" targetRef="GW_Sys_MergeToFeedback" />
+    <bpmn:sequenceFlow id="Flow_Sys_NoShowToFeedback" sourceRef="Task_Sys_RouteModerator" targetRef="GW_Sys_MergeToFeedback" />
+    <bpmn:sequenceFlow id="Flow_Sys_NoShow" name="No (no-show)" sourceRef="GW_Sys_DidItTakePlace" targetRef="Task_Sys_CaptureReason" />
+    <bpmn:sequenceFlow id="Flow_Sys_NoShow2" sourceRef="Task_Sys_CaptureReason" targetRef="Task_Sys_RouteModerator" />
+    <bpmn:sequenceFlow id="Flow_Sys_CancelEnd" sourceRef="Task_Sys_LogExplanation" targetRef="End_Sys_Cancel" />
+    <bpmn:sequenceFlow id="Flow_Sys_CancelToLog" sourceRef="Task_Sys_HandleCancellation" targetRef="Task_Sys_LogExplanation" />
+    <bpmn:sequenceFlow id="Flow_Sys_ToCancelCatch" sourceRef="GW_Sys_WaitForEvent" targetRef="ICE_Sys_CancelReceived" />
+    <bpmn:sequenceFlow id="Flow_Sys_CancelToHandle" sourceRef="ICE_Sys_CancelReceived" targetRef="Task_Sys_HandleCancellation" />
+    <bpmn:sequenceFlow id="Flow_Sys_CalDone" sourceRef="Task_Sys_GenerateCalendarLink" targetRef="GW_Sys_WaitForEvent" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_MeetingFeedback">
+      <bpmndi:BPMNShape id="Shape_Pool_Tom" bpmnElement="Pool_Tom" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="2710" height="480" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_MeetingCancelled" bpmnElement="Task_Tom_MeetingCancelled">
+        <dc:Bounds x="1040" y="390" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Tom_CancelEarly" bpmnElement="End_Tom_CancelEarly">
+        <dc:Bounds x="1192" y="412" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1176" y="455" width="68" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_Tom" bpmnElement="Start_Tom">
+        <dc:Bounds x="242" y="192" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="230" y="235" width="60" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_ViewDetails" bpmnElement="Task_Tom_ViewDetails">
+        <dc:Bounds x="320" y="170" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_ViewCancelPolicy" bpmnElement="Task_Tom_ViewCancelPolicy">
+        <dc:Bounds x="470" y="170" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_AddCalendar" bpmnElement="Task_Tom_AddCalendar">
+        <dc:Bounds x="620" y="170" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_Tom_Cancel" bpmnElement="GW_Tom_Cancel" isMarkerVisible="true">
+        <dc:Bounds x="755" y="185" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="759.5" y="161" width="41" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_ShowUp" bpmnElement="Task_Tom_ShowUp">
+        <dc:Bounds x="840" y="170" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_MeetsSophie" bpmnElement="Task_Tom_MeetsSophie">
+        <dc:Bounds x="1040" y="170" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_ReputationMark" bpmnElement="Task_Tom_ReputationMark">
+        <dc:Bounds x="920" y="290" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Tom_CancelLate" bpmnElement="End_Tom_CancelLate">
+        <dc:Bounds x="1072" y="312" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1048" y="355" width="84" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_PartsWays" bpmnElement="Task_Tom_PartsWays">
+        <dc:Bounds x="1200" y="170" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Timer_Tom_NextLogin" bpmnElement="Timer_Tom_NextLogin">
+        <dc:Bounds x="1362" y="192" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1336" y="154.5" width="88" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_AppGated" bpmnElement="Task_Tom_AppGated">
+        <dc:Bounds x="1440" y="170" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_FillFeedback" bpmnElement="Task_Tom_FillFeedback">
+        <dc:Bounds x="1600" y="170" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_Tom_EditFeedback" bpmnElement="GW_Tom_EditFeedback" isMarkerVisible="true">
+        <dc:Bounds x="1935" y="185" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1923.5" y="245" width="73" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_SubmitFeedback" bpmnElement="Task_Tom_SubmitFeedback">
+        <dc:Bounds x="1760" y="170" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_ViewFeedback" bpmnElement="Task_Tom_ViewFeedback">
+        <dc:Bounds x="2230" y="170" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_IWait_Tom" bpmnElement="IWait_Tom">
+        <dc:Bounds x="2032" y="192" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2027" y="142" width="46" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ICE_Tom_BothSubmitted" bpmnElement="ICE_Tom_BothSubmitted">
+        <dc:Bounds x="2112" y="192" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2091.5" y="154.5" width="77" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_ChooseProfile" bpmnElement="Task_Tom_ChooseProfile">
+        <dc:Bounds x="2360" y="170" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Tom" bpmnElement="End_Tom">
+        <dc:Bounds x="2522" y="192" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2505" y="142" width="70" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_Explanation" bpmnElement="Task_Tom_Explanation">
+        <dc:Bounds x="820" y="390" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_4" bpmnElement="Flow_Tom_4">
+        <di:waypoint x="720" y="210" />
+        <di:waypoint x="755" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_CancelEarly" bpmnElement="Flow_Tom_CancelEarly">
+        <di:waypoint x="780" y="235" />
+        <di:waypoint x="780" y="430" />
+        <di:waypoint x="820" y="430" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="739" y="443" width="62" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_CancelLate" bpmnElement="Flow_Tom_CancelLate">
+        <di:waypoint x="780" y="235" />
+        <di:waypoint x="780" y="330" />
+        <di:waypoint x="920" y="330" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="816" y="303" width="70" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_NoCancel" bpmnElement="Flow_Tom_NoCancel">
+        <di:waypoint x="805" y="210" />
+        <di:waypoint x="840" y="210" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="812" y="192" width="15" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_CancelEarly2" bpmnElement="Flow_Tom_CancelEarly2">
+        <di:waypoint x="920" y="430" />
+        <di:waypoint x="1040" y="430" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_CancelEarlyEnd" bpmnElement="Flow_Tom_CancelEarlyEnd">
+        <di:waypoint x="1140" y="430" />
+        <di:waypoint x="1192" y="430" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_CancelLateEnd" bpmnElement="Flow_Tom_CancelLateEnd">
+        <di:waypoint x="1020" y="330" />
+        <di:waypoint x="1072" y="330" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_6" bpmnElement="Flow_Tom_6">
+        <di:waypoint x="1140" y="210" />
+        <di:waypoint x="1200" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_7" bpmnElement="Flow_Tom_7">
+        <di:waypoint x="1300" y="210" />
+        <di:waypoint x="1362" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_8" bpmnElement="Flow_Tom_8">
+        <di:waypoint x="1398" y="210" />
+        <di:waypoint x="1440" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_9" bpmnElement="Flow_Tom_9">
+        <di:waypoint x="1540" y="210" />
+        <di:waypoint x="1600" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_10" bpmnElement="Flow_Tom_10">
+        <di:waypoint x="1700" y="210" />
+        <di:waypoint x="1760" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_11" bpmnElement="Flow_Tom_11">
+        <di:waypoint x="1860" y="210" />
+        <di:waypoint x="1935" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_EditYes" bpmnElement="Flow_Tom_EditYes">
+        <di:waypoint x="1960" y="185" />
+        <di:waypoint x="1960" y="140" />
+        <di:waypoint x="1670" y="140" />
+        <di:waypoint x="1670" y="170" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1793" y="122" width="47" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_EditNo" bpmnElement="Flow_Tom_EditNo">
+        <di:waypoint x="1985" y="210" />
+        <di:waypoint x="2032" y="210" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1987" y="192" width="49" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_12" bpmnElement="Flow_Tom_12">
+        <di:waypoint x="2068" y="210" />
+        <di:waypoint x="2112" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_13" bpmnElement="Flow_Tom_13">
+        <di:waypoint x="2148" y="210" />
+        <di:waypoint x="2230" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_14" bpmnElement="Flow_Tom_14">
+        <di:waypoint x="2330" y="210" />
+        <di:waypoint x="2360" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_15" bpmnElement="Flow_Tom_15">
+        <di:waypoint x="2460" y="210" />
+        <di:waypoint x="2522" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_1" bpmnElement="Flow_Tom_1">
+        <di:waypoint x="278" y="210" />
+        <di:waypoint x="320" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_2" bpmnElement="Flow_Tom_2">
+        <di:waypoint x="420" y="210" />
+        <di:waypoint x="470" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_3" bpmnElement="Flow_Tom_3">
+        <di:waypoint x="570" y="210" />
+        <di:waypoint x="620" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_5" bpmnElement="Flow_Tom_5">
+        <di:waypoint x="940" y="210" />
+        <di:waypoint x="1040" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_Pool_System" bpmnElement="Pool_System" isHorizontal="true">
+        <dc:Bounds x="160" y="620" width="2710" height="480" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_System" bpmnElement="Start_System">
+        <dc:Bounds x="252" y="782" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="246" y="825" width="49" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sys_DisplayDetails" bpmnElement="Task_Sys_DisplayDetails">
+        <dc:Bounds x="330" y="760" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Timer_Sys_GateApps" bpmnElement="Timer_Sys_GateApps">
+        <dc:Bounds x="592" y="782" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="579" y="825" width="64" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sys_PresentFeedbackForm" bpmnElement="Task_Sys_PresentFeedbackForm">
+        <dc:Bounds x="680" y="760" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_Sys_BothSubmitted" bpmnElement="GW_Sys_BothSubmitted" isMarkerVisible="true">
+        <dc:Bounds x="1945" y="775" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1931" y="745" width="80" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sys_RevealFeedback" bpmnElement="Task_Sys_RevealFeedback">
+        <dc:Bounds x="2050" y="760" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sys_RoutePlatformFeedback" bpmnElement="Task_Sys_RoutePlatformFeedback">
+        <dc:Bounds x="2200" y="760" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sys_UpdateProfiles" bpmnElement="Task_Sys_UpdateProfiles">
+        <dc:Bounds x="2350" y="760" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sys_UnlockApp" bpmnElement="Task_Sys_UnlockApp">
+        <dc:Bounds x="2500" y="760" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_System" bpmnElement="End_System">
+        <dc:Bounds x="2652" y="782" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2626" y="825" width="88" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sys_ReceiveHoldFeedback" bpmnElement="Task_Sys_ReceiveHoldFeedback">
+        <dc:Bounds x="1730" y="760" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sys_ModeratorIntervention" bpmnElement="Task_Sys_ModeratorIntervention">
+        <dc:Bounds x="1800" y="910" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Sys_ModeratorUngate" bpmnElement="End_Sys_ModeratorUngate">
+        <dc:Bounds x="1962" y="932" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1955" y="975" width="51" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_Sys_MergeToFeedback" bpmnElement="GW_Sys_MergeToFeedback" isMarkerVisible="true">
+        <dc:Bounds x="1425" y="775" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1434" y="755" width="32" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_Sys_DidItTakePlace" bpmnElement="GW_Sys_DidItTakePlace" isMarkerVisible="true">
+        <dc:Bounds x="1065" y="775" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1051" y="745" width="78" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sys_CaptureReason" bpmnElement="Task_Sys_CaptureReason">
+        <dc:Bounds x="1140" y="850" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sys_RouteModerator" bpmnElement="Task_Sys_RouteModerator">
+        <dc:Bounds x="1300" y="850" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Sys_Cancel" bpmnElement="End_Sys_Cancel">
+        <dc:Bounds x="1172" y="992" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1146" y="1035" width="89" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sys_LogExplanation" bpmnElement="Task_Sys_LogExplanation">
+        <dc:Bounds x="1020" y="970" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ICE_Sys_CancelReceived" bpmnElement="ICE_Sys_CancelReceived">
+        <dc:Bounds x="592" y="992" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="580" y="1035" width="61" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_Sys_WaitForEvent" bpmnElement="GW_Sys_WaitForEvent">
+        <dc:Bounds x="515" y="775" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="496" y="745" width="88" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sys_GenerateCalendarLink" bpmnElement="Task_Sys_GenerateCalendarLink">
+        <dc:Bounds x="420" y="640" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sys_HandleCancellation" bpmnElement="Task_Sys_HandleCancellation">
+        <dc:Bounds x="830" y="970" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Association_1sf331o_di" bpmnElement="Association_1sf331o">
+        <di:waypoint x="930" y="980" />
+        <di:waypoint x="970" y="955" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_BoundaryTimer_NeverSubmits" bpmnElement="BoundaryTimer_NeverSubmits">
+        <dc:Bounds x="1812" y="822" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1857.5" y="826" width="57" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_1" bpmnElement="Flow_Sys_1">
+        <di:waypoint x="288" y="800" />
+        <di:waypoint x="330" y="800" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_ToWait" bpmnElement="Flow_Sys_ToWait">
+        <di:waypoint x="430" y="800" />
+        <di:waypoint x="515" y="800" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_CalDone" bpmnElement="Flow_Sys_CalDone">
+        <di:waypoint x="470" y="720" />
+        <di:waypoint x="470" y="800" />
+        <di:waypoint x="515" y="800" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_ToCancelCatch" bpmnElement="Flow_Sys_ToCancelCatch">
+        <di:waypoint x="540" y="825" />
+        <di:waypoint x="540" y="1010" />
+        <di:waypoint x="592" y="1010" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_ToTimerCatch" bpmnElement="Flow_Sys_ToTimerCatch">
+        <di:waypoint x="565" y="800" />
+        <di:waypoint x="592" y="800" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_CancelToHandle" bpmnElement="Flow_Sys_CancelToHandle">
+        <di:waypoint x="628" y="1010" />
+        <di:waypoint x="830" y="1010" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_5" bpmnElement="Flow_Sys_5">
+        <di:waypoint x="628" y="800" />
+        <di:waypoint x="680" y="800" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_6" bpmnElement="Flow_Sys_6">
+        <di:waypoint x="780" y="800" />
+        <di:waypoint x="1065" y="800" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_ToReceive" bpmnElement="Flow_Sys_ToReceive">
+        <di:waypoint x="1475" y="800" />
+        <di:waypoint x="1730" y="800" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_ToModeratorIntervention" bpmnElement="Flow_Sys_ToModeratorIntervention">
+        <di:waypoint x="1830" y="858" />
+        <di:waypoint x="1830" y="910" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_ModeratorDone" bpmnElement="Flow_Sys_ModeratorDone">
+        <di:waypoint x="1900" y="950" />
+        <di:waypoint x="1962" y="950" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_NotBoth" bpmnElement="Flow_Sys_NotBoth">
+        <di:waypoint x="1970" y="825" />
+        <di:waypoint x="1970" y="870" />
+        <di:waypoint x="1780" y="870" />
+        <di:waypoint x="1780" y="840" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1864" y="852" width="15" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_7" bpmnElement="Flow_Sys_7">
+        <di:waypoint x="1830" y="800" />
+        <di:waypoint x="1945" y="800" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_YesBoth" bpmnElement="Flow_Sys_YesBoth">
+        <di:waypoint x="1995" y="800" />
+        <di:waypoint x="2050" y="800" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2010" y="782" width="19" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_8" bpmnElement="Flow_Sys_8">
+        <di:waypoint x="2150" y="800" />
+        <di:waypoint x="2200" y="800" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_9" bpmnElement="Flow_Sys_9">
+        <di:waypoint x="2300" y="800" />
+        <di:waypoint x="2350" y="800" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_10" bpmnElement="Flow_Sys_10">
+        <di:waypoint x="2450" y="800" />
+        <di:waypoint x="2500" y="800" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_End" bpmnElement="Flow_Sys_End">
+        <di:waypoint x="2600" y="800" />
+        <di:waypoint x="2652" y="800" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_NoShowToFeedback" bpmnElement="Flow_Sys_NoShowToFeedback">
+        <di:waypoint x="1400" y="890" />
+        <di:waypoint x="1450" y="890" />
+        <di:waypoint x="1450" y="825" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_NoShow" bpmnElement="Flow_Sys_NoShow">
+        <di:waypoint x="1090" y="825" />
+        <di:waypoint x="1090" y="890" />
+        <di:waypoint x="1140" y="890" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1056" y="897" width="67" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_MeetingHappened" bpmnElement="Flow_Sys_MeetingHappened">
+        <di:waypoint x="1115" y="800" />
+        <di:waypoint x="1425" y="800" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1248" y="778" width="19" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_NoShow2" bpmnElement="Flow_Sys_NoShow2">
+        <di:waypoint x="1240" y="890" />
+        <di:waypoint x="1300" y="890" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_CancelEnd" bpmnElement="Flow_Sys_CancelEnd">
+        <di:waypoint x="1120" y="1010" />
+        <di:waypoint x="1172" y="1010" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_CancelToLog" bpmnElement="Flow_Sys_CancelToLog">
+        <di:waypoint x="930" y="1010" />
+        <di:waypoint x="1020" y="1010" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_Pool_Sophie" bpmnElement="Pool_Sophie" isHorizontal="true">
+        <dc:Bounds x="160" y="1160" width="2710" height="300" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_Sophie" bpmnElement="Start_Sophie">
+        <dc:Bounds x="1252" y="1292" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1238" y="1335" width="65" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Timer_Sophie_NextLogin" bpmnElement="Timer_Sophie_NextLogin">
+        <dc:Bounds x="1342" y="1292" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1316" y="1335" width="88" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sophie_AppGated" bpmnElement="Task_Sophie_AppGated">
+        <dc:Bounds x="1430" y="1270" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sophie_FillFeedback" bpmnElement="Task_Sophie_FillFeedback">
+        <dc:Bounds x="1580" y="1270" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sophie_SubmitFeedback" bpmnElement="Task_Sophie_SubmitFeedback">
+        <dc:Bounds x="1730" y="1270" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_Sophie_EditFeedback" bpmnElement="GW_Sophie_EditFeedback" isMarkerVisible="true">
+        <dc:Bounds x="1885" y="1285" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1873" y="1235" width="73" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_IWait_Sophie" bpmnElement="IWait_Sophie">
+        <dc:Bounds x="1992" y="1292" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1973" y="1335" width="75" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ICE_Sophie_BothSubmitted" bpmnElement="ICE_Sophie_BothSubmitted">
+        <dc:Bounds x="2082" y="1292" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2062" y="1335" width="77" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sophie_ViewFeedback" bpmnElement="Task_Sophie_ViewFeedback">
+        <dc:Bounds x="2170" y="1270" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sophie_ChooseProfile" bpmnElement="Task_Sophie_ChooseProfile">
+        <dc:Bounds x="2320" y="1270" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Sophie" bpmnElement="End_Sophie">
+        <dc:Bounds x="2472" y="1292" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2455" y="1335" width="70" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sophie_1" bpmnElement="Flow_Sophie_1">
+        <di:waypoint x="1288" y="1310" />
+        <di:waypoint x="1342" y="1310" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sophie_2" bpmnElement="Flow_Sophie_2">
+        <di:waypoint x="1378" y="1310" />
+        <di:waypoint x="1430" y="1310" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sophie_3" bpmnElement="Flow_Sophie_3">
+        <di:waypoint x="1530" y="1310" />
+        <di:waypoint x="1580" y="1310" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sophie_EditYes" bpmnElement="Flow_Sophie_EditYes">
+        <di:waypoint x="1910" y="1335" />
+        <di:waypoint x="1910" y="1400" />
+        <di:waypoint x="1630" y="1400" />
+        <di:waypoint x="1630" y="1350" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1776" y="1382" width="47" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sophie_4" bpmnElement="Flow_Sophie_4">
+        <di:waypoint x="1680" y="1310" />
+        <di:waypoint x="1730" y="1310" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sophie_5" bpmnElement="Flow_Sophie_5">
+        <di:waypoint x="1830" y="1310" />
+        <di:waypoint x="1885" y="1310" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sophie_EditNo" bpmnElement="Flow_Sophie_EditNo">
+        <di:waypoint x="1935" y="1310" />
+        <di:waypoint x="1992" y="1310" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1943" y="1292" width="49" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sophie_6" bpmnElement="Flow_Sophie_6">
+        <di:waypoint x="2028" y="1310" />
+        <di:waypoint x="2082" y="1310" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sophie_7" bpmnElement="Flow_Sophie_7">
+        <di:waypoint x="2118" y="1310" />
+        <di:waypoint x="2170" y="1310" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sophie_8" bpmnElement="Flow_Sophie_8">
+        <di:waypoint x="2270" y="1310" />
+        <di:waypoint x="2320" y="1310" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sophie_9" bpmnElement="Flow_Sophie_9">
+        <di:waypoint x="2420" y="1310" />
+        <di:waypoint x="2472" y="1310" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_SimultaneousReveal" bpmnElement="Assoc_SimultaneousReveal">
+        <di:waypoint x="2148" y="836" />
+        <di:waypoint x="2193" y="870" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_ModeratorMinimal" bpmnElement="Assoc_ModeratorMinimal">
+        <di:waypoint x="1897" y="987" />
+        <di:waypoint x="1936" y="1020" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_CancelEarly" bpmnElement="Assoc_CancelEarly">
+        <di:waypoint x="783" y="188" />
+        <di:waypoint x="850" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_CancelLate" bpmnElement="Assoc_CancelLate">
+        <di:waypoint x="1110" y="330" />
+        <di:waypoint x="1130" y="326" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_TimerActivation" bpmnElement="Assoc_TimerActivation">
+        <di:waypoint x="1381" y="228" />
+        <di:waypoint x="1389" y="390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_FeedbackForm" bpmnElement="Assoc_FeedbackForm">
+        <di:waypoint x="1656" y="250" />
+        <di:waypoint x="1664" y="310" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_AppGating" bpmnElement="Assoc_AppGating">
+        <di:waypoint x="1495" y="250" />
+        <di:waypoint x="1506" y="460" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_MsgFlow_Tom_CalendarAdd" bpmnElement="MsgFlow_Tom_CalendarAdd">
+        <di:waypoint x="670" y="250" />
+        <di:waypoint x="670" y="445" />
+        <di:waypoint x="470" y="445" />
+        <di:waypoint x="470" y="640" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="447" y="535" width="67" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_MsgFlow_Tom_Cancellation" bpmnElement="MsgFlow_Tom_Cancellation">
+        <di:waypoint x="860" y="470" />
+        <di:waypoint x="860" y="970" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="840" y="723" width="61" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_MsgFlow_Tom_CancelLate" bpmnElement="MsgFlow_Tom_CancelLate">
+        <di:waypoint x="990" y="380" />
+        <di:waypoint x="990" y="690" />
+        <di:waypoint x="880" y="690" />
+        <di:waypoint x="880" y="970" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="949" y="576" width="82" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_MsgFlow_Tom_Feedback" bpmnElement="MsgFlow_Tom_Feedback">
+        <di:waypoint x="1810" y="250" />
+        <di:waypoint x="1810" y="760" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1782" y="490" width="77" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_MsgFlow_Sophie_Feedback" bpmnElement="MsgFlow_Sophie_Feedback">
+        <di:waypoint x="1760" y="1270" />
+        <di:waypoint x="1760" y="840" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1733" y="1082" width="46" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_MsgFlow_Sys_Tom_Details" bpmnElement="MsgFlow_Sys_Tom_Details">
+        <di:waypoint x="380" y="760" />
+        <di:waypoint x="380" y="250" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="358" y="536" width="75" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_MsgFlow_Sys_Tom_FeedbackReveal" bpmnElement="MsgFlow_Sys_Tom_FeedbackReveal">
+        <di:waypoint x="2130" y="760" />
+        <di:waypoint x="2130" y="228" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2078" y="487" width="82" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_MsgFlow_Sys_Sophie_FeedbackReveal" bpmnElement="MsgFlow_Sys_Sophie_FeedbackReveal">
+        <di:waypoint x="2100" y="840" />
+        <di:waypoint x="2100" y="1292" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2070" y="1059" width="82" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_Annot_SimultaneousReveal" bpmnElement="Annot_SimultaneousReveal">
+        <dc:Bounds x="2150" y="870" width="250" height="55" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Annot_ModeratorMinimal" bpmnElement="Annot_ModeratorMinimal">
+        <dc:Bounds x="1850" y="1020" width="199.9854819976771" height="54.98693379790941" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TextAnnotation_1n6p7k9_di" bpmnElement="TextAnnotation_1n6p7k9">
+        <dc:Bounds x="970" y="910" width="130" height="84" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Annot_CancelEarly" bpmnElement="Annot_CancelEarly">
+        <dc:Bounds x="850" y="100" width="279.9848178137652" height="55.33063427800269" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Annot_CancelLate" bpmnElement="Annot_CancelLate">
+        <dc:Bounds x="1130" y="280" width="239.98397435897436" height="70.17543859649123" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Annot_TimerActivation" bpmnElement="Annot_TimerActivation">
+        <dc:Bounds x="1290" y="390" width="199.98313090418355" height="69.98566126855602" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Annot_FeedbackForm" bpmnElement="Annot_FeedbackForm">
+        <dc:Bounds x="1530" y="310" width="350" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Annot_AppGating" bpmnElement="Annot_AppGating">
+        <dc:Bounds x="1490" y="460" width="260" height="70" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
