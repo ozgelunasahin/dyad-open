@@ -2,18 +2,10 @@
 	import { fly, slide } from 'svelte/transition';
 	import type { PageData } from './$types';
 	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
-	import MapView from '$lib/components/MapView.svelte';
+	import type { PromptSummary, TimeSlot } from '$lib/domain/types';
 
 	let { data }: { data: PageData } = $props();
 	let mobileMenuOpen = $state(false);
-	let viewMode = $state<'list' | 'map'>('list');
-
-	function formatDate(date: string): string {
-		return new Intl.DateTimeFormat('en-US', {
-			month: 'long',
-			day: 'numeric'
-		}).format(new Date(date));
-	}
 
 	// 7-day calendar starting from today
 	const weekDates = (() => {
@@ -24,146 +16,118 @@
 			return {
 				date: d.toISOString().split('T')[0],
 				dayShort: d.toLocaleDateString('en-US', { weekday: 'short' }),
-				dayNum: d.getDate(),
-				// The label that conversations store, e.g. "Sat 15"
-				label: d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' })
+				dayNum: d.getDate()
 			};
 		});
 	})();
 
-	// Berlin postcodes for the dropdown
-	const BERLIN_POSTCODES = [
-		'10115 Mitte', '10178 Mitte',
-		'10243 Friedrichshain', '10245 Friedrichshain', '10247 Friedrichshain',
-		'10249 Prenzlauer Berg', '10405 Prenzlauer Berg', '10435 Prenzlauer Berg', '10437 Prenzlauer Berg',
-		'10551 Moabit', '10623 Charlottenburg', '10785 Tiergarten',
-		'10961 Kreuzberg', '10965 Kreuzberg', '10967 Kreuzberg', '10997 Kreuzberg', '10999 Kreuzberg',
-		'12043 Neukölln', '12045 Neukölln', '12047 Neukölln', '12049 Neukölln', '12053 Neukölln',
-		'12099 Tempelhof', '13347 Wedding', '13353 Wedding',
-	];
-
-	// Filter state — multi-select
-	let selectedDays = $state<Set<string>>(new Set());
-	let selectedLocations = $state<Set<string>>(new Set());
-	let locationQuery = $state('');
-	let locationDropdownOpen = $state(false);
-
-	let locationSuggestions = $derived.by(() => {
-		if (!locationQuery.trim()) return BERLIN_POSTCODES;
-		const q = locationQuery.toLowerCase();
-		return BERLIN_POSTCODES.filter(l => l.toLowerCase().includes(q));
+	// Collect unique neighbourhoods from all prompts' slots
+	const availableAreas = $derived.by(() => {
+		const areas = new Set<string>();
+		for (const p of data.prompts) {
+			for (const s of p.available_slots) {
+				if (s.general_area) areas.add(s.general_area);
+			}
+		}
+		return [...areas].sort();
 	});
 
-	let hasFilters = $derived(selectedDays.size > 0 || selectedLocations.size > 0);
+	// Filter state
+	let selectedDates = $state<Set<string>>(new Set());
+	let selectedAreas = $state<Set<string>>(new Set());
+	let areaQuery = $state('');
+	let areaDropdownOpen = $state(false);
 
-	let filteredConversations = $derived.by(() => {
-		let results = data.conversations;
-		if (selectedDays.size > 0) {
-			results = results.filter((c) => c.days.some(d => selectedDays.has(d)));
-		}
-		if (selectedLocations.size > 0) {
-			results = results.filter((c) => c.locations.some(l => selectedLocations.has(l)));
-		}
-		return results;
+	let areaSuggestions = $derived.by(() => {
+		if (!areaQuery.trim()) return availableAreas;
+		const q = areaQuery.toLowerCase();
+		return availableAreas.filter((a) => a.toLowerCase().includes(q));
 	});
 
-	function toggleDay(label: string) {
-		const next = new Set(selectedDays);
-		if (next.has(label)) next.delete(label);
-		else next.add(label);
-		selectedDays = next;
+	let hasFilters = $derived(selectedDates.size > 0 || selectedAreas.size > 0);
+
+	/** Check if a slot falls on one of the selected dates */
+	function slotMatchesDate(slot: TimeSlot, dates: Set<string>): boolean {
+		if (dates.size === 0) return true;
+		const slotDate = new Date(slot.start_time).toISOString().split('T')[0];
+		return dates.has(slotDate);
 	}
 
-	function toggleLocation(loc: string) {
-		const next = new Set(selectedLocations);
-		if (next.has(loc)) next.delete(loc);
-		else next.add(loc);
-		selectedLocations = next;
-		locationQuery = '';
-		locationDropdownOpen = false;
+	/** Check if a slot is in one of the selected areas */
+	function slotMatchesArea(slot: TimeSlot, areas: Set<string>): boolean {
+		if (areas.size === 0) return true;
+		return areas.has(slot.general_area);
 	}
 
-	function removeLocation(loc: string) {
-		const next = new Set(selectedLocations);
-		next.delete(loc);
-		selectedLocations = next;
+	let filteredPrompts = $derived.by(() => {
+		if (!hasFilters) return data.prompts;
+		return data.prompts.filter((p) =>
+			p.available_slots.some(
+				(s) => slotMatchesDate(s, selectedDates) && slotMatchesArea(s, selectedAreas)
+			)
+		);
+	});
+
+	function toggleDate(date: string) {
+		const next = new Set(selectedDates);
+		if (next.has(date)) next.delete(date);
+		else next.add(date);
+		selectedDates = next;
+	}
+
+	function toggleArea(area: string) {
+		const next = new Set(selectedAreas);
+		if (next.has(area)) next.delete(area);
+		else next.add(area);
+		selectedAreas = next;
+		areaQuery = '';
+		areaDropdownOpen = false;
+	}
+
+	function removeArea(area: string) {
+		const next = new Set(selectedAreas);
+		next.delete(area);
+		selectedAreas = next;
 	}
 
 	function clearFilters() {
-		selectedDays = new Set();
-		selectedLocations = new Set();
-		locationQuery = '';
+		selectedDates = new Set();
+		selectedAreas = new Set();
+		areaQuery = '';
+	}
+
+	/** Format slot dates for display, e.g. "Fri 28 · Sat 29" */
+	function formatSlotDates(slots: TimeSlot[]): string {
+		const dates = new Set<string>();
+		for (const s of slots) {
+			const d = new Date(s.start_time);
+			dates.add(
+				d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' })
+			);
+		}
+		return [...dates].join(' · ');
+	}
+
+	/** Format a single slot's time, e.g. "7:30 PM" */
+	function formatSlotTime(slot: TimeSlot): string {
+		return new Date(slot.start_time).toLocaleTimeString('en-US', {
+			hour: 'numeric',
+			minute: '2-digit',
+			hour12: true
+		});
 	}
 
 	// --- Post-meeting feedback modal ---
-	// Show the first pending feedback on load
 	let activeFeedback = $state(
 		data.pendingFeedback && data.pendingFeedback.length > 0 ? data.pendingFeedback[0] : null
 	);
 
 	function dismissFeedback() {
-		// Move to next pending or clear
 		const idx = activeFeedback
 			? data.pendingFeedback.findIndex((f) => f.meetingId === activeFeedback!.meetingId)
 			: -1;
 		const next = data.pendingFeedback[idx + 1] ?? null;
 		activeFeedback = next;
-	}
-
-	// --- Comment + invite flow ---
-	let expandedId = $state<string | null>(null);
-	let commentText = $state('');
-	let submitting = $state(false);
-	let inviting = $state(false);
-	let commentedSet = $state<Set<string>>(new Set());
-	let invitedSet = $state<Set<string>>(new Set());
-	let panelError = $state('');
-
-	function toggleCard(id: string, username: string, slug: string) {
-		window.location.href = `/@${username}/${slug}`;
-	}
-
-	async function submitComment(canvasId: string) {
-		if (!commentText.trim() || submitting) return;
-		submitting = true;
-		panelError = '';
-		try {
-			const res = await fetch('/api/canvas-comments', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ canvas_id: canvasId, body: commentText })
-			});
-			if (res.ok) {
-				commentedSet = new Set([...commentedSet, canvasId]);
-				commentText = '';
-			} else {
-				const err = await res.json().catch(() => ({}));
-				panelError = (err as any).message ?? 'Failed to send note';
-			}
-		} finally {
-			submitting = false;
-		}
-	}
-
-	async function sendInvite(canvasId: string, inviteeId: string) {
-		if (inviting) return;
-		inviting = true;
-		panelError = '';
-		try {
-			const res = await fetch('/api/meetings', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ canvas_id: canvasId, invitee_id: inviteeId })
-			});
-			if (res.ok) {
-				invitedSet = new Set([...invitedSet, canvasId]);
-			} else {
-				const err = await res.json().catch(() => ({}));
-				panelError = (err as any).message ?? 'Failed to send invite';
-			}
-		} finally {
-			inviting = false;
-		}
 	}
 </script>
 
@@ -223,12 +187,11 @@
 	{/if}
 
 	<main class="main-content">
-
 		<div class="content">
-			{#if data.conversations.length === 0}
+			{#if data.prompts.length === 0}
 				<div class="empty-state">
-					<p>No active conversations this week.</p>
-					<p class="empty-hint">Check back soon, or start your own from the dashboard.</p>
+					<p>No prompts available right now.</p>
+					<p class="empty-hint">Check back soon, or start your own.</p>
 				</div>
 			{:else}
 				<div class="filter-bar">
@@ -239,8 +202,8 @@
 								<button
 									type="button"
 									class="day-cell"
-									class:selected={selectedDays.has(day.label)}
-									onclick={() => toggleDay(day.label)}
+									class:selected={selectedDates.has(day.date)}
+									onclick={() => toggleDate(day.date)}
 								>
 									<span class="day-name">{day.dayShort}</span>
 									<span class="day-num">{day.dayNum}</span>
@@ -251,132 +214,73 @@
 					<div class="filter-group where-group">
 						<span class="filter-label">Where</span>
 						<div class="location-filter">
-							{#each [...selectedLocations] as loc}
+							{#each [...selectedAreas] as area}
 								<span class="location-chip">
-									{loc}
-									<button class="chip-remove" onclick={() => removeLocation(loc)}>&times;</button>
+									{area}
+									<button class="chip-remove" onclick={() => removeArea(area)}>&times;</button>
 								</span>
 							{/each}
 							<div class="location-search">
 								<input
 									type="text"
 									class="location-input"
-									placeholder={selectedLocations.size > 0 ? 'Add postcode...' : 'Search postcode...'}
-									value={locationQuery}
-									oninput={(e) => { locationQuery = (e.target as HTMLInputElement).value; locationDropdownOpen = true; }}
-									onfocus={() => { locationDropdownOpen = true; }}
-									onblur={() => { setTimeout(() => { locationDropdownOpen = false; }, 150); }}
+									placeholder={selectedAreas.size > 0 ? 'Add area...' : 'Search neighbourhood...'}
+									value={areaQuery}
+									oninput={(e) => { areaQuery = (e.target as HTMLInputElement).value; areaDropdownOpen = true; }}
+									onfocus={() => { areaDropdownOpen = true; }}
+									onblur={() => { setTimeout(() => { areaDropdownOpen = false; }, 150); }}
 								/>
-								{#if locationDropdownOpen && locationSuggestions.length > 0}
+								{#if areaDropdownOpen && areaSuggestions.length > 0}
 									<div class="location-dropdown">
-										{#each locationSuggestions as suggestion}
+										{#each areaSuggestions as suggestion}
 											<button
 												type="button"
 												class="location-option"
-												class:active={selectedLocations.has(suggestion)}
-												onmousedown={(e) => { e.preventDefault(); toggleLocation(suggestion); }}
+												class:active={selectedAreas.has(suggestion)}
+												onmousedown={(e) => { e.preventDefault(); toggleArea(suggestion); }}
 											>{suggestion}</button>
 										{/each}
 									</div>
 								{/if}
 							</div>
 						</div>
-						<button
-							class="map-toggle-btn"
-							class:active={viewMode === 'map'}
-							onclick={() => viewMode = viewMode === 'map' ? 'list' : 'map'}
-							title={viewMode === 'map' ? 'Switch to list' : 'Switch to map'}
-						>
-							{#if viewMode === 'map'}
-								<svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-									<rect x="1" y="3" width="14" height="2" rx="1" fill="currentColor"/>
-									<rect x="1" y="7" width="14" height="2" rx="1" fill="currentColor"/>
-									<rect x="1" y="11" width="14" height="2" rx="1" fill="currentColor"/>
-								</svg>
-							{:else}
-								<svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-									<path d="M1 3l4 1.5L9 3l6 2v8l-6-2-4 1.5L1 11V3z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
-									<path d="M5 4.5v9M9 3v8" stroke="currentColor" stroke-width="1.4"/>
-								</svg>
-							{/if}
-						</button>
 					</div>
 					{#if hasFilters}
 						<button class="clear-filters" onclick={clearFilters}>Clear all</button>
 					{/if}
 				</div>
 
-				{#if filteredConversations.length === 0 && viewMode !== 'map'}
+				{#if filteredPrompts.length === 0}
 					<div class="empty-state">
-						<p>No conversations match your filters.</p>
+						<p>No prompts match your filters.</p>
 						<button class="clear-filters-link" onclick={clearFilters}>Clear filters</button>
 					</div>
 				{:else}
-					<div class="conversation-list">
-						{#each filteredConversations as conversation}
-							<div class="conversation-item">
-								<!-- svelte-ignore a11y_no_static_element_interactions -->
-								<div
-									class="conversation-row"
-									class:expanded={expandedId === conversation.id}
-									role="button"
-									tabindex="0"
-									onclick={() => toggleCard(conversation.id, conversation.username, conversation.slug)}
-									onkeydown={(e) => e.key === 'Enter' && toggleCard(conversation.id, conversation.username, conversation.slug)}
-								>
+					<div class="prompt-list">
+						{#each filteredPrompts as prompt}
+							<div class="prompt-item">
+								<div class="prompt-row">
 									<div class="row-thumb">
-										{#if conversation.coverImageUrl}
-											<img src={conversation.coverImageUrl} alt="" class="thumb-img" />
+										{#if prompt.cover_image_url}
+											<img src={prompt.cover_image_url} alt="" class="thumb-img" />
 										{:else}
 											<div class="thumb-placeholder"></div>
 										{/if}
 									</div>
 									<div class="row-body">
 										<div class="row-top">
-											<h3 class="row-title">{conversation.name}</h3>
-											<span class="date">{conversation.days.length > 0 ? conversation.days.join(' · ') : formatDate(conversation.updatedAt)}</span>
+											<h3 class="row-title">{prompt.title ?? 'Untitled'}</h3>
+											<span class="date">{formatSlotDates(prompt.available_slots)}</span>
 										</div>
-										{#if conversation.snippet}
-											<p class="row-snippet">{conversation.snippet}</p>
+										{#if prompt.body_snippet}
+											<p class="row-snippet">{prompt.body_snippet}</p>
 										{/if}
+										<div class="row-meta">
+											<span class="area">{prompt.available_slots.map((s) => s.general_area).filter((v, i, a) => a.indexOf(v) === i).join(', ')}</span>
+											<span class="author">@{prompt.author_username}</span>
+										</div>
 									</div>
 								</div>
-
-								{#if expandedId === conversation.id}
-									<div class="comment-panel" transition:slide={{ duration: 180 }}>
-										{#if invitedSet.has(conversation.id)}
-											<p class="panel-success">Invite sent to @{conversation.username} — they'll be notified.</p>
-										{:else if commentedSet.has(conversation.id)}
-											<p class="panel-success">Your note was sent.</p>
-											<button
-												class="invite-btn"
-												onclick={() => sendInvite(conversation.id, conversation.userId)}
-												disabled={inviting}
-											>
-												{inviting ? 'Sending...' : `Invite @${conversation.username} to meet in person →`}
-											</button>
-										{:else}
-											<textarea
-												class="comment-input"
-												placeholder="Leave a note on this conversation..."
-												value={commentText}
-												oninput={(e) => commentText = (e.target as HTMLTextAreaElement).value}
-												rows={3}
-											></textarea>
-											{#if panelError}
-												<p class="panel-error">{panelError}</p>
-											{/if}
-											<div class="comment-actions">
-												<a href="/@{conversation.username}/{conversation.slug}" class="view-link">View full conversation</a>
-												<button
-													class="submit-btn"
-													onclick={() => submitComment(conversation.id)}
-													disabled={submitting || !commentText.trim()}
-												>{submitting ? 'Sending...' : 'Send note'}</button>
-											</div>
-										{/if}
-									</div>
-								{/if}
 							</div>
 						{/each}
 					</div>
@@ -384,15 +288,6 @@
 			{/if}
 		</div>
 	</main>
-	{#if viewMode === 'map'}
-		<MapView
-			conversations={filteredConversations}
-			weekDates={weekDates}
-			selectedDays={selectedDays}
-			onToggleDay={toggleDay}
-			onClose={() => viewMode = 'list'}
-		/>
-	{/if}
 </div>
 
 <style>
@@ -400,7 +295,6 @@
 		overflow: auto !important;
 	}
 
-	/* === App layout with sidebar === */
 	.app-layout {
 		display: flex;
 		min-height: 100vh;
@@ -487,7 +381,6 @@
 		color: var(--text-primary);
 	}
 
-	/* Hamburger — hidden on desktop */
 	.mobile-menu-btn {
 		display: none;
 		background: none;
@@ -499,7 +392,6 @@
 		justify-content: center;
 	}
 
-	/* Slide-in panel — hidden on desktop */
 	.mobile-overlay, .mobile-panel {
 		display: none;
 	}
@@ -513,31 +405,11 @@
 		align-items: center;
 	}
 
-	.page-header {
-		margin-bottom: 2rem;
-		width: 100%;
-		max-width: 800px;
-	}
-
-	.page-header h1 {
-		margin: 0;
-		font-size: 1.5rem;
-		font-weight: normal;
-		color: var(--text-primary);
-	}
-
-	.subtitle {
-		margin: 0.25rem 0 0;
-		color: var(--text-muted);
-		font-size: 0.95rem;
-	}
-
 	.content {
 		width: 100%;
 		max-width: 800px;
 	}
 
-	/* Mobile: sidebar becomes top bar */
 	@media (max-width: 430px) {
 		.app-layout {
 			flex-direction: column;
@@ -555,23 +427,10 @@
 			gap: 1rem;
 		}
 
-		.sidebar-logo {
-			margin-bottom: 0;
-			padding: 0;
-		}
-
-		.sidebar-logo-img {
-			width: 28px;
-			height: auto;
-		}
-
-		.sidebar-nav {
-			display: none;
-		}
-
-		.sidebar-bottom {
-			display: none;
-		}
+		.sidebar-logo { margin-bottom: 0; padding: 0; }
+		.sidebar-logo-img { width: 28px; }
+		.sidebar-nav { display: none; }
+		.sidebar-bottom { display: none; }
 
 		.mobile-menu-btn {
 			display: flex;
@@ -617,11 +476,6 @@
 			text-decoration: none;
 			padding: 14px 0;
 			border-bottom: 1px solid var(--border-link, rgba(0, 0, 0, 0.1));
-			transition: color 0.15s;
-		}
-
-		.mobile-panel-nav a:hover {
-			color: var(--text-muted, #666);
 		}
 
 		.mobile-panel-bottom {
@@ -642,11 +496,6 @@
 			font-size: 16px;
 			color: var(--text-secondary, #333);
 			text-decoration: none;
-			transition: color 0.15s;
-		}
-
-		.mobile-panel-bottom a:hover {
-			color: var(--text-primary, #1a1a1a);
 		}
 	}
 
@@ -689,7 +538,6 @@
 		width: 40px;
 	}
 
-	/* Week calendar in filter bar */
 	.week-calendar {
 		display: flex;
 		gap: 0.25rem;
@@ -733,7 +581,6 @@
 		font-weight: 500;
 	}
 
-	/* Location filter with chips + search */
 	.location-filter {
 		display: flex;
 		align-items: center;
@@ -765,9 +612,7 @@
 		opacity: 0.7;
 	}
 
-	.chip-remove:hover {
-		opacity: 1;
-	}
+	.chip-remove:hover { opacity: 1; }
 
 	.location-search {
 		position: relative;
@@ -792,9 +637,7 @@
 		border-color: var(--text-link-hover, var(--text-muted));
 	}
 
-	.location-input::placeholder {
-		color: var(--text-muted);
-	}
+	.location-input::placeholder { color: var(--text-muted); }
 
 	.location-dropdown {
 		position: absolute;
@@ -825,18 +668,9 @@
 		cursor: pointer;
 	}
 
-	.location-option:last-child {
-		border-bottom: none;
-	}
-
-	.location-option:hover {
-		background: var(--bg-control, rgba(0, 0, 0, 0.03));
-	}
-
-	.location-option.active {
-		background: var(--bg-control, rgba(0, 0, 0, 0.03));
-		font-weight: 500;
-	}
+	.location-option:last-child { border-bottom: none; }
+	.location-option:hover { background: var(--bg-control, rgba(0, 0, 0, 0.03)); }
+	.location-option.active { background: var(--bg-control, rgba(0, 0, 0, 0.03)); font-weight: 500; }
 
 	.clear-filters {
 		align-self: flex-end;
@@ -849,9 +683,7 @@
 		text-decoration: underline;
 	}
 
-	.clear-filters:hover {
-		color: var(--text-primary);
-	}
+	.clear-filters:hover { color: var(--text-primary); }
 
 	.clear-filters-link {
 		background: none;
@@ -863,45 +695,16 @@
 		text-decoration: underline;
 	}
 
-	.clear-filters-link:hover {
-		color: var(--text-primary);
-	}
+	.clear-filters-link:hover { color: var(--text-primary); }
 
-	/* === Map toggle === */
 	.where-group {
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
 	}
 
-	.map-toggle-btn {
-		flex-shrink: 0;
-		width: 32px;
-		height: 32px;
-		border: 1px solid var(--border-link);
-		border-radius: 6px;
-		background: none;
-		color: var(--text-muted);
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		transition: background 0.15s, color 0.15s;
-	}
-
-	.map-toggle-btn:hover {
-		background: var(--bg-control);
-		color: var(--text-primary);
-	}
-
-	.map-toggle-btn.active {
-		background: var(--text-primary);
-		color: var(--bg-canvas);
-		border-color: var(--text-primary);
-	}
-
-	/* === Conversation list === */
-	.conversation-list {
+	/* === Prompt list === */
+	.prompt-list {
 		display: flex;
 		flex-direction: column;
 		gap: 0;
@@ -909,21 +712,24 @@
 		margin-bottom: 3rem;
 	}
 
-	.conversation-row {
+	.prompt-item {
+		border-bottom: 1px solid var(--border-link);
+	}
+
+	.prompt-item:last-child {
+		border-bottom: none;
+	}
+
+	.prompt-row {
 		display: flex;
 		gap: 1.25rem;
 		padding: 1.5rem 0;
-		border-bottom: 1px solid var(--border-link);
 		text-decoration: none;
 		transition: background 0.15s;
 		align-items: stretch;
 	}
 
-	.conversation-row:last-child {
-		border-bottom: none;
-	}
-
-	.conversation-row:hover {
+	.prompt-row:hover {
 		background: var(--bg-control, rgba(0, 0, 0, 0.02));
 		margin: 0 -0.75rem;
 		padding-left: 0.75rem;
@@ -931,7 +737,6 @@
 		border-radius: 4px;
 	}
 
-	/* Thumbnail */
 	.row-thumb {
 		position: relative;
 		flex-shrink: 0;
@@ -957,7 +762,6 @@
 		border: 1px solid var(--border-link);
 	}
 
-	/* Body */
 	.row-body {
 		flex: 1;
 		min-width: 0;
@@ -1011,9 +815,14 @@
 		font-size: 0.78rem;
 	}
 
-	/* Responsive: stack on mobile */
+	.area {
+		font-size: 0.78rem;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+	}
+
 	@media (max-width: 430px) {
-		.conversation-row {
+		.prompt-row {
 			align-items: stretch;
 		}
 
@@ -1032,127 +841,5 @@
 			font-size: 0.75rem;
 			color: var(--text-muted);
 		}
-	}
-
-	/* === Expandable card & comment panel === */
-	.conversation-item {
-		border-bottom: 1px solid var(--border-link);
-	}
-
-	.conversation-item:last-child {
-		border-bottom: none;
-	}
-
-	.conversation-row {
-		cursor: pointer;
-		border-bottom: none;
-		user-select: none;
-	}
-
-	.conversation-row.expanded .row-title {
-		color: var(--text-muted);
-	}
-
-	.comment-panel {
-		padding: 0.75rem 0 1rem 108px; /* align with row body (thumb 88px + gap 20px) */
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
-
-	.comment-input {
-		width: 100%;
-		padding: 0.6rem 0.75rem;
-		border: 1px solid var(--border-link);
-		border-radius: 6px;
-		font-size: 0.88rem;
-		font-family: inherit;
-		background: var(--bg-canvas);
-		color: var(--text-primary);
-		resize: vertical;
-		box-sizing: border-box;
-		line-height: 1.5;
-	}
-
-	.comment-input:focus {
-		outline: none;
-		border-color: var(--text-muted);
-	}
-
-	.comment-input::placeholder {
-		color: var(--text-muted);
-	}
-
-	.comment-actions {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: 0.75rem;
-	}
-
-	.view-link {
-		font-size: 0.8rem;
-		color: var(--text-muted);
-		text-decoration: none;
-	}
-
-	.view-link:hover {
-		color: var(--text-primary);
-		text-decoration: underline;
-	}
-
-	.submit-btn {
-		padding: 0.45rem 1rem;
-		background: var(--text-primary);
-		color: var(--bg-canvas);
-		border: none;
-		border-radius: 4px;
-		font-size: 0.85rem;
-		font-family: inherit;
-		cursor: pointer;
-		transition: opacity 0.15s;
-	}
-
-	.submit-btn:disabled {
-		opacity: 0.4;
-		cursor: default;
-	}
-
-	.submit-btn:not(:disabled):hover {
-		opacity: 0.8;
-	}
-
-	.invite-btn {
-		padding: 0.5rem 1.1rem;
-		background: var(--text-primary);
-		color: var(--bg-canvas);
-		border: none;
-		border-radius: 4px;
-		font-size: 0.88rem;
-		font-family: inherit;
-		cursor: pointer;
-		transition: opacity 0.15s;
-		align-self: flex-start;
-	}
-
-	.invite-btn:disabled {
-		opacity: 0.5;
-		cursor: default;
-	}
-
-	.invite-btn:not(:disabled):hover {
-		opacity: 0.8;
-	}
-
-	.panel-success {
-		margin: 0;
-		font-size: 0.88rem;
-		color: var(--text-muted);
-	}
-
-	.panel-error {
-		margin: 0;
-		font-size: 0.8rem;
-		color: #c0392b;
 	}
 </style>
