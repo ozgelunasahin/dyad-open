@@ -13,7 +13,8 @@ export interface InvitationService {
 
 	cancel(invitationId: string, inviterId: string): Promise<void>;
 
-	accept(invitationId: string, inviteeId: string): Promise<boolean>;
+	/** Accept an invitation. Authorization handled by the database RPC via auth.uid(). */
+	accept(invitationId: string): Promise<boolean>;
 
 	getPendingForPrompt(promptId: string, userId: string): Promise<MeetingInvitation[]>;
 }
@@ -47,17 +48,21 @@ export class SupabaseInvitationService implements InvitationService {
 	}
 
 	async cancel(invitationId: string, inviterId: string): Promise<void> {
-		const { error } = await this.supabase
+		const { data, error } = await this.supabase
 			.from('prompt_invitations')
 			.update({ state: 'cancelled', resolved_at: new Date().toISOString() })
 			.eq('id', invitationId)
 			.eq('inviter_id', inviterId)
-			.eq('state', 'pending');
+			.eq('state', 'pending')
+			.select('id');
 
 		if (error) throw new Error(`Failed to cancel invitation: ${error.message}`);
+		if (!data || data.length === 0) {
+			throw new Error('Invitation not found, already resolved, or not yours');
+		}
 	}
 
-	async accept(invitationId: string, inviteeId: string): Promise<boolean> {
+	async accept(invitationId: string): Promise<boolean> {
 		const { data, error } = await this.supabase.rpc('accept_invitation', {
 			p_invitation_id: invitationId
 		});

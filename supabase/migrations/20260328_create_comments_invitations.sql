@@ -187,3 +187,40 @@ $$;
 -- Restrict to service_role only (cron + test admin client)
 REVOKE EXECUTE ON FUNCTION expire_stale_invitations FROM public;
 GRANT EXECUTE ON FUNCTION expire_stale_invitations TO service_role;
+
+-- ============================================
+-- EXPIRE INVITATIONS FOR A SPECIFIC SLOT
+-- (Used by prompt author when editing/removing their own slots)
+-- ============================================
+
+CREATE OR REPLACE FUNCTION expire_slot_invitations(p_slot_id UUID)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_prompt_author UUID;
+  expired_count INTEGER;
+BEGIN
+  -- Verify caller owns the prompt that this slot belongs to
+  SELECT p.author_id INTO v_prompt_author
+  FROM time_slots ts
+  JOIN prompts p ON p.id = ts.prompt_id
+  WHERE ts.id = p_slot_id;
+
+  IF NOT FOUND OR v_prompt_author != (SELECT auth.uid()) THEN
+    RAISE EXCEPTION 'Not authorized to expire invitations for this slot';
+  END IF;
+
+  UPDATE prompt_invitations
+  SET state = 'expired', resolved_at = NOW()
+  WHERE slot_id = p_slot_id AND state = 'pending';
+
+  GET DIAGNOSTICS expired_count = ROW_COUNT;
+  RETURN expired_count;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION expire_slot_invitations FROM public;
+GRANT EXECUTE ON FUNCTION expire_slot_invitations TO authenticated;

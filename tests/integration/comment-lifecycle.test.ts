@@ -47,9 +47,8 @@ describe('Comment lifecycle', () => {
 
 	describe('two-party visibility', () => {
 		it('prompt author sees all comments on their prompt', async () => {
-			const comments = await digitServices.comment.getForPromptAuthor(
-				SEED_PROMPTS.published,
-				SEED_USERS.digit.id
+			const comments = await digitServices.comment.getCommentsForPrompt(
+				SEED_PROMPTS.published
 			);
 			// Should see at least the seed comment + the one from the test above
 			expect(comments.length).toBeGreaterThanOrEqual(1);
@@ -69,9 +68,8 @@ describe('Comment lifecycle', () => {
 			// other should NOT see digit's comment on digit's own prompt
 			// Actually, other IS the commenter on digit's prompt, so let's test
 			// that digit can't see other people's comments on OTHER's prompt
-			const comments = await digitServices.comment.getForPromptAuthor(
-				SEED_PROMPTS.other,
-				SEED_USERS.digit.id
+			const comments = await digitServices.comment.getCommentsForPrompt(
+				SEED_PROMPTS.other
 			);
 			// digit is NOT the author of seed-prompt-other, so RLS limits visibility
 			// digit should only see their own comment on this prompt

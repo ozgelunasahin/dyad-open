@@ -123,8 +123,8 @@ export class SupabasePromptCommandService implements PromptCommandService {
 			throw new Error('Cannot edit an accepted slot');
 		}
 
-		// Slot locking: reject edits when pending invitations exist
-		await this.checkNoPendingInvitations(slotId);
+		// Auto-expire pending invitations when slot is modified
+		await this.expirePendingInvitations(slotId);
 
 		const fields: Record<string, unknown> = {};
 		if (updates.start_time !== undefined) fields.start_time = updates.start_time;
@@ -156,8 +156,8 @@ export class SupabasePromptCommandService implements PromptCommandService {
 			throw new Error('Cannot remove an accepted slot');
 		}
 
-		// Slot locking: reject removal when pending invitations exist
-		await this.checkNoPendingInvitations(slotId);
+		// Auto-expire pending invitations when slot is removed
+		await this.expirePendingInvitations(slotId);
 
 		const { error } = await this.supabase
 			.from('time_slots')
@@ -220,16 +220,12 @@ export class SupabasePromptCommandService implements PromptCommandService {
 
 	// Private helpers
 
-	private async checkNoPendingInvitations(slotId: string): Promise<void> {
-		const { count } = await this.supabase
-			.from('prompt_invitations')
-			.select('id', { count: 'exact', head: true })
-			.eq('slot_id', slotId)
-			.eq('state', 'pending');
-
-		if ((count ?? 0) > 0) {
-			throw new Error('Cannot modify a slot with pending invitations');
-		}
+	/** Expire pending invitations for a slot being modified/removed via SECURITY DEFINER RPC. */
+	private async expirePendingInvitations(slotId: string): Promise<void> {
+		const { error } = await this.supabase.rpc('expire_slot_invitations', {
+			p_slot_id: slotId
+		});
+		if (error) throw new Error(`Failed to expire slot invitations: ${error.message}`);
 	}
 
 	private async getOwnPrompt(promptId: string, authorId: string): Promise<Prompt> {

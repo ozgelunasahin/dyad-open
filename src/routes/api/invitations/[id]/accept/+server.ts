@@ -9,7 +9,7 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 
 	const service = new SupabaseInvitationService(locals.supabase);
 	try {
-		const accepted = await service.accept(params.id, user.id);
+		const accepted = await service.accept(params.id);
 		if (accepted) {
 			return json({ ok: true, accepted: true });
 		} else {

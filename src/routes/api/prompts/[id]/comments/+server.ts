@@ -32,7 +32,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	const service = new SupabaseCommentService(locals.supabase);
 	try {
 		// RLS handles visibility — prompt author sees all, others see only own
-		const comments = await service.getForPromptAuthor(params.id, user.id);
+		const comments = await service.getCommentsForPrompt(params.id);
 		return json(comments);
 	} catch (err) {
 		return json({ error: (err as Error).message }, { status: 400 });

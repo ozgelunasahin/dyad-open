@@ -150,10 +150,7 @@ describe('Invitation lifecycle', () => {
 		});
 
 		it('invitee accepts — slot is booked atomically', async () => {
-			const accepted = await otherServices.invitation.accept(
-				invitationId,
-				SEED_USERS.other.id
-			);
+			const accepted = await otherServices.invitation.accept(invitationId);
 			expect(accepted).toBe(true);
 
 			// Slot should now be marked as accepted

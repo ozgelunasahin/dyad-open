@@ -3,7 +3,7 @@ import type { Comment } from '$lib/domain/types.js';
 
 export interface CommentService {
 	createOrUpdate(promptId: string, authorId: string, body: string): Promise<Comment>;
-	getForPromptAuthor(promptId: string, promptAuthorId: string): Promise<Comment[]>;
+	getCommentsForPrompt(promptId: string): Promise<Comment[]>;
 	getMyComment(promptId: string, userId: string): Promise<Comment | null>;
 }
 
@@ -34,9 +34,8 @@ export class SupabaseCommentService implements CommentService {
 		return data as Comment;
 	}
 
-	async getForPromptAuthor(promptId: string, promptAuthorId: string): Promise<Comment[]> {
-		// RLS ensures only the prompt author sees all comments
-		// Other users would only see their own via the "Authors manage own comments" policy
+	async getCommentsForPrompt(promptId: string): Promise<Comment[]> {
+		// RLS handles visibility: prompt author sees all, others see only their own
 		const { data, error } = await this.supabase
 			.from('prompt_comments')
 			.select('*')
