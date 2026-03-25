@@ -54,5 +54,6 @@ export const SEED_USERS = {
 export const SEED_PROMPTS = {
 	published: 'seed-prompt-published',
 	draft: 'seed-prompt-draft',
+	archived: 'seed-prompt-archived',
 	other: 'seed-prompt-other'
 } as const;

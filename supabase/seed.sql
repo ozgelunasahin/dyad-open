@@ -123,6 +123,21 @@ INSERT INTO prompts (id, author_id, title, body, state, region, created_at, upda
    'draft', 'berlin',
    NOW(), NOW());
 
+-- An archived prompt (digit's, for testing archived display)
+INSERT INTO prompts (id, author_id, title, body, state, region, published_at, archived_at, created_at, updated_at) VALUES
+  ('seed-prompt-archived', '11111111-1111-1111-1111-111111111111',
+   'On being a beginner again',
+   '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"There is a particular humility required to be a beginner. Most of us spend our adult lives avoiding it."}]}]}'::jsonb,
+   'archived', 'berlin',
+   NOW() - interval '7 days', NOW() - interval '1 day',
+   NOW() - interval '8 days', NOW() - interval '1 day');
+
+-- Expired slots for the archived prompt (in the past)
+INSERT INTO time_slots (prompt_id, start_time, duration_minutes, exact_location, general_area, general_area_lat, general_area_lng) VALUES
+  ('seed-prompt-archived', NOW() - interval '2 days', 60,
+   '{"place_id":"4","name":"Betahaus","address":"Rudi-Dutschke-Straße 23, 10969 Berlin","lat":52.5069,"lng":13.3918}'::jsonb,
+   'Kreuzberg', 52.4988, 13.4238);
+
 -- A published prompt by the other user (for RLS testing)
 INSERT INTO prompts (id, author_id, title, body, state, region, published_at, created_at, updated_at) VALUES
   ('seed-prompt-other', '22222222-2222-2222-2222-222222222222',
