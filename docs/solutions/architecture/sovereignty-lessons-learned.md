@@ -25,7 +25,20 @@ Lessons from auditing a web application for sovereignty compliance. These are th
 
 Each level up gives you more control but more operational responsibility. The right level depends on the sensitivity of the data and the criticality of the service. Auth and user data warrant a higher sovereignty level than, say, a CSS CDN.
 
-When evaluating a dependency, ask not just "where is the data?" but also: who owns the company? Who can compel access? What happens if the service disappears? Can you migrate away without rewriting code?
+There's also a **distribution axis** that's orthogonal to the ownership axis:
+
+| Model | What it means | Trade-off |
+|---|---|---|
+| Centralised | One instance, one operator | Simple to run, single point of control and failure |
+| Replicated | Multiple copies, one operator | Resilience, but still single governance |
+| Federated | Multiple instances, multiple operators | Distributed governance, but coordination overhead. Users can move between instances. |
+| Peer-to-peer | No central infrastructure | Maximum sovereignty, minimum reliability guarantees |
+
+Federation matters for sovereignty because it distributes *governance*, not just hosting. A federated service can't be shut down by a single jurisdiction, company, or administrator. But it introduces complexity (protocol design, moderation across instances, identity portability) that may not be justified for every service.
+
+The question isn't "should everything be federated?" but "which services benefit from distributed governance, and which are fine centralised?" For a regional community platform, the answer might be: identity and reputation benefit from federation (portable across instances); the meeting coordination and feedback mechanics are fine centralised (per-community).
+
+When evaluating a dependency, ask not just "where is the data?" but also: who owns the company? Who can compel access? What happens if the service disappears? Can you migrate away without rewriting code? And — who governs the rules of the system?
 
 ## 1. Libraries that phone home for runtime assets
 
