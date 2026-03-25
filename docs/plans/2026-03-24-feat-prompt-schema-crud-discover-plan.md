@@ -433,8 +433,8 @@ export interface LocationService {
 
 #### Phase 5: pg_cron for Auto-Archival
 
-- [ ] pg_cron job: archive prompts where state='published' and no time_slots have start_time > now() and accepted = false
-- [ ] Run every hour (frequency TBD)
+- [x] pg_cron job: archive prompts where state='published' and no time_slots have start_time > now() and accepted = false — implemented as `archive_stale_prompts()` function, cron schedule deferred to production deployment
+- [x] Run every hour (frequency TBD) — commented-out cron.schedule in migration, activate when deploying
 
 ### Decisions Made for This Plan
 
