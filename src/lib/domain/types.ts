@@ -97,3 +97,49 @@ export interface MeetingInvitation {
 	created_at: string;
 	resolved_at: string | null;
 }
+
+// Meeting types
+
+export type MeetingState =
+	| 'scheduled'
+	| 'cancelled_early'
+	| 'cancelled_late'
+	| 'awaiting_feedback'
+	| 'completed';
+
+export type CancellationTier = 'early' | 'late';
+
+export interface Meeting {
+	id: string;
+	invitation_id: string;
+	prompt_id: string;
+	participant_a: string;
+	participant_b: string;
+	scheduled_time: string;
+	duration_minutes: number;
+	state: MeetingState;
+	created_at: string;
+	resolved_at: string | null;
+}
+
+export interface MeetingWithLocation extends Meeting {
+	exact_location: LocationRef;
+	general_area: string;
+}
+
+export interface MeetingDetail extends Meeting {
+	general_area: string;
+	cancellation_tier: CancellationTier | null;
+	cancellation_reason: string | null;
+	cancelled_by: string | null;
+}
+
+export interface CancellationRecord {
+	id: string;
+	meeting_id: string;
+	cancelled_by: string;
+	cancelled_at: string;
+	tier: CancellationTier;
+	reason: string | null;
+	free_pass_used: boolean;
+}

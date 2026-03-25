@@ -65,7 +65,7 @@ BEGIN
   -- Create meeting
   INSERT INTO meetings (invitation_id, prompt_id, participant_a, participant_b,
                         slot_id, scheduled_time, duration_minutes)
-  SELECT pi.invitee_id, pi.prompt_id, pi.invitee_id, pi.inviter_id,
+  SELECT pi.id, pi.prompt_id, pi.invitee_id, pi.inviter_id,
          pi.slot_id, ts.start_time, ts.duration_minutes
   FROM prompt_invitations pi
   JOIN time_slots ts ON ts.id = pi.slot_id
