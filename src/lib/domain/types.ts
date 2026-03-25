@@ -143,3 +143,47 @@ export interface CancellationRecord {
 	reason: string | null;
 	free_pass_used: boolean;
 }
+
+// Feedback types
+
+export type FeedbackFormState = 'not_due' | 'due' | 'submitted' | 'locked' | 'released';
+
+export interface FeedbackForm {
+	id: string;
+	meeting_id: string;
+	reviewer_id: string;
+	reviewee_id: string;
+	did_meet: boolean | null;
+	no_show_reason: string | null;
+	rating_tags: string[];
+	free_text: string | null;
+	share_with_person: string | null;
+	// share_with_platform and platform_comments hidden by column-level REVOKE
+	state: FeedbackFormState;
+	submitted_at: string | null;
+	locked_at: string | null;
+	created_at: string;
+}
+
+export interface RevealedFeedback {
+	reviewer_id: string;
+	did_meet: boolean;
+	rating_tags: string[];
+	share_with_person: string | null;
+	locked_at: string;
+}
+
+export interface GateStatus {
+	gated: boolean;
+	feedbackFormId: string | null;
+}
+
+export interface ReputationSignal {
+	id: string;
+	profile_id: string;
+	signal_type: 'feedback_received' | 'cancellation' | 'no_show';
+	source_meeting_id: string;
+	visible: boolean;
+	content: Record<string, unknown>;
+	created_at: string;
+}

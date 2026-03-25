@@ -19,6 +19,14 @@ import {
 	SupabaseMeetingService,
 	type MeetingService
 } from '../../src/lib/services/meeting.js';
+import {
+	SupabaseFeedbackService,
+	type FeedbackService
+} from '../../src/lib/services/feedback.js';
+import {
+	SupabaseGateService,
+	type GateService
+} from '../../src/lib/services/gate.js';
 
 export interface Services {
 	promptCommand: PromptCommandService;
@@ -26,6 +34,8 @@ export interface Services {
 	comment: CommentService;
 	invitation: InvitationService;
 	meeting: MeetingService;
+	feedback: FeedbackService;
+	gate: GateService;
 }
 
 /**
@@ -39,6 +49,8 @@ export function createServices(supabase: SupabaseClient): Services {
 		promptQuery: new SupabasePromptQueryService(supabase),
 		comment: new SupabaseCommentService(supabase),
 		invitation: new SupabaseInvitationService(supabase),
-		meeting: new SupabaseMeetingService(supabase)
+		meeting: new SupabaseMeetingService(supabase),
+		feedback: new SupabaseFeedbackService(supabase),
+		gate: new SupabaseGateService(supabase)
 	};
 }
