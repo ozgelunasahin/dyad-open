@@ -146,7 +146,30 @@ INSERT INTO prompts (id, author_id, title, body, state, region, published_at, cr
    'published', 'berlin',
    NOW(), NOW() - interval '2 days', NOW());
 
-INSERT INTO time_slots (prompt_id, start_time, duration_minutes, exact_location, general_area, general_area_lat, general_area_lng) VALUES
-  ('seed-prompt-other', NOW() + interval '3 days', 60,
+INSERT INTO time_slots (id, prompt_id, start_time, duration_minutes, exact_location, general_area, general_area_lat, general_area_lng) VALUES
+  ('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', 'seed-prompt-other', NOW() + interval '3 days', 60,
    '{"place_id":"3","name":"Markthalle Neun","address":"Eisenbahnstraße 42/43, 10999 Berlin","lat":52.5006,"lng":13.4284}'::jsonb,
    'Kreuzberg', 52.4988, 13.4238);
+
+-- ============================================
+-- COMMENTS (engagement seed data)
+-- ============================================
+
+-- otherperson comments on digit's published prompt
+INSERT INTO prompt_comments (prompt_id, author_id, body) VALUES
+  ('seed-prompt-published', '22222222-2222-2222-2222-222222222222',
+   'This resonates deeply. I have been thinking about strangers and obligation lately.');
+
+-- ============================================
+-- INVITATIONS (engagement seed data)
+-- ============================================
+
+-- digit comments on otherperson's prompt + invites for the slot
+INSERT INTO prompt_comments (prompt_id, author_id, body) VALUES
+  ('seed-prompt-other', '11111111-1111-1111-1111-111111111111',
+   'Would love to explore this topic together.');
+
+INSERT INTO prompt_invitations (prompt_id, slot_id, inviter_id, invitee_id, message) VALUES
+  ('seed-prompt-other', 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+   '11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222',
+   'Free that afternoon — would be great to meet at Markthalle Neun.');
