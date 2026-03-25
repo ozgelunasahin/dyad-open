@@ -14,31 +14,20 @@ Lessons from auditing a web application for sovereignty compliance. These are th
 
 "Is it EU-hosted?" is only the first question. Sovereignty has multiple dimensions:
 
-| Level | Example | What you control |
-|---|---|---|
-| US cloud service | AWS us-east-1, Google Cloud | Nothing — data subject to CLOUD Act, FISA |
-| US company, EU-hosted | AWS Frankfurt, Cloudflare EU edge | Data location, but not jurisdiction. US government can compel access. |
-| EU company, managed service | Mailjet, Hetzner Cloud | Jurisdiction + data location. But you depend on the company's continuity and terms. |
-| Open-source, managed hosting | Supabase Cloud EU, PostHog Cloud EU | Jurisdiction + exit path. If provider changes, you can self-host. |
-| Self-hosted open-source | Supabase on Hetzner, PostHog on your VPS | Full control. But you carry the operational burden. |
-| Community-governed open-source | Matrix/Element, Mastodon | Full control + collective governance. Roadmap isn't driven by a single company's investors. |
+| Level | Example | What you control | Topology |
+|---|---|---|---|
+| US cloud service | AWS us-east-1, Google Cloud | Nothing — data subject to CLOUD Act, FISA | Centralised |
+| US company, EU-hosted | AWS Frankfurt, Cloudflare EU edge | Data location, but not jurisdiction | Centralised |
+| EU company, managed service | Mailjet, Hetzner Cloud | Jurisdiction + data location. Depends on company's continuity and terms. | Centralised |
+| Open-source, managed hosting | Supabase Cloud EU, PostHog Cloud EU | Jurisdiction + exit path (can self-host if provider changes) | Centralised, self-hostable |
+| Self-hosted open-source | Postgres on Hetzner, GoTrue on your VPS | Full control. You carry the operational burden. | Single instance or replicated |
+| Federated open-source | Matrix, Mastodon, AT Protocol | Distributed governance + data. No single jurisdiction or operator can shut it down. But coordination overhead (protocol design, cross-instance moderation, identity portability). | Federated |
 
-Each level up gives you more control but more operational responsibility. The right level depends on the sensitivity of the data and the criticality of the service. Auth and user data warrant a higher sovereignty level than, say, a CSS CDN.
+Each level up gives you more control but more operational responsibility. The distribution dimension matters too: a self-hosted single instance gives you full control but is still a single point of governance. Federation distributes governance itself — but introduces complexity that may not be justified for every service.
 
-There's also a **distribution axis** that's orthogonal to the ownership axis:
+The right level depends on the sensitivity of the data, the criticality of the service, and who needs to trust whom. Auth and user data warrant a higher sovereignty level than a CSS file. Identity and reputation may benefit from federation (portable across communities); meeting coordination and feedback mechanics are fine centralised (per-community).
 
-| Model | What it means | Trade-off |
-|---|---|---|
-| Centralised | One instance, one operator | Simple to run, single point of control and failure |
-| Replicated | Multiple copies, one operator | Resilience, but still single governance |
-| Federated | Multiple instances, multiple operators | Distributed governance, but coordination overhead. Users can move between instances. |
-| Peer-to-peer | No central infrastructure | Maximum sovereignty, minimum reliability guarantees |
-
-Federation matters for sovereignty because it distributes *governance*, not just hosting. A federated service can't be shut down by a single jurisdiction, company, or administrator. But it introduces complexity (protocol design, moderation across instances, identity portability) that may not be justified for every service.
-
-The question isn't "should everything be federated?" but "which services benefit from distributed governance, and which are fine centralised?" For a regional community platform, the answer might be: identity and reputation benefit from federation (portable across instances); the meeting coordination and feedback mechanics are fine centralised (per-community).
-
-When evaluating a dependency, ask not just "where is the data?" but also: who owns the company? Who can compel access? What happens if the service disappears? Can you migrate away without rewriting code? And — who governs the rules of the system?
+When evaluating a dependency, ask: where is the data? Who owns the company? Who can compel access? What happens if the service disappears? Can you migrate? And — who governs the rules of the system, and can that governance be distributed?
 
 ## 1. Libraries that phone home for runtime assets
 
