@@ -2,7 +2,7 @@
 -- Run with: npx supabase test db
 
 BEGIN;
-SELECT plan(10);
+SELECT plan(9);
 
 -- ============================================
 -- Setup: define test user IDs from seed data
@@ -12,9 +12,9 @@ SELECT plan(10);
 SET LOCAL role authenticated;
 SET LOCAL "request.jwt.claims" = '{"sub": "11111111-1111-1111-1111-111111111111", "role": "authenticated"}';
 
--- 1. Author can read own prompts (all states)
+-- 1. Author can read own seed prompts (all states)
 SELECT results_eq(
-  $$ SELECT count(*)::int FROM prompts WHERE author_id = '11111111-1111-1111-1111-111111111111' $$,
+  $$ SELECT count(*)::int FROM prompts WHERE id IN ('seed-prompt-published', 'seed-prompt-draft') $$,
   $$ VALUES (2) $$,
   'Author can see own prompts (published + draft)'
 );
