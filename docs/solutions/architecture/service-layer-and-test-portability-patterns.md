@@ -58,6 +58,24 @@ The 27 existing `locals.supabase.from()` call sites are left untouched. New rout
 
 RLS policies use `auth.uid() IS NOT NULL` for authenticated checks. This is more portable — it works with any auth system that sets a user context, not just GoTrue's role system.
 
+### 5. Views for column-level privacy (exact_location)
+
+RLS is row-level — it can't hide individual columns. To prevent authenticated users from querying `exact_location` directly via the Supabase client, we created a `time_slots_public` view that excludes the column:
+
+```sql
+CREATE VIEW time_slots_public AS
+  SELECT id, prompt_id, start_time, duration_minutes,
+         general_area, general_area_lat, general_area_lng,
+         accepted, created_at
+  FROM time_slots;
+```
+
+The query service reads from `time_slots_public`. The command service (author-only, writes) still uses the `time_slots` table directly. Views in Supabase inherit RLS from the underlying table.
+
+**Why not column-level GRANT?** Column-level `REVOKE SELECT (exact_location)` would block the column for *all* authenticated users including authors. The view approach lets authors retain full table access via the `FOR ALL` RLS policy while restricting what non-owners can see through PostgREST/client queries.
+
+**The security review caught this.** The original implementation relied on the service layer to strip `exact_location` from query results, but any authenticated user could bypass this by querying the table directly via the Supabase JS client. Defense-in-depth requires the database to enforce the privacy boundary, not just the application.
+
 ## Gotchas Discovered
 
 ### GoTrue seed data: empty strings, not NULL
@@ -80,12 +98,28 @@ Inserting into `auth.users` alone is not enough. GoTrue's `signInWithPassword` c
 
 Supabase RLS with `USING` clauses on UPDATE/DELETE silently filters rows (0 affected) rather than raising errors. `throws_ok` in pgTAP will fail because no exception is raised. Use `lives_ok` + verify the row is unchanged instead.
 
+### Supabase migration timestamps must be unique per day
+
+Supabase CLI uses the date prefix (e.g., `20260325`) as the primary key in `schema_migrations`. Two migrations with the same date prefix cause a PK collision during `db reset`. Use different dates even if the migrations are logically related.
+
+### pgTAP tests: reference seed IDs, not counts
+
+pgTAP tests run against the same database as integration tests. If integration tests create data and don't clean up, row counts drift. Reference specific seed IDs (`WHERE id IN ('seed-prompt-published', ...)`) instead of counting by author.
+
+### Pre-existing security functions in baseline dumps
+
+When squashing migrations into a baseline via `pg_dump`, you inherit all existing grants. Audit `SECURITY DEFINER` functions and their grants — we found `confirm_user_email` and `get_registered_emails` callable by the `anon` role (email confirmation bypass + user enumeration). Always review baseline dumps for inherited privilege escalation.
+
 ## Prevention
 
 - When adding new service code, always define an interface first and implement against it
 - When writing tests, import from `tests/helpers/db.ts` factory, never from `src/lib/services/*` implementation files directly
 - When seeding auth users, use the pattern in `supabase/seed.sql` with all token columns set to empty strings
 - When writing pgTAP RLS tests, use row-count assertions not `throws_ok` for USING-based policies
+- When hiding columns from non-owners, use a `_public` view — RLS is row-level only
+- When squashing migrations into a baseline, audit all `SECURITY DEFINER` functions and `GRANT` statements
+- When writing pgTAP tests, reference specific seed IDs not author-based counts (integration tests may leave data behind)
+- When creating multiple migrations on the same day, use sequential dates (Supabase keys on date prefix)
 
 ## Related
 
@@ -93,3 +127,5 @@ Supabase RLS with `USING` clauses on UPDATE/DELETE silently filters rows (0 affe
 - `docs/plans/2026-03-24-feat-prompt-schema-crud-discover-plan.md` — service interface design
 - `docs/plans/2026-03-25-feat-local-dev-infrastructure-plan.md` — test infrastructure decisions
 - `todos/048-pending-p2-extract-configuration-constants.md` — hardcoded constants to extract
+- `todos/049-pending-p1-input-validation-timeslot-fields.md` — validation gap found in security review
+- `todos/051-pending-p2-extract-location-service-interface.md` — LocationService portability gap found in architecture review
