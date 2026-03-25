@@ -1,18 +1,15 @@
 import { env } from '$env/dynamic/private';
 
 /**
- * Send an email.
+ * Send an email via HTTP API.
  *
- * Currently a no-op stub that logs the email details.
- * For production, implement with an EU SMTP provider via fetch-based API
- * (not nodemailer, which requires Node.js built-ins incompatible with edge runtimes).
+ * Local dev: uses Mailpit HTTP API at http://localhost:54324/api/v1/send
+ *   → emails viewable at http://localhost:54324
+ * Production: uses any EU email provider with an HTTP API (Mailjet, etc.)
  *
- * Local dev: emails can be viewed via Mailpit at http://localhost:54324
- * when sent through Supabase Auth flows.
- *
- * Environment variables (for future implementation):
- *   EMAIL_API_URL — EU email provider API endpoint
- *   EMAIL_API_KEY — API key for the email provider
+ * Environment variables:
+ *   EMAIL_API_URL — email API endpoint (default: Mailpit local)
+ *   EMAIL_API_KEY — API key (optional for Mailpit, required for production)
  *   EMAIL_FROM — sender address (default: hello@dyad.berlin)
  */
 export async function sendEmail(params: {
@@ -20,30 +17,27 @@ export async function sendEmail(params: {
 	subject: string;
 	html: string;
 }): Promise<boolean> {
-	const apiUrl = env.EMAIL_API_URL;
+	const apiUrl = env.EMAIL_API_URL || 'http://localhost:54324/api/v1/send';
 	const apiKey = env.EMAIL_API_KEY;
-
-	if (!apiUrl || !apiKey) {
-		console.log(`[email] Skipped (no EMAIL_API_URL configured): "${params.subject}" → ${params.to}`);
-		return false;
-	}
-
 	const from = env.EMAIL_FROM || 'hello@dyad.berlin';
 
 	try {
-		const res = await fetch(apiUrl, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				'Authorization': `Bearer ${apiKey}`
-			},
-			body: JSON.stringify({
-				from,
-				to: params.to,
-				subject: params.subject,
-				html: params.html
-			})
+		const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+		if (apiKey) {
+			headers['Authorization'] = `Bearer ${apiKey}`;
+		}
+
+		// Mailpit uses a specific JSON format; production providers may differ.
+		// For now, use Mailpit's format. When adding a production provider,
+		// add a conditional based on the API URL or a separate EMAIL_PROVIDER env var.
+		const body = JSON.stringify({
+			From: { Email: from, Name: 'dyad.' },
+			To: [{ Email: params.to }],
+			Subject: params.subject,
+			HTML: params.html
 		});
+
+		const res = await fetch(apiUrl, { method: 'POST', headers, body });
 
 		if (!res.ok) {
 			console.error('[email] API error:', res.status, await res.text());
@@ -52,6 +46,7 @@ export async function sendEmail(params: {
 
 		return true;
 	} catch (err) {
+		// Fail silently — email delivery shouldn't block the request
 		console.error('[email] Failed to send:', err);
 		return false;
 	}
