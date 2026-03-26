@@ -167,19 +167,9 @@
 
 <style>
 	.map-container {
-		width: calc(100% + 4rem);
-		height: calc(100vh - 80px);
+		width: 100%;
+		height: 100%;
 		min-height: 400px;
-		margin: -2rem;
-		overflow: hidden;
-	}
-
-	@media (max-width: 430px) {
-		.map-container {
-			width: calc(100% + 2rem);
-			height: calc(100vh - 60px);
-			margin: -1rem;
-		}
 	}
 
 	:global(.marker-pin) {
