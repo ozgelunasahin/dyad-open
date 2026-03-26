@@ -260,9 +260,9 @@
 			{/if}
 		</div>
 
-<div class="mobile-nav">
+<div class="floating-nav-wrapper">
 	<FloatingNav
-		position="bottom"
+		position="top"
 		active={viewMode === 'map' ? 'map' : ''}
 		onMapClick={() => viewMode = viewMode === 'map' ? 'list' : 'map'}
 		{weekDates}
@@ -273,8 +273,7 @@
 </div>
 
 <style>
-	.mobile-nav { display: none; }
-	@media (max-width: 430px) { .mobile-nav { display: block; } }
+	.floating-nav-wrapper { display: block; }
 	.content {
 		width: 100%;
 		max-width: 800px;
