@@ -1,6 +1,6 @@
-# Overnight Decisions Log — 2026-03-26
+# Decisions Log — 2026-03-26
 
-Decisions made while digit was asleep. All used best judgement per instruction.
+Decisions made during the session. Updated throughout the day.
 
 ## PRs Merged
 

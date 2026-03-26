@@ -23,7 +23,7 @@ The internal domain model uses precise technical terms. User-facing copy uses na
 | `rating_tags` | *(not named)* | Tags are presented as selectable words, not "ratings". |
 | `meeting` | **meeting** | This one passes through — "meeting" is natural. |
 | `invitation` | **invitation** / **invite** | Natural. |
-| `comment` | **note** | "Leave a note" feels more personal than "add a comment". UI uses "note". |
+| `comment` (DB: `prompt_comments`) | **response** | Writing a response is intentional and direct — it is engagement with the conversation, not a casual comment on public media. The response is the gateway to the invitation: you must write a response before you can invite to meet. The response IS the meeting context. |
 | `region` | **city** / *(implicit)* | Berlin is implicit — don't force users to choose. |
 | `general_area` | **neighbourhood** | Natural. |
 | `exact_location` | **location** / **where to meet** | Only shown after acceptance. |
