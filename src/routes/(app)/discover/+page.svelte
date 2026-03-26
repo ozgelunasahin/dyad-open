@@ -4,6 +4,7 @@
 	import { goto } from '$app/navigation';
 	import MapView from '$lib/components/MapView.svelte';
 	import BottomSheet from '$lib/components/BottomSheet.svelte';
+	import FloatingNav from '$lib/components/FloatingNav.svelte';
 
 	let { data }: { data: PageData } = $props();
 	let viewMode = $state<'list' | 'map'>('list');
@@ -259,7 +260,20 @@
 			{/if}
 		</div>
 
+<div class="floating-nav-wrapper">
+	<FloatingNav
+		position="top"
+		active={viewMode === 'map' ? 'map' : ''}
+		onMapClick={() => viewMode = viewMode === 'map' ? 'list' : 'map'}
+		{weekDates}
+		{selectedDays}
+		onToggleDay={toggleDate}
+		showDateFilter={true}
+	/>
+</div>
+
 <style>
+	.floating-nav-wrapper { display: block; }
 	.content {
 		width: 100%;
 		max-width: 800px;
