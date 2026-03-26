@@ -162,88 +162,10 @@
 		align-items: center;
 	}
 
-	@media (max-width: 430px) {
-		.app-layout { flex-direction: column; }
-
-		.sidebar {
-			width: 100%;
-			height: auto;
-			position: static;
-			flex-direction: row;
-			align-items: center;
-			padding: 1rem 1.5rem;
-			border-right: none;
-			border-bottom: 1px solid var(--border-link);
-			gap: 1rem;
-		}
-
-		.sidebar-logo { margin-bottom: 0; padding: 0; }
-		.sidebar-logo-img { width: 28px; }
-		.sidebar-nav { display: none; }
-		.sidebar-bottom { display: none; }
-		.mobile-menu-btn { display: flex; margin-left: auto; }
-
-		.mobile-overlay {
-			display: block;
-			position: fixed;
-			inset: 0;
-			background: rgba(0, 0, 0, 0.15);
-			z-index: 1000;
-		}
-
-		.mobile-panel {
-			display: flex;
-			flex-direction: column;
-			position: fixed;
-			top: 0;
-			right: 0;
-			width: 280px;
-			max-width: 80vw;
-			height: 100vh;
-			background: var(--bg-canvas, #f5f3f0);
-			z-index: 1001;
-			padding: 24px;
-			box-sizing: border-box;
-			box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1);
-		}
-
-		.mobile-panel-nav {
-			display: flex;
-			flex-direction: column;
-			gap: 0;
-			margin-top: 32px;
-		}
-
-		.mobile-panel-nav a {
-			font-family: 'SangBleu Sunrise', Georgia, serif;
-			font-size: 18px;
-			font-weight: 500;
-			color: var(--text-primary, #1a1a1a);
-			text-decoration: none;
-			padding: 14px 0;
-			border-bottom: 1px solid var(--border-link, rgba(0, 0, 0, 0.1));
-		}
-
-		.mobile-panel-bottom {
-			margin-top: auto;
-			display: flex;
-			flex-direction: column;
-			gap: 12px;
-		}
-
-		.mobile-panel-user {
-			font-family: monospace;
-			font-size: 13px;
-			color: var(--text-muted, #666);
-		}
-
-		.mobile-panel-bottom a {
-			font-family: 'SangBleu Sunrise', Georgia, serif;
-			font-size: 16px;
-			color: var(--text-secondary, #333);
-			text-decoration: none;
-		}
-
+	/* Mobile: hide sidebar, FloatingNav handles navigation */
+	@media (max-width: 768px) {
+		.sidebar { display: none; }
+		.mobile-overlay, .mobile-panel { display: none; }
 		.main-content { padding: 1rem; }
 	}
 </style>
