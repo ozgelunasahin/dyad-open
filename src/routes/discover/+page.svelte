@@ -10,10 +10,9 @@
 	const weekDates = (() => {
 		const today = new Date();
 		return Array.from({ length: 7 }, (_, i) => {
-			const d = new Date(today);
-			d.setDate(today.getDate() + i);
+			const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
 			return {
-				date: d.toISOString().split('T')[0],
+				date: d.toLocaleDateString('sv-SE'),
 				dayShort: d.toLocaleDateString('en-US', { weekday: 'short' }),
 				dayNum: d.getDate()
 			};
@@ -48,7 +47,7 @@
 	/** Check if a slot falls on one of the selected dates */
 	function slotMatchesDate(slot: TimeSlot, dates: Set<string>): boolean {
 		if (dates.size === 0) return true;
-		const slotDate = new Date(slot.start_time).toISOString().split('T')[0];
+		const slotDate = new Date(slot.start_time).toLocaleDateString('sv-SE');
 		return dates.has(slotDate);
 	}
 
