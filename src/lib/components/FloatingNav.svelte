@@ -97,6 +97,11 @@
 {/if}
 
 <style>
+	/* Hidden on desktop — sidebar handles navigation there */
+	@media (min-width: 769px) {
+		.floating-nav, .date-panel, .clear-dates { display: none !important; }
+	}
+
 	.floating-nav {
 		display: flex;
 		align-items: center;
