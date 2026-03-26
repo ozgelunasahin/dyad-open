@@ -1,7 +1,9 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import { page } from '$app/stores';
 
 	let { data }: { data: PageData } = $props();
+	let fromMap = $derived($page.url.searchParams.get('from') === 'map');
 	let responseText = $state(data.myComment?.body ?? '');
 	let responseStatus = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
 	let responseError = $state('');
@@ -76,15 +78,11 @@
 	let isOwnPrompt = $derived(data.prompt.author_id === data.user?.id);
 </script>
 
-<script context="module">
-	// empty — needed for page module context
-</script>
-
 <svelte:head>
 	<title>{data.prompt.title ?? 'Conversation'} - dyad.berlin</title>
 </svelte:head>
 
-{#if typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('from') === 'map'}
+{#if fromMap}
 	<a href="/discover?view=map" class="back-to-map">← Back to map</a>
 {/if}
 
@@ -202,6 +200,7 @@
 	.back-to-map { display: block; font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 0.85rem; color: var(--text-muted, #666); text-decoration: none; margin-bottom: 16px; }
 	.back-to-map:hover { color: var(--text-primary); }
 
+	/* Negative margin must match .main-content padding in (app)/+layout.svelte */
 	.cover-wrap { margin: -2rem -2rem 0; }
 	.cover { width: 100%; max-height: 400px; object-fit: cover; display: block; }
 	@media (max-width: 430px) { .cover-wrap { margin: -1rem -1rem 0; } }
@@ -219,7 +218,6 @@
 	.section-title { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 1rem; font-weight: normal; color: var(--text-primary); margin: 0 0 12px; }
 	.privacy-hint { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 12px; color: var(--text-muted, #999); font-style: italic; margin: 0 0 12px; }
 
-	.slots-section { margin-bottom: 32px; padding-top: 24px; border-top: 1px solid var(--border-link, rgba(0,0,0,0.08)); }
 	.slot-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border-link, rgba(0,0,0,0.06)); }
 	.slot-item.selected { background: rgba(61,158,90,0.06); margin: 0 -8px; padding: 10px 8px; border-radius: 4px; }
 	.slot-info { display: flex; gap: 12px; font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 14px; }
@@ -249,9 +247,6 @@
 	.submit-btn { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 13px; padding: 8px 20px; border: 1px solid var(--text-primary); border-radius: 6px; background: none; color: var(--text-primary); cursor: pointer; }
 	.submit-btn:hover:not(:disabled) { background: var(--text-primary); color: var(--bg-canvas); }
 	.submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-	.publish-btn { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 14px; padding: 10px 24px; background: var(--text-primary); color: var(--bg-canvas); border: 1px solid var(--text-primary); border-radius: 6px; cursor: pointer; }
-	.publish-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 	.success { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 14px; color: #3d9e5a; }
 	.field-error { font-size: 13px; color: #c00; margin: 0 0 8px; }

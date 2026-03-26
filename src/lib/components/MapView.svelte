@@ -23,7 +23,6 @@
 	const DEFAULT_ZOOM = 12;
 	const FUZZ_MIN_METERS = 150;
 	const FUZZ_MAX_METERS = 400;
-	const CIRCLE_RADIUS_METERS = 300;
 
 	// ── Deterministic fuzz from slot ID ──────────────────────────────────────
 	// Simple hash: converts a string to a number between 0 and 1
@@ -125,11 +124,15 @@
 			maxZoom: 18
 		}).addTo(map);
 
-		// Report map position changes
+		// Report map position changes (debounced — moveend fires many times during inertial scroll)
+		let moveEndTimer: ReturnType<typeof setTimeout>;
 		map.on('moveend', () => {
-			if (!map) return;
-			const c = map.getCenter();
-			onMoveEnd?.([c.lat, c.lng], map.getZoom());
+			clearTimeout(moveEndTimer);
+			moveEndTimer = setTimeout(() => {
+				if (!map) return;
+				const c = map.getCenter();
+				onMoveEnd?.([c.lat, c.lng], map.getZoom());
+			}, 300);
 		});
 
 		markerLayer = L.layerGroup().addTo(map);
@@ -146,8 +149,12 @@
 		}
 	});
 
+	// Only rebuild markers when prompts data changes — not on every pan/zoom
+	let prevPrompts: PromptSummary[] | undefined;
 	$effect(() => {
-		if (leafletModule && markerLayer) {
+		const currentPrompts = prompts;
+		if (leafletModule && markerLayer && currentPrompts !== prevPrompts) {
+			prevPrompts = currentPrompts;
 			rebuildMarkers(leafletModule);
 		}
 	});

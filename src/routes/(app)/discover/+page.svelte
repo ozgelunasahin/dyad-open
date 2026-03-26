@@ -2,7 +2,6 @@
 	import type { PageData } from './$types';
 	import type { PromptSummary, TimeSlot } from '$lib/domain/types';
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import MapView from '$lib/components/MapView.svelte';
 	import BottomSheet from '$lib/components/BottomSheet.svelte';
@@ -66,28 +65,9 @@
 		});
 	})();
 
-	// Collect unique neighbourhoods from all prompts' slots
-	const availableAreas = $derived.by(() => {
-		const areas = new Set<string>();
-		for (const p of data.prompts) {
-			for (const s of p.available_slots) {
-				if (s.general_area) areas.add(s.general_area);
-			}
-		}
-		return [...areas].sort();
-	});
-
 	// Filter state
 	let selectedDates = $state<Set<string>>(new Set());
 	let selectedAreas = $state<Set<string>>(new Set());
-	let areaQuery = $state('');
-	let areaDropdownOpen = $state(false);
-
-	let areaSuggestions = $derived.by(() => {
-		if (!areaQuery.trim()) return availableAreas;
-		const q = areaQuery.toLowerCase();
-		return availableAreas.filter((a) => a.toLowerCase().includes(q));
-	});
 
 	let hasFilters = $derived(selectedDates.size > 0 || selectedAreas.size > 0);
 
@@ -120,25 +100,9 @@
 		selectedDates = next;
 	}
 
-	function toggleArea(area: string) {
-		const next = new Set(selectedAreas);
-		if (next.has(area)) next.delete(area);
-		else next.add(area);
-		selectedAreas = next;
-		areaQuery = '';
-		areaDropdownOpen = false;
-	}
-
-	function removeArea(area: string) {
-		const next = new Set(selectedAreas);
-		next.delete(area);
-		selectedAreas = next;
-	}
-
 	function clearFilters() {
 		selectedDates = new Set();
 		selectedAreas = new Set();
-		areaQuery = '';
 	}
 
 	/** Format slot dates for display, e.g. "Fri 28 · Sat 29" */
@@ -153,14 +117,6 @@
 		return [...dates].join(' · ');
 	}
 
-	/** Format a single slot's time, e.g. "7:30 PM" */
-	function formatSlotTime(slot: TimeSlot): string {
-		return new Date(slot.start_time).toLocaleTimeString('en-US', {
-			hour: 'numeric',
-			minute: '2-digit',
-			hour12: true
-		});
-	}
 
 </script>
 
@@ -266,200 +222,6 @@
 		font-size: 0.9rem;
 	}
 
-	/* === Filter bar === */
-	.filter-bar {
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
-		margin-bottom: 1.5rem;
-		padding: 0.75rem 1rem;
-		border: 1px solid var(--border-link);
-		border-radius: 8px;
-		background: var(--bg-canvas);
-	}
-
-	.filter-group {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
-
-	.filter-label {
-		font-size: 0.8rem;
-		color: var(--text-muted);
-		flex-shrink: 0;
-		width: 40px;
-	}
-
-	.week-calendar {
-		display: flex;
-		gap: 0.25rem;
-		flex: 1;
-	}
-
-	.day-cell {
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 0.05rem;
-		padding: 0.35rem 0.15rem;
-		background: none;
-		border: 1px solid var(--border-link);
-		border-radius: 6px;
-		cursor: pointer;
-		font-family: inherit;
-		transition: border-color 0.15s, background 0.15s, color 0.15s;
-		color: var(--text-primary);
-	}
-
-	.day-cell:hover {
-		border-color: var(--border-link-hover, var(--text-muted));
-	}
-
-	.day-cell.selected {
-		background: var(--text-primary);
-		border-color: var(--text-primary);
-		color: var(--bg-canvas);
-	}
-
-	.day-name {
-		font-size: 0.6rem;
-		text-transform: uppercase;
-		letter-spacing: 0.03em;
-	}
-
-	.day-num {
-		font-size: 0.85rem;
-		font-weight: 500;
-	}
-
-	.location-filter {
-		display: flex;
-		align-items: center;
-		gap: 0.3rem;
-		flex: 1;
-		flex-wrap: wrap;
-	}
-
-	.location-chip {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.2rem;
-		padding: 0.2rem 0.5rem;
-		background: var(--text-primary);
-		color: var(--bg-canvas);
-		border-radius: 12px;
-		font-size: 0.8rem;
-		white-space: nowrap;
-	}
-
-	.chip-remove {
-		background: none;
-		border: none;
-		color: var(--bg-canvas);
-		font-size: 0.9rem;
-		cursor: pointer;
-		padding: 0;
-		line-height: 1;
-		opacity: 0.7;
-	}
-
-	.chip-remove:hover { opacity: 1; }
-
-	.location-search {
-		position: relative;
-		min-width: 140px;
-		flex: 1;
-	}
-
-	.location-input {
-		width: 100%;
-		padding: 0.4rem 0.65rem;
-		border: 1px solid var(--border-link);
-		border-radius: 6px;
-		font-size: 0.85rem;
-		font-family: inherit;
-		background: var(--bg-canvas);
-		color: var(--text-primary);
-		box-sizing: border-box;
-	}
-
-	.location-input:focus {
-		outline: none;
-		border-color: var(--text-link-hover, var(--text-muted));
-	}
-
-	.location-input::placeholder { color: var(--text-muted); }
-
-	.location-dropdown {
-		position: absolute;
-		top: 100%;
-		left: 0;
-		right: 0;
-		background: var(--bg-canvas);
-		border: 1px solid var(--border-link);
-		border-top: none;
-		border-radius: 0 0 6px 6px;
-		max-height: 200px;
-		overflow-y: auto;
-		z-index: 10;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-	}
-
-	.location-option {
-		display: block;
-		width: 100%;
-		text-align: left;
-		padding: 0.45rem 0.65rem;
-		background: none;
-		border: none;
-		border-bottom: 1px solid var(--border-link);
-		font-size: 0.85rem;
-		font-family: inherit;
-		color: var(--text-primary);
-		cursor: pointer;
-	}
-
-	.location-option:last-child { border-bottom: none; }
-	.location-option:hover { background: var(--bg-control, rgba(0, 0, 0, 0.03)); }
-	.location-option.active { background: var(--bg-control, rgba(0, 0, 0, 0.03)); font-weight: 500; }
-
-	.clear-filters {
-		align-self: flex-end;
-		background: none;
-		border: none;
-		color: var(--text-muted);
-		font-size: 0.8rem;
-		font-family: inherit;
-		cursor: pointer;
-		text-decoration: underline;
-	}
-
-	.clear-filters:hover { color: var(--text-primary); }
-
-	.view-toggle {
-		display: flex;
-		gap: 2px;
-		margin-left: auto;
-	}
-
-	.toggle-btn {
-		padding: 6px 8px;
-		border: 1px solid var(--border-link, rgba(0, 0, 0, 0.12));
-		background: none;
-		color: var(--text-muted, #999);
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		transition: all 0.15s;
-	}
-
-	.toggle-btn:first-child { border-radius: 4px 0 0 4px; }
-	.toggle-btn:last-child { border-radius: 0 4px 4px 0; }
-	.toggle-btn.active { background: var(--text-primary); color: var(--bg-canvas); border-color: var(--text-primary); }
-	.toggle-btn:hover:not(.active) { border-color: var(--text-primary); color: var(--text-primary); }
-
 	.clear-filters-link {
 		background: none;
 		border: none;
@@ -472,12 +234,6 @@
 
 	.clear-filters-link:hover { color: var(--text-primary); }
 
-	.where-group {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
-
 	/* === Prompt list === */
 	.prompt-list {
 		display: flex;
@@ -485,10 +241,6 @@
 		gap: 0;
 		margin-top: 2rem;
 		margin-bottom: 3rem;
-	}
-
-	.prompt-actions {
-		margin-bottom: 16px;
 	}
 
 	.start-prompt-btn {
