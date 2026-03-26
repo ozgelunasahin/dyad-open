@@ -94,10 +94,10 @@
 			<div class="switch-auth">
 				{#if mode === 'login'}
 					<button type="button" class="link-btn" onclick={() => (mode = 'reset')}>Forgot password?</button>
-					<a href="/#join" class="link-btn">Join</a>
+					<a href="/waitlist" class="link-btn">Join</a>
 				{:else if mode === 'reset'}
 					<button type="button" class="link-btn" onclick={() => (mode = 'login')}>Sign in</button>
-					<a href="/#join" class="link-btn">Join</a>
+					<a href="/waitlist" class="link-btn">Join</a>
 				{:else}
 					<a href="/discover" class="link-btn">Go to dashboard</a>
 				{/if}

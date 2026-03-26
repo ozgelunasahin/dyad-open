@@ -23,6 +23,8 @@ const ALLOWED_NODE_TYPES = new Set([
 
 const ALLOWED_MARK_TYPES = new Set(['bold', 'italic', 'code', 'link', 'strike']);
 
+const SAFE_URL_PROTOCOL = /^(https?:\/\/|mailto:|\/)/i;
+
 /**
  * Validate JSONContent structure recursively.
  * Returns null if valid, or an error message string if invalid.
@@ -67,6 +69,10 @@ function validateNode(node: unknown, depth = 0): string | null {
 						return `Invalid link mark attribute: "${key}"`;
 					}
 				}
+				const href = (mark.attrs as Record<string, unknown>).href;
+				if (typeof href === 'string' && !SAFE_URL_PROTOCOL.test(href)) {
+					return `Unsafe link href protocol`;
+				}
 			}
 		}
 	}
@@ -84,6 +90,10 @@ function validateNode(node: unknown, depth = 0): string | null {
 				if (!allowedImageAttrs.includes(key)) {
 					return `Invalid image attribute: "${key}"`;
 				}
+			}
+			const src = attrs.src;
+			if (typeof src === 'string' && !SAFE_URL_PROTOCOL.test(src)) {
+				return `Unsafe image src protocol`;
 			}
 		} else {
 			const dangerousAttrs = ['onclick', 'onerror', 'onload', 'onmouseover', 'href', 'src'];
