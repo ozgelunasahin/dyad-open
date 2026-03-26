@@ -139,6 +139,7 @@
 				<div class="empty-state">
 					<p>No conversations available right now.</p>
 					<p class="empty-hint">Check back soon, or start your own.</p>
+					<a href="/prompts/new" class="start-prompt-btn" style="margin-top: 16px; display: inline-block;">Start a conversation</a>
 				</div>
 			{:else}
 				<div class="filter-bar">
