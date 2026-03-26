@@ -188,9 +188,12 @@
 						<button class="clear-filters-link" onclick={clearFilters}>Clear filters</button>
 					</div>
 				{:else}
+					<div class="prompt-actions">
+						<a href="/prompts/new" class="start-prompt-btn">Start a prompt</a>
+					</div>
 					<div class="prompt-list">
 						{#each filteredPrompts as prompt}
-							<div class="prompt-item">
+							<a href="/prompts/{prompt.id}" class="prompt-item">
 								<div class="prompt-row">
 									<div class="row-thumb">
 										{#if prompt.cover_image_url}
@@ -213,7 +216,7 @@
 										</div>
 									</div>
 								</div>
-							</div>
+							</a>
 						{/each}
 					</div>
 				{/if}
@@ -439,9 +442,33 @@
 		margin-bottom: 3rem;
 	}
 
+	.prompt-actions {
+		margin-bottom: 16px;
+	}
+
+	.start-prompt-btn {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 13px;
+		padding: 8px 20px;
+		border: 1px solid var(--text-primary, #1a1a1a);
+		border-radius: 6px;
+		background: var(--text-primary, #1a1a1a);
+		color: var(--bg-canvas, #f5f3f0);
+		text-decoration: none;
+		transition: opacity 0.15s;
+	}
+
+	.start-prompt-btn:hover { opacity: 0.8; }
+
 	.prompt-item {
 		border-bottom: 1px solid var(--border-link);
+		text-decoration: none;
+		color: inherit;
+		display: block;
+		transition: opacity 0.15s;
 	}
+
+	.prompt-item:hover { opacity: 0.72; }
 
 	.prompt-item:last-child {
 		border-bottom: none;
