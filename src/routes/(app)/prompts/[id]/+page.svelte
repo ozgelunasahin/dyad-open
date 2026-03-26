@@ -2,12 +2,12 @@
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
-	let commentText = $state(data.myComment?.body ?? '');
-	let commentStatus = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
-	let commentError = $state('');
+	let responseText = $state(data.myComment?.body ?? '');
+	let responseStatus = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
+	let responseError = $state('');
+	let hasResponse = $derived(!!data.myComment || responseStatus === 'sent');
 
 	let selectedSlotId = $state<string | null>(null);
-	let inviteMessage = $state('');
 	let inviteStatus = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
 
 	function formatSlotDate(iso: string): string {
@@ -19,25 +19,25 @@
 		return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 	}
 
-	async function submitComment() {
-		if (!commentText.trim()) return;
-		commentStatus = 'sending';
-		commentError = '';
+	async function submitResponse() {
+		if (!responseText.trim()) return;
+		responseStatus = 'sending';
+		responseError = '';
 		try {
 			const res = await fetch(`/api/prompts/${data.prompt.id}/comments`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ body: commentText.trim() })
+				body: JSON.stringify({ body: responseText.trim() })
 			});
-			if (res.ok) { commentStatus = 'sent'; }
+			if (res.ok) { responseStatus = 'sent'; }
 			else {
 				const err = await res.json().catch(() => ({}));
-				commentError = (err as any).error ?? 'Failed to send';
-				commentStatus = 'error';
+				responseError = (err as any).error ?? 'Failed to send';
+				responseStatus = 'error';
 			}
 		} catch {
-			commentError = 'Network error';
-			commentStatus = 'error';
+			responseError = 'Network error';
+			responseStatus = 'error';
 		}
 	}
 
@@ -48,7 +48,7 @@
 			const res = await fetch(`/api/prompts/${data.prompt.id}/invitations`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ slotId: selectedSlotId, message: inviteMessage.trim() || undefined })
+				body: JSON.stringify({ slotId: selectedSlotId })
 			});
 			if (res.ok) { inviteStatus = 'sent'; }
 			else { inviteStatus = 'error'; }
@@ -76,81 +76,85 @@
 		{@html data.prompt.body_html}
 	</div>
 
-	<!-- Available slots -->
-	{#if data.prompt.available_slots.length > 0}
-		<section class="slots-section">
-			<h2 class="section-title">Available times</h2>
-			{#each data.prompt.available_slots as slot}
-				<div class="slot-item" class:selected={selectedSlotId === slot.id}>
-					<div class="slot-info">
-						<span class="slot-date">{formatSlotDate(slot.start_time)}</span>
-						<span class="slot-time">{formatSlotTime(slot.start_time)}</span>
-						<span class="slot-duration">{slot.duration_minutes} min</span>
-						<span class="slot-area">{slot.general_area}</span>
-					</div>
-					{#if !isOwnPrompt && inviteStatus !== 'sent'}
-						<button class="select-slot" onclick={() => selectedSlotId = selectedSlotId === slot.id ? null : slot.id}>
-							{selectedSlotId === slot.id ? 'Selected' : 'Select'}
-						</button>
-					{/if}
-				</div>
-			{/each}
-		</section>
-	{/if}
-
-	<!-- Comment form (non-authors only) -->
+	<!-- Response + Invitation flow (non-authors only) -->
 	{#if !isOwnPrompt}
-		<section class="comment-section">
-			<h2 class="section-title">Leave a note</h2>
+		<!-- Step 1: Write a response -->
+		<section class="response-section">
+			<h2 class="section-title">Write a response</h2>
 			<p class="privacy-hint">Only visible to you and the author.</p>
 
-			{#if commentStatus === 'sent'}
-				<p class="success">Your note was sent.</p>
+			{#if responseStatus === 'sent' || data.myComment}
+				<div class="response-sent">
+					<p class="success">Your response{data.myComment && responseStatus !== 'sent' ? '' : ' was sent'}.</p>
+					{#if data.myComment && responseStatus !== 'sent'}
+						<p class="existing-response">{data.myComment.body}</p>
+					{/if}
+					<button class="edit-response-btn" onclick={() => responseStatus = 'idle'}>Edit response</button>
+				</div>
 			{:else}
 				<textarea
-					class="comment-input"
-					placeholder="What resonates with you about this?"
-					bind:value={commentText}
-					rows={3}
-					disabled={commentStatus === 'sending'}
+					class="response-input"
+					placeholder="What does this make you think about? What would you want to talk about?"
+					bind:value={responseText}
+					rows={4}
+					disabled={responseStatus === 'sending'}
 				></textarea>
-				{#if commentError}<p class="field-error">{commentError}</p>{/if}
-				<button class="submit-btn" onclick={submitComment} disabled={commentStatus === 'sending' || !commentText.trim()}>
-					{commentStatus === 'sending' ? 'Sending...' : (data.myComment ? 'Update note' : 'Send note')}
+				{#if responseError}<p class="field-error">{responseError}</p>{/if}
+				<button class="submit-btn" onclick={submitResponse} disabled={responseStatus === 'sending' || !responseText.trim()}>
+					{responseStatus === 'sending' ? 'Sending...' : (data.myComment ? 'Update response' : 'Send response')}
 				</button>
 			{/if}
 		</section>
 
-		<!-- Invite flow -->
-		{#if selectedSlotId}
+		<!-- Step 2: Pick a time and invite (only after response) -->
+		{#if hasResponse && data.prompt.available_slots.length > 0 && inviteStatus !== 'sent'}
 			<section class="invite-section">
-				<h2 class="section-title">Invite to meet</h2>
-				{#if inviteStatus === 'sent'}
-					<p class="success">Invitation sent! The author will be notified.</p>
-				{:else}
-					<textarea
-						class="comment-input"
-						placeholder="Add a message (optional)"
-						bind:value={inviteMessage}
-						rows={2}
-						disabled={inviteStatus === 'sending'}
-					></textarea>
-					<button class="publish-btn" onclick={sendInvite} disabled={inviteStatus === 'sending'}>
-						{inviteStatus === 'sending' ? 'Sending...' : 'Send invitation'}
+				<h2 class="section-title">Pick a time to meet</h2>
+				<p class="invite-hint">Your response will be shared with the author as the basis for your conversation.</p>
+
+				{#each data.prompt.available_slots as slot}
+					<div class="slot-item" class:selected={selectedSlotId === slot.id}>
+						<div class="slot-info">
+							<span class="slot-date">{formatSlotDate(slot.start_time)}</span>
+							<span class="slot-time">{formatSlotTime(slot.start_time)}</span>
+							<span class="slot-duration">{slot.duration_minutes} min</span>
+							<span class="slot-area">{slot.general_area}</span>
+						</div>
+						<button class="select-slot" onclick={() => selectedSlotId = selectedSlotId === slot.id ? null : slot.id}>
+							{selectedSlotId === slot.id ? 'Selected' : 'Select'}
+						</button>
+					</div>
+				{/each}
+
+				{#if selectedSlotId}
+					<button class="invite-btn" onclick={sendInvite} disabled={inviteStatus === 'sending'}>
+						{inviteStatus === 'sending' ? 'Sending...' : 'Invite to meet'}
 					</button>
 				{/if}
 			</section>
 		{/if}
+
+		{#if inviteStatus === 'sent'}
+			<section class="invite-section">
+				<p class="success">Invitation sent! The author will be notified.</p>
+			</section>
+		{/if}
+
+		{#if !hasResponse && data.prompt.available_slots.length > 0}
+			<section class="invite-teaser">
+				<p class="teaser-text">Write a response to unlock the invitation flow.</p>
+			</section>
+		{/if}
 	{/if}
 
-	<!-- Author view: comments received -->
+	<!-- Author view: responses received -->
 	{#if isOwnPrompt && data.comments.length > 0}
-		<section class="comments-received">
-			<h2 class="section-title">Notes received</h2>
+		<section class="responses-received">
+			<h2 class="section-title">Responses received</h2>
 			{#each data.comments as comment}
-				<div class="comment-card">
-					<p class="comment-body">{comment.body}</p>
-					<span class="comment-date">{new Date(comment.created_at).toLocaleDateString()}</span>
+				<div class="response-card">
+					<p class="response-body">{comment.body}</p>
+					<span class="response-date">{new Date(comment.created_at).toLocaleDateString()}</span>
 				</div>
 			{/each}
 		</section>
@@ -185,11 +189,21 @@
 	.select-slot { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 13px; padding: 6px 14px; border: 1px solid var(--border-link); border-radius: 4px; background: none; color: var(--text-primary); cursor: pointer; }
 	.select-slot:hover { border-color: var(--text-primary); }
 
-	.comment-section, .invite-section, .comments-received { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border-link, rgba(0,0,0,0.08)); }
+	.response-section, .invite-section, .invite-teaser, .responses-received { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border-link, rgba(0,0,0,0.08)); }
 
-	.comment-input { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 14px; width: 100%; padding: 10px 14px; border: 1px solid var(--border-link, rgba(0,0,0,0.12)); border-radius: 6px; background: transparent; color: var(--text-primary); resize: vertical; line-height: 1.6; box-sizing: border-box; margin-bottom: 12px; }
-	.comment-input:focus { outline: none; border-color: var(--text-muted); }
-	.comment-input::placeholder { color: var(--text-muted, #999); }
+	.response-input { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 14px; width: 100%; padding: 10px 14px; border: 1px solid var(--border-link, rgba(0,0,0,0.12)); border-radius: 6px; background: transparent; color: var(--text-primary); resize: vertical; line-height: 1.6; box-sizing: border-box; margin-bottom: 12px; }
+	.response-input:focus { outline: none; border-color: var(--text-muted); }
+	.response-input::placeholder { color: var(--text-muted, #999); }
+
+	.response-sent { margin-bottom: 12px; }
+	.existing-response { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 14px; color: var(--text-muted, #666); font-style: italic; margin: 8px 0; line-height: 1.5; }
+	.edit-response-btn { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 12px; color: var(--text-muted, #666); background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; }
+
+	.invite-hint { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 12px; color: var(--text-muted, #999); margin: 0 0 16px; font-style: italic; }
+	.invite-btn { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 14px; padding: 10px 24px; background: var(--text-primary); color: var(--bg-canvas); border: 1px solid var(--text-primary); border-radius: 6px; cursor: pointer; margin-top: 12px; }
+	.invite-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+	.teaser-text { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 13px; color: var(--text-muted, #999); font-style: italic; }
 
 	.submit-btn { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 13px; padding: 8px 20px; border: 1px solid var(--text-primary); border-radius: 6px; background: none; color: var(--text-primary); cursor: pointer; }
 	.submit-btn:hover:not(:disabled) { background: var(--text-primary); color: var(--bg-canvas); }
@@ -201,7 +215,7 @@
 	.success { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 14px; color: #3d9e5a; }
 	.field-error { font-size: 13px; color: #c00; margin: 0 0 8px; }
 
-	.comment-card { padding: 12px 0; border-bottom: 1px solid var(--border-link, rgba(0,0,0,0.06)); }
-	.comment-body { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 14px; color: var(--text-primary); margin: 0 0 4px; line-height: 1.5; }
-	.comment-date { font-family: 'SF Mono', monospace; font-size: 11px; color: var(--text-muted, #999); }
+	.response-card { padding: 12px 0; border-bottom: 1px solid var(--border-link, rgba(0,0,0,0.06)); }
+	.response-body { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 14px; color: var(--text-primary); margin: 0 0 4px; line-height: 1.5; }
+	.response-date { font-family: 'SF Mono', monospace; font-size: 11px; color: var(--text-muted, #999); }
 </style>
