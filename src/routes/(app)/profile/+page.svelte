@@ -33,7 +33,6 @@
 			<div class="profile-stats">
 				<div class="stat"><span class="stat-num">{published.length}</span><span class="stat-label">ACTIVE</span></div>
 				<div class="stat"><span class="stat-num">{data.meetings.length}</span><span class="stat-label">MEETINGS</span></div>
-				<div class="stat"><span class="stat-num">{drafts.length}</span><span class="stat-label">DRAFTS</span></div>
 			</div>
 		</div>
 
