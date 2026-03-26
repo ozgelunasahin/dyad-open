@@ -2,12 +2,32 @@
 	import type { PageData } from './$types';
 	import type { PromptSummary, TimeSlot } from '$lib/domain/types';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
+	import { onMount } from 'svelte';
 	import MapView from '$lib/components/MapView.svelte';
 	import BottomSheet from '$lib/components/BottomSheet.svelte';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
 
 	let { data }: { data: PageData } = $props();
 	let viewMode = $state<'list' | 'map'>('list');
+
+	// Restore map view and position from URL param / sessionStorage
+	onMount(() => {
+		const params = new URLSearchParams(window.location.search);
+		if (params.get('view') === 'map') {
+			viewMode = 'map';
+			window.history.replaceState({}, '', window.location.pathname);
+		}
+		try {
+			const saved = sessionStorage.getItem('dyad-map-state');
+			if (saved) {
+				const state = JSON.parse(saved);
+				mapCenter = state.center;
+				mapZoom = state.zoom;
+				sessionStorage.removeItem('dyad-map-state');
+			}
+		} catch { /* ignore */ }
+	});
 	let selectedPinPrompts = $state<PromptSummary[]>([]);
 	let selectedPinArea = $state('');
 
@@ -16,8 +36,16 @@
 		selectedPinArea = area;
 	}
 
+	// Persist map state so we can restore it on return
+	let mapCenter = $state<[number, number] | null>(null);
+	let mapZoom = $state<number | null>(null);
+
 	function handlePinNavigate(promptId: string) {
-		goto(`/prompts/${promptId}`);
+		// Save map state to sessionStorage before navigating away
+		if (mapCenter && mapZoom) {
+			sessionStorage.setItem('dyad-map-state', JSON.stringify({ center: mapCenter, zoom: mapZoom }));
+		}
+		goto(`/prompts/${promptId}?from=map`);
 	}
 
 	function closeSheet() {
@@ -150,7 +178,14 @@
 			{:else}
 
 				{#if viewMode === 'map'}
-					<MapView prompts={filteredPrompts} onSelectPin={handlePinSelect} onNavigate={handlePinNavigate} />
+					<MapView
+						prompts={filteredPrompts}
+						onSelectPin={handlePinSelect}
+						onNavigate={handlePinNavigate}
+						initialCenter={mapCenter}
+						initialZoom={mapZoom}
+						onMoveEnd={(c, z) => { mapCenter = c; mapZoom = z; }}
+					/>
 					{#if selectedPinPrompts.length > 0}
 						<BottomSheet prompts={selectedPinPrompts} area={selectedPinArea} onClose={closeSheet} />
 					{/if}

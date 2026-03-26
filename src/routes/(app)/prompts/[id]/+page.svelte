@@ -76,9 +76,17 @@
 	let isOwnPrompt = $derived(data.prompt.author_id === data.user?.id);
 </script>
 
+<script context="module">
+	// empty — needed for page module context
+</script>
+
 <svelte:head>
 	<title>{data.prompt.title ?? 'Conversation'} - dyad.berlin</title>
 </svelte:head>
+
+{#if typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('from') === 'map'}
+	<a href="/discover?view=map" class="back-to-map">← Back to map</a>
+{/if}
 
 {#if data.prompt.cover_image_url}
 	<div class="cover-wrap">
@@ -190,6 +198,9 @@
 
 <style>
 	.content { width: 100%; max-width: 700px; }
+
+	.back-to-map { display: block; font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 0.85rem; color: var(--text-muted, #666); text-decoration: none; margin-bottom: 16px; }
+	.back-to-map:hover { color: var(--text-primary); }
 
 	.cover-wrap { margin: -2rem -2rem 0; }
 	.cover { width: 100%; max-height: 400px; object-fit: cover; display: block; }

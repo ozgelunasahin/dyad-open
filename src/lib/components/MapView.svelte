@@ -7,9 +7,12 @@
 		prompts: PromptSummary[];
 		onSelectPin: (prompts: PromptSummary[], area: string) => void;
 		onNavigate: (promptId: string) => void;
+		initialCenter?: [number, number] | null;
+		initialZoom?: number | null;
+		onMoveEnd?: (center: [number, number], zoom: number) => void;
 	}
 
-	let { prompts, onSelectPin, onNavigate }: Props = $props();
+	let { prompts, onSelectPin, onNavigate, initialCenter, initialZoom, onMoveEnd }: Props = $props();
 
 	let mapContainer: HTMLElement | undefined = $state();
 	let map: LeafletMap | undefined;
@@ -111,8 +114,8 @@
 		(L.Icon.Default as any).prototype.options.imagePath = '/leaflet/';
 
 		map = L.map(mapContainer, {
-			center: BERLIN_CENTER,
-			zoom: DEFAULT_ZOOM,
+			center: initialCenter ?? BERLIN_CENTER,
+			zoom: initialZoom ?? DEFAULT_ZOOM,
 			zoomControl: false,
 			attributionControl: true
 		});
@@ -122,11 +125,18 @@
 			maxZoom: 18
 		}).addTo(map);
 
+		// Report map position changes
+		map.on('moveend', () => {
+			if (!map) return;
+			const c = map.getCenter();
+			onMoveEnd?.([c.lat, c.lng], map.getZoom());
+		});
+
 		markerLayer = L.layerGroup().addTo(map);
 		rebuildMarkers(L);
 
-		// Center on user location if available
-		if ('geolocation' in navigator) {
+		// Center on user location if available (only if no initial position was provided)
+		if (!initialCenter && 'geolocation' in navigator) {
 			navigator.geolocation.getCurrentPosition(
 				(pos) => {
 					map?.setView([pos.coords.latitude, pos.coords.longitude], 13);
