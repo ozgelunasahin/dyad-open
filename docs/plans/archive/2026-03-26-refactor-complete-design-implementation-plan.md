@@ -1,7 +1,7 @@
 ---
 title: "refactor: Complete design implementation from Ozge's PRs"
 type: refactor
-status: active
+status: revised
 date: 2026-03-26
 supersedes:
   - docs/plans/2026-03-26-feat-map-view-discover-plan.md
