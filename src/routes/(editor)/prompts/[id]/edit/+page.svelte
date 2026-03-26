@@ -12,7 +12,7 @@
 	// ── Editable state ─────────────────────────────────────────────────────────
 	let title = $state(data.prompt.title ?? '');
 	let body = $state<JSONContent>(data.prompt.body ?? { type: 'doc', content: [{ type: 'paragraph' }] });
-	let coverImageUrl = $state(data.prompt.cover_image_url ?? '');
+	let coverImageUrl = $state(data.prompt.cover_image_url || '');
 	let coverPreview = $state<string | null>(null);
 
 	// ── Auto-save ──────────────────────────────────────────────────────────────
@@ -88,6 +88,7 @@
 		if (coverPreview) URL.revokeObjectURL(coverPreview);
 		coverPreview = URL.createObjectURL(file);
 		coverError = false;
+		publishError = '';
 
 		uploading = true;
 		const formData = new FormData();
@@ -98,7 +99,14 @@
 				const { url } = await res.json();
 				coverImageUrl = url;
 				scheduleSave();
+			} else {
+				const err = await res.json().catch(() => ({}));
+				publishError = `Upload failed: ${(err as any).error ?? 'unknown error'}`;
+				coverPreview = null;
 			}
+		} catch {
+			publishError = 'Upload failed: network error';
+			coverPreview = null;
 		} finally {
 			uploading = false;
 		}
@@ -147,7 +155,15 @@
 		publishError = '';
 		if (uploading) { publishError = 'Please wait for the cover image to finish uploading.'; return; }
 		if (!title.trim()) { publishError = 'Title is required to publish.'; return; }
-		if (!coverImageUrl) { publishError = 'Cover image is required to publish.'; coverError = true; return; }
+		if (!coverImageUrl) {
+			if (coverPreview) {
+				publishError = 'Cover image upload may have failed. Please try uploading again.';
+			} else {
+				publishError = 'Cover image is required to publish.';
+			}
+			coverError = true;
+			return;
+		}
 		showPublishSheet = true;
 	}
 
