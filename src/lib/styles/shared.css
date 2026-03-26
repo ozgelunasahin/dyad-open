@@ -1,0 +1,120 @@
+/*
+ * Shared styles — imported once via app.css.
+ * Use these classes across pages instead of re-declaring.
+ */
+
+/* ── Back navigation ────────────────────────────────────────── */
+.back-link {
+	display: inline-block;
+	font-size: var(--text-md);
+	color: var(--text-muted);
+	margin-bottom: var(--space-4);
+}
+.back-link:hover {
+	color: var(--text-primary);
+}
+
+/* ── Buttons ────────────────────────────────────────────────── */
+.btn-primary {
+	font-size: var(--text-base);
+	padding: var(--space-3) var(--space-6);
+	background: var(--text-primary);
+	color: var(--bg-canvas);
+	border: 1px solid var(--text-primary);
+	border-radius: var(--radius-input);
+	cursor: pointer;
+	transition: opacity 0.15s;
+}
+.btn-primary:hover:not(:disabled) { opacity: 0.85; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-secondary {
+	font-size: var(--text-sm);
+	padding: var(--space-2) var(--space-5);
+	border: 1px solid var(--border-link);
+	border-radius: var(--radius-input);
+	background: none;
+	color: var(--text-primary);
+	cursor: pointer;
+	transition: background 0.15s, color 0.15s;
+}
+.btn-secondary:hover:not(:disabled) { background: var(--text-primary); color: var(--bg-canvas); }
+.btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-text {
+	font-size: var(--text-sm);
+	color: var(--text-muted);
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 0;
+	text-decoration: underline;
+}
+.btn-text:hover { color: var(--text-primary); }
+
+/* ── Typography ─────────────────────────────────────────────── */
+.section-title {
+	font-size: var(--text-lg);
+	font-weight: normal;
+	color: var(--text-primary);
+	margin: 0 0 var(--space-3);
+}
+
+.page-title {
+	font-size: var(--text-2xl);
+	font-weight: normal;
+	color: var(--text-primary);
+	margin: 0 0 var(--space-8);
+	line-height: var(--leading-tight);
+}
+
+.meta-label {
+	font-family: var(--font-mono);
+	font-size: var(--text-xs);
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+
+/* ── Form feedback ──────────────────────────────────────────── */
+.field-error {
+	font-size: var(--text-sm);
+	color: var(--color-danger);
+	margin: 0 0 var(--space-2);
+}
+
+.success-text {
+	font-size: var(--text-base);
+	color: var(--color-success);
+}
+
+/* ── Badges ─────────────────────────────────────────────────── */
+.badge {
+	font-family: var(--font-mono);
+	font-size: 10px;
+	padding: 2px 6px;
+	border-radius: 3px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	flex-shrink: 0;
+}
+
+.badge-draft { background: rgba(0,0,0,0.06); color: var(--text-muted); }
+.badge-published { background: rgba(61,158,90,0.12); color: #2d7a42; }
+.badge-archived { background: rgba(0,0,0,0.04); color: var(--text-muted); }
+.badge-pending { background: rgba(245,158,11,0.12); color: #b45309; }
+.badge-accepted { background: rgba(61,158,90,0.12); color: #2d7a42; }
+
+/* ── Layout helpers ─────────────────────────────────────────── */
+.content-column {
+	width: 100%;
+	max-width: 700px;
+}
+
+.sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0,0,0,0);
+}
