@@ -10,6 +10,8 @@
 	<title>New conversation - dyad.berlin</title>
 </svelte:head>
 
+<a href="/discover" class="back-link">← Back</a>
+
 <div class="content">
 	<h1 class="page-title">Start a conversation</h1>
 	<p class="page-desc">What would you like to talk about?</p>
@@ -48,6 +50,16 @@
 </div>
 
 <style>
+	.back-link {
+		display: inline-block;
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 0.9rem;
+		color: var(--text-muted, #666);
+		text-decoration: none;
+		margin-bottom: 16px;
+	}
+	.back-link:hover { color: var(--text-primary); }
+
 	.content {
 		width: 100%;
 		max-width: 560px;
