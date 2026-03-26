@@ -145,6 +145,7 @@
 
 	function handleOpenPublish() {
 		publishError = '';
+		if (uploading) { publishError = 'Please wait for the cover image to finish uploading.'; return; }
 		if (!title.trim()) { publishError = 'Title is required to publish.'; return; }
 		if (!coverImageUrl) { publishError = 'Cover image is required to publish.'; coverError = true; return; }
 		showPublishSheet = true;
