@@ -102,28 +102,25 @@
 	{#if !isOwnPrompt}
 		<!-- Step 1: Write a response -->
 		<section class="response-section">
-			<h2 class="section-title">Write a response</h2>
-			<p class="privacy-hint">Only visible to you and the author.</p>
-
 			{#if responseStatus === 'sent' || data.myComment}
 				<div class="response-sent">
-					<p class="success">Your response{data.myComment && responseStatus !== 'sent' ? '' : ' was sent'}.</p>
+					<p class="success">Response sent.</p>
 					{#if data.myComment && responseStatus !== 'sent'}
 						<p class="existing-response">{data.myComment.body}</p>
 					{/if}
-					<button class="edit-response-btn" onclick={() => responseStatus = 'idle'}>Edit response</button>
+					<button class="edit-response-btn" onclick={() => responseStatus = 'idle'}>Edit</button>
 				</div>
 			{:else}
 				<textarea
 					class="response-input"
-					placeholder="What does this make you think about? What would you want to talk about?"
+					placeholder="Write a response..."
 					bind:value={responseText}
-					rows={4}
+					rows={3}
 					disabled={responseStatus === 'sending'}
 				></textarea>
 				{#if responseError}<p class="field-error">{responseError}</p>{/if}
 				<button class="submit-btn" onclick={submitResponse} disabled={responseStatus === 'sending' || !responseText.trim()}>
-					{responseStatus === 'sending' ? 'Sending...' : (data.myComment ? 'Update response' : 'Send response')}
+					{responseStatus === 'sending' ? 'Sending...' : 'Send'}
 				</button>
 			{/if}
 		</section>
@@ -131,8 +128,7 @@
 		<!-- Step 2: Pick a time and invite (only after response) -->
 		{#if hasResponse && data.prompt.available_slots.length > 0 && inviteStatus !== 'sent'}
 			<section class="invite-section">
-				<h2 class="section-title">Pick a time to meet</h2>
-				<p class="invite-hint">Your response will be shared with the author as the basis for your conversation.</p>
+				<h2 class="section-title">Pick a time</h2>
 
 				{#each data.prompt.available_slots as slot}
 					<div class="slot-item" class:selected={selectedSlotId === slot.id}>
@@ -167,10 +163,6 @@
 			</section>
 		{/if}
 
-		{#if !hasResponse && data.prompt.available_slots.length > 0}
-			<section class="invite-teaser">
-				<p class="teaser-text">Write a response to unlock the invitation flow.</p>
-			</section>
 		{/if}
 	{/if}
 
