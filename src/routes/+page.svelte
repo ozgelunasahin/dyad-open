@@ -1,8 +1,118 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { fade, fly } from 'svelte/transition';
+	import { themeStore } from '$lib/stores/theme.svelte';
+	import { createBrowserClient } from '@supabase/ssr';
+	import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
+	const supabase = createBrowserClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
+
+	// ── Join modal ──────────────────────────────────────────────────────────────
+	let showJoinForm = $state(false);
+	let joinName = $state('');
+	let joinEmail = $state('');
+	let joinBasedIn = $state('');
+	let joinFreewrite = $state('');
+	let joinExpressionUrl = $state('');
+	let joinStatus = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
+	let joinError = $state('');
+
+	const CITIES = ['Berlin', 'London', 'Amsterdam', 'Paris', 'Vienna', 'Zürich', 'Istanbul', 'New York', 'Barcelona', 'Rome', 'Lisbon', 'Stockholm', 'Copenhagen', 'Oslo', 'Helsinki', 'Warsaw', 'Prague', 'Budapest', 'Athens', 'Other'];
+	let cityDropdownOpen = $state(false);
+	let citySuggestions = $derived.by(() => {
+		if (!joinBasedIn.trim()) return CITIES;
+		const q = joinBasedIn.toLowerCase();
+		return CITIES.filter(c => c.toLowerCase().includes(q));
+	});
+	function selectCity(city: string) {
+		joinBasedIn = city;
+		cityDropdownOpen = false;
+	}
+
+	function openJoin() { showJoinForm = true; }
+	function closeJoin() { if (joinStatus !== 'sending') showJoinForm = false; }
+
+	async function handleJoinSubmit(e: Event) {
+		e.preventDefault();
+		if (!joinFreewrite.trim()) {
+			joinError = 'Please share why you want to join.';
+			joinStatus = 'error';
+			return;
+		}
+		joinStatus = 'sending';
+		joinError = '';
+		try {
+			const res = await fetch('/api/contact', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					email: joinEmail.trim(),
+					name: joinName.trim() || undefined,
+					based_in: joinBasedIn.trim() || undefined,
+					freewrite: joinFreewrite.trim(),
+					expression_url: joinExpressionUrl.trim() || undefined
+				})
+			});
+			if (!res.ok) {
+				const d = await res.json();
+				throw new Error(d.error || 'Something went wrong');
+			}
+			joinStatus = 'sent';
+		} catch (err) {
+			joinError = err instanceof Error ? err.message : 'Something went wrong';
+			joinStatus = 'error';
+		}
+	}
+
+	// ── Login modal ─────────────────────────────────────────────────────────────
+	let showLoginForm = $state(false);
+	let loginMode = $state<'login' | 'reset'>('login');
+	let loginEmail = $state('');
+	let loginPassword = $state('');
+	let loginStatus = $state<'idle' | 'loading' | 'reset_sent' | 'error'>('idle');
+	let loginError = $state('');
+
+	function openLogin() { showLoginForm = true; loginMode = 'login'; loginError = ''; }
+	function closeLogin() { if (loginStatus !== 'loading') showLoginForm = false; }
+
+	async function handleLogin(e: Event) {
+		e.preventDefault();
+		loginStatus = 'loading';
+		loginError = '';
+		if (loginMode === 'reset') {
+			const { error } = await supabase.auth.resetPasswordForEmail(loginEmail.trim(), {
+				redirectTo: `${window.location.origin}/auth/callback?type=recovery`
+			});
+			if (error) { loginError = error.message; loginStatus = 'error'; }
+			else { loginStatus = 'reset_sent'; }
+			return;
+		}
+		const { error } = await supabase.auth.signInWithPassword({
+			email: loginEmail.trim(),
+			password: loginPassword
+		});
+		if (error) { loginError = error.message; loginStatus = 'error'; }
+		else { window.location.href = '/discover'; }
+	}
+
+	// ── City rotation ───────────────────────────────────────────────────────────
+	const cities = ['Berlin'];
+	let cityIndex = $state(0);
+	let cityVisible = $state(true);
+
+	onMount(() => {
+		if (cities.length < 2) return;
+		const interval = setInterval(() => {
+			cityVisible = false;
+			setTimeout(() => { cityIndex = (cityIndex + 1) % cities.length; cityVisible = true; }, 250);
+		}, 2000);
+		return () => clearInterval(interval);
+	});
+
+	// ── Helpers ──────────────────────────────────────────────────────────────────
 	function formatSlotDate(isoDate: string): string {
 		const d = new Date(isoDate);
 		return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -15,248 +125,288 @@
 </svelte:head>
 
 <div class="landing">
-	<header class="top-bar">
-		<img src="/images/logo.png" alt="dyad." class="logo" />
-		<div class="top-actions">
-			<a href="/login" class="link-btn">Log in</a>
-			<a href="/waitlist" class="btn-primary">Join waitlist</a>
+	<!-- Left: fixed hero panel -->
+	<div class="left-col">
+		<div class="left-top">
+			<img src="/images/logo.png" alt="dyad." class="logo" />
+			<button class="login-link" onclick={openLogin}>log in</button>
 		</div>
-	</header>
 
-	<main class="content">
-		{#if data.prompts.length > 0}
-			<section class="prompts-section">
-				<h2 class="section-heading">What people are writing about</h2>
-				<div class="prompt-grid">
-					{#each data.prompts as prompt}
-						<article class="prompt-card">
+		<div class="hero-content">
+			<h1 class="hero-text">What would you talk about with a stranger?</h1>
+
+			<p class="tagline">cultivating a culture<br />of conversation</p>
+
+			<div class="city-row">
+				<span class="city-dot" aria-hidden="true"></span>
+				<span class="city-name" class:city-hidden={!cityVisible}>{cities[cityIndex]}</span>
+			</div>
+
+			<button class="join-btn" onclick={openJoin}>
+				join waitlist <span class="arrow" aria-hidden="true">→</span>
+			</button>
+		</div>
+
+		<div class="left-footer">
+			<button class="theme-toggle" onclick={() => themeStore.toggle()} aria-label="Toggle theme">
+				{#if themeStore.current === 'light'}
+					<svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+						<circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5" />
+						<path d="M8 1V2.5M8 13.5V15M1 8H2.5M13.5 8H15M3.05 3.05L4.11 4.11M11.89 11.89L12.95 12.95M3.05 12.95L4.11 11.89M11.89 4.11L12.95 3.05" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+					</svg>
+				{:else}
+					<svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+						<path d="M14 8.5A6 6 0 117.5 2a4.5 4.5 0 006.5 6.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+					</svg>
+				{/if}
+			</button>
+			<div class="footer-legal">
+				<div class="legal-links">
+					<a href="/datenschutz" class="legal-link">privacy policy</a>
+					<span class="legal-sep">|</span>
+					<a href="/impressum" class="legal-link">legal notice</a>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Right: scrollable prompt cards -->
+	<div class="right-col">
+		<div class="cards-scroll">
+			{#if data.prompts && data.prompts.length > 0}
+				{#each data.prompts as prompt}
+					<button class="row" onclick={openJoin} type="button">
+						<div class="thumb">
 							{#if prompt.cover_image_url}
-								<img
-									src={prompt.cover_image_url}
-									alt=""
-									class="card-image"
-									loading="lazy"
-								/>
+								<img src={prompt.cover_image_url} alt="" class="thumb-media" loading="lazy" />
+							{:else}
+								<div class="thumb-placeholder"></div>
 							{/if}
-							<div class="card-body">
-								<h3 class="card-title">{prompt.title}</h3>
-								<p class="card-snippet">{prompt.body_snippet}</p>
-								<div class="card-meta">
-									{#if prompt.available_slots[0]}
-										<span class="meta-area">{prompt.available_slots[0].general_area}</span>
-										<span class="meta-sep">&middot;</span>
-									{/if}
+						</div>
+						<div class="body">
+							<div class="meta-row">
+								{#if prompt.available_slots[0]?.general_area}
+									<span class="neighborhood">{prompt.available_slots[0].general_area}</span>
+								{/if}
+								<div class="dates">
 									{#if prompt.soonest_slot}
-										<span class="meta-date">{formatSlotDate(prompt.soonest_slot)}</span>
-										<span class="meta-sep">&middot;</span>
+										<span class="date-item">{formatSlotDate(prompt.soonest_slot)}</span>
+									{:else}
+										<span class="date-tbd">availability not set</span>
 									{/if}
-									<span class="meta-author">@{prompt.author_username}</span>
 								</div>
 							</div>
-						</article>
-					{/each}
-				</div>
-			</section>
-		{/if}
-
-		<section class="cta-section">
-			<p class="cta-tagline">cultivating a culture of conversation</p>
-			<p class="cta-desc">Read a prompt. Pick a time. Meet in person.</p>
-			<a href="/waitlist" class="btn-primary cta-btn">Join the waitlist</a>
-		</section>
-	</main>
-
-	<footer class="landing-footer">
-		<div class="footer-links">
-			<a href="/datenschutz">privacy policy</a>
-			<span>|</span>
-			<a href="/impressum">legal notice</a>
+							<h3 class="title">{prompt.title}</h3>
+							{#if prompt.body_snippet}
+								<p class="snippet">{prompt.body_snippet}</p>
+							{/if}
+						</div>
+					</button>
+				{/each}
+			{:else}
+				<p class="empty-state">No prompts yet. Check back soon.</p>
+			{/if}
 		</div>
-	</footer>
+	</div>
 </div>
 
+<!-- ═══════════════════════════════════════════════ Login modal ══ -->
+{#if showLoginForm}
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<div class="modal-backdrop" onclick={closeLogin} transition:fade={{ duration: 200 }}>
+		<div class="modal" onclick={(e) => e.stopPropagation()} transition:fly={{ y: 20, duration: 260, opacity: 0 }} role="dialog" aria-modal="true" aria-label="Log in" tabindex="-1">
+			<div class="modal-header">
+				<h2 class="modal-title">{loginMode === 'login' ? 'Welcome back' : 'Reset password'}</h2>
+				<button class="modal-close" onclick={closeLogin} aria-label="Close">
+					<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 2l12 12M14 2L2 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+				</button>
+			</div>
+			{#if loginStatus === 'reset_sent'}
+				<p class="modal-desc">Check your email for a reset link.</p>
+				<button class="close-link" onclick={() => { loginMode = 'login'; loginStatus = 'idle'; }}>Back to sign in</button>
+			{:else}
+				<form class="modal-form" onsubmit={handleLogin}>
+					<div class="field">
+						<label for="l-email">Email</label>
+						<input id="l-email" type="email" bind:value={loginEmail} required disabled={loginStatus === 'loading'} autocomplete="email" />
+					</div>
+					{#if loginMode === 'login'}
+						<div class="field">
+							<label for="l-password">Password</label>
+							<input id="l-password" type="password" bind:value={loginPassword} required disabled={loginStatus === 'loading'} autocomplete="current-password" />
+						</div>
+					{/if}
+					{#if loginStatus === 'error'}<p class="form-error">{loginError}</p>{/if}
+					<button type="submit" class="submit-btn" disabled={loginStatus === 'loading'}>
+						{loginStatus === 'loading' ? (loginMode === 'login' ? 'Signing in…' : 'Sending…') : (loginMode === 'login' ? 'Sign in' : 'Send reset link')}
+					</button>
+					<div class="auth-links">
+						{#if loginMode === 'login'}
+							<button type="button" class="text-link" onclick={() => { loginMode = 'reset'; loginError = ''; loginStatus = 'idle'; }}>Forgot password?</button>
+						{:else}
+							<button type="button" class="text-link" onclick={() => { loginMode = 'login'; loginError = ''; loginStatus = 'idle'; }}>Back to sign in</button>
+						{/if}
+					</div>
+				</form>
+			{/if}
+		</div>
+	</div>
+{/if}
+
+<!-- ═══════════════════════════════════════════════ Join modal ══ -->
+{#if showJoinForm}
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<div class="modal-backdrop" onclick={closeJoin} transition:fade={{ duration: 200 }}>
+		<div class="modal" onclick={(e) => e.stopPropagation()} transition:fly={{ y: 20, duration: 260, opacity: 0 }} role="dialog" aria-modal="true" aria-label="Request to join" tabindex="-1">
+			{#if joinStatus === 'sent'}
+				<div class="modal-sent">
+					<p class="sent-msg">Thank you. We'll be in touch.</p>
+					<button class="close-link" onclick={() => { showJoinForm = false; joinStatus = 'idle'; }}>Close</button>
+				</div>
+			{:else}
+				<div class="modal-header">
+					<h2 class="modal-title">Request to join</h2>
+					<button class="modal-close" onclick={closeJoin} aria-label="Close">
+						<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 2l12 12M14 2L2 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+					</button>
+				</div>
+				<p class="modal-desc">For those who seek conversation for its own sake.</p>
+				<form class="modal-form" onsubmit={handleJoinSubmit}>
+					<div class="field-row">
+						<input type="text" placeholder="Name" bind:value={joinName} disabled={joinStatus === 'sending'} />
+						<input type="email" placeholder="Email" bind:value={joinEmail} required disabled={joinStatus === 'sending'} />
+					</div>
+					<div class="field">
+						<label for="m-freewrite">Why do you want to join?</label>
+						<textarea id="m-freewrite" placeholder="What's in a conversation?" bind:value={joinFreewrite} rows={4} maxlength={2000} required disabled={joinStatus === 'sending'}></textarea>
+					</div>
+					<div class="field">
+						<label for="m-based">Where are you based?</label>
+						<div class="city-wrap">
+							<input id="m-based" type="text" placeholder="Type a city…" bind:value={joinBasedIn} disabled={joinStatus === 'sending'} onfocus={() => cityDropdownOpen = true} oninput={() => cityDropdownOpen = true} onblur={() => setTimeout(() => cityDropdownOpen = false, 150)} autocomplete="off" />
+							{#if cityDropdownOpen && citySuggestions.length > 0}
+								<div class="city-dropdown">
+									{#each citySuggestions as city}
+										<button type="button" class="city-option" onmousedown={(e) => { e.preventDefault(); selectCity(city); }}>{city}</button>
+									{/each}
+								</div>
+							{/if}
+						</div>
+						<span class="field-hint">We're currently running conversations in Berlin.</span>
+					</div>
+					<div class="field">
+						<label for="m-expression">Share one thing about yourself</label>
+						<input id="m-expression" type="url" placeholder="A link — website, Instagram, project, article…" bind:value={joinExpressionUrl} disabled={joinStatus === 'sending'} />
+					</div>
+					<button type="submit" class="submit-btn" disabled={joinStatus === 'sending'}>{joinStatus === 'sending' ? 'Sending…' : 'Request to join'}</button>
+					{#if joinStatus === 'error'}<p class="form-error">{joinError}</p>{/if}
+				</form>
+				<p class="join-login-hint">Already a member? <button type="button" class="text-link" onclick={() => { closeJoin(); openLogin(); }}>Log in</button></p>
+			{/if}
+		</div>
+	</div>
+{/if}
+
 <style>
-	.landing {
-		min-height: 100vh;
-		display: flex;
-		flex-direction: column;
-		background: var(--bg-canvas);
-		overflow: auto !important;
-	}
+	/* ── Layout ──────────────────────────────────────────────────────────────── */
+	.landing { display: grid; grid-template-columns: 1fr 1fr; height: 100vh; overflow: hidden; background: var(--bg-canvas); }
 
-	.top-bar {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 20px 40px;
-		flex-shrink: 0;
-	}
-
-	.logo {
-		height: 28px;
-		width: auto;
-		filter: brightness(0);
-	}
-
+	/* ── Left column ─────────────────────────────────────────────────────────── */
+	.left-col { height: 100vh; display: flex; flex-direction: column; padding: 24px 40px 28px; box-sizing: border-box; border-right: 1px solid var(--border-link, rgba(0, 0, 0, 0.08)); overflow: hidden; }
+	.left-top { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+	.logo { height: 28px; width: auto; filter: brightness(0); transition: filter 0.2s ease; }
 	:global([data-theme='dark']) .logo { filter: none; }
+	.login-link { font-family: 'SF Mono', 'Fira Code', Menlo, monospace; font-size: 11px; letter-spacing: 0.06em; text-transform: lowercase; color: var(--text-muted, #999); background: none; border: none; padding: 0; cursor: pointer; transition: color 0.15s; }
+	.login-link:hover { color: var(--text-primary, #1a1a1a); }
+	.hero-content { margin-top: auto; padding-bottom: 8px; }
+	.hero-text { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: clamp(1.6rem, 2.8vw, 2.4rem); font-weight: normal; line-height: 1.2; color: var(--text-primary, #1a1a1a); margin: 0 0 20px; }
+	.tagline { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: clamp(0.82rem, 1.1vw, 0.95rem); font-weight: normal; line-height: 1.55; color: var(--text-primary, #1a1a1a); margin: 0 0 32px; border-left: 2px solid var(--text-primary, #1a1a1a); padding-left: 12px; }
+	.city-row { display: flex; align-items: center; gap: 8px; margin-bottom: 28px; }
+	.city-dot { width: 6px; height: 6px; border-radius: 50%; background: #3d9e5a; flex-shrink: 0; animation: pulse 2.5s ease-in-out infinite; }
+	@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+	.city-name { font-family: 'SF Mono', 'Fira Code', Menlo, monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted, #666); transition: opacity 0.25s ease; }
+	.city-hidden { opacity: 0; }
+	.join-btn { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 14px; color: var(--bg-canvas, #f5f3f0); background: var(--text-primary, #1a1a1a); border: 1px solid var(--text-primary, #1a1a1a); border-radius: 6px; padding: 10px 20px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: opacity 0.15s; }
+	.join-btn:hover { opacity: 0.82; }
+	.arrow { font-size: 13px; }
+	.left-footer { display: flex; align-items: flex-end; justify-content: space-between; margin-top: 24px; flex-shrink: 0; }
+	.footer-legal { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+	.legal-links { display: flex; align-items: center; gap: 6px; }
+	.legal-link { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 11px; color: var(--text-muted, #999); text-decoration: none; transition: color 0.15s; }
+	.legal-link:hover { color: var(--text-primary, #1a1a1a); }
+	.legal-sep { font-size: 11px; color: var(--text-muted, #bbb); }
+	.theme-toggle { width: 28px; height: 28px; border: none; border-radius: 4px; background: var(--bg-control, rgba(0, 0, 0, 0.04)); cursor: pointer; color: var(--text-muted, #8b7355); display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; opacity: 0.5; flex-shrink: 0; }
+	.theme-toggle:hover { opacity: 1; color: var(--text-primary, #1a1a1a); }
 
-	.top-actions {
-		display: flex;
-		align-items: center;
-		gap: 12px;
-	}
+	/* ── Right column — prompt cards ─────────────────────────────────────────── */
+	.right-col { height: 100vh; overflow: hidden; display: flex; flex-direction: column; padding: 24px 32px; box-sizing: border-box; }
+	.cards-scroll { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+	.row { display: flex; gap: 16px; padding: 0; border: none; border-bottom: 1px solid var(--border-link, rgba(0, 0, 0, 0.08)); width: 100%; text-align: left; background: none; cursor: pointer; align-items: center; transition: opacity 0.15s; flex: 1; min-height: 0; }
+	.row:hover { opacity: 0.72; }
+	.thumb { flex-shrink: 0; width: 96px; height: 96px; border-radius: 6px; overflow: hidden; }
+	.thumb-media { width: 100%; height: 100%; object-fit: cover; display: block; }
+	.thumb-placeholder { width: 100%; height: 100%; background: var(--bg-control, rgba(0, 0, 0, 0.05)); border: 1px solid var(--border-link, rgba(0, 0, 0, 0.08)); border-radius: 6px; }
+	.body { flex: 1; min-width: 0; }
+	.title { margin: 2px 0 3px; font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 0.95rem; font-weight: normal; color: var(--text-primary, #1a1a1a); line-height: 1.3; }
+	.meta-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 2px; }
+	.neighborhood { font-family: 'SF Mono', 'Fira Code', Menlo, monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted, #aaa); flex-shrink: 0; }
+	.dates { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+	.date-item { font-family: 'SF Mono', 'Fira Code', Menlo, Consolas, monospace; font-size: 10px; font-weight: 500; letter-spacing: 0.04em; color: var(--control-color, #8b7355); white-space: nowrap; }
+	.date-tbd { font-family: 'SF Mono', 'Fira Code', Menlo, Consolas, monospace; font-size: 10px; letter-spacing: 0.04em; color: var(--border-link, rgba(0,0,0,0.2)); font-style: italic; }
+	.snippet { margin: 0; font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 13px; line-height: 1.5; color: var(--text-muted, #888); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+	.empty-state { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 14px; color: var(--text-muted, #999); margin: 0; }
 
-	.link-btn {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
-		font-size: 13px;
-		color: var(--text-muted, #666);
-		text-decoration: none;
-		padding: 8px 12px;
-		transition: color 0.15s;
-	}
+	/* ── Modal styles ────────────────────────────────────────────────────────── */
+	.modal-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.32); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 400; display: flex; align-items: center; justify-content: center; padding: 24px; }
+	.modal { background: var(--bg-canvas, #f5f3f0); border-radius: 12px; padding: 36px 40px; width: 100%; max-width: 440px; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 64px rgba(0, 0, 0, 0.18); box-sizing: border-box; }
+	.modal-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
+	.modal-title { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 1.4rem; font-weight: normal; color: var(--text-primary, #1a1a1a); margin: 0; }
+	.modal-close { background: none; border: none; padding: 2px; cursor: pointer; color: var(--text-muted, #999); display: flex; align-items: center; transition: color 0.15s; flex-shrink: 0; margin-left: 16px; margin-top: 4px; }
+	.modal-close:hover { color: var(--text-primary, #1a1a1a); }
+	.modal-desc { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 14px; font-style: italic; color: var(--text-muted, #666); margin: 0 0 28px; line-height: 1.6; }
+	.modal-form { display: flex; flex-direction: column; }
+	.field { display: flex; flex-direction: column; gap: 7px; margin-bottom: 18px; }
+	.field label { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 13px; color: var(--text-muted, #666); font-style: italic; }
+	.city-wrap { position: relative; }
+	.city-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-canvas, #f5f3f0); border: 1px solid var(--border-link, rgba(0,0,0,0.12)); border-top: none; border-radius: 0 0 6px 6px; max-height: 180px; overflow-y: auto; z-index: 10; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+	.city-option { display: block; width: 100%; text-align: left; padding: 9px 14px; background: none; border: none; border-bottom: 1px solid var(--border-link, rgba(0,0,0,0.06)); font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 14px; color: var(--text-primary, #1a1a1a); cursor: pointer; transition: background 0.1s; }
+	.city-option:last-child { border-bottom: none; }
+	.city-option:hover { background: var(--bg-control, rgba(0,0,0,0.03)); }
+	.field-hint { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 12px; color: var(--text-muted, #999); }
+	.field-row { display: flex; gap: 10px; margin-bottom: 20px; }
+	.field-row input { flex: 1; }
+	textarea, input[type='text'], input[type='email'], input[type='url'], input[type='password'] { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 14px; padding: 10px 14px; border: 1px solid var(--border-link, rgba(0, 0, 0, 0.12)); border-radius: 6px; background: transparent; color: var(--text-primary, #1a1a1a); transition: border-color 0.15s; box-sizing: border-box; width: 100%; }
+	textarea { resize: vertical; line-height: 1.6; }
+	textarea:focus, input:focus { outline: none; border-color: var(--text-muted, #666); }
+	textarea:disabled, input:disabled { opacity: 0.6; }
+	textarea::placeholder, input::placeholder { color: var(--text-muted, #999); }
+	.submit-btn { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 14px; padding: 11px 28px; border: 1px solid var(--text-primary, #1a1a1a); border-radius: 6px; background: var(--text-primary, #1a1a1a); color: var(--bg-canvas, #f5f3f0); cursor: pointer; transition: opacity 0.15s; align-self: flex-start; width: 100%; }
+	.submit-btn:hover:not(:disabled) { opacity: 0.85; }
+	.submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+	.form-error { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 13px; color: #c00; margin: 10px 0 0; }
+	.auth-links { margin-top: 16px; display: flex; gap: 16px; }
+	.text-link { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 13px; color: var(--text-muted, #666); background: none; border: none; border-bottom: 1px solid var(--border-link, rgba(0, 0, 0, 0.15)); padding: 0 0 1px; cursor: pointer; transition: color 0.15s; }
+	.text-link:hover { color: var(--text-primary, #1a1a1a); }
+	.modal-sent { text-align: center; padding: 16px 0; }
+	.sent-msg { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 16px; color: var(--text-primary, #1a1a1a); margin: 0 0 20px; }
+	.join-login-hint { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 13px; color: var(--text-muted, #999); margin: 20px 0 0; text-align: center; }
+	.close-link { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 14px; color: var(--text-muted, #666); background: none; border: none; cursor: pointer; padding: 0; text-decoration: underline; }
 
-	.link-btn:hover { color: var(--text-primary); }
-
-	.btn-primary {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
-		font-size: 13px;
-		padding: 8px 20px;
-		border-radius: 6px;
-		text-decoration: none;
-		background: var(--text-primary, #1a1a1a);
-		color: var(--bg-canvas, #f5f3f0);
-		border: 1px solid var(--text-primary, #1a1a1a);
-		transition: opacity 0.15s;
-	}
-
-	.btn-primary:hover { opacity: 0.8; }
-
-	.content {
-		flex: 1;
-		max-width: 820px;
-		margin: 0 auto;
-		padding: 20px 40px 60px;
-		width: 100%;
-		box-sizing: border-box;
-	}
-
-	.section-heading {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
-		font-size: 1.1rem;
-		font-weight: normal;
-		color: var(--text-muted, #666);
-		margin: 0 0 24px;
-		font-style: italic;
-	}
-
-	.prompt-grid {
-		display: flex;
-		flex-direction: column;
-		gap: 16px;
-	}
-
-	.prompt-card {
-		display: flex;
-		gap: 16px;
-		padding: 16px 0;
-		border-bottom: 1px solid var(--border-link, rgba(0, 0, 0, 0.08));
-	}
-
-	.prompt-card:last-child { border-bottom: none; }
-
-	.card-image {
-		width: 100px;
-		height: 100px;
-		object-fit: cover;
-		border-radius: 6px;
-		flex-shrink: 0;
-		background: var(--bg-control, rgba(0, 0, 0, 0.04));
-	}
-
-	.card-body { flex: 1; min-width: 0; }
-
-	.card-title {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
-		font-size: 1rem;
-		font-weight: 500;
-		color: var(--text-primary);
-		margin: 0 0 6px;
-		line-height: 1.3;
-	}
-
-	.card-snippet {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
-		font-size: 0.85rem;
-		color: var(--text-muted, #666);
-		margin: 0 0 8px;
-		line-height: 1.5;
-		display: -webkit-box;
-		-webkit-line-clamp: 2;
-		-webkit-box-orient: vertical;
-		overflow: hidden;
-	}
-
-	.card-meta {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-		font-family: 'SangBleu Sunrise', Georgia, serif;
-		font-size: 0.75rem;
-		color: var(--text-muted, #999);
-	}
-
-	.meta-area {
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		font-size: 0.7rem;
-	}
-
-	.meta-sep { color: var(--text-muted, #bbb); }
-
-	.cta-section {
-		text-align: center;
-		padding: 60px 0 40px;
-	}
-
-	.cta-tagline {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
-		font-size: 1.2rem;
-		color: var(--text-primary);
-		margin: 0 0 8px;
-	}
-
-	.cta-desc {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
-		font-size: 0.9rem;
-		color: var(--text-muted, #666);
-		margin: 0 0 24px;
-	}
-
-	.cta-btn { font-size: 14px; padding: 10px 28px; }
-
-	.landing-footer { padding: 20px 40px; flex-shrink: 0; }
-
-	.footer-links {
-		display: flex;
-		justify-content: center;
-		gap: 8px;
-		font-size: 11px;
-		color: var(--text-muted, #999);
-	}
-
-	.footer-links a {
-		color: var(--text-muted, #999);
-		text-decoration: none;
-		font-family: 'SangBleu Sunrise', Georgia, serif;
-	}
-
-	.footer-links a:hover { color: var(--text-primary); }
-	.footer-links span { color: var(--text-muted, #bbb); }
-
+	/* ── Mobile ──────────────────────────────────────────────────────────────── */
 	@media (max-width: 430px) {
-		.top-bar { padding: 16px 20px; }
-		.content { padding: 16px 20px 40px; }
-		.landing-footer { padding: 16px 20px; }
-		.card-image { width: 72px; height: 72px; }
+		:global(body) { overflow: auto; }
+		.landing { grid-template-columns: 1fr; height: auto; overflow: auto; }
+		.left-col { height: 100vh; min-height: 100vh; border-right: none; border-bottom: 1px solid var(--border-link, rgba(0, 0, 0, 0.08)); padding: 20px 20px 28px; overflow: hidden; }
+		.theme-toggle { display: none; }
+		.right-col { height: 100vh; overflow: hidden; padding: 0; display: flex; flex-direction: column; }
+		.cards-scroll { flex: 1; min-height: 0; overflow-y: auto; display: block; padding: 24px 16px 48px; }
+		.row { flex: unset; padding: 14px 0; align-items: flex-start; }
+		.thumb { width: 72px; height: 72px; }
+		.title { font-size: 1rem; margin: 4px 0 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+		.meta-row { margin-bottom: 5px; }
+		.modal { padding: 28px 24px; }
+		.field-row { flex-direction: column; }
 	}
 </style>
