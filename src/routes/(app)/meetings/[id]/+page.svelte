@@ -27,6 +27,8 @@
 	<title>Meeting - dyad.berlin</title>
 </svelte:head>
 
+<a href="/profile" class="back-link">← Back</a>
+
 <div class="content">
 	<h1 class="page-title">Meeting details</h1>
 
@@ -59,6 +61,16 @@
 </div>
 
 <style>
+	.back-link {
+		display: inline-block;
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 0.9rem;
+		color: var(--text-muted, #666);
+		text-decoration: none;
+		margin-bottom: 16px;
+	}
+	.back-link:hover { color: var(--text-primary); }
+
 	.content { width: 100%; max-width: 560px; }
 
 	.page-title { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 1.5rem; font-weight: normal; color: var(--text-primary); margin: 0 0 32px; }
