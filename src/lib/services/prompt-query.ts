@@ -214,7 +214,7 @@ export class SupabasePromptQueryService implements PromptQueryService {
 			title: prompt.title,
 			body_snippet: makeSnippet(body),
 			body: body ?? { type: 'doc', content: [] },
-			body_html: renderTiptapToHtml(body),
+			body_html: (() => { try { return renderTiptapToHtml(body); } catch { return ''; } })(),
 			cover_image_url: prompt.cover_image_url,
 			available_slots: availableSlots,
 			soonest_slot: availableSlots[0]?.start_time ?? null,
