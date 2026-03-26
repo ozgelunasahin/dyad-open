@@ -162,8 +162,6 @@
 				<p class="success">Invitation sent! The author will be notified.</p>
 			</section>
 		{/if}
-
-		{/if}
 	{/if}
 
 	<!-- Author view: responses received -->
