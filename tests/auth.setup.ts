@@ -25,8 +25,8 @@ setup('authenticate', async ({ page }) => {
 	// Submit
 	await page.getByRole('button', { name: 'Sign in' }).click();
 
-	// Wait for redirect to dashboard
-	await expect(page).toHaveURL('/dashboard', { timeout: 10000 });
+	// Wait for redirect to discover
+	await expect(page).toHaveURL('/discover', { timeout: 10000 });
 
 	// Save auth state
 	await page.context().storageState({ path: authFile });

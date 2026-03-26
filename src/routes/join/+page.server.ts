@@ -4,7 +4,7 @@ import type { Actions, PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const { session } = await locals.safeGetSession();
 	if (session) {
-		redirect(302, '/dashboard');
+		redirect(302, '/discover');
 	}
 
 	const token = url.searchParams.get('token');

@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { fly, slide } from 'svelte/transition';
 	import type { PageData } from './$types';
-	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
 	import type { PromptSummary, TimeSlot } from '$lib/domain/types';
 
 	let { data }: { data: PageData } = $props();
@@ -117,18 +116,6 @@
 		});
 	}
 
-	// --- Post-meeting feedback modal ---
-	let activeFeedback = $state(
-		data.pendingFeedback && data.pendingFeedback.length > 0 ? data.pendingFeedback[0] : null
-	);
-
-	function dismissFeedback() {
-		const idx = activeFeedback
-			? data.pendingFeedback.findIndex((f) => f.meetingId === activeFeedback!.meetingId)
-			: -1;
-		const next = data.pendingFeedback[idx + 1] ?? null;
-		activeFeedback = next;
-	}
 </script>
 
 <svelte:head>
@@ -142,10 +129,7 @@
 		</a>
 		<nav class="sidebar-nav">
 			<a href="/discover" class="sidebar-link active">Discover</a>
-			<a href="/dashboard" class="sidebar-link">Profile</a>
-			{#if data.canPublishSites}
-				<a href="/dashboard#admin" class="sidebar-link">Admin</a>
-			{/if}
+			<a href="/profile" class="sidebar-link">Profile</a>
 		</nav>
 		<div class="sidebar-bottom">
 			<span class="sidebar-username">@{data.username}</span>
@@ -168,22 +152,13 @@
 		<div class="mobile-overlay" onclick={() => mobileMenuOpen = false}></div>
 		<aside class="mobile-panel" transition:fly={{ x: 300, duration: 250 }}>
 			<nav class="mobile-panel-nav">
-				<a href="/dashboard" onclick={() => mobileMenuOpen = false}>dashboard</a>
+				<a href="/profile" onclick={() => mobileMenuOpen = false}>profile</a>
 			</nav>
 			<div class="mobile-panel-bottom">
 				<span class="mobile-panel-user">@{data.username}</span>
 				<a href="/logout" onclick={() => mobileMenuOpen = false}>sign out</a>
 			</div>
 		</aside>
-	{/if}
-
-	{#if activeFeedback}
-		<FeedbackModal
-			meetingId={activeFeedback.meetingId}
-			otherUsername={activeFeedback.otherUsername}
-			onclose={dismissFeedback}
-			onsubmitted={dismissFeedback}
-		/>
 	{/if}
 
 	<main class="main-content">
