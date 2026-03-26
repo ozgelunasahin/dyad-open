@@ -266,7 +266,7 @@
 		active={viewMode === 'map' ? 'map' : ''}
 		onMapClick={() => viewMode = viewMode === 'map' ? 'list' : 'map'}
 		{weekDates}
-		{selectedDays}
+		selectedDays={selectedDates}
 		onToggleDay={toggleDate}
 		showDateFilter={true}
 	/>
