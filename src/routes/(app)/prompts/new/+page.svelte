@@ -7,11 +7,11 @@
 </script>
 
 <svelte:head>
-	<title>New prompt - dyad.berlin</title>
+	<title>New conversation - dyad.berlin</title>
 </svelte:head>
 
 <div class="content">
-	<h1 class="page-title">Start a new prompt</h1>
+	<h1 class="page-title">Start a conversation</h1>
 	<p class="page-desc">What would you like to talk about?</p>
 
 	{#if form?.error}
@@ -34,7 +34,7 @@
 				id="title"
 				name="title"
 				type="text"
-				placeholder="Give your prompt a title..."
+				placeholder="What would you like to talk about?"
 				required
 				maxlength={200}
 				disabled={loading}
@@ -42,7 +42,7 @@
 		</div>
 
 		<button type="submit" class="submit-btn" disabled={loading}>
-			{loading ? 'Creating...' : 'Create prompt'}
+			{loading ? 'Creating...' : 'Create'}
 		</button>
 	</form>
 </div>
