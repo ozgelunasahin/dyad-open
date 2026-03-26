@@ -10,9 +10,8 @@
 	<title>New conversation - dyad.berlin</title>
 </svelte:head>
 
-<a href="/discover" class="back-link">← Back</a>
-
 <div class="content">
+	<a href="/discover" class="back-link">← Back</a>
 	<h1 class="page-title">Start a conversation</h1>
 	<p class="page-desc">What would you like to talk about?</p>
 

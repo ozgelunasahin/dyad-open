@@ -27,9 +27,8 @@
 	<title>Meeting - dyad.berlin</title>
 </svelte:head>
 
-<a href="/profile" class="back-link">← Back</a>
-
 <div class="content">
+	<a href="/profile" class="back-link">← Back</a>
 	<h1 class="page-title">Meeting details</h1>
 
 	<div class="detail-grid">

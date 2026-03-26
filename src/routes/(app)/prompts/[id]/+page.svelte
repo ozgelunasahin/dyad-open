@@ -80,9 +80,9 @@
 	<title>{data.prompt.title ?? 'Conversation'} - dyad.berlin</title>
 </svelte:head>
 
-<a href="/discover" class="back-link">← Back</a>
-
 <div class="content">
+	<a href="/discover" class="back-link">← Back</a>
+
 	{#if data.prompt.cover_image_url}
 		<img src={data.prompt.cover_image_url} alt="" class="cover" loading="lazy" />
 	{/if}
