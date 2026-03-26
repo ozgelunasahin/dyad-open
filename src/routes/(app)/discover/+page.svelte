@@ -168,64 +168,65 @@
 	<title>Discover - dyad.berlin</title>
 </svelte:head>
 
-<div class="content">
-			{#if data.prompts.length === 0}
-				<div class="empty-state">
-					<p>No conversations available right now.</p>
-					<p class="empty-hint">Check back soon, or start your own.</p>
-					<a href="/prompts/new" class="start-prompt-btn" style="margin-top: 16px; display: inline-block;">Start a conversation</a>
-				</div>
-			{:else}
-
-				{#if viewMode === 'map'}
-					<MapView
-						prompts={filteredPrompts}
-						onSelectPin={handlePinSelect}
-						onNavigate={handlePinNavigate}
-						initialCenter={mapCenter}
-						initialZoom={mapZoom}
-						onMoveEnd={(c, z) => { mapCenter = c; mapZoom = z; }}
-					/>
-					{#if selectedPinPrompts.length > 0}
-						<BottomSheet prompts={selectedPinPrompts} area={selectedPinArea} onClose={closeSheet} />
-					{/if}
-				{:else if filteredPrompts.length === 0}
-					<div class="empty-state">
-						<p>No conversations match your filters.</p>
-						<button class="clear-filters-link" onclick={clearFilters}>Clear filters</button>
-					</div>
-				{:else}
-					<div class="prompt-list">
-						{#each filteredPrompts as prompt}
-							<a href="/prompts/{prompt.id}" class="prompt-item">
-								<div class="prompt-row">
-									<div class="row-thumb">
-										{#if prompt.cover_image_url}
-											<img src={prompt.cover_image_url} alt="" class="thumb-img" />
-										{:else}
-											<div class="thumb-placeholder"></div>
-										{/if}
-									</div>
-									<div class="row-body">
-										<div class="row-top">
-											<h3 class="row-title">{prompt.title ?? 'Untitled'}</h3>
-											<span class="date">{formatSlotDates(prompt.available_slots)}</span>
-										</div>
-										{#if prompt.body_snippet}
-											<p class="row-snippet">{prompt.body_snippet}</p>
-										{/if}
-										<div class="row-meta">
-											<span class="area">{prompt.available_slots.map((s) => s.general_area).filter((v, i, a) => a.indexOf(v) === i).join(', ')}</span>
-											<span class="author">@{prompt.author_username}</span>
-										</div>
-									</div>
+{#if viewMode === 'map'}
+	<div class="map-pane">
+		<MapView
+			prompts={filteredPrompts}
+			onSelectPin={handlePinSelect}
+			onNavigate={handlePinNavigate}
+			initialCenter={mapCenter}
+			initialZoom={mapZoom}
+			onMoveEnd={(c, z) => { mapCenter = c; mapZoom = z; }}
+		/>
+	</div>
+	{#if selectedPinPrompts.length > 0}
+		<BottomSheet prompts={selectedPinPrompts} area={selectedPinArea} onClose={closeSheet} />
+	{/if}
+{:else}
+	<div class="content">
+		{#if data.prompts.length === 0}
+			<div class="empty-state">
+				<p>No conversations available right now.</p>
+				<p class="empty-hint">Check back soon, or start your own.</p>
+				<a href="/prompts/new" class="start-prompt-btn" style="margin-top: 16px; display: inline-block;">Start a conversation</a>
+			</div>
+		{:else if filteredPrompts.length === 0}
+			<div class="empty-state">
+				<p>No conversations match your filters.</p>
+				<button class="clear-filters-link" onclick={clearFilters}>Clear filters</button>
+			</div>
+		{:else}
+			<div class="prompt-list">
+				{#each filteredPrompts as prompt}
+					<a href="/prompts/{prompt.id}" class="prompt-item">
+						<div class="prompt-row">
+							<div class="row-thumb">
+								{#if prompt.cover_image_url}
+									<img src={prompt.cover_image_url} alt="" class="thumb-img" />
+								{:else}
+									<div class="thumb-placeholder"></div>
+								{/if}
+							</div>
+							<div class="row-body">
+								<div class="row-top">
+									<h3 class="row-title">{prompt.title ?? 'Untitled'}</h3>
+									<span class="date">{formatSlotDates(prompt.available_slots)}</span>
 								</div>
-							</a>
-						{/each}
-					</div>
-				{/if}
-			{/if}
-		</div>
+								{#if prompt.body_snippet}
+									<p class="row-snippet">{prompt.body_snippet}</p>
+								{/if}
+								<div class="row-meta">
+									<span class="area">{prompt.available_slots.map((s) => s.general_area).filter((v, i, a) => a.indexOf(v) === i).join(', ')}</span>
+									<span class="author">@{prompt.author_username}</span>
+								</div>
+							</div>
+						</div>
+					</a>
+				{/each}
+			</div>
+		{/if}
+	</div>
+{/if}
 
 <div class="floating-nav-wrapper">
 	<FloatingNav
@@ -241,6 +242,11 @@
 
 <style>
 	.floating-nav-wrapper { display: block; }
+
+	.map-pane {
+		width: 100%;
+		height: calc(100vh - 64px);
+	}
 	.content {
 		width: 100%;
 		max-width: 800px;
