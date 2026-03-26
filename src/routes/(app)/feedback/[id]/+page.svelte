@@ -112,12 +112,12 @@
 <style>
 	.content { width: 100%; max-width: 560px; }
 
-	.page-title { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 1.5rem; font-weight: normal; color: var(--text-primary); margin: 0 0 8px; }
-	.desc { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 0.9rem; color: var(--text-muted, #666); margin: 0 0 28px; }
+	.page-title {  font-size: 1.5rem; font-weight: normal; color: var(--text-primary); margin: 0 0 8px; }
+	.desc {  font-size: 0.9rem; color: var(--text-muted, #666); margin: 0 0 28px; }
 
 	.met-choices { display: flex; gap: 12px; }
 	.met-btn {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
+		
 		font-size: 14px;
 		padding: 16px 32px;
 		border: 1px solid var(--border-link, rgba(0,0,0,0.12));
@@ -133,7 +133,7 @@
 
 	.tag-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
 	.tag {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
+		
 		font-size: 13px;
 		padding: 6px 14px;
 		border: 1px solid var(--border-link, rgba(0,0,0,0.12));
@@ -147,18 +147,18 @@
 	.tag.selected { background: var(--text-primary); color: var(--bg-canvas); border-color: var(--text-primary); }
 
 	.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
-	.field label { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 13px; color: var(--text-muted, #666); }
-	.field textarea { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 14px; padding: 10px 14px; border: 1px solid var(--border-link, rgba(0,0,0,0.12)); border-radius: 6px; background: transparent; color: var(--text-primary); resize: vertical; line-height: 1.6; width: 100%; box-sizing: border-box; }
+	.field label {  font-size: 13px; color: var(--text-muted, #666); }
+	.field textarea {  font-size: 14px; padding: 10px 14px; border: 1px solid var(--border-link, rgba(0,0,0,0.12)); border-radius: 6px; background: transparent; color: var(--text-primary); resize: vertical; line-height: 1.6; width: 100%; box-sizing: border-box; }
 	.field textarea:focus { outline: none; border-color: var(--text-muted); }
 	.field textarea::placeholder { color: var(--text-muted, #999); }
 
 	.field-error { font-size: 13px; color: #c00; margin: 0 0 12px; }
 
 	.actions { display: flex; gap: 12px; margin-top: 8px; }
-	.back-btn { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 13px; padding: 10px 20px; border: 1px solid var(--border-link); border-radius: 6px; background: none; color: var(--text-muted); cursor: pointer; }
-	.submit-btn { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 14px; padding: 10px 24px; background: var(--text-primary); color: var(--bg-canvas); border: 1px solid var(--text-primary); border-radius: 6px; cursor: pointer; }
+	.back-btn {  font-size: 13px; padding: 10px 20px; border: 1px solid var(--border-link); border-radius: 6px; background: none; color: var(--text-muted); cursor: pointer; }
+	.submit-btn {  font-size: 14px; padding: 10px 24px; background: var(--text-primary); color: var(--bg-canvas); border: 1px solid var(--text-primary); border-radius: 6px; cursor: pointer; }
 	.submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 	.done-state { text-align: center; padding: 40px 0; }
-	.continue-link { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 14px; color: var(--text-primary); text-decoration: underline; }
+	.continue-link {  font-size: 14px; color: var(--text-primary); text-decoration: underline; }
 </style>

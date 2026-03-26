@@ -441,8 +441,7 @@
 	}
 
 	.start-prompt-btn {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
-		font-size: 13px;
+				font-size: 13px;
 		padding: 8px 20px;
 		border: 1px solid var(--text-primary, #1a1a1a);
 		border-radius: 6px;
@@ -559,7 +558,7 @@
 	}
 
 	.author {
-		font-family: monospace;
+		font-family: var(--font-mono);
 		font-size: 0.78rem;
 	}
 

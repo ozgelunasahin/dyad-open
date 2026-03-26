@@ -239,7 +239,6 @@
 	.sheet-close:hover { color: var(--text-primary); }
 
 	.sheet-title {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
 		font-size: 1.3rem;
 		font-weight: normal;
 		color: var(--text-primary);
@@ -247,14 +246,12 @@
 	}
 
 	.sheet-subtitle {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
 		font-size: 0.85rem;
 		color: var(--text-muted, #666);
 		margin: 0 0 20px;
 	}
 
 	.label {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
 		font-size: 0.85rem;
 		color: var(--text-muted, #666);
 		margin: 0 0 8px;
@@ -306,14 +303,12 @@
 	}
 
 	.day-header-text {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
 		font-size: 0.9rem;
 		font-weight: 500;
 		color: var(--text-primary);
 	}
 
 	.add-time {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
 		font-size: 0.78rem;
 		color: var(--text-muted, #666);
 		background: none;
@@ -338,7 +333,6 @@
 	}
 
 	.time-select, .duration-select {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
 		font-size: 13px;
 		padding: 8px 10px;
 		border: 1px solid var(--border-link, rgba(0, 0, 0, 0.12));
@@ -349,14 +343,12 @@
 	}
 
 	.for-label {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
 		font-size: 0.85rem;
 		color: var(--text-muted, #666);
 		flex-shrink: 0;
 	}
 
 	.publish-error {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
 		font-size: 13px;
 		color: #c00;
 		margin: 8px 0;
@@ -369,7 +361,6 @@
 	}
 
 	.publish-btn {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
 		font-size: 14px;
 		padding: 10px 28px;
 		background: var(--text-primary, #1a1a1a);

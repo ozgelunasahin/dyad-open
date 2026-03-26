@@ -69,7 +69,6 @@
 	.location-search { position: relative; flex: 1; min-width: 180px; }
 
 	.location-search input {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
 		font-size: 13px;
 		padding: 8px 10px;
 		border: 1px solid var(--border-link, rgba(0, 0, 0, 0.12));
@@ -110,7 +109,6 @@
 		border: none;
 		border-bottom: 1px solid var(--border-link, rgba(0, 0, 0, 0.06));
 		cursor: pointer;
-		font-family: 'SangBleu Sunrise', Georgia, serif;
 		font-size: 13px;
 	}
 

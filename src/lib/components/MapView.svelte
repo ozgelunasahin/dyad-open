@@ -204,7 +204,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-family: 'SangBleu Sunrise', Georgia, serif;
+		
 		font-size: 18px;
 		font-weight: 500;
 		border: 2px solid #f5f3f0;

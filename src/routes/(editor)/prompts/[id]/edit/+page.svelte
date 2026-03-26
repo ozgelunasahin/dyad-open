@@ -346,8 +346,8 @@
 	.cover-placeholder.cover-error { border-color: #c00; }
 
 	.cover-icon { color: var(--text-muted, #ccc); }
-	.cover-text { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 1rem; color: var(--text-muted, #aaa); font-weight: 500; }
-	.cover-hint { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 0.82rem; color: var(--text-muted, #c0bdb8); }
+	.cover-text { font-size: 1rem; color: var(--text-muted, #aaa); font-weight: 500; }
+	.cover-hint { font-size: 0.82rem; color: var(--text-muted, #c0bdb8); }
 
 	/* Cover preview */
 	.cover-preview-wrap { position: relative; margin-bottom: 28px; }
@@ -356,7 +356,6 @@
 		position: absolute;
 		bottom: 12px;
 		right: 12px;
-		font-family: 'SangBleu Sunrise', Georgia, serif;
 		font-size: 12px;
 		color: #fff;
 		background: rgba(0, 0, 0, 0.6);
@@ -369,7 +368,6 @@
 
 	/* Title — large serif matching design ref */
 	.title-input {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
 		font-size: 2.4rem;
 		font-weight: 300;
 		color: var(--text-primary);
@@ -387,7 +385,7 @@
 	/* Username badge */
 	.username-badge {
 		display: inline-block;
-		font-family: 'SF Mono', monospace;
+		font-family: var(--font-mono);
 		font-size: 0.8rem;
 		color: var(--text-muted, #999);
 		background: rgba(0, 0, 0, 0.04);
@@ -400,22 +398,20 @@
 		padding: 40px;
 		text-align: center;
 		color: var(--text-muted, #999);
-		font-family: 'SangBleu Sunrise', Georgia, serif;
 	}
 
-	.error-text { color: #c00; font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 13px; }
-	.publish-error { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 13px; color: #c00; margin: 12px 0; }
+	.error-text { color: #c00; font-size: 13px; }
+	.publish-error { font-size: 13px; color: #c00; margin: 12px 0; }
 
 	/* Published state */
 	.published-info { margin-top: 40px; padding-top: 32px; border-top: 1px solid var(--border-link, rgba(0,0,0,0.08)); }
-	.section-title { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 1.1rem; font-weight: normal; margin: 0 0 4px; color: var(--text-primary); }
-	.section-desc { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 0.85rem; color: var(--text-muted, #666); margin: 0 0 20px; }
+	.section-title { font-size: 1.1rem; font-weight: normal; margin: 0 0 4px; color: var(--text-primary); }
+	.section-desc { font-size: 0.85rem; color: var(--text-muted, #666); margin: 0 0 20px; }
 
 	.slot-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
 	.existing-slot {
 		display: flex;
 		gap: 12px;
-		font-family: 'SangBleu Sunrise', Georgia, serif;
 		font-size: 13px;
 		color: var(--text-primary);
 		padding: 8px 0;
@@ -424,7 +420,6 @@
 	.slot-area { color: var(--text-muted, #666); text-transform: uppercase; font-size: 11px; letter-spacing: 0.04em; }
 
 	.unpublish-btn {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
 		font-size: 13px;
 		color: var(--text-muted, #666);
 		background: none;

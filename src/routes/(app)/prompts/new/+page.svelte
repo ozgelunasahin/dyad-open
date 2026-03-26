@@ -1,3 +1,3 @@
-<p style="text-align: center; padding: 4rem; color: var(--text-muted, #999); font-family: 'SangBleu Sunrise', Georgia, serif;">
+<p style="text-align: center; padding: 4rem; color: var(--text-muted, #999); ">
 	Creating conversation...
 </p>

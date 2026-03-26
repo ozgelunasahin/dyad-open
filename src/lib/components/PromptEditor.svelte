@@ -114,7 +114,6 @@
 	}
 
 	.tb {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
 		font-size: 13px;
 		padding: 4px 8px;
 		border: none;
