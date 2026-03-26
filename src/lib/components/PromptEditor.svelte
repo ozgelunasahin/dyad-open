@@ -11,9 +11,10 @@
 		content?: JSONContent;
 		onUpdate?: (json: JSONContent) => void;
 		editable?: boolean;
+		showToolbar?: boolean;
 	}
 
-	let { content, onUpdate, editable = true }: Props = $props();
+	let { content, onUpdate, editable = true, showToolbar = true }: Props = $props();
 
 	let element: HTMLElement | undefined = $state();
 	let editor: Editor | undefined = $state();
@@ -82,7 +83,7 @@
 	}
 </script>
 
-{#if editor}
+{#if editor && showToolbar}
 	<div class="toolbar">
 		<button type="button" class="tb" class:active={isActive.bold} onclick={toggleBold} title="Bold">B</button>
 		<button type="button" class="tb" class:active={isActive.italic} onclick={toggleItalic} title="Italic"><em>I</em></button>
@@ -98,7 +99,7 @@
 	</div>
 {/if}
 
-<div class="editor" bind:this={element}></div>
+<div class="editor" class:no-toolbar={!showToolbar} bind:this={element}></div>
 
 <style>
 	.toolbar {
@@ -139,6 +140,12 @@
 		border-radius: 0 0 6px 6px;
 		padding: 16px 20px;
 		min-height: 200px;
+	}
+
+	.editor.no-toolbar {
+		border: none;
+		border-radius: 0;
+		padding: 0;
 		font-family: 'SangBleu Sunrise', Georgia, serif;
 		font-size: 15px;
 		line-height: 1.7;

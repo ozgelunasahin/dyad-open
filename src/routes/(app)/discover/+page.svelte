@@ -5,6 +5,7 @@
 	import MapView from '$lib/components/MapView.svelte';
 	import BottomSheet from '$lib/components/BottomSheet.svelte';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
+	import { getWeekDates } from '$lib/utils/dates';
 
 	let { data }: { data: PageData } = $props();
 	let viewMode = $state<'list' | 'map'>('list');
@@ -25,18 +26,7 @@
 		selectedPinArea = '';
 	}
 
-	// 7-day calendar starting from today
-	const weekDates = (() => {
-		const today = new Date();
-		return Array.from({ length: 7 }, (_, i) => {
-			const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
-			return {
-				date: d.toLocaleDateString('sv-SE'),
-				dayShort: d.toLocaleDateString('en-US', { weekday: 'short' }),
-				dayNum: d.getDate()
-			};
-		});
-	})();
+	const weekDates = getWeekDates();
 
 	// Collect unique neighbourhoods from all prompts' slots
 	const availableAreas = $derived.by(() => {
