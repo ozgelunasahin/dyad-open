@@ -164,18 +164,18 @@
 			</button>
 		{/if}
 
-		<span class="nav-spacer"></span>
+		<!-- Search pill (placeholder — not functional in v0.1) -->
+		<button class="search-pill" aria-label="Search" disabled>
+			<svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+				<circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.6"/>
+				<path d="M14 14l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+			</svg>
+			<span>Search</span>
+		</button>
 
 		<a href="/prompts/new" class="nav-btn" aria-label="Start a conversation">
 			<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
 				<path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-			</svg>
-		</a>
-
-		<a href="/profile" class="nav-btn" class:active-icon={active === 'profile'} aria-label="Profile">
-			<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-				<circle cx="10" cy="7" r="3.5" stroke="currentColor" stroke-width="1.6"/>
-				<path d="M3 17c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
 			</svg>
 		</a>
 	{/if}
@@ -246,6 +246,22 @@
 	}
 
 	.nav-spacer { flex: 1; }
+
+	.search-pill {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 8px 14px;
+		background: rgba(0, 0, 0, 0.05);
+		border: none;
+		border-radius: 999px;
+		color: var(--text-muted, #999);
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 0.82rem;
+		cursor: not-allowed;
+		opacity: 0.7;
+	}
 
 	/* === Editor variant === */
 	.save-indicator {
