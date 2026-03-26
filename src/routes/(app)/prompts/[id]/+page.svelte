@@ -55,7 +55,12 @@
 			if (res.ok) { inviteStatus = 'sent'; }
 			else {
 				const err = await res.json().catch(() => ({}));
-				inviteError = (err as any).error ?? 'Failed to send invitation';
+				const rawError = (err as any).error ?? 'Failed to send invitation';
+				if (rawError.includes('uq_one_pending_invitation')) {
+					inviteError = 'You already have a pending invitation for this time.';
+				} else {
+					inviteError = rawError;
+				}
 				inviteStatus = 'error';
 			}
 		} catch {
