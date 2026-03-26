@@ -80,13 +80,15 @@
 	<title>{data.prompt.title ?? 'Conversation'} - dyad.berlin</title>
 </svelte:head>
 
-<div class="content">
-	{#if data.prompt.cover_image_url}
+{#if data.prompt.cover_image_url}
+	<div class="cover-wrap">
 		<img src={data.prompt.cover_image_url} alt="" class="cover" loading="lazy" />
-	{/if}
+	</div>
+{/if}
 
+<div class="content">
+	<p class="meta">@{data.prompt.author_username}</p>
 	<h1 class="title">{data.prompt.title}</h1>
-	<p class="meta">by @{data.prompt.author_username}</p>
 
 	<div class="body">
 		{#if data.prompt.body_html}
@@ -189,7 +191,9 @@
 <style>
 	.content { width: 100%; max-width: 700px; }
 
-	.cover { width: 100%; max-height: 400px; object-fit: cover; border-radius: 8px; margin-bottom: 24px; }
+	.cover-wrap { margin: -2rem -2rem 0; }
+	.cover { width: 100%; max-height: 400px; object-fit: cover; display: block; }
+	@media (max-width: 430px) { .cover-wrap { margin: -1rem -1rem 0; } }
 
 	.title { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 1.8rem; font-weight: normal; color: var(--text-primary); margin: 0 0 8px; line-height: 1.2; }
 	.meta { font-family: 'SF Mono', monospace; font-size: 12px; color: var(--text-muted, #999); margin: 0 0 32px; }

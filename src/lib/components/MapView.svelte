@@ -70,14 +70,6 @@
 		const pins = buildPins(prompts);
 
 		for (const pin of pins) {
-			// Translucent fuzzy circle
-			L.circle(pin.position, {
-				radius: CIRCLE_RADIUS_METERS,
-				fillColor: '#1a1a1a',
-				fillOpacity: 0.06,
-				stroke: false
-			}).addTo(markerLayer);
-
 			// Cover image marker (or placeholder)
 			// Escape HTML attributes to prevent XSS from user-controlled URLs/titles
 			const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -189,7 +181,7 @@
 	:global(.marker-img) {
 		width: 44px;
 		height: 44px;
-		border-radius: 8px;
+		border-radius: 50%;
 		object-fit: cover;
 		border: 2px solid #f5f3f0;
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
@@ -198,7 +190,7 @@
 	:global(.marker-placeholder) {
 		width: 44px;
 		height: 44px;
-		border-radius: 8px;
+		border-radius: 50%;
 		background: #1a1a1a;
 		color: #f5f3f0;
 		display: flex;
