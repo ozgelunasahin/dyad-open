@@ -1,8 +1,23 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import type { PromptSummary, TimeSlot } from '$lib/domain/types';
+	import MapView from '$lib/components/MapView.svelte';
+	import BottomSheet from '$lib/components/BottomSheet.svelte';
 
 	let { data }: { data: PageData } = $props();
+	let viewMode = $state<'list' | 'map'>('list');
+	let selectedPinPrompts = $state<PromptSummary[]>([]);
+	let selectedPinArea = $state('');
+
+	function handlePinSelect(prompts: PromptSummary[], area: string) {
+		selectedPinPrompts = prompts;
+		selectedPinArea = area;
+	}
+
+	function closeSheet() {
+		selectedPinPrompts = [];
+		selectedPinArea = '';
+	}
 
 	// 7-day calendar starting from today
 	const weekDates = (() => {
@@ -180,17 +195,32 @@
 					{#if hasFilters}
 						<button class="clear-filters" onclick={clearFilters}>Clear all</button>
 					{/if}
+
+					<div class="view-toggle">
+						<button class="toggle-btn" class:active={viewMode === 'list'} onclick={() => viewMode = 'list'} title="List view">
+							<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+						</button>
+						<button class="toggle-btn" class:active={viewMode === 'map'} onclick={() => viewMode = 'map'} title="Map view">
+							<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 3l5-2 4 2 5-2v12l-5 2-4-2-5 2V3z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 1v12M10 3v12" stroke="currentColor" stroke-width="1.2"/></svg>
+						</button>
+					</div>
 				</div>
 
-				{#if filteredPrompts.length === 0}
+				<div class="prompt-actions">
+					<a href="/prompts/new" class="start-prompt-btn">Start a conversation</a>
+				</div>
+
+				{#if viewMode === 'map'}
+					<MapView prompts={filteredPrompts} onSelectPin={handlePinSelect} />
+					{#if selectedPinPrompts.length > 0}
+						<BottomSheet prompts={selectedPinPrompts} area={selectedPinArea} onClose={closeSheet} />
+					{/if}
+				{:else if filteredPrompts.length === 0}
 					<div class="empty-state">
 						<p>No conversations match your filters.</p>
 						<button class="clear-filters-link" onclick={clearFilters}>Clear filters</button>
 					</div>
 				{:else}
-					<div class="prompt-actions">
-						<a href="/prompts/new" class="start-prompt-btn">Start a conversation</a>
-					</div>
 					<div class="prompt-list">
 						{#each filteredPrompts as prompt}
 							<a href="/prompts/{prompt.id}" class="prompt-item">
@@ -414,6 +444,28 @@
 	}
 
 	.clear-filters:hover { color: var(--text-primary); }
+
+	.view-toggle {
+		display: flex;
+		gap: 2px;
+		margin-left: auto;
+	}
+
+	.toggle-btn {
+		padding: 6px 8px;
+		border: 1px solid var(--border-link, rgba(0, 0, 0, 0.12));
+		background: none;
+		color: var(--text-muted, #999);
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		transition: all 0.15s;
+	}
+
+	.toggle-btn:first-child { border-radius: 4px 0 0 4px; }
+	.toggle-btn:last-child { border-radius: 0 4px 4px 0; }
+	.toggle-btn.active { background: var(--text-primary); color: var(--bg-canvas); border-color: var(--text-primary); }
+	.toggle-btn:hover:not(.active) { border-color: var(--text-primary); color: var(--text-primary); }
 
 	.clear-filters-link {
 		background: none;
