@@ -332,26 +332,26 @@
 		align-items: center;
 		justify-content: center;
 		gap: 8px;
-		padding: 32px;
-		margin-bottom: 24px;
-		border: 2px dashed var(--border-link, rgba(0, 0, 0, 0.15));
+		padding: 40px 32px;
+		margin-bottom: 28px;
+		border: 1.5px dashed rgba(0, 0, 0, 0.12);
 		border-radius: 12px;
-		background: rgba(0, 0, 0, 0.02);
+		background: rgba(0, 0, 0, 0.025);
 		cursor: pointer;
 		transition: border-color 0.15s, background 0.15s;
 	}
 
-	.cover-placeholder:hover { border-color: var(--text-muted, #999); }
+	.cover-placeholder:hover { border-color: var(--text-muted, #999); background: rgba(0, 0, 0, 0.04); }
 	.cover-placeholder.drag-over { border-color: var(--text-primary); background: rgba(0, 0, 0, 0.05); border-style: solid; }
 	.cover-placeholder.cover-error { border-color: #c00; }
 
-	.cover-icon { color: var(--text-muted, #bbb); }
-	.cover-text { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 0.95rem; color: var(--text-muted, #999); }
-	.cover-hint { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 0.8rem; color: var(--text-muted, #bbb); }
+	.cover-icon { color: var(--text-muted, #ccc); }
+	.cover-text { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 1rem; color: var(--text-muted, #aaa); font-weight: 500; }
+	.cover-hint { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 0.82rem; color: var(--text-muted, #c0bdb8); }
 
 	/* Cover preview */
-	.cover-preview-wrap { position: relative; margin-bottom: 24px; }
-	.cover-preview { width: 100%; max-height: 300px; object-fit: cover; border-radius: 12px; display: block; }
+	.cover-preview-wrap { position: relative; margin-bottom: 28px; }
+	.cover-preview { width: 100%; max-height: 280px; object-fit: cover; border-radius: 12px; display: block; }
 	.cover-change {
 		position: absolute;
 		bottom: 12px;
@@ -367,11 +367,11 @@
 
 	.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
 
-	/* Title */
+	/* Title — large serif matching design ref */
 	.title-input {
 		font-family: 'SangBleu Sunrise', Georgia, serif;
-		font-size: 2rem;
-		font-weight: normal;
+		font-size: 2.4rem;
+		font-weight: 300;
 		color: var(--text-primary);
 		border: none;
 		background: transparent;
@@ -379,9 +379,10 @@
 		padding: 0;
 		margin-bottom: 12px;
 		outline: none;
+		line-height: 1.15;
 	}
 
-	.title-input::placeholder { color: var(--text-muted, #ccc); }
+	.title-input::placeholder { color: var(--text-muted, #ccc); opacity: 0.5; }
 
 	/* Username badge */
 	.username-badge {

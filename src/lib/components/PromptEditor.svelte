@@ -146,11 +146,7 @@
 		border: none;
 		border-radius: 0;
 		padding: 0;
-		font-family: 'SangBleu Sunrise', Georgia, serif;
-		font-size: 15px;
-		line-height: 1.7;
-		color: var(--text-primary, #1a1a1a);
-		background: transparent;
+		min-height: 300px;
 	}
 
 	.editor :global(.tiptap) {
@@ -200,7 +196,7 @@
 
 	.editor :global(.tiptap p.is-editor-empty:first-child::before) {
 		content: 'Start writing...';
-		color: var(--text-muted, #999);
+		color: var(--text-muted, #c0bdb8);
 		pointer-events: none;
 		float: left;
 		height: 0;
