@@ -1,7 +1,7 @@
 ---
 title: "refactor: Integrate design work from Ozge's PRs"
 type: refactor
-status: active
+status: completed
 date: 2026-03-26
 ---
 
