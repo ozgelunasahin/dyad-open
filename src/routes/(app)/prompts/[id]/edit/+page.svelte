@@ -238,7 +238,7 @@
 </script>
 
 <svelte:head>
-	<title>{title || 'Edit prompt'} - dyad.berlin</title>
+	<title>{title || 'Edit'} - dyad.berlin</title>
 </svelte:head>
 
 <div class="content">
@@ -259,7 +259,7 @@
 		type="text"
 		bind:value={title}
 		oninput={handleTitleInput}
-		placeholder="Give your prompt a title..."
+		placeholder="What would you like to talk about?"
 		maxlength={200}
 	/>
 
@@ -345,7 +345,7 @@
 			{/if}
 
 			<button class="publish-btn" onclick={handlePublish} disabled={publishing}>
-				{publishing ? 'Publishing...' : 'Publish prompt'}
+				{publishing ? 'Publishing...' : 'Publish'}
 			</button>
 		</section>
 	{/if}
@@ -354,7 +354,7 @@
 	{#if isPublished}
 		<section class="published-info">
 			<h2 class="section-title">Published</h2>
-			<p class="section-desc">Your prompt is live on the discover feed.</p>
+			<p class="section-desc">Your conversation is live on the discover feed.</p>
 			{#if data.slots.length > 0}
 				<div class="slot-list">
 					{#each data.slots as slot}

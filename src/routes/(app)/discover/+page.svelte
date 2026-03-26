@@ -122,7 +122,7 @@
 <div class="content">
 			{#if data.prompts.length === 0}
 				<div class="empty-state">
-					<p>No prompts available right now.</p>
+					<p>No conversations available right now.</p>
 					<p class="empty-hint">Check back soon, or start your own.</p>
 				</div>
 			{:else}
@@ -184,12 +184,12 @@
 
 				{#if filteredPrompts.length === 0}
 					<div class="empty-state">
-						<p>No prompts match your filters.</p>
+						<p>No conversations match your filters.</p>
 						<button class="clear-filters-link" onclick={clearFilters}>Clear filters</button>
 					</div>
 				{:else}
 					<div class="prompt-actions">
-						<a href="/prompts/new" class="start-prompt-btn">Start a prompt</a>
+						<a href="/prompts/new" class="start-prompt-btn">Start a conversation</a>
 					</div>
 					<div class="prompt-list">
 						{#each filteredPrompts as prompt}

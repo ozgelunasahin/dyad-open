@@ -27,7 +27,7 @@
 </svelte:head>
 
 <div class="content">
-	<h1 class="page-title">My prompts</h1>
+	<h1 class="page-title">My conversations</h1>
 
 	<div class="tabs">
 		<button class="tab" class:active={activeTab === 'draft'} onclick={() => activeTab = 'draft'}>
@@ -57,11 +57,11 @@
 			<div class="empty-state">
 				{#if activeTab === 'draft'}
 					<p>No drafts yet.</p>
-					<a href="/prompts/new" class="cta-link">Start a new prompt</a>
+					<a href="/prompts/new" class="cta-link">Start a conversation</a>
 				{:else if activeTab === 'published'}
-					<p>No published prompts.</p>
+					<p>No published conversations.</p>
 				{:else}
-					<p>No archived prompts.</p>
+					<p>No archived conversations.</p>
 				{/if}
 			</div>
 		{/each}
