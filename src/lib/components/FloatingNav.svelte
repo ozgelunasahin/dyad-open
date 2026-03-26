@@ -75,11 +75,7 @@
 <nav class="floating-nav" class:top={position === 'top'} class:bottom={position === 'bottom'}>
 	{#if variant === 'editor'}
 		<!-- Editor variant: Back, Saved indicator, Continue dropdown -->
-		<button class="nav-btn" onclick={onBack} aria-label="Back">
-			<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-				<path d="M12 4l-6 6 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-			</svg>
-		</button>
+		<button class="back-text-btn" onclick={onBack} aria-label="Back">← Back</button>
 
 		<span class="save-indicator">
 			{#if saveStatus === 'saving'}
@@ -264,6 +260,18 @@
 	}
 
 	/* === Editor variant === */
+	.back-text-btn {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 0.85rem;
+		color: var(--text-muted, #666);
+		background: none;
+		border: none;
+		cursor: pointer;
+		padding: 4px 8px;
+		flex-shrink: 0;
+	}
+	.back-text-btn:hover { color: var(--text-primary); }
+
 	.save-indicator {
 		font-family: 'SangBleu Sunrise', Georgia, serif;
 		font-size: 0.8rem;
