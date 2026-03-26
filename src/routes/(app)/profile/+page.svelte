@@ -67,6 +67,20 @@
 		{/each}
 	</div>
 
+	<!-- Sent invitations -->
+	{#if data.sentInvitations.length > 0}
+		<section class="invitations-section">
+			<h2 class="section-title">Invitations sent</h2>
+			{#each data.sentInvitations as inv}
+				<div class="invitation-card">
+					<span class="inv-title">{inv.prompts?.title ?? 'Untitled'}</span>
+					<span class="inv-state badge badge-{inv.state}">{inv.state}</span>
+					<span class="inv-date">{formatDate(inv.created_at)}</span>
+				</div>
+			{/each}
+		</section>
+	{/if}
+
 	<!-- Upcoming meetings -->
 	{#if data.meetings.length > 0}
 		<section class="meetings-section">
@@ -174,6 +188,26 @@
 		color: var(--text-primary);
 		text-decoration: underline;
 	}
+
+	.invitations-section {
+		margin-top: 32px;
+		padding-top: 24px;
+		border-top: 1px solid var(--border-link, rgba(0,0,0,0.08));
+	}
+
+	.invitation-card {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		padding: 10px 0;
+		border-bottom: 1px solid var(--border-link, rgba(0,0,0,0.06));
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 14px;
+	}
+
+	.inv-title { flex: 1; color: var(--text-primary); }
+	.inv-state { flex-shrink: 0; }
+	.inv-date { font-family: 'SF Mono', monospace; font-size: 11px; color: var(--text-muted, #999); flex-shrink: 0; }
 
 	.meetings-section {
 		margin-top: 48px;

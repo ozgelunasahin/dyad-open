@@ -10,6 +10,7 @@
 	let selectedSlotId = $state<string | null>(null);
 	let inviteStatus = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
 	let inviteError = $state('');
+	let invitedSlotIds = $state(new Set(data.invitedSlotIds ?? []));
 
 	function formatSlotDate(iso: string): string {
 		const d = new Date(iso);
@@ -52,7 +53,10 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ slotId: selectedSlotId })
 			});
-			if (res.ok) { inviteStatus = 'sent'; }
+			if (res.ok) {
+					inviteStatus = 'sent';
+					if (selectedSlotId) invitedSlotIds = new Set([...invitedSlotIds, selectedSlotId]);
+				}
 			else {
 				const err = await res.json().catch(() => ({}));
 				const rawError = (err as any).error ?? 'Failed to send invitation';
@@ -136,9 +140,13 @@
 							<span class="slot-duration">{slot.duration_minutes} min</span>
 							<span class="slot-area">{slot.general_area}</span>
 						</div>
-						<button class="select-slot" onclick={() => selectedSlotId = selectedSlotId === slot.id ? null : slot.id}>
-							{selectedSlotId === slot.id ? 'Selected' : 'Select'}
-						</button>
+						{#if invitedSlotIds.has(slot.id)}
+							<span class="invited-badge">Invited</span>
+						{:else}
+							<button class="select-slot" onclick={() => selectedSlotId = selectedSlotId === slot.id ? null : slot.id}>
+								{selectedSlotId === slot.id ? 'Selected' : 'Select'}
+							</button>
+						{/if}
 					</div>
 				{/each}
 
@@ -205,6 +213,7 @@
 	.slot-area { font-family: 'SF Mono', monospace; font-size: 11px; text-transform: uppercase; color: var(--text-muted, #aaa); letter-spacing: 0.04em; }
 	.select-slot { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 13px; padding: 6px 14px; border: 1px solid var(--border-link); border-radius: 4px; background: none; color: var(--text-primary); cursor: pointer; }
 	.select-slot:hover { border-color: var(--text-primary); }
+	.invited-badge { font-family: 'SF Mono', monospace; font-size: 11px; color: var(--color-success, #3d9e5a); padding: 6px 14px; }
 
 	.response-section, .invite-section, .invite-teaser, .responses-received { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border-link, rgba(0,0,0,0.08)); }
 

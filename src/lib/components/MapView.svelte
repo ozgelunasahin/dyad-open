@@ -6,9 +6,10 @@
 	interface Props {
 		prompts: PromptSummary[];
 		onSelectPin: (prompts: PromptSummary[], area: string) => void;
+		onNavigate: (promptId: string) => void;
 	}
 
-	let { prompts, onSelectPin }: Props = $props();
+	let { prompts, onSelectPin, onNavigate }: Props = $props();
 
 	let mapContainer: HTMLElement | undefined = $state();
 	let map: LeafletMap | undefined;
@@ -94,9 +95,14 @@
 
 			const marker = L.marker(pin.position, { icon });
 			marker.on('click', () => {
-				// Find all prompts near this pin (same neighbourhood)
 				const nearby = pins.filter(p => p.area === pin.area).map(p => p.prompt);
-				onSelectPin(nearby.length > 0 ? nearby : [pin.prompt], pin.area);
+				if (nearby.length <= 1) {
+					// Single conversation — navigate directly
+					onNavigate(pin.prompt.id);
+				} else {
+					// Multiple conversations in this area — show list
+					onSelectPin(nearby, pin.area);
+				}
 			});
 			marker.addTo(markerLayer);
 		}
@@ -115,7 +121,7 @@
 		map = L.map(mapContainer, {
 			center: BERLIN_CENTER,
 			zoom: DEFAULT_ZOOM,
-			zoomControl: true,
+			zoomControl: false,
 			attributionControl: true
 		});
 
@@ -126,6 +132,16 @@
 
 		markerLayer = L.layerGroup().addTo(map);
 		rebuildMarkers(L);
+
+		// Center on user location if available
+		if ('geolocation' in navigator) {
+			navigator.geolocation.getCurrentPosition(
+				(pos) => {
+					map?.setView([pos.coords.latitude, pos.coords.longitude], 13);
+				},
+				() => { /* permission denied or error — stay on Berlin center */ }
+			);
+		}
 	});
 
 	$effect(() => {
@@ -150,15 +166,18 @@
 <style>
 	.map-container {
 		width: 100%;
-		height: 500px;
+		height: calc(100vh - 120px);
+		min-height: 400px;
 		border-radius: var(--radius-card, 12px);
 		overflow: hidden;
 	}
 
 	@media (max-width: 430px) {
 		.map-container {
-			height: 400px;
+			height: calc(100vh - 80px);
 			border-radius: 0;
+			margin: 0 -1rem;
+			width: calc(100% + 2rem);
 		}
 	}
 

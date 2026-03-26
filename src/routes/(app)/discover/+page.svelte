@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import type { PromptSummary, TimeSlot } from '$lib/domain/types';
+	import { goto } from '$app/navigation';
 	import MapView from '$lib/components/MapView.svelte';
 	import BottomSheet from '$lib/components/BottomSheet.svelte';
 
@@ -12,6 +13,10 @@
 	function handlePinSelect(prompts: PromptSummary[], area: string) {
 		selectedPinPrompts = prompts;
 		selectedPinArea = area;
+	}
+
+	function handlePinNavigate(promptId: string) {
+		goto(`/prompts/${promptId}`);
 	}
 
 	function closeSheet() {
@@ -212,7 +217,7 @@
 				</div>
 
 				{#if viewMode === 'map'}
-					<MapView prompts={filteredPrompts} onSelectPin={handlePinSelect} />
+					<MapView prompts={filteredPrompts} onSelectPin={handlePinSelect} onNavigate={handlePinNavigate} />
 					{#if selectedPinPrompts.length > 0}
 						<BottomSheet prompts={selectedPinPrompts} area={selectedPinArea} onClose={closeSheet} />
 					{/if}
