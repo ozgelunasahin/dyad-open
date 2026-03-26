@@ -4,6 +4,9 @@ import { requireAuth } from '$lib/server/auth.js';
 import { parseJsonBody } from '$lib/server/parse-body.js';
 import { SupabasePromptCommandService } from '$lib/services/prompt-command.js';
 import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
+import { validateTiptapContent } from '$lib/server/validate-tiptap-content.js';
+
+const MAX_TITLE_LENGTH = 200;
 
 /** POST /api/prompts — create a draft prompt */
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -15,6 +18,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		coverImageUrl?: string;
 	}>(request);
 	if (errorResponse) return errorResponse;
+
+	if (body.title !== undefined && (typeof body.title !== 'string' || body.title.length > MAX_TITLE_LENGTH)) {
+		return json({ error: `Title must be a string of at most ${MAX_TITLE_LENGTH} characters` }, { status: 400 });
+	}
+
+	if (body.body !== undefined) {
+		const contentError = validateTiptapContent(body.body);
+		if (contentError) return json({ error: contentError }, { status: 400 });
+	}
 
 	const service = new SupabasePromptCommandService(locals.supabase);
 	try {
