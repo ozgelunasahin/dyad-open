@@ -9,6 +9,7 @@
 
 	let selectedSlotId = $state<string | null>(null);
 	let inviteStatus = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
+	let inviteError = $state('');
 
 	function formatSlotDate(iso: string): string {
 		const d = new Date(iso);
@@ -44,6 +45,7 @@
 	async function sendInvite() {
 		if (!selectedSlotId) return;
 		inviteStatus = 'sending';
+		inviteError = '';
 		try {
 			const res = await fetch(`/api/prompts/${data.prompt.id}/invitations`, {
 				method: 'POST',
@@ -51,8 +53,13 @@
 				body: JSON.stringify({ slotId: selectedSlotId })
 			});
 			if (res.ok) { inviteStatus = 'sent'; }
-			else { inviteStatus = 'error'; }
+			else {
+				const err = await res.json().catch(() => ({}));
+				inviteError = (err as any).error ?? 'Failed to send invitation';
+				inviteStatus = 'error';
+			}
 		} catch {
+			inviteError = 'Network error';
 			inviteStatus = 'error';
 		}
 	}
@@ -126,6 +133,7 @@
 					</div>
 				{/each}
 
+				{#if inviteError}<p class="field-error">{inviteError}</p>{/if}
 				{#if selectedSlotId}
 					<button class="invite-btn" onclick={sendInvite} disabled={inviteStatus === 'sending'}>
 						{inviteStatus === 'sending' ? 'Sending...' : 'Invite to meet'}

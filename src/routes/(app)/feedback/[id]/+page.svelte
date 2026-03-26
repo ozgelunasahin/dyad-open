@@ -89,25 +89,20 @@
 		{/if}
 
 		<div class="field">
-			<label for="freetext">{didMeet ? 'Anything else?' : 'What happened?'}</label>
-			<textarea id="freetext" bind:value={freeText} rows={3} placeholder="Optional — share your thoughts"></textarea>
+			<label for="share-person">{didMeet ? 'What would you like to share with the other person?' : 'What happened?'}</label>
+			<textarea id="share-person" bind:value={shareWithPerson} rows={3} placeholder="This will be shared with them after they also submit feedback" required></textarea>
 		</div>
 
 		<div class="field">
-			<label for="share-person">Share with the other person (they'll see this after submitting their own feedback)</label>
-			<textarea id="share-person" bind:value={shareWithPerson} rows={2} placeholder="Optional"></textarea>
-		</div>
-
-		<div class="field">
-			<label for="share-platform">Share with dyad (helps us improve)</label>
-			<textarea id="share-platform" bind:value={shareWithPlatform} rows={2} placeholder="Optional"></textarea>
+			<label for="share-platform">Anything for dyad? (optional)</label>
+			<textarea id="share-platform" bind:value={shareWithPlatform} rows={2} placeholder="Helps us improve the experience"></textarea>
 		</div>
 
 		{#if submitError}<p class="field-error">{submitError}</p>{/if}
 
 		<div class="actions">
 			<button class="back-btn" onclick={() => step = 'met'}>Back</button>
-			<button class="submit-btn" onclick={handleSubmit} disabled={submitting}>
+			<button class="submit-btn" onclick={handleSubmit} disabled={submitting || !shareWithPerson.trim()}>
 				{submitting ? 'Submitting...' : 'Submit feedback'}
 			</button>
 		</div>
