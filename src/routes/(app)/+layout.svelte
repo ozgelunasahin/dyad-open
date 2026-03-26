@@ -188,7 +188,7 @@
 			position: fixed;
 			inset: 0;
 			background: rgba(0, 0, 0, 0.15);
-			z-index: 200;
+			z-index: 1000;
 		}
 
 		.mobile-panel {
@@ -201,7 +201,7 @@
 			max-width: 80vw;
 			height: 100vh;
 			background: var(--bg-canvas, #f5f3f0);
-			z-index: 300;
+			z-index: 1001;
 			padding: 24px;
 			box-sizing: border-box;
 			box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1);
