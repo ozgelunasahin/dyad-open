@@ -179,71 +179,54 @@
 </div>
 
 <style>
-	.back-link {
-		display: inline-block;
-		font-family: 'SangBleu Sunrise', Georgia, serif;
-		font-size: 0.9rem;
-		color: var(--text-muted, #666);
-		text-decoration: none;
-		margin-bottom: 16px;
-	}
-	.back-link:hover { color: var(--text-primary); }
-
+	/* .back-link uses global shared class */
 	.content { width: 100%; max-width: 700px; }
 
-	.cover { width: 100%; max-height: 400px; object-fit: cover; border-radius: 8px; margin-bottom: 24px; }
+	.cover { width: 100%; max-height: 400px; object-fit: cover; border-radius: var(--radius-card); margin-bottom: var(--space-6); }
 
-	.title { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 1.8rem; font-weight: normal; color: var(--text-primary); margin: 0 0 8px; line-height: 1.2; }
-	.meta { font-family: 'SF Mono', monospace; font-size: 12px; color: var(--text-muted, #999); margin: 0 0 32px; }
+	.title { font-size: var(--text-3xl); font-weight: normal; margin: 0 0 var(--space-2); line-height: var(--leading-tight); }
+	.meta { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin: 0 0 var(--space-8); }
 
-	.body { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 15px; line-height: 1.7; color: var(--text-primary); margin-bottom: 40px; }
+	.body { font-size: var(--text-md); line-height: var(--leading-relaxed); margin-bottom: var(--space-10); }
 	.body :global(p) { margin: 0 0 0.75em; }
 	.body :global(h1), .body :global(h2) { margin: 1.2em 0 0.5em; font-weight: 500; }
-	.body :global(blockquote) { border-left: 2px solid var(--text-muted, #ccc); padding-left: 16px; color: var(--text-muted, #666); }
-	.body :global(a) { color: var(--text-link, #555); text-decoration: underline; }
+	.body :global(blockquote) { border-left: 2px solid var(--text-muted); padding-left: var(--space-4); color: var(--text-muted); }
+	.body :global(a) { color: var(--text-link); text-decoration: underline; }
 	.body :global(img) { max-width: 100%; border-radius: 4px; }
 
-	.section-title { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 1rem; font-weight: normal; color: var(--text-primary); margin: 0 0 12px; }
-	.privacy-hint { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 12px; color: var(--text-muted, #999); font-style: italic; margin: 0 0 12px; }
+	/* .section-title uses global shared class */
 
-	.slots-section { margin-bottom: 32px; padding-top: 24px; border-top: 1px solid var(--border-link, rgba(0,0,0,0.08)); }
-	.slot-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border-link, rgba(0,0,0,0.06)); }
-	.slot-item.selected { background: rgba(61,158,90,0.06); margin: 0 -8px; padding: 10px 8px; border-radius: 4px; }
-	.slot-info { display: flex; gap: 12px; font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 14px; }
+	.slot-item { display: flex; justify-content: space-between; align-items: center; padding: var(--space-3) 0; border-bottom: 1px solid var(--border-link); }
+	.slot-item.selected { background: rgba(61,158,90,0.06); margin: 0 calc(-1 * var(--space-2)); padding: var(--space-3) var(--space-2); border-radius: 4px; }
+	.slot-info { display: flex; gap: var(--space-3); font-size: var(--text-base); }
 	.slot-date { font-weight: 500; }
-	.slot-time, .slot-duration { color: var(--text-muted, #666); }
-	.slot-area { font-family: 'SF Mono', monospace; font-size: 11px; text-transform: uppercase; color: var(--text-muted, #aaa); letter-spacing: 0.04em; }
-	.select-slot { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 13px; padding: 6px 14px; border: 1px solid var(--border-link); border-radius: 4px; background: none; color: var(--text-primary); cursor: pointer; }
+	.slot-time, .slot-duration { color: var(--text-muted); }
+	.slot-area { font-family: var(--font-mono); font-size: var(--text-xs); text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.04em; }
+	.select-slot { font-size: var(--text-sm); padding: var(--space-2) var(--space-3); border: 1px solid var(--border-link); border-radius: 4px; background: none; cursor: pointer; }
 	.select-slot:hover { border-color: var(--text-primary); }
-	.invited-badge { font-family: 'SF Mono', monospace; font-size: 11px; color: var(--color-success, #3d9e5a); padding: 6px 14px; }
+	.invited-badge { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-success); padding: var(--space-2) var(--space-3); }
 
-	.response-section, .invite-section, .invite-teaser, .responses-received { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border-link, rgba(0,0,0,0.08)); }
+	.response-section, .invite-section, .responses-received { margin-top: var(--space-6); padding-top: var(--space-6); border-top: 1px solid var(--border-link); }
 
-	.response-input { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 14px; width: 100%; padding: 10px 14px; border: 1px solid var(--border-link, rgba(0,0,0,0.12)); border-radius: 6px; background: transparent; color: var(--text-primary); resize: vertical; line-height: 1.6; box-sizing: border-box; margin-bottom: 12px; }
+	.response-input { font-size: var(--text-base); width: 100%; padding: var(--space-3); border: 1px solid var(--border-link); border-radius: var(--radius-input); background: transparent; resize: vertical; line-height: 1.6; box-sizing: border-box; margin-bottom: var(--space-3); }
 	.response-input:focus { outline: none; border-color: var(--text-muted); }
-	.response-input::placeholder { color: var(--text-muted, #999); }
+	.response-input::placeholder { color: var(--text-muted); }
 
-	.response-sent { margin-bottom: 12px; }
-	.existing-response { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 14px; color: var(--text-muted, #666); font-style: italic; margin: 8px 0; line-height: 1.5; }
-	.edit-response-btn { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 12px; color: var(--text-muted, #666); background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; }
+	.response-sent { margin-bottom: var(--space-3); }
+	.existing-response { font-size: var(--text-base); color: var(--text-muted); font-style: italic; margin: var(--space-2) 0; line-height: var(--leading-normal); }
+	.edit-response-btn { font-size: var(--text-xs); color: var(--text-muted); background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; }
 
-	.invite-hint { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 12px; color: var(--text-muted, #999); margin: 0 0 16px; font-style: italic; }
-	.invite-btn { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 14px; padding: 10px 24px; background: var(--text-primary); color: var(--bg-canvas); border: 1px solid var(--text-primary); border-radius: 6px; cursor: pointer; margin-top: 12px; }
+	.invite-btn { font-size: var(--text-base); padding: var(--space-3) var(--space-6); background: var(--text-primary); color: var(--bg-canvas); border: 1px solid var(--text-primary); border-radius: var(--radius-input); cursor: pointer; margin-top: var(--space-3); }
 	.invite-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-	.teaser-text { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 13px; color: var(--text-muted, #999); font-style: italic; }
-
-	.submit-btn { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 13px; padding: 8px 20px; border: 1px solid var(--text-primary); border-radius: 6px; background: none; color: var(--text-primary); cursor: pointer; }
+	.submit-btn { font-size: var(--text-sm); padding: var(--space-2) var(--space-5); border: 1px solid var(--text-primary); border-radius: var(--radius-input); background: none; cursor: pointer; }
 	.submit-btn:hover:not(:disabled) { background: var(--text-primary); color: var(--bg-canvas); }
 	.submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-	.publish-btn { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 14px; padding: 10px 24px; background: var(--text-primary); color: var(--bg-canvas); border: 1px solid var(--text-primary); border-radius: 6px; cursor: pointer; }
-	.publish-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+	.success { font-size: var(--text-base); color: var(--color-success); }
+	/* .field-error uses global shared class */
 
-	.success { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 14px; color: #3d9e5a; }
-	.field-error { font-size: 13px; color: #c00; margin: 0 0 8px; }
-
-	.response-card { padding: 12px 0; border-bottom: 1px solid var(--border-link, rgba(0,0,0,0.06)); }
-	.response-body { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 14px; color: var(--text-primary); margin: 0 0 4px; line-height: 1.5; }
-	.response-date { font-family: 'SF Mono', monospace; font-size: 11px; color: var(--text-muted, #999); }
+	.response-card { padding: var(--space-3) 0; border-bottom: 1px solid var(--border-link); }
+	.response-body { font-size: var(--text-base); margin: 0 0 var(--space-1); line-height: var(--leading-normal); }
+	.response-date { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
 </style>
