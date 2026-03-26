@@ -61,7 +61,7 @@
 </script>
 
 <svelte:head>
-	<title>{data.prompt.title ?? 'Prompt'} - dyad.berlin</title>
+	<title>{data.prompt.title ?? 'Conversation'} - dyad.berlin</title>
 </svelte:head>
 
 <div class="content">
@@ -102,14 +102,14 @@
 	{#if !isOwnPrompt}
 		<section class="comment-section">
 			<h2 class="section-title">Leave a note</h2>
-			<p class="privacy-hint">Only visible to you and the prompt author.</p>
+			<p class="privacy-hint">Only visible to you and the author.</p>
 
 			{#if commentStatus === 'sent'}
 				<p class="success">Your note was sent.</p>
 			{:else}
 				<textarea
 					class="comment-input"
-					placeholder="What resonates with you about this prompt?"
+					placeholder="What resonates with you about this?"
 					bind:value={commentText}
 					rows={3}
 					disabled={commentStatus === 'sending'}

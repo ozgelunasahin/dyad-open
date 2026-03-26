@@ -121,7 +121,7 @@
 
 <svelte:head>
 	<title>dyad. cultivating a culture of conversation</title>
-	<meta name="description" content="Meet people through conversation in Berlin. Read prompts, pick a time, meet in person." />
+	<meta name="description" content="Meet people through conversation in Berlin. Read, pick a time, meet in person." />
 </svelte:head>
 
 <div class="landing">
@@ -204,7 +204,7 @@
 					</button>
 				{/each}
 			{:else}
-				<p class="empty-state">No prompts yet. Check back soon.</p>
+				<p class="empty-state">No conversations yet. Check back soon.</p>
 			{/if}
 		</div>
 	</div>
