@@ -59,6 +59,17 @@
 	--control-color-hover: rgba(0, 0, 0, 0.8);
 
 	--dimmed-opacity: 0.35;
+
+	/* Status colours */
+	--color-success: #3d9e5a;
+	--color-danger: #c00;
+	--color-saving: #f59e0b;
+
+	/* Border radii */
+	--radius-pill: 999px;
+	--radius-card: 12px;
+	--radius-input: 6px;
+	--radius-thumb: 6px;
 }
 
 [data-theme='dark'] {
