@@ -10,6 +10,20 @@
 	let published = $derived(data.prompts.filter((p: Prompt) => p.state === 'published'));
 	let archived = $derived(data.prompts.filter((p: Prompt) => p.state === 'archived'));
 
+	// Collect cover images for thumbnail stacks
+	let conversationCovers = $derived(
+		[...published, ...drafts]
+			.map((p: Prompt) => p.cover_image_url)
+			.filter((url): url is string => !!url)
+			.slice(0, 2)
+	);
+	let archiveCovers = $derived(
+		archived
+			.map((p: Prompt) => p.cover_image_url)
+			.filter((url): url is string => !!url)
+			.slice(0, 2)
+	);
+
 	// Detail view state
 	let activeView = $state<'overview' | 'conversations' | 'meetings' | 'archive' | 'invitations'>('overview');
 
@@ -34,6 +48,7 @@
 			<div class="profile-stats">
 				<div class="stat"><span class="stat-num">{published.length}</span><span class="stat-label">ACTIVE</span></div>
 				<div class="stat"><span class="stat-num">{data.meetings.length}</span><span class="stat-label">MEETINGS</span></div>
+				<div class="stat"><span class="stat-num">{data.sentInvitations.length}</span><span class="stat-label">SAVED</span></div>
 			</div>
 		</div>
 
@@ -41,8 +56,11 @@
 		<div class="action-grid">
 			<button class="action-card" onclick={() => activeView = 'conversations'}>
 				<div class="card-thumb-stack">
-					{#if published.length > 0}
-						<div class="thumb-placeholder"></div>
+					{#if conversationCovers.length >= 2}
+						<img src={conversationCovers[1]} alt="" class="thumb-img thumb-back" />
+						<img src={conversationCovers[0]} alt="" class="thumb-img thumb-front" />
+					{:else if conversationCovers.length === 1}
+						<img src={conversationCovers[0]} alt="" class="thumb-img thumb-front" />
 					{:else}
 						<div class="thumb-placeholder"></div>
 					{/if}
@@ -60,7 +78,14 @@
 
 			<button class="action-card" onclick={() => activeView = 'archive'}>
 				<div class="card-thumb-stack">
-					<div class="thumb-placeholder"></div>
+					{#if archiveCovers.length >= 2}
+						<img src={archiveCovers[1]} alt="" class="thumb-img thumb-back" />
+						<img src={archiveCovers[0]} alt="" class="thumb-img thumb-front" />
+					{:else if archiveCovers.length === 1}
+						<img src={archiveCovers[0]} alt="" class="thumb-img thumb-front" />
+					{:else}
+						<div class="thumb-placeholder"></div>
+					{/if}
 				</div>
 				<span class="card-label">Archive</span>
 			</button>
@@ -207,19 +232,44 @@
 
 	.action-card:hover { background: var(--bg-control, rgba(0,0,0,0.02)); }
 
+	/* Stacked thumbnail images */
 	.card-thumb-stack {
-		width: 48px;
-		height: 48px;
+		width: 80px;
+		height: 64px;
 		position: relative;
 	}
 
-	.thumb-placeholder {
-		width: 40px;
-		height: 48px;
-		background: var(--bg-control, rgba(0,0,0,0.06));
-		border-radius: 4px;
+	.thumb-img {
 		position: absolute;
+		width: 52px;
+		height: 60px;
+		object-fit: cover;
+		border-radius: 6px;
+		border: 2px solid var(--bg-canvas, #f5f3f0);
+		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+	}
+
+	.thumb-front {
+		top: 2px;
+		left: 50%;
+		transform: translateX(-50%) rotate(-3deg);
+		z-index: 2;
+	}
+
+	.thumb-back {
 		top: 0;
+		left: 50%;
+		transform: translateX(-40%) rotate(5deg);
+		z-index: 1;
+	}
+
+	.thumb-placeholder {
+		width: 48px;
+		height: 56px;
+		background: var(--bg-control, rgba(0,0,0,0.06));
+		border-radius: 6px;
+		position: absolute;
+		top: 4px;
 		left: 50%;
 		transform: translateX(-50%);
 	}
