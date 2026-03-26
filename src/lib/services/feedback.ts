@@ -13,6 +13,7 @@ export interface FeedbackInput {
 
 export interface FeedbackService {
 	getMyForm(meetingId: string, userId: string): Promise<FeedbackForm | null>;
+	getFormById(formId: string, userId: string): Promise<FeedbackForm | null>;
 	submit(formId: string, data: FeedbackInput): Promise<FeedbackFormState>;
 	getRevealedFeedback(meetingId: string, userId: string): Promise<RevealedFeedback[]>;
 	getVocabulary(): Promise<string[]>;
@@ -26,6 +27,18 @@ export class SupabaseFeedbackService implements FeedbackService {
 			.from('feedback_forms')
 			.select('id, meeting_id, reviewer_id, reviewee_id, did_meet, no_show_reason, rating_tags, free_text, share_with_person, state, submitted_at, locked_at, created_at')
 			.eq('meeting_id', meetingId)
+			.eq('reviewer_id', userId)
+			.maybeSingle();
+
+		if (error) throw new Error(`Failed to load feedback form: ${error.message}`);
+		return data as FeedbackForm | null;
+	}
+
+	async getFormById(formId: string, userId: string): Promise<FeedbackForm | null> {
+		const { data, error } = await this.supabase
+			.from('feedback_forms')
+			.select('id, meeting_id, reviewer_id, reviewee_id, did_meet, no_show_reason, rating_tags, free_text, share_with_person, state, submitted_at, locked_at, created_at')
+			.eq('id', formId)
 			.eq('reviewer_id', userId)
 			.maybeSingle();
 

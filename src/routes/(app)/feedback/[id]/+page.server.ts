@@ -7,7 +7,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	const [form, vocabulary] = await Promise.all([
 		// Load by form ID — the gate redirects with form ID in the URL
-		service.getMyForm(params.id, locals.user!.id).catch(() => null),
+		service.getFormById(params.id, locals.user!.id).catch(() => null),
 		service.getVocabulary()
 	]);
 
