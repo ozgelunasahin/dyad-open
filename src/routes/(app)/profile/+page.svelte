@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import type { Prompt } from '$lib/domain/types';
+	import { goto } from '$app/navigation';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
 
 	let { data }: { data: PageData } = $props();
@@ -126,7 +127,7 @@
 	{/if}
 </div>
 
-<FloatingNav position="bottom" active="profile" />
+<FloatingNav position="bottom" active="profile" onMapClick={() => goto('/discover?view=map')} />
 
 <style>
 	.content { width: 100%; max-width: 700px; padding-bottom: 80px; }
