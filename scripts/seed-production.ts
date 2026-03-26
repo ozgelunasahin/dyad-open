@@ -10,7 +10,7 @@ import { createClient } from '@supabase/supabase-js';
 import { config } from 'dotenv';
 import { nanoid } from 'nanoid';
 
-config({ path: '.env.local' });
+// Load .env only (remote/production credentials), NOT .env.local (local dev)
 config({ path: '.env' });
 
 const SUPABASE_URL = process.env.PUBLIC_SUPABASE_URL;

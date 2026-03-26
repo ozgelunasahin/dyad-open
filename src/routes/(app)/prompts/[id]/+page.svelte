@@ -85,7 +85,11 @@
 	<p class="meta">by @{data.prompt.author_username}</p>
 
 	<div class="body">
-		{@html data.prompt.body_html}
+		{#if data.prompt.body_html}
+			{@html data.prompt.body_html}
+		{:else if data.prompt.body_snippet}
+			<p>{data.prompt.body_snippet}</p>
+		{/if}
 	</div>
 
 	<!-- Response + Invitation flow (non-authors only) -->
