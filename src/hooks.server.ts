@@ -55,7 +55,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 			pathname.startsWith('/logout') ||
 			pathname.endsWith('.webmanifest') ||
 			pathname.startsWith('/service-worker') ||
-			pathname.startsWith('/favicon');
+			pathname.startsWith('/favicon') ||
+			pathname.startsWith('/impressum') ||
+			pathname.startsWith('/datenschutz');
 
 		if (!isExempt) {
 			const { SupabaseGateService } = await import('$lib/services/gate.js');
