@@ -78,10 +78,12 @@
 			}).addTo(markerLayer);
 
 			// Cover image marker (or placeholder)
+			// Escape HTML attributes to prevent XSS from user-controlled URLs/titles
+			const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 			const imgSrc = pin.prompt.cover_image_url;
 			const html = imgSrc
-				? `<img src="${imgSrc}" alt="" class="marker-img" />`
-				: `<div class="marker-placeholder">${(pin.prompt.title ?? '?')[0]}</div>`;
+				? `<img src="${esc(imgSrc)}" alt="" class="marker-img" />`
+				: `<div class="marker-placeholder">${esc((pin.prompt.title ?? '?')[0])}</div>`;
 
 			const icon = L.divIcon({
 				html,
