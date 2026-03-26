@@ -2,88 +2,69 @@
 
 ## Project Overview
 
-dyad.berlin is a SvelteKit app for reading interconnected notes on a 2D canvas. Users create canvases with wikilink-connected notes, and publish them as multi-section sites.
+dyad.berlin is a SvelteKit app for facilitating in-person conversations in Berlin. Users write conversation prompts, schedule meeting slots with locations, and meet strangers for real conversations. The platform handles the full cycle: discover → respond → invite → meet → give feedback.
 
-**Stack:** SvelteKit, Svelte 5 (runes), Supabase, TipTap/ProseMirror, d3-zoom, Cloudflare Pages.
+**Stack:** SvelteKit, Svelte 5 (runes), Supabase (auth + DB + storage), TipTap/ProseMirror (rich text editor), Leaflet (map), Cloudflare Pages.
 
-## Critical Architectural Patterns
+**Domain vocabulary:** The internal model uses "prompt" for the written conversation starter. User-facing copy uses "conversation." See `docs/design/domain-language.md` for the full mapping.
 
-### 1. canvasStore is a Singleton
+## Architecture
 
-`src/lib/stores/canvas.svelte.ts` exports a single `canvasStore` instance. **You cannot mount two `<Canvas>` components simultaneously** — they share the same store state. The `SiteSPA` component works around this with `suspend()`/`resume()` to snapshot and restore state when switching between canvas sections.
+### Service Layer Pattern
 
-### 2. Map/Set Copy-on-Write for Reactivity
+All data access goes through typed service interfaces with Supabase implementations:
 
-Svelte 5 runes track reactivity by assignment, not mutation. Every `Map` or `Set` mutation **must** create a new instance:
-
-```typescript
-// CORRECT
-const newCards = new Map(this.cards);
-newCards.set(noteId, newCard);
-this.cards = newCards;
-
-// WRONG — silently breaks reactivity
-this.cards.set(noteId, newCard);
+```
+src/lib/services/
+  prompt-command.ts    # PromptCommandService — create, update, publish, slots
+  prompt-query.ts      # PromptQueryService — discover feed, detail, my prompts
+  comment.ts           # CommentService — responses (called "comments" in DB)
+  invitation.ts        # InvitationService — create, cancel, accept
+  meeting.ts           # MeetingService — detail, cancel
+  feedback.ts          # FeedbackService — form, submit, vocabulary
+  gate.ts              # GateService — feedback gate check
+  location.ts          # Location search via Nominatim (server-side)
 ```
 
-This pattern appears dozens of times in `canvas.svelte.ts`. Violating it will silently break the UI.
+Services are TypeScript interfaces + `Supabase*` implementation classes. Page server loaders call services directly (not internal API fetches). The test factory in `tests/helpers/db.ts` is the single swap point for portability.
 
-### 3. initGeneration Guard for Async Races
+### (app) Layout Group
 
-The store uses a generation counter to prevent stale async work from corrupting state:
+All authenticated routes live under `src/routes/(app)/`. The layout provides:
+- Auth guard (redirect to `/login` if not authenticated)
+- Username loading from profiles
+- Sidebar nav (Discover, Profile) + mobile hamburger
 
-```typescript
-private initGeneration = 0;
+### Feedback Gate
 
-async initialize(vault, canvasId?, savedPositions?) {
-    const gen = ++this.initGeneration;
-    // ... async work ...
-    if (gen !== this.initGeneration) return; // Bail if superseded
-}
+`src/hooks.server.ts` checks every authenticated request for pending feedback forms. Gated users are redirected to `/feedback/{formId}`. Exempt paths: `/_app/`, `/feedback`, `/api/feedback`, `/api/auth`, `/api/vocabulary`, `/auth`, `/logout`, `/impressum`, `/datenschutz`, `.webmanifest`, `/service-worker`, `/favicon`.
+
+### Key Patterns
+
+- **Generation counter for async races**: Used in the prompt editor's auto-save (`saveGeneration`) and the MapView marker rebuilds. Prevents stale responses from corrupting state.
+- **TipTap + Svelte 5**: Use `createSubscriber` from `svelte/reactivity` to bridge TipTap transactions into runes. Never call store methods directly from `onUpdate`. See `docs/solutions/integration-issues/svelte5-tiptap-reactive-loop.md`.
+- **Copy-on-write for reactivity**: Svelte 5 runes track by assignment. Any `Map` or `Set` mutation must create a new instance.
+- **Response-first invitation flow**: Users must write a response before they can invite to meet. The response IS the meeting context.
+
+## Route Structure
+
 ```
-
-The same pattern appears as `activationGeneration` in `SiteSPA.svelte` and `animationGeneration` in `Canvas.svelte`.
-
-### 4. d3-zoom Cleanup on Unmount
-
-Canvas pan/zoom uses d3-zoom initialized in `Canvas.svelte`'s `onMount`. Cleanup is required:
-
-```typescript
-select(svg).on('.zoom', null); // Must be in onMount return/cleanup
+/                      — Landing page (prompt previews for anon, redirect to /discover for auth)
+/login                 — Login
+/join                  — Registration via invite
+/logout                — Logout
+/waitlist              — Waitlist signup
+/discover              — Prompt feed with map/list toggle (authenticated)
+/prompts/new           — Create new conversation (draft)
+/prompts/[id]          — Conversation detail (read, respond, invite)
+/prompts/[id]/edit     — Edit conversation (editor, scheduling, publish)
+/profile               — My conversations + meetings
+/meetings/[id]         — Meeting detail (location, cancel)
+/feedback/[id]         — Feedback form (gated)
+/impressum             — Legal notice
+/datenschutz           — Privacy policy
+/api/*                 — REST API endpoints
 ```
-
-Without this, ghost event handlers persist after unmount.
-
-### 5. Canvas Lifecycle Methods
-
-- **`teardown()`** — Clears in-memory state only. No API calls. Used for read-only sites.
-- **`hardReset()`** — Clears database positions, localStorage, and in-memory state.
-- **`suspend()`/`resume()`** — Snapshot/restore canvas state without re-initialization. Used when switching between canvas sections.
-
-### 6. CustomEvent Bus
-
-The store communicates with `Canvas.svelte` via `window.dispatchEvent(new CustomEvent(...))`. Event names are string literals (not centrally typed). Key events: `canvas-focus`, `canvas-compute-paths`, `canvas-zoom-to-fit`, `canvas-open-chain`, `card-content-reflow`. All listeners are cleaned up in `Canvas.svelte`'s unmount.
-
-## Landing Page (`/`)
-
-The root route displays a published site for anonymous visitors (logged-in users are redirected to their dashboard). The site owner and slug are hardcoded in `src/routes/+page.server.ts`:
-
-```typescript
-const LANDING_USERNAME = 'digit';
-const LANDING_SITE_SLUG = 'dyad';
-```
-
-To change which site appears on the landing page, update these two constants to match the desired user's `profiles.username` and `sites.slug`. The site must have `is_published = true` in the database.
-
-## Two Site Rendering Approaches
-
-There are two distinct rendering paths for published sites:
-
-1. **Landing page** (`src/routes/+page.svelte`): Uses `buildLandingCanvasData()` to merge all sections into a single flat canvas with `WebsiteContainer` + `Canvas readOnly`.
-
-2. **Paginated SPA** (`SiteSPA.svelte`, used by preview and published sites): Renders sections as scroll-snap pages with individual `Canvas` instances activated/deactivated per section.
-
-The paginated SPA is the newer approach being developed on `feat/paginated-site-view`.
 
 ## Environment Variables
 
@@ -91,54 +72,46 @@ The paginated SPA is the newer approach being developed on `feat/paginated-site-
 |----------|----------|---------|
 | `PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
 | `PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon key (public, works with RLS) |
-| `SUPABASE_SERVICE_ROLE_KEY` | No | Only for `scripts/fetch-feedback.ts` admin script |
+| `SUPABASE_SERVICE_ROLE_KEY` | No | Only for admin scripts |
 
 ## Database
 
-Schema is defined in two places:
-- `supabase-setup.sql` — Monolithic setup for fresh projects
-- `supabase/migrations/` — Incremental migrations for the Supabase CLI
-
-The migrations directory is the source of truth for the latest schema.
-
-## Project Structure
-
-```
-src/
-  routes/              # SvelteKit file-based routing
-    api/               # REST endpoints (notes, sites, canvases, upload, contact, feedback)
-    canvas/[canvasId]/ # Authenticated canvas editor
-    dashboard/         # User's canvas list
-    sites/             # Site editing, preview, and public rendering
-    @[username]/       # Public canvas URLs
-  lib/
-    components/        # Svelte components (Canvas, NoteCard, SiteSPA, etc.)
-    stores/            # canvas.svelte.ts (singleton), theme.svelte.ts
-    server/            # Server-only (load-site-sections.ts)
-    utils/             # Pure utilities (pathfinding, layout, json-content, etc.)
-    tiptap/            # Client-side TipTap wikilink extension
-    types/             # TypeScript interfaces and constants
-```
+Schema defined in `supabase/migrations/` (source of truth). Key tables:
+- `prompts` — Conversations with state machine (draft → published → archived)
+- `time_slots` — Meeting slots with exact_location (private) and general_area (public)
+- `prompt_comments` — Responses to conversations (one per user per prompt)
+- `prompt_invitations` — Meeting invitations tied to slots
+- `meetings` — Scheduled meetings between two users
+- `feedback_forms` — Post-meeting feedback with simultaneous reveal
+- `adjective_vocabulary` — Rating tags for feedback
 
 ## Key Files
 
-- `src/lib/stores/canvas.svelte.ts` — Core state management (~2,400 lines)
-- `src/lib/components/Canvas.svelte` — Canvas rendering (~1,700 lines, 870-line onMount)
-- `src/lib/components/SiteSPA.svelte` — Paginated site viewer with section navigation
-- `src/lib/server/load-site-sections.ts` — Server-side data loading for sites
-- `src/lib/utils/pathfinding.ts` — A* pathfinding for connection lines
+- `src/lib/domain/types.ts` — All domain types (Prompt, TimeSlot, Comment, Meeting, etc.)
+- `src/lib/domain/prompt.ts` — State machine guards (canPublish, canUnpublish, etc.)
+- `src/lib/components/PromptEditor.svelte` — TipTap rich text editor with toolbar
+- `src/lib/components/MapView.svelte` — Leaflet map with fuzzed pins
+- `src/lib/components/BottomSheet.svelte` — Map pin detail overlay
 - `src/lib/utils/tiptap-html.ts` — Server-side TipTap JSON → sanitized HTML
+- `src/lib/server/validate-tiptap-content.ts` — TipTap JSON structure validation
+- `src/hooks.server.ts` — Auth + feedback gate middleware
 
 ## Build Notes
 
-- PWA workbox warnings about oversized upload files are pre-existing and harmless.
-- `svelte-check` has pre-existing errors (Supabase type widening, Cache-Control type).
+- PWA workbox errors about oversized upload files are pre-existing and harmless.
+- `svelte-check` has pre-existing errors (Supabase type widening).
 - `DOMPurify` import: use `import DOMPurify from 'isomorphic-dompurify'` (default import).
+- Leaflet CSS and icons self-hosted in `static/leaflet/`.
+
+## Design References
+
+- `docs/design/design-principles.md` — Core product principles (no pre-meeting contact, healthy brain, feedback gate)
+- `docs/design/domain-language.md` — Internal vs user-facing vocabulary
+- `docs/stories/` — User stories
+- `docs/solutions/` — Documented gotchas and patterns
 
 ## Todos & Plans
 
-The `todos/` directory contains prioritized findings from code reviews. Files follow the pattern `{NNN}-{priority}-{description}.md` with YAML frontmatter. Completed items are in `todos/archive/`.
+The `todos/` directory contains prioritized findings from code reviews. Files follow the pattern `{NNN}-{status}-{priority}-{description}.md`. Completed items are in `todos/archive/`.
 
-The `plans/` directory contains implementation plans. Completed plans should be moved to `plans/archive/`.
-
-When resolving a todo or completing a plan, always move the file to the corresponding `archive/` subdirectory rather than deleting it.
+The `docs/plans/` directory contains implementation plans. When resolving a todo or completing a plan, always move the file to the corresponding `archive/` subdirectory rather than deleting it.
