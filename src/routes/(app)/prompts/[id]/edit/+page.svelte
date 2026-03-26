@@ -57,7 +57,7 @@
 	});
 
 	onMount(() => {
-		const handler = () => { if (saveTimer) { /* browser shows native dialog */ } };
+		const handler = (e: BeforeUnloadEvent) => { if (saveTimer) { e.preventDefault(); e.returnValue = ''; } };
 		window.addEventListener('beforeunload', handler);
 		return () => {
 			window.removeEventListener('beforeunload', handler);
