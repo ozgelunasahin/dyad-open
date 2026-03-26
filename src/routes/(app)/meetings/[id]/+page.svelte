@@ -60,28 +60,19 @@
 </div>
 
 <style>
-	.back-link {
-		display: inline-block;
-		font-family: 'SangBleu Sunrise', Georgia, serif;
-		font-size: 0.9rem;
-		color: var(--text-muted, #666);
-		text-decoration: none;
-		margin-bottom: 16px;
-	}
-	.back-link:hover { color: var(--text-primary); }
-
+	/* .back-link uses global shared class */
 	.content { width: 100%; max-width: 560px; }
 
-	.page-title { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 1.5rem; font-weight: normal; color: var(--text-primary); margin: 0 0 32px; }
+	.page-title { font-size: var(--text-2xl); font-weight: normal; margin: 0 0 var(--space-8); }
 
-	.detail-grid { display: flex; flex-direction: column; gap: 0; margin-bottom: 32px; }
-	.detail-row { display: flex; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--border-link, rgba(0,0,0,0.06)); }
-	.label { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 13px; color: var(--text-muted, #666); width: 80px; flex-shrink: 0; }
-	.value { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 14px; color: var(--text-primary); }
+	.detail-grid { display: flex; flex-direction: column; margin-bottom: var(--space-8); }
+	.detail-row { display: flex; gap: var(--space-4); padding: var(--space-3) 0; border-bottom: 1px solid var(--border-link); }
+	.label { font-size: var(--text-sm); color: var(--text-muted); width: 80px; flex-shrink: 0; }
+	.value { font-size: var(--text-base); }
 	.location { font-weight: 500; }
-	.addr { font-size: 12px; color: var(--text-muted, #666); font-weight: normal; }
+	.addr { font-size: var(--text-xs); color: var(--text-muted); font-weight: normal; }
 
-	.cancel-btn { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 13px; padding: 8px 20px; border: 1px solid var(--border-link, rgba(0,0,0,0.15)); border-radius: 6px; background: none; color: var(--text-muted, #666); cursor: pointer; }
-	.cancel-btn:hover { border-color: #c00; color: #c00; }
+	.cancel-btn { font-size: var(--text-sm); padding: var(--space-2) var(--space-5); border: 1px solid var(--border-link); border-radius: var(--radius-input); background: none; color: var(--text-muted); cursor: pointer; }
+	.cancel-btn:hover { border-color: var(--color-danger); color: var(--color-danger); }
 	.cancel-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>
