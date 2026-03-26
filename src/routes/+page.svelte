@@ -272,7 +272,7 @@
 						<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 2l12 12M14 2L2 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
 					</button>
 				</div>
-				<p class="modal-desc">For those who seek conversation for its own sake.</p>
+				<p class="modal-desc">Meet interesting people in Berlin through real conversation.</p>
 				<form class="modal-form" onsubmit={handleJoinSubmit}>
 					<div class="field-row">
 						<input type="text" placeholder="Name" bind:value={joinName} disabled={joinStatus === 'sending'} />
