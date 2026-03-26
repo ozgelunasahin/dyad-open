@@ -14,7 +14,7 @@ export default defineConfig({
 			manifest: {
 				name: 'dyad',
 				short_name: 'dyad',
-				description: 'Explore connected notes in space',
+				description: 'Cultivating a culture of conversation in Berlin',
 				theme_color: '#ffffff',
 				background_color: '#f8fafc',
 				display: 'standalone',
