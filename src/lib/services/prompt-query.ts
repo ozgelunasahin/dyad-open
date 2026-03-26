@@ -16,6 +16,11 @@ export interface PromptQueryService {
 		cursor?: string;
 	}): Promise<PromptSummary[]>;
 
+	getPublishedPromptsPublic(params: {
+		region?: string;
+		limit?: number;
+	}): Promise<PromptSummary[]>;
+
 	getPromptDetail(id: string, userId: string): Promise<PromptDetail | null>;
 
 	getMyPrompts(userId: string): Promise<Prompt[]>;
@@ -98,6 +103,75 @@ export class SupabasePromptQueryService implements PromptQueryService {
 		}
 
 		// Sort by soonest slot
+		summaries.sort((a, b) => {
+			if (!a.soonest_slot) return 1;
+			if (!b.soonest_slot) return -1;
+			return a.soonest_slot.localeCompare(b.soonest_slot);
+		});
+
+		return summaries;
+	}
+
+	async getPublishedPromptsPublic(params: {
+		region?: string;
+		limit?: number;
+	}): Promise<PromptSummary[]> {
+		const limit = params.limit ?? 8;
+
+		let query = this.supabase
+			.from('prompts')
+			.select('id, author_id, title, body, cover_image_url, published_at, region')
+			.eq('state', 'published')
+			.order('published_at', { ascending: false })
+			.limit(limit);
+
+		if (params.region) {
+			query = query.eq('region', params.region);
+		}
+
+		const { data: prompts, error } = await query;
+		if (error || !prompts || prompts.length === 0) return [];
+
+		const promptIds = prompts.map((p) => p.id);
+		const [{ data: allSlots }, usernameMap] = await Promise.all([
+			this.supabase
+				.from('time_slots_public')
+				.select('id, prompt_id, start_time, duration_minutes, general_area, general_area_lat, general_area_lng, accepted, created_at')
+				.in('prompt_id', promptIds)
+				.eq('accepted', false)
+				.order('start_time', { ascending: true }),
+			buildUsernameMap(this.supabase, prompts.map((p) => p.author_id))
+		]);
+
+		const now = new Date();
+		const slotsByPrompt = new Map<string, TimeSlot[]>();
+		for (const slot of allSlots ?? []) {
+			if (isAvailable(slot as TimeSlot, now)) {
+				const existing = slotsByPrompt.get(slot.prompt_id) ?? [];
+				existing.push(slot as TimeSlot);
+				slotsByPrompt.set(slot.prompt_id, existing);
+			}
+		}
+
+		const summaries: PromptSummary[] = [];
+		for (const p of prompts) {
+			const slots = slotsByPrompt.get(p.id) ?? [];
+			if (slots.length === 0) continue;
+
+			summaries.push({
+				id: p.id,
+				author_id: p.author_id,
+				author_username: usernameMap.get(p.author_id) ?? 'anonymous',
+				title: p.title,
+				body_snippet: makeSnippet(p.body as JSONContent | null),
+				cover_image_url: p.cover_image_url,
+				available_slots: slots,
+				soonest_slot: slots[0]?.start_time ?? null,
+				published_at: p.published_at,
+				region: p.region
+			});
+		}
+
 		summaries.sort((a, b) => {
 			if (!a.soonest_slot) return 1;
 			if (!b.soonest_slot) return -1;
