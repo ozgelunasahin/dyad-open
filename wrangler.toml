@@ -1,0 +1,5 @@
+# Cloudflare Pages configuration
+# Required for isomorphic-dompurify (jsdom) and @tiptap/html (ProseMirror DOMSerializer)
+# which need Node.js APIs not available in vanilla Workers
+compatibility_flags = ["nodejs_compat"]
+compatibility_date = "2024-09-23"
