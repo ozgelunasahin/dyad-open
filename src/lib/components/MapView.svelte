@@ -167,19 +167,18 @@
 
 <style>
 	.map-container {
-		width: 100%;
-		height: calc(100vh - 120px);
+		width: calc(100% + 4rem);
+		height: calc(100vh - 80px);
 		min-height: 400px;
-		border-radius: var(--radius-card, 12px);
+		margin: -2rem;
 		overflow: hidden;
 	}
 
 	@media (max-width: 430px) {
 		.map-container {
-			height: calc(100vh - 80px);
-			border-radius: 0;
-			margin: 0 -1rem;
 			width: calc(100% + 2rem);
+			height: calc(100vh - 60px);
+			margin: -1rem;
 		}
 	}
 
