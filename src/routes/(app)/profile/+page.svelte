@@ -85,7 +85,7 @@
 						<button class="btn-accept" onclick={() => acceptInvitation(inv.id)} disabled={acceptingId === inv.id}>
 							{acceptingId === inv.id ? 'Accepting...' : 'Accept'}
 						</button>
-						<a href="/prompts/{inv.prompt_id}?from=profile" class="btn-view">View conversation</a>
+						<a href="/conversations/{inv.prompt_id}?from=profile" class="btn-view">View conversation</a>
 					</div>
 				</div>
 			{/each}
@@ -123,11 +123,11 @@
 		<h2 class="section-title">Conversations</h2>
 
 		{#if published.length === 0 && drafts.length === 0 && data.respondedPrompts.length === 0 && archived.length === 0}
-			<p class="empty">No conversations yet. <a href="/prompts/new">Start one</a></p>
+			<p class="empty">No conversations yet. <a href="/conversations/new">Start one</a></p>
 		{:else}
 			<div class="prompt-list">
 				{#each published as prompt}
-					<a href="/prompts/{prompt.id}?from=profile" class="prompt-item">
+					<a href="/conversations/{prompt.id}?from=profile" class="prompt-item">
 						<div class="prompt-row">
 							<div class="row-thumb">
 								{#if prompt.cover_image_url}
@@ -145,7 +145,7 @@
 				{/each}
 
 				{#each drafts as prompt}
-					<a href="/prompts/{prompt.id}/edit" class="prompt-item draft">
+					<a href="/conversations/{prompt.id}/edit" class="prompt-item draft">
 						<div class="prompt-row">
 							<div class="row-thumb">
 								{#if prompt.cover_image_url}
@@ -163,7 +163,7 @@
 				{/each}
 
 				{#each data.respondedPrompts as rp}
-					<a href="/prompts/{rp.prompt_id}?from=profile" class="prompt-item">
+					<a href="/conversations/{rp.prompt_id}?from=profile" class="prompt-item">
 						<div class="prompt-row">
 							<div class="row-thumb">
 								<div class="thumb-placeholder"></div>
@@ -177,7 +177,7 @@
 				{/each}
 
 				{#each archived as prompt}
-					<a href="/prompts/{prompt.id}" class="prompt-item past">
+					<a href="/conversations/{prompt.id}" class="prompt-item past">
 						<div class="prompt-row">
 							<div class="row-thumb">
 								{#if prompt.cover_image_url}

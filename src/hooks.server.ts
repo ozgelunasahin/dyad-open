@@ -40,6 +40,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.session = session;
 	event.locals.user = user;
 
+	// Redirect old /prompts/ URLs to /conversations/
+	if (event.url.pathname.startsWith('/prompts/')) {
+		const newPath = event.url.pathname.replace('/prompts/', '/conversations/') + event.url.search;
+		return new Response(null, { status: 302, headers: { Location: newPath } });
+	}
+
 	// Feedback gate: block app access when user has due feedback
 	if (user) {
 		const pathname = event.url.pathname;

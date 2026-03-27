@@ -46,7 +46,7 @@ test('Full flow: respond → invite → accept', async ({ browser }) => {
 		const tomContext = await browser.newContext({ storageState: 'tests/.auth/tom.json' });
 		const tomPage = await tomContext.newPage();
 
-		await tomPage.goto(`/prompts/${conversationId}`);
+		await tomPage.goto(`/conversations/${conversationId}`);
 		await expect(tomPage.getByText('E2E: Conversation about testing')).toBeVisible();
 		await expect(tomPage.getByText('Mitte')).toBeVisible(); // Read-only slots visible
 

@@ -53,12 +53,12 @@ Rename `/prompts/` to `/conversations/` in user-facing routes. API endpoints and
 **Existing plan:** `docs/plans/2026-03-27-refactor-conversation-route-rename-plan.md`
 
 **Fix:**
-- [ ] Rename `src/routes/(app)/prompts/` → `src/routes/(app)/conversations/`
-- [ ] Rename `src/routes/(editor)/prompts/` → `src/routes/(editor)/conversations/`
-- [ ] Update all `href="/prompts/..."` and `goto('/prompts/...')` across all `.svelte` files (~20 references)
-- [ ] Update `SearchOverlay.svelte` onSelect callback
-- [ ] Add redirect in `hooks.server.ts`: `/prompts/*` → `/conversations/*` (302 for now)
-- [ ] Verify E2E tests still pass (update test URLs)
+- [x] Rename `src/routes/(app)/prompts/` → `src/routes/(app)/conversations/`
+- [x] Rename `src/routes/(editor)/prompts/` → `src/routes/(editor)/conversations/`
+- [x] Update all `href="/prompts/..."` and `goto('/prompts/...')` across all `.svelte` files (~20 references)
+- [x] Update `SearchOverlay.svelte` onSelect callback
+- [x] Add redirect in `hooks.server.ts`: `/prompts/*` → `/conversations/*` (302 for now)
+- [x] Verify E2E tests still pass (update test URLs)
 
 ## Phase 3: Quick UX Wins
 
