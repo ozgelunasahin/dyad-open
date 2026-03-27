@@ -5,10 +5,12 @@
 	import MapView from '$lib/components/MapView.svelte';
 	import BottomSheet from '$lib/components/BottomSheet.svelte';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
+	import SearchOverlay from '$lib/components/SearchOverlay.svelte';
 	import { getWeekDates } from '$lib/utils/dates';
 
 	let { data }: { data: PageData } = $props();
 	let viewMode = $state<'list' | 'map'>('list');
+	let searchOpen = $state(false);
 	let selectedPinPrompts = $state<PromptSummary[]>([]);
 	let selectedPinArea = $state('');
 
@@ -191,8 +193,17 @@
 		selectedDays={selectedDates}
 		onToggleDay={toggleDate}
 		showDateFilter={true}
+		onSearchClick={() => searchOpen = true}
 	/>
 </div>
+
+{#if searchOpen}
+	<SearchOverlay
+		prompts={data.prompts}
+		onClose={() => searchOpen = false}
+		onSelect={(id) => { searchOpen = false; goto(`/prompts/${id}`); }}
+	/>
+{/if}
 
 <style>
 	.floating-nav-wrapper { display: block; }
