@@ -70,10 +70,10 @@ Run `/workflows:compound` retroactively on each merged PR to create solution doc
 
 ### Execution
 
-- [ ] For each PR group, launch a parallel agent running `/workflows:compound` with PR number and context
-- [ ] Each agent reads the PR diff, identifies non-obvious learnings, and creates a solution doc
-- [ ] Skip PRs where the learning is trivial or already documented
-- [ ] Target: 10-15 new solution documents (not 30 — many PRs share learnings)
+- [x] For each PR group, launch a parallel agent running `/workflows:compound` with PR number and context
+- [x] Each agent reads the PR diff, identifies non-obvious learnings, and creates a solution doc
+- [x] Skip PRs where the learning is trivial or already documented
+- [x] Target: 10-15 new solution documents (not 30 — many PRs share learnings) → 18 created
 
 ### Solution Document Categories
 
@@ -93,14 +93,14 @@ docs/solutions/
 
 ### Review and Update CLAUDE.md
 
-- [ ] Verify all route paths are current (after /prompts/ → /conversations/ rename)
-- [ ] Update key files section with new components (SlotCard, dates.ts, escape-html.ts)
-- [ ] Verify design references section is current
-- [ ] Add any new patterns discovered during v0.1 (e.g., SlotCard, staged disclosure)
+- [x] Verify all route paths are current (after /prompts/ → /conversations/ rename)
+- [x] Update key files section with new components (SlotCard, dates.ts, escape-html.ts)
+- [x] Verify design references section is current
+- [x] Add any new patterns discovered during v0.1 (e.g., SlotCard, staged disclosure)
 
 ### Review and Update Design Docs
 
-- [ ] `docs/design/design-system.md` — add SlotCard spec, hybrid timestamp rules
+- [x] `docs/design/design-system.md` — add SlotCard spec, hybrid timestamp rules
 - [ ] `docs/design/design-principles.md` — review against actual implementation, note any deviations
 - [ ] `docs/design/domain-language.md` — verify internal/user-facing term mapping is still accurate
 
@@ -115,8 +115,8 @@ For each brainstorm, verify the chain is complete:
 
 ### Archive Completed Plans
 
-- [ ] Review 8 active plans — mark completed ones, archive them
-- [ ] Verify all checkboxes checked in completed plans before archiving
+- [x] Review 8 active plans — mark completed ones, archive them (7 archived)
+- [x] Verify all checkboxes checked in completed plans before archiving
 
 ### Triage Remaining Todos
 
@@ -134,9 +134,9 @@ Current: 40 pending todos. Many may be stale or superseded.
 
 ## Phase 4: Tag the Release
 
-- [ ] Create `CHANGELOG.md` summarising v0.1 features
+- [x] Create `CHANGELOG.md` summarising v0.1 features
 - [ ] Git tag `v0.1.0` on main
-- [ ] Update CLAUDE.md with v0.1 completion note
+- [x] Update CLAUDE.md with v0.1 completion note
 - [ ] Create v0.2 roadmap summary (from deferred todos and the plan file)
 
 ## Acceptance Criteria
