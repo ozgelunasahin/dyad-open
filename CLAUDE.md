@@ -54,10 +54,10 @@ All authenticated routes live under `src/routes/(app)/`. The layout provides:
 /join                  — Registration via invite
 /logout                — Logout
 /waitlist              — Waitlist signup
-/discover              — Prompt feed with map/list toggle (authenticated)
-/prompts/new           — Create new conversation (draft)
-/prompts/[id]          — Conversation detail (read, respond, invite)
-/prompts/[id]/edit     — Edit conversation (editor, scheduling, publish)
+/discover              — Conversation feed with map/list toggle (authenticated)
+/conversations/new     — Create new conversation (draft)
+/conversations/[id]    — Conversation detail (read, respond, invite)
+/conversations/[id]/edit — Edit conversation (editor, scheduling, publish)
 /profile               — My conversations + meetings
 /meetings/[id]         — Meeting detail (location, cancel)
 /feedback/[id]         — Feedback form (gated)
@@ -90,11 +90,15 @@ Schema defined in `supabase/migrations/` (source of truth). Key tables:
 - `src/lib/domain/types.ts` — All domain types (Prompt, TimeSlot, Comment, Meeting, etc.)
 - `src/lib/domain/prompt.ts` — State machine guards (canPublish, canUnpublish, etc.)
 - `src/lib/components/PromptEditor.svelte` — TipTap rich text editor with toolbar
-- `src/lib/components/MapView.svelte` — Leaflet map with fuzzed pins
+- `src/lib/components/MapView.svelte` — Leaflet map with fuzzed pins, distance-sorted BottomSheet
 - `src/lib/components/BottomSheet.svelte` — Map pin detail overlay
+- `src/lib/components/SlotCard.svelte` — Reusable time slot card with hybrid timestamps
+- `src/lib/components/FloatingNav.svelte` — Mobile navigation pill (discover + editor variants)
 - `src/lib/utils/tiptap-html.ts` — Server-side TipTap JSON → sanitized HTML
+- `src/lib/utils/dates.ts` — Hybrid date formatting (Today/Tomorrow/day name/date)
+- `src/lib/utils/escape-html.ts` — HTML escaping for email templates
 - `src/lib/server/validate-tiptap-content.ts` — TipTap JSON structure validation
-- `src/hooks.server.ts` — Auth + feedback gate middleware
+- `src/hooks.server.ts` — Auth + feedback gate + /prompts/ → /conversations/ redirect
 
 ## Build Notes
 

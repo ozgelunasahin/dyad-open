@@ -1,7 +1,7 @@
 ---
 title: "refactor: Rename /prompts/ routes to /conversations/"
 type: refactor
-status: active
+status: completed
 date: 2026-03-27
 ---
 

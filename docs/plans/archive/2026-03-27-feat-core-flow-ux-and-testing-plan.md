@@ -1,7 +1,7 @@
 ---
 title: "feat: Core flow UX — complete the discover→meet→feedback cycle + test harness"
 type: feat
-status: active
+status: completed
 date: 2026-03-27
 ---
 

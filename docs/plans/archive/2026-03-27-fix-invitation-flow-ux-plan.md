@@ -1,7 +1,7 @@
 ---
 title: "fix: Invitation flow UX — from form to conversation"
 type: fix
-status: active
+status: completed
 date: 2026-03-27
 origin: docs/brainstorms/2026-03-27-user-testing-feedback-brainstorm.md
 ---

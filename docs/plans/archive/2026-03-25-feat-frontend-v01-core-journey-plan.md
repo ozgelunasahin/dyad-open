@@ -1,7 +1,7 @@
 ---
 title: "feat: Frontend v0.1 Core Journey"
 type: feat
-status: active
+status: completed
 date: 2026-03-25
 origin: docs/brainstorms/2026-03-25-frontend-v01-core-journey-brainstorm.md
 ---

@@ -1,7 +1,7 @@
 ---
 title: "feat: Map preview interaction — tap pin → preview card → detail"
 type: feat
-status: active
+status: completed
 date: 2026-03-27
 ---
 
