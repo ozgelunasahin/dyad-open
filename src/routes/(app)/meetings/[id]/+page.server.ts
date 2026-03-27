@@ -6,7 +6,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const userId = locals.user!.id;
 	const service = new SupabaseMeetingService(locals.supabase);
 
-	// Try full detail (with location) first, fall back to metadata-only
 	const meeting = await service.getWithLocation(params.id)
 		?? await service.getDetail(params.id);
 
@@ -14,14 +13,34 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		redirect(302, '/profile');
 	}
 
-	// Verify current user is a participant (defense-in-depth)
 	if (meeting.participant_a !== userId && meeting.participant_b !== userId) {
 		redirect(302, '/profile');
 	}
 
-	const otherParticipant = meeting.participant_a === userId
+	const otherId = meeting.participant_a === userId
 		? meeting.participant_b
 		: meeting.participant_a;
 
-	return { meeting, otherParticipant };
+	// Load other participant's username and the conversation context
+	const [{ data: otherProfile }, { data: prompt }, { data: invitation }] = await Promise.all([
+		locals.supabase.from('profiles').select('username').eq('id', otherId).single(),
+		locals.supabase.from('prompts').select('id, title').eq('id', meeting.prompt_id).single(),
+		locals.supabase
+			.from('prompt_invitations')
+			.select('message')
+			.eq('prompt_id', meeting.prompt_id)
+			.eq('state', 'accepted')
+			.limit(1)
+			.single()
+			.then(r => r.data)
+			.catch(() => null)
+	]);
+
+	return {
+		meeting,
+		otherUsername: otherProfile?.username ?? 'someone',
+		promptId: prompt?.id ?? null,
+		promptTitle: prompt?.title ?? null,
+		invitationMessage: invitation?.message ?? null
+	};
 };
