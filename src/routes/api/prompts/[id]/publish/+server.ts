@@ -16,6 +16,18 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		return json({ error: 'At least one time slot is required' }, { status: 400 });
 	}
 
+	// Verify cover image exists before publishing
+	const { data: prompt } = await locals.supabase
+		.from('prompts')
+		.select('cover_image_url')
+		.eq('id', params.id)
+		.eq('author_id', user.id)
+		.single();
+
+	if (!prompt?.cover_image_url) {
+		return json({ error: 'Cover image is required to publish' }, { status: 400 });
+	}
+
 	const service = new SupabasePromptCommandService(locals.supabase);
 	try {
 		await service.publish(params.id, user.id, body.slots);

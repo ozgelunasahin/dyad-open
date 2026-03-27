@@ -83,7 +83,6 @@
 	}
 
 	.sheet-title {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
 		font-size: 1.1rem;
 		font-weight: 500;
 		color: var(--text-primary);
@@ -91,7 +90,7 @@
 	}
 
 	.sheet-count {
-		font-family: 'SF Mono', monospace;
+		font-family: var(--font-mono);
 		font-size: 11px;
 		color: var(--text-muted, #999);
 	}
@@ -138,7 +137,6 @@
 	.card-content { flex: 1; min-width: 0; }
 
 	.card-title {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
 		font-size: 0.95rem;
 		font-weight: 500;
 		color: var(--text-primary);
@@ -147,7 +145,6 @@
 	}
 
 	.card-snippet {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
 		font-size: 0.8rem;
 		color: var(--text-muted, #666);
 		margin: 0 0 6px;
@@ -166,7 +163,7 @@
 	}
 
 	.meta-date {
-		font-family: 'SF Mono', monospace;
+		font-family: var(--font-mono);
 		letter-spacing: 0.04em;
 	}
 

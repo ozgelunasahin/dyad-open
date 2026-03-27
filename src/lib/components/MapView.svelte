@@ -133,11 +133,11 @@
 		markerLayer = L.layerGroup().addTo(map);
 		rebuildMarkers(L);
 
-		// Center on user location if available
+		// Center on user location if available (no animation — instant jump)
 		if ('geolocation' in navigator) {
 			navigator.geolocation.getCurrentPosition(
 				(pos) => {
-					map?.setView([pos.coords.latitude, pos.coords.longitude], 13);
+					map?.setView([pos.coords.latitude, pos.coords.longitude], 13, { animate: false });
 				},
 				() => { /* permission denied or error — stay on Berlin center */ }
 			);
@@ -204,7 +204,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-family: 'SangBleu Sunrise', Georgia, serif;
+		
 		font-size: 18px;
 		font-weight: 500;
 		border: 2px solid #f5f3f0;

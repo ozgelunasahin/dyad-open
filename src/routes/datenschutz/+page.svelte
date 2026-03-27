@@ -90,7 +90,7 @@
 		max-width: 600px;
 		margin: 0 auto;
 		padding: 80px 24px 120px;
-		font-family: 'SangBleu Sunrise', Georgia, 'Times New Roman', serif;
+		
 		font-size: 16px;
 		line-height: 1.7;
 		color: var(--text-secondary, #333);
