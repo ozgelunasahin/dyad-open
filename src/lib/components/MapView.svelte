@@ -6,10 +6,7 @@
 	interface Props {
 		prompts: PromptSummary[];
 		onSelectPin: (prompts: PromptSummary[], area: string) => void;
-		initialCenter?: [number, number] | null;
-		initialZoom?: number | null;
-		onMoveEnd?: (center: [number, number], zoom: number) => void;
-	}
+		}
 
 	let { prompts, onSelectPin, initialCenter, initialZoom, onMoveEnd }: Props = $props();
 
@@ -24,6 +21,7 @@
 	const FUZZ_MAX_METERS = 400;
 
 	// ── Deterministic fuzz from slot ID ──────────────────────────────────────
+	// Simple hash: converts a string to a number between 0 and 1
 	function hashToFloat(str: string, seed: number): number {
 		let hash = seed;
 		for (let i = 0; i < str.length; i++) {
@@ -34,56 +32,33 @@
 
 	function fuzzCentroid(id: string, lat: number, lng: number): [number, number] {
 		const angle = hashToFloat(id, 1) * 2 * Math.PI;
-		const distFraction = hashToFloat(id, 2);
+		const distFraction = hashToFloat(id, 2); // 0-1
 		const distMeters = FUZZ_MIN_METERS + distFraction * (FUZZ_MAX_METERS - FUZZ_MIN_METERS);
+
+		// Convert meters to degrees (latitude correction for longitude)
 		const dLat = (distMeters / 111320) * Math.cos(angle);
 		const dLng = (distMeters / (111320 * Math.cos(lat * Math.PI / 180))) * Math.sin(angle);
+
 		return [lat + dLat, lng + dLng];
 	}
 
-	// ── Build pin data ───────────────────────────────────────────────────────
+	// ── Build pin data: one entry per prompt (using first slot's centroid) ───
 	function buildPins(items: PromptSummary[]): Array<{
 		position: [number, number];
 		prompt: PromptSummary;
 		area: string;
 	}> {
 		const pins: Array<{ position: [number, number]; prompt: PromptSummary; area: string }> = [];
+
 		for (const prompt of items) {
 			const slot = prompt.available_slots[0];
 			if (!slot || slot.general_area_lat == null || slot.general_area_lng == null) continue;
+
 			const position = fuzzCentroid(slot.id, slot.general_area_lat, slot.general_area_lng);
 			pins.push({ position, prompt, area: slot.general_area });
 		}
+
 		return pins;
-	}
-
-	// ── HTML escaping for divIcon and popup content ──────────────────────────
-	const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-	function formatSlotDate(iso: string): string {
-		return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-	}
-
-	// ── Build popup preview HTML ─────────────────────────────────────────────
-	function buildPreviewHtml(pin: { prompt: PromptSummary; area: string }): string {
-		const p = pin.prompt;
-		const imgHtml = p.cover_image_url
-			? `<img src="${esc(p.cover_image_url)}" alt="" class="preview-img" loading="lazy" />`
-			: `<div class="preview-img-placeholder">${esc((p.title ?? '?')[0])}</div>`;
-
-		const slotDate = p.soonest_slot ? formatSlotDate(p.soonest_slot) : '';
-		const snippet = p.body_snippet ? `<p class="preview-snippet">${esc(p.body_snippet)}</p>` : '';
-
-		return `
-			<a href="/prompts/${esc(p.id)}" class="preview-card">
-				${imgHtml}
-				<div class="preview-body">
-					<h4 class="preview-title">${esc(p.title ?? 'Untitled')}</h4>
-					${snippet}
-					<div class="preview-meta">${esc(pin.area)}${slotDate ? ' · ' + esc(slotDate) : ''}</div>
-				</div>
-			</a>
-		`;
 	}
 
 	function rebuildMarkers(L: typeof import('leaflet')) {
@@ -93,9 +68,12 @@
 		const pins = buildPins(prompts);
 
 		for (const pin of pins) {
+			// Cover image marker (or placeholder)
+			// Escape HTML attributes to prevent XSS from user-controlled URLs/titles
+			const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 			const imgSrc = pin.prompt.cover_image_url;
 			const html = imgSrc
-				? `<img src="${esc(imgSrc)}" alt="" class="marker-img" loading="lazy" />`
+				? `<img src="${esc(imgSrc)}" alt="" class="marker-img" />`
 				: `<div class="marker-placeholder">${esc((pin.prompt.title ?? '?')[0])}</div>`;
 
 			const icon = L.divIcon({
@@ -108,21 +86,8 @@
 			const marker = L.marker(pin.position, { icon });
 			marker.on('click', () => {
 				const nearby = pins.filter(p => p.area === pin.area).map(p => p.prompt);
-				if (nearby.length <= 1) {
-					// Single conversation — fly to pin and show preview popup
-					map?.flyTo(pin.position, Math.max(map.getZoom(), 14), { duration: 0.5 });
-					marker.bindPopup(buildPreviewHtml(pin), {
-						className: 'preview-popup',
-						closeButton: false,
-						maxWidth: 320,
-						minWidth: 260,
-						offset: [0, -28] as any,
-						autoPan: true,
-					}).openPopup();
-				} else {
-					// Multiple conversations in this area — show list
-					onSelectPin(nearby, pin.area);
-				}
+				// Always show BottomSheet preview — same UX for single or multiple
+				onSelectPin(nearby.length > 0 ? nearby : [pin.prompt], pin.area);
 			});
 			marker.addTo(markerLayer);
 		}
@@ -164,18 +129,17 @@
 		markerLayer = L.layerGroup().addTo(map);
 		rebuildMarkers(L);
 
-		// Center on user location if available (only if no initial position)
+		// Center on user location if available (no animation — instant jump)
 		if (!initialCenter && 'geolocation' in navigator) {
 			navigator.geolocation.getCurrentPosition(
 				(pos) => {
 					map?.setView([pos.coords.latitude, pos.coords.longitude], 13, { animate: false });
 				},
-				() => { /* permission denied — stay on Berlin center */ }
+				() => { /* permission denied or error — stay on Berlin center */ }
 			);
 		}
 	});
 
-	// Only rebuild markers when prompts data changes
 	let prevPrompts: PromptSummary[] | undefined;
 	$effect(() => {
 		const currentPrompts = prompts;
@@ -215,7 +179,7 @@
 		height: 44px;
 		border-radius: 50%;
 		object-fit: cover;
-		border: 2px solid var(--bg-canvas, #f5f3f0);
+		border: 2px solid #f5f3f0;
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 	}
 
@@ -223,90 +187,15 @@
 		width: 44px;
 		height: 44px;
 		border-radius: 50%;
-		background: var(--text-primary, #1a1a1a);
-		color: var(--bg-canvas, #f5f3f0);
+		background: #1a1a1a;
+		color: #f5f3f0;
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		
 		font-size: 18px;
 		font-weight: 500;
-		border: 2px solid var(--bg-canvas, #f5f3f0);
+		border: 2px solid #f5f3f0;
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-	}
-
-	/* Preview popup — strip Leaflet defaults */
-	:global(.preview-popup .leaflet-popup-content-wrapper) {
-		background: var(--bg-canvas, #f5f3f0);
-		border-radius: var(--radius-card, 12px);
-		box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
-		padding: 0;
-	}
-	:global(.preview-popup .leaflet-popup-content) {
-		margin: 0;
-		width: auto !important;
-	}
-	:global(.preview-popup .leaflet-popup-tip) {
-		background: var(--bg-canvas, #f5f3f0);
-	}
-
-	:global(.preview-card) {
-		display: flex;
-		gap: 12px;
-		padding: 12px;
-		text-decoration: none;
-		color: inherit;
-		transition: opacity 0.15s;
-	}
-	:global(.preview-card:hover) { opacity: 0.8; }
-
-	:global(.preview-img) {
-		width: 64px;
-		height: 64px;
-		border-radius: 8px;
-		object-fit: cover;
-		flex-shrink: 0;
-	}
-	:global(.preview-img-placeholder) {
-		width: 64px;
-		height: 64px;
-		border-radius: 8px;
-		background: var(--bg-control, rgba(0,0,0,0.05));
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 22px;
-		color: var(--text-muted, #999);
-		flex-shrink: 0;
-	}
-
-	:global(.preview-body) {
-		flex: 1;
-		min-width: 0;
-	}
-	:global(.preview-title) {
-		margin: 0 0 4px;
-		font-size: 14px;
-		font-weight: 500;
-		line-height: 1.3;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-	:global(.preview-snippet) {
-		margin: 0 0 4px;
-		font-size: 12px;
-		color: var(--text-muted, #666);
-		line-height: 1.4;
-		display: -webkit-box;
-		-webkit-line-clamp: 2;
-		-webkit-box-orient: vertical;
-		overflow: hidden;
-	}
-	:global(.preview-meta) {
-		font-family: var(--font-mono, monospace);
-		font-size: 10px;
-		color: var(--text-muted, #999);
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
 	}
 </style>

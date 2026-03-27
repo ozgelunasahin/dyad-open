@@ -7,28 +7,20 @@
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
 	import SearchOverlay from '$lib/components/SearchOverlay.svelte';
 	import { getWeekDates } from '$lib/utils/dates';
-
 	import type { Snapshot } from './$types';
 
 	let { data }: { data: PageData } = $props();
 	let viewMode = $state<'list' | 'map'>('list');
-	let searchOpen = $state(false);
-	let selectedPinPrompts = $state<PromptSummary[]>([]);
-	let selectedPinArea = $state('');
-
-	// Map state for persistence
 	let mapCenter = $state<[number, number] | null>(null);
 	let mapZoom = $state<number | null>(null);
 
-	// SvelteKit snapshot — persists map state across navigation
 	export const snapshot: Snapshot<{ center: [number, number] | null; zoom: number | null; viewMode: 'list' | 'map' }> = {
 		capture: () => ({ center: mapCenter, zoom: mapZoom, viewMode }),
-		restore: (value) => {
-			mapCenter = value.center;
-			mapZoom = value.zoom;
-			viewMode = value.viewMode;
-		}
+		restore: (value) => { mapCenter = value.center; mapZoom = value.zoom; viewMode = value.viewMode; }
 	};
+	let searchOpen = $state(false);
+	let selectedPinPrompts = $state<PromptSummary[]>([]);
+	let selectedPinArea = $state('');
 
 	function handlePinSelect(prompts: PromptSummary[], area: string) {
 		selectedPinPrompts = prompts;
@@ -144,6 +136,20 @@
 	<title>Discover - dyad.berlin</title>
 </svelte:head>
 
+{#if viewMode === 'map'}
+	<div class="map-pane">
+		<MapView
+			prompts={filteredPrompts}
+			onSelectPin={handlePinSelect}
+			initialCenter={mapCenter}
+			initialZoom={mapZoom}
+			onMoveEnd={(c, z) => { mapCenter = c; mapZoom = z; }}
+		/>
+	</div>
+	{#if selectedPinPrompts.length > 0}
+		<BottomSheet prompts={selectedPinPrompts} area={selectedPinArea} onClose={closeSheet} />
+	{/if}
+{:else}
 <div class="content">
 			{#if data.prompts.length === 0}
 				<div class="empty-state">
@@ -151,20 +157,7 @@
 					<p class="empty-hint">Check back soon, or start your own.</p>
 					<a href="/prompts/new" class="start-prompt-btn" style="margin-top: 16px; display: inline-block;">Start a conversation</a>
 				</div>
-			{:else}
-
-				{#if viewMode === 'map'}
-					<MapView
-						prompts={filteredPrompts}
-						onSelectPin={handlePinSelect}
-						initialCenter={mapCenter}
-						initialZoom={mapZoom}
-						onMoveEnd={(c, z) => { mapCenter = c; mapZoom = z; }}
-					/>
-					{#if selectedPinPrompts.length > 0}
-						<BottomSheet prompts={selectedPinPrompts} area={selectedPinArea} onClose={closeSheet} />
-					{/if}
-				{:else if filteredPrompts.length === 0}
+			{:else if filteredPrompts.length === 0}
 					<div class="empty-state">
 						<p>No conversations match your filters.</p>
 						<button class="clear-filters-link" onclick={clearFilters}>Clear filters</button>
@@ -199,8 +192,8 @@
 						{/each}
 					</div>
 				{/if}
-			{/if}
 		</div>
+	{/if}
 
 <div class="floating-nav-wrapper">
 	<FloatingNav
@@ -225,6 +218,11 @@
 
 <style>
 	.floating-nav-wrapper { display: block; }
+	.map-pane {
+		width: 100%;
+		height: calc(100vh - 64px);
+	}
+
 	.content {
 		width: 100%;
 		max-width: 800px;
