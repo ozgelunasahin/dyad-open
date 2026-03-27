@@ -29,6 +29,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	// For the author: load enriched invitation data (inviter username, comment text, slot details)
 	let receivedInvitations: Array<{
 		id: string;
+		inviter_id: string;
 		inviter_username: string;
 		message: string | null;
 		comment_body: string | null;
@@ -65,6 +66,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 			receivedInvitations = enriched.map((inv: any) => ({
 				id: inv.id,
+				inviter_id: inv.inviter_id,
 				inviter_username: inviterMap.get(inv.inviter_id) ?? 'anonymous',
 				message: inv.message,
 				comment_body: inv.comment?.body ?? null,
