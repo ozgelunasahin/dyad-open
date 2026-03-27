@@ -47,21 +47,37 @@ Five fixes from playtesting that block the complete Tom↔Sophie cycle. All fron
 - [ ] Not selectable — just informational. "Available times this week" or no header, just the cards.
 - [ ] This gives readers context about when/where before deciding to engage
 
-### 4. Profile shows pending invitations with Accept
+### 4. Profile restructure — Conversations + Meetings with invitations as the bridge
 
-**Current:** Sophie opens the app, goes to profile, sees the 2x2 grid. No indication that Tom sent her an invitation. She has to navigate to her specific prompt to find it.
+**Current:** Sophie opens the app, goes to profile, sees a 2x2 grid (Conversations, Meetings, Archive, Invitations). No indication that Tom sent her an invitation. She has to navigate to a specific prompt to find it.
 
-**Fix:** "Needs your attention" section at the top of the profile page with inline Accept.
+**Fix:** Replace the 2x2 grid with two sections: **Conversations** and **Meetings**. Invitations appear in both — they are the bridge between a conversation and a meeting.
 
 `src/routes/(app)/profile/+page.svelte` and `+page.server.ts`:
-- [ ] Load received pending invitations in page server (join invitations → prompts → profiles → time_slots, where user is the prompt author)
-- [ ] If any exist, show a section above the action grid (no header — the cards ARE the section)
-- [ ] Each card shows: @inviter, conversation title, proposed time (date + time + area), and Accept button
-- [ ] Accept calls `POST /api/invitations/[id]/accept`, navigates to `/meetings/[meetingId]`
-- [ ] Section vanishes when no items exist
 
-`src/routes/(app)/+layout.svelte`:
-- [ ] Sidebar "Profile" link shows a count badge when attention items > 0
+**Conversations section** — everything I'm involved in as a conversation:
+- [ ] Prompts I authored (published, with lifecycle state: active / has responses / has invitations / meeting scheduled / complete)
+- [ ] Prompts I responded to (showing my response + invitation state if I sent one)
+- [ ] On author's conversation card: if there's a pending invitation → show inline: "@tom invited you · Saturday, Kreuzberg · [Accept]"
+- [ ] On responder's conversation card: if I sent an invitation → show: "Invitation sent · waiting for @sophie"
+- [ ] After acceptance: conversation card shows "Meeting scheduled · Saturday" with link to meeting
+- [ ] Past/archived conversations at the bottom, reduced opacity
+- [ ] Accept calls `POST /api/invitations/[id]/accept`, navigates to `/meetings/[meetingId]`
+
+**Meetings section** — pending, scheduled, past:
+- [ ] Pending: invitations I've received but not yet accepted (duplicate of what's on conversation cards, but grouped by time — "this week's meetings")
+- [ ] Scheduled: confirmed meetings with time, location, @participant, link to meeting detail
+- [ ] Past: completed meetings, reduced opacity
+- [ ] Sorted: pending first (soonest slot), then upcoming scheduled (soonest), then past
+
+**Invitations as the bridge:**
+- [ ] An invitation appears on the conversation card ("Tom invited you") AND in the Meetings section as a pending meeting
+- [ ] Accepting it from either place promotes it to a confirmed meeting in Meetings, and the conversation card updates to "Meeting scheduled"
+- [ ] The invitation links the two views — tapping the conversation title from a meeting navigates to the prompt, tapping the meeting time from a conversation navigates to the meeting detail
+
+**Sidebar badge** (`src/routes/(app)/+layout.svelte`):
+- [ ] Count badge next to "Profile" when attention items > 0
+- [ ] Count = pending received invitations + due feedback forms
 
 ### 5. Feedback page context
 
@@ -85,13 +101,16 @@ Five fixes from playtesting that block the complete Tom↔Sophie cycle. All fron
 | `src/routes/(app)/feedback/[id]/+page.svelte` | Fix #5 (meeting context) |
 | `src/routes/(app)/feedback/[id]/+page.server.ts` | Fix #5 (load meeting details) |
 
-## Implementation Order (2 PRs)
+## Implementation Order (3 PRs)
 
 **PR 1: Prompt detail fixes (#1, #2, #3)**
 Single file change. Fixes the reader/inviter experience.
 
-**PR 2: Profile attention + feedback context (#4, #5)**
-Profile loads invitations, sidebar badge, feedback page context. Fixes the author/post-meeting experience.
+**PR 2: Profile restructure (#4)**
+Replace 2x2 grid with Conversations + Meetings sections. Invitations as bridge between them. Sidebar badge. This is the largest PR.
+
+**PR 3: Feedback context (#5)**
+Small independent change to the feedback page. Add meeting context.
 
 ## Acceptance Criteria
 
