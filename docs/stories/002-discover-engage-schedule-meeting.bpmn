@@ -1,0 +1,993 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="bpmn-js (https://demo.bpmn.io)" exporterVersion="18.13.1" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.0.0">
+  <bpmn:collaboration id="Collaboration_DiscoverEngageSchedule">
+    <bpmn:participant id="Pool_Tom" name="Tom (Inviter)" processRef="Process_Tom" />
+    <bpmn:participant id="Pool_Sophie" name="Sophie (Conversation Starter)" processRef="Process_Sophie" />
+    <bpmn:participant id="Pool_System" name="System" processRef="Process_System" />
+    <bpmn:messageFlow id="MsgFlow_TomLogin" name="Login request" sourceRef="Task_Tom_ClicksLogin" targetRef="Task_Sys_RendersLogin" />
+    <bpmn:messageFlow id="MsgFlow_TomComment" name="Comment submission" sourceRef="Task_Tom_WritesComment" targetRef="Task_Sys_AcceptsComment" />
+    <bpmn:messageFlow id="MsgFlow_TomInvite" name="Invite request" sourceRef="Task_Tom_ClicksInvite" targetRef="Task_Sys_CreatesPendingInvite" />
+    <bpmn:messageFlow id="MsgFlow_SysNotifySophie" name="Invitation notification" sourceRef="Task_Sys_NotifiesSophie" targetRef="Start_Sophie" />
+    <bpmn:messageFlow id="MsgFlow_SophieConfirms" name="Confirmation" sourceRef="Task_Sophie_Confirms" targetRef="IntCatch_Sys_SophieConfirm" />
+    <bpmn:messageFlow id="MsgFlow_SysNotifyTom" name="Confirmation + exact location" sourceRef="Task_Sys_NotifiesTom" targetRef="IntCatch_Tom_SophieConfirmed" />
+    <bpmn:messageFlow id="MsgFlow_TomCancels" name="Cancellation request" sourceRef="Task_Tom_Cancels" targetRef="Task_Sys_HandlesCancellation" />
+    <bpmn:messageFlow id="MsgFlow_SysCalendarTom" name="Calendar event link" sourceRef="Task_Sys_GeneratesCalendar" targetRef="Task_Tom_AddCalendar" />
+    <bpmn:textAnnotation id="Annotation_Comment">
+      <bpmn:text>Private single-shot message to conversation creator. Other commenters' messages are not visible to Tom.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_Comment" sourceRef="Task_Tom_WritesComment" targetRef="Annotation_Comment" />
+    <bpmn:textAnnotation id="Annotation_SlotSelection">
+      <bpmn:text>No negotiation. Tom picks one option. If Sophie accepts, that's the meeting.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_SlotSelection" sourceRef="Task_Tom_SelectsSlot" targetRef="Annotation_SlotSelection" />
+    <bpmn:textAnnotation id="Annotation_SophieNotifications">
+      <bpmn:text>Sophie can see all comments+invites on her conversation and choose between them.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_SophieNotifications" sourceRef="Task_Sophie_SeesNotifications" targetRef="Annotation_SophieNotifications" />
+    <bpmn:textAnnotation id="Annotation_PendingInvitations">
+      <bpmn:text>Other pending invitations remain unanswered until 12h cutoff, then treated as not accepted. Revisit based on user experience.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_PendingInvitations" sourceRef="End_Sophie_Confirmed" targetRef="Annotation_PendingInvitations" />
+    <bpmn:textAnnotation id="Annotation_RemovesConversation">
+      <bpmn:text>Conversation removed from discover/map once meeting scheduled. Reappears if cancelled within cancellation window (≥12h before).</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="Annotation_GeneralArea">
+      <bpmn:text>General area shown (Airbnb-style, system-generated from exact location). Exact location revealed only after confirmation.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_GeneralArea" sourceRef="Task_Tom_ViewsContent" targetRef="Annotation_GeneralArea" />
+    <bpmn:association id="Assoc_RemovesConversation" sourceRef="Task_Sys_RemovesConversation" targetRef="Annotation_RemovesConversation" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_Tom" isExecutable="false">
+    <bpmn:startEvent id="Start_Tom" name="Arrives on site">
+      <bpmn:outgoing>Flow_Tom_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Task_Tom_ClicksLogin" name="Clicks login button">
+      <bpmn:incoming>Flow_Tom_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Tom_Authenticates" name="Authenticates">
+      <bpmn:incoming>Flow_Tom_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_3</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Tom_LandsDiscover" name="Lands on discover page">
+      <bpmn:incoming>Flow_Tom_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_4</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Tom_Explores" name="Explores what&#39;s there">
+      <bpmn:incoming>Flow_Tom_4</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_5</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Tom_ExploresMap" name="Explores map view">
+      <bpmn:incoming>Flow_Tom_5</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_6</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="GW_Tom_Engaging" name="Finds something engaging?">
+      <bpmn:incoming>Flow_Tom_6</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_No</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Tom_Yes</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Task_Tom_LogsOff" name="Logs off">
+      <bpmn:incoming>Flow_Tom_No</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_EndNo</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="End_Tom_LogsOff" name="End (nothing found)">
+      <bpmn:incoming>Flow_Tom_EndNo</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:task id="Task_Tom_ClicksConversation" name="Clicks into a conversation">
+      <bpmn:incoming>Flow_Tom_Yes</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_7</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Tom_ViewsContent" name="Views conversation content + general area">
+      <bpmn:incoming>Flow_Tom_7</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_8</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Tom_WritesComment" name="Writes a comment (private to Sophie)">
+      <bpmn:incoming>Flow_Tom_8</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_9</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Tom_InviteOption" name="Gets option to invite to meet">
+      <bpmn:incoming>Flow_Tom_9</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_10</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Tom_ViewsSlots" name="Views available time slots with general area">
+      <bpmn:incoming>Flow_Tom_10</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_11</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Tom_SelectsSlot" name="Selects ONE time+place option">
+      <bpmn:incoming>Flow_Tom_11</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_12</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Tom_WritesMessage" name="Writes personal message to Sophie">
+      <bpmn:incoming>Flow_Tom_12</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_13</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Tom_ClicksInvite" name="Clicks invite">
+      <bpmn:incoming>Flow_Tom_13</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_14</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:eventBasedGateway id="GW_Tom_EventBased" name="Awaiting response">
+      <bpmn:incoming>Flow_Tom_14</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_ToConfirm</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Tom_ToCancel</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+    <bpmn:intermediateCatchEvent id="IntCatch_Tom_SophieConfirmed" name="Sophie confirmed">
+      <bpmn:incoming>Flow_Tom_ToConfirm</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_16</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgDef_TomConfirmed" messageRef="Message_Confirmation" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:intermediateCatchEvent id="IntCatch_Tom_CancelSignal" name="Tom decides to cancel">
+      <bpmn:incoming>Flow_Tom_ToCancel</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_CancelToTask</bpmn:outgoing>
+      <bpmn:signalEventDefinition id="SignalDef_TomCancel" signalRef="Signal_TomCancels" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:task id="Task_Tom_Cancels" name="Cancels invitation">
+      <bpmn:incoming>Flow_Tom_CancelToTask</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_EndCancel</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="End_Tom_Cancelled" name="End (cancelled)">
+      <bpmn:incoming>Flow_Tom_EndCancel</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_Tom_1" sourceRef="Start_Tom" targetRef="Task_Tom_ClicksLogin" />
+    <bpmn:sequenceFlow id="Flow_Tom_2" sourceRef="Task_Tom_ClicksLogin" targetRef="Task_Tom_Authenticates" />
+    <bpmn:sequenceFlow id="Flow_Tom_3" sourceRef="Task_Tom_Authenticates" targetRef="Task_Tom_LandsDiscover" />
+    <bpmn:sequenceFlow id="Flow_Tom_4" sourceRef="Task_Tom_LandsDiscover" targetRef="Task_Tom_Explores" />
+    <bpmn:sequenceFlow id="Flow_Tom_5" sourceRef="Task_Tom_Explores" targetRef="Task_Tom_ExploresMap" />
+    <bpmn:sequenceFlow id="Flow_Tom_6" sourceRef="Task_Tom_ExploresMap" targetRef="GW_Tom_Engaging" />
+    <bpmn:sequenceFlow id="Flow_Tom_No" name="No" sourceRef="GW_Tom_Engaging" targetRef="Task_Tom_LogsOff" />
+    <bpmn:sequenceFlow id="Flow_Tom_Yes" name="Yes" sourceRef="GW_Tom_Engaging" targetRef="Task_Tom_ClicksConversation" />
+    <bpmn:sequenceFlow id="Flow_Tom_EndNo" sourceRef="Task_Tom_LogsOff" targetRef="End_Tom_LogsOff" />
+    <bpmn:sequenceFlow id="Flow_Tom_7" sourceRef="Task_Tom_ClicksConversation" targetRef="Task_Tom_ViewsContent" />
+    <bpmn:sequenceFlow id="Flow_Tom_8" sourceRef="Task_Tom_ViewsContent" targetRef="Task_Tom_WritesComment" />
+    <bpmn:sequenceFlow id="Flow_Tom_9" sourceRef="Task_Tom_WritesComment" targetRef="Task_Tom_InviteOption" />
+    <bpmn:sequenceFlow id="Flow_Tom_10" sourceRef="Task_Tom_InviteOption" targetRef="Task_Tom_ViewsSlots" />
+    <bpmn:sequenceFlow id="Flow_Tom_11" sourceRef="Task_Tom_ViewsSlots" targetRef="Task_Tom_SelectsSlot" />
+    <bpmn:sequenceFlow id="Flow_Tom_12" sourceRef="Task_Tom_SelectsSlot" targetRef="Task_Tom_WritesMessage" />
+    <bpmn:sequenceFlow id="Flow_Tom_13" sourceRef="Task_Tom_WritesMessage" targetRef="Task_Tom_ClicksInvite" />
+    <bpmn:sequenceFlow id="Flow_Tom_14" sourceRef="Task_Tom_ClicksInvite" targetRef="GW_Tom_EventBased" />
+    <bpmn:sequenceFlow id="Flow_Tom_ToConfirm" sourceRef="GW_Tom_EventBased" targetRef="IntCatch_Tom_SophieConfirmed" />
+    <bpmn:sequenceFlow id="Flow_Tom_ToCancel" sourceRef="GW_Tom_EventBased" targetRef="IntCatch_Tom_CancelSignal" />
+    <bpmn:sequenceFlow id="Flow_Tom_CancelToTask" sourceRef="IntCatch_Tom_CancelSignal" targetRef="Task_Tom_Cancels" />
+    <bpmn:sequenceFlow id="Flow_Tom_EndCancel" sourceRef="Task_Tom_Cancels" targetRef="End_Tom_Cancelled" />
+    <bpmn:sequenceFlow id="Flow_Tom_16" sourceRef="IntCatch_Tom_SophieConfirmed" targetRef="Task_Tom_ViewsMeeting" />
+    <bpmn:sequenceFlow id="Flow_Tom_17" sourceRef="Task_Tom_ViewsMeeting" targetRef="Task_Tom_AddCalendar" />
+    <bpmn:endEvent id="End_Tom_Scheduled" name="Meeting scheduled">
+      <bpmn:incoming>Flow_Tom_18</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:task id="Task_Tom_AddCalendar" name="Option to add to calendar">
+      <bpmn:incoming>Flow_Tom_17</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_18</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="Flow_Tom_18" sourceRef="Task_Tom_AddCalendar" targetRef="End_Tom_Scheduled" />
+    <bpmn:task id="Task_Tom_ViewsMeeting" name="Views scheduled meeting details (exact location revealed)">
+      <bpmn:incoming>Flow_Tom_16</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tom_17</bpmn:outgoing>
+    </bpmn:task>
+  </bpmn:process>
+  <bpmn:process id="Process_Sophie" isExecutable="false">
+    <bpmn:startEvent id="Start_Sophie" name="Logs in">
+      <bpmn:outgoing>Flow_Sophie_1</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgDef_SophieStart" messageRef="Message_InviteNotification" />
+    </bpmn:startEvent>
+    <bpmn:task id="Task_Sophie_SeesNotifications" name="Sees invitation notifications">
+      <bpmn:incoming>Flow_Sophie_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sophie_2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Sophie_ClicksInvitation" name="Clicks an invitation">
+      <bpmn:incoming>Flow_Sophie_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sophie_3</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Sophie_ReadsComment" name="Reads Tom&#39;s comment and selected time+place">
+      <bpmn:incoming>Flow_Sophie_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sophie_4</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="GW_Sophie_ReviewProfile" name="Review Tom&#39;s profile?">
+      <bpmn:incoming>Flow_Sophie_4</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sophie_ReviewYes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Sophie_ReviewNo</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Task_Sophie_ViewsProfile" name="Views Tom&#39;s profile">
+      <bpmn:incoming>Flow_Sophie_ReviewYes</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sophie_5</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Sophie_SeesConversations" name="Sees Tom&#39;s conversations">
+      <bpmn:incoming>Flow_Sophie_5</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sophie_6</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Sophie_SeesTestimonials" name="Sees feedback/testimonials about Tom">
+      <bpmn:incoming>Flow_Sophie_6</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sophie_7</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="GW_Sophie_ReviewMerge" name="">
+      <bpmn:incoming>Flow_Sophie_7</bpmn:incoming>
+      <bpmn:incoming>Flow_Sophie_ReviewNo</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sophie_ToReturn</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Task_Sophie_ReturnsToInvitation" name="Returns to invitation">
+      <bpmn:incoming>Flow_Sophie_ToReturn</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sophie_8</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="GW_Sophie_Accept" name="Accept?">
+      <bpmn:incoming>Flow_Sophie_8</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sophie_NotNow</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Sophie_Accept</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="End_Sophie_NotNow" name="End (not now)">
+      <bpmn:incoming>Flow_Sophie_NotNow</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_Sophie_Confirmed" name="Confirmation sent">
+      <bpmn:incoming>Flow_Sophie_9</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:task id="Task_Sophie_Confirms" name="Confirms the meeting">
+      <bpmn:incoming>Flow_Sophie_Accept</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sophie_9</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="Flow_Sophie_1" sourceRef="Start_Sophie" targetRef="Task_Sophie_SeesNotifications" />
+    <bpmn:sequenceFlow id="Flow_Sophie_2" sourceRef="Task_Sophie_SeesNotifications" targetRef="Task_Sophie_ClicksInvitation" />
+    <bpmn:sequenceFlow id="Flow_Sophie_3" sourceRef="Task_Sophie_ClicksInvitation" targetRef="Task_Sophie_ReadsComment" />
+    <bpmn:sequenceFlow id="Flow_Sophie_4" sourceRef="Task_Sophie_ReadsComment" targetRef="GW_Sophie_ReviewProfile" />
+    <bpmn:sequenceFlow id="Flow_Sophie_ReviewYes" name="Yes" sourceRef="GW_Sophie_ReviewProfile" targetRef="Task_Sophie_ViewsProfile" />
+    <bpmn:sequenceFlow id="Flow_Sophie_ReviewNo" name="No" sourceRef="GW_Sophie_ReviewProfile" targetRef="GW_Sophie_ReviewMerge" />
+    <bpmn:sequenceFlow id="Flow_Sophie_5" sourceRef="Task_Sophie_ViewsProfile" targetRef="Task_Sophie_SeesConversations" />
+    <bpmn:sequenceFlow id="Flow_Sophie_6" sourceRef="Task_Sophie_SeesConversations" targetRef="Task_Sophie_SeesTestimonials" />
+    <bpmn:sequenceFlow id="Flow_Sophie_7" sourceRef="Task_Sophie_SeesTestimonials" targetRef="GW_Sophie_ReviewMerge" />
+    <bpmn:sequenceFlow id="Flow_Sophie_ToReturn" sourceRef="GW_Sophie_ReviewMerge" targetRef="Task_Sophie_ReturnsToInvitation" />
+    <bpmn:sequenceFlow id="Flow_Sophie_8" sourceRef="Task_Sophie_ReturnsToInvitation" targetRef="GW_Sophie_Accept" />
+    <bpmn:sequenceFlow id="Flow_Sophie_NotNow" name="Not now" sourceRef="GW_Sophie_Accept" targetRef="End_Sophie_NotNow" />
+    <bpmn:sequenceFlow id="Flow_Sophie_Accept" name="Accept" sourceRef="GW_Sophie_Accept" targetRef="Task_Sophie_Confirms" />
+    <bpmn:sequenceFlow id="Flow_Sophie_9" sourceRef="Task_Sophie_Confirms" targetRef="End_Sophie_Confirmed" />
+  </bpmn:process>
+  <bpmn:process id="Process_System" isExecutable="false">
+    <bpmn:startEvent id="Start_System" name="Start">
+      <bpmn:outgoing>Flow_Sys_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Task_Sys_RendersLogin" name="Renders login / handles auth">
+      <bpmn:incoming>Flow_Sys_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Sys_RendersDiscover" name="Renders discover page + map">
+      <bpmn:incoming>Flow_Sys_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_3</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Sys_RendersConversation" name="Renders conversation detail with general area">
+      <bpmn:incoming>Flow_Sys_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_4</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Sys_AcceptsComment" name="Accepts comment submission">
+      <bpmn:incoming>Flow_Sys_4</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_5</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Sys_PresentsInviteFlow" name="Presents invite-to-meet flow">
+      <bpmn:incoming>Flow_Sys_5</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_6</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Sys_CreatesPendingInvite" name="Creates pending meeting invitation">
+      <bpmn:incoming>Flow_Sys_6</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_7</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Sys_NotifiesSophie" name="Notifies Sophie of invitation">
+      <bpmn:incoming>Flow_Sys_7</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_8</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Sys_RendersInviteForSophie" name="Renders invitation detail for Sophie">
+      <bpmn:incoming>Flow_Sys_8</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_9</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:eventBasedGateway id="GW_Sys_EventBased" name="Awaiting Sophie or cancellation">
+      <bpmn:incoming>Flow_Sys_9</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_ToSophieConfirm</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Sys_ToTomCancel</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+    <bpmn:sequenceFlow id="Flow_Sys_1" sourceRef="Start_System" targetRef="Task_Sys_RendersLogin" />
+    <bpmn:sequenceFlow id="Flow_Sys_2" sourceRef="Task_Sys_RendersLogin" targetRef="Task_Sys_RendersDiscover" />
+    <bpmn:sequenceFlow id="Flow_Sys_3" sourceRef="Task_Sys_RendersDiscover" targetRef="Task_Sys_RendersConversation" />
+    <bpmn:sequenceFlow id="Flow_Sys_4" sourceRef="Task_Sys_RendersConversation" targetRef="Task_Sys_AcceptsComment" />
+    <bpmn:sequenceFlow id="Flow_Sys_5" sourceRef="Task_Sys_AcceptsComment" targetRef="Task_Sys_PresentsInviteFlow" />
+    <bpmn:sequenceFlow id="Flow_Sys_6" sourceRef="Task_Sys_PresentsInviteFlow" targetRef="Task_Sys_CreatesPendingInvite" />
+    <bpmn:sequenceFlow id="Flow_Sys_7" sourceRef="Task_Sys_CreatesPendingInvite" targetRef="Task_Sys_NotifiesSophie" />
+    <bpmn:sequenceFlow id="Flow_Sys_8" sourceRef="Task_Sys_NotifiesSophie" targetRef="Task_Sys_RendersInviteForSophie" />
+    <bpmn:sequenceFlow id="Flow_Sys_9" sourceRef="Task_Sys_RendersInviteForSophie" targetRef="GW_Sys_EventBased" />
+    <bpmn:sequenceFlow id="Flow_Sys_ToSophieConfirm" sourceRef="GW_Sys_EventBased" targetRef="IntCatch_Sys_SophieConfirm" />
+    <bpmn:sequenceFlow id="Flow_Sys_ToTomCancel" sourceRef="GW_Sys_EventBased" targetRef="IntCatch_Sys_TomCancels" />
+    <bpmn:sequenceFlow id="Flow_Sys_ToCancelTask" sourceRef="IntCatch_Sys_TomCancels" targetRef="Task_Sys_HandlesCancellation" />
+    <bpmn:sequenceFlow id="Flow_Sys_10" sourceRef="IntCatch_Sys_SophieConfirm" targetRef="Task_Sys_RevealsLocation" />
+    <bpmn:sequenceFlow id="Flow_Sys_11" sourceRef="Task_Sys_RevealsLocation" targetRef="Task_Sys_UpdatesStatus" />
+    <bpmn:task id="Task_Sys_RevealsLocation" name="Reveals exact location to both parties">
+      <bpmn:incoming>Flow_Sys_10</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_11</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Sys_HandlesCancellation" name="Updates invitation status to cancelled">
+      <bpmn:incoming>Flow_Sys_ToCancelTask</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_EndCancel</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="End_System_Cancelled" name="End (invitation cancelled)">
+      <bpmn:incoming>Flow_Sys_EndCancel</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_Sys_EndCancel" sourceRef="Task_Sys_HandlesCancellation" targetRef="End_System_Cancelled" />
+    <bpmn:task id="Task_Sys_UpdatesStatus" name="Updates meeting status: pending to scheduled">
+      <bpmn:incoming>Flow_Sys_11</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_12</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Sys_RemovesConversation" name="Removes conversation from discover/map">
+      <bpmn:incoming>Flow_Sys_12</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_13</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="Flow_Sys_12" sourceRef="Task_Sys_UpdatesStatus" targetRef="Task_Sys_RemovesConversation" />
+    <bpmn:sequenceFlow id="Flow_Sys_13" sourceRef="Task_Sys_RemovesConversation" targetRef="Task_Sys_NotifiesTom" />
+    <bpmn:task id="Task_Sys_NotifiesTom" name="Notifies Tom of confirmation">
+      <bpmn:incoming>Flow_Sys_13</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_14</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="Flow_Sys_14" sourceRef="Task_Sys_NotifiesTom" targetRef="Task_Sys_GeneratesCalendar" />
+    <bpmn:endEvent id="End_System" name="End">
+      <bpmn:incoming>Flow_Sys_15</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:task id="Task_Sys_GeneratesCalendar" name="Generates calendar event link">
+      <bpmn:incoming>Flow_Sys_14</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_15</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="Flow_Sys_15" sourceRef="Task_Sys_GeneratesCalendar" targetRef="End_System" />
+    <bpmn:intermediateCatchEvent id="IntCatch_Sys_SophieConfirm" name="Receives Sophie&#39;s confirmation">
+      <bpmn:incoming>Flow_Sys_ToSophieConfirm</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_10</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgDef_SysConfirm" messageRef="Message_SophieConfirmation" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:intermediateCatchEvent id="IntCatch_Sys_TomCancels" name="Receives Tom&#39;s cancellation">
+      <bpmn:incoming>Flow_Sys_ToTomCancel</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys_ToCancelTask</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgDef_SysTomCancel" messageRef="Message_TomCancellation" />
+    </bpmn:intermediateCatchEvent>
+  </bpmn:process>
+  <bpmn:message id="Message_Confirmation" name="ConfirmationMessage" />
+  <bpmn:message id="Message_InviteNotification" name="InviteNotificationMessage" />
+  <bpmn:message id="Message_SophieConfirmation" name="SophieConfirmationMessage" />
+  <bpmn:message id="Message_TomCancellation" name="TomCancellationMessage" />
+  <bpmn:signal id="Signal_TomCancels" name="TomCancelsInvitation" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_DiscoverEngageSchedule">
+      <bpmndi:BPMNShape id="Shape_Pool_Tom" bpmnElement="Pool_Tom" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="3400" height="350" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_Tom" bpmnElement="Start_Tom">
+        <dc:Bounds x="252" y="232" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="236" y="275" width="68" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_ClicksLogin" bpmnElement="Task_Tom_ClicksLogin">
+        <dc:Bounds x="340" y="210" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_Authenticates" bpmnElement="Task_Tom_Authenticates">
+        <dc:Bounds x="490" y="210" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_LandsDiscover" bpmnElement="Task_Tom_LandsDiscover">
+        <dc:Bounds x="640" y="210" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_Explores" bpmnElement="Task_Tom_Explores">
+        <dc:Bounds x="790" y="210" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_ExploresMap" bpmnElement="Task_Tom_ExploresMap">
+        <dc:Bounds x="940" y="210" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_Tom_Engaging" bpmnElement="GW_Tom_Engaging" isMarkerVisible="true">
+        <dc:Bounds x="1095" y="225" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1075" y="195" width="90" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_LogsOff" bpmnElement="Task_Tom_LogsOff">
+        <dc:Bounds x="1200" y="110" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Tom_LogsOff" bpmnElement="End_Tom_LogsOff">
+        <dc:Bounds x="1352" y="132" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1325" y="175" width="90" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_ClicksConversation" bpmnElement="Task_Tom_ClicksConversation">
+        <dc:Bounds x="1200" y="210" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_ViewsContent" bpmnElement="Task_Tom_ViewsContent">
+        <dc:Bounds x="1350" y="210" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_WritesComment" bpmnElement="Task_Tom_WritesComment">
+        <dc:Bounds x="1500" y="210" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_InviteOption" bpmnElement="Task_Tom_InviteOption">
+        <dc:Bounds x="1650" y="210" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_ViewsSlots" bpmnElement="Task_Tom_ViewsSlots">
+        <dc:Bounds x="1800" y="210" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_SelectsSlot" bpmnElement="Task_Tom_SelectsSlot">
+        <dc:Bounds x="1950" y="210" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_WritesMessage" bpmnElement="Task_Tom_WritesMessage">
+        <dc:Bounds x="2100" y="210" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_ClicksInvite" bpmnElement="Task_Tom_ClicksInvite">
+        <dc:Bounds x="2250" y="210" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_Tom_EventBased" bpmnElement="GW_Tom_EventBased">
+        <dc:Bounds x="2405" y="225" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2388" y="282" width="85" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_IntCatch_Tom_SophieConfirmed" bpmnElement="IntCatch_Tom_SophieConfirmed">
+        <dc:Bounds x="2522" y="232" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2497" y="208" width="86" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_IntCatch_Tom_CancelSignal" bpmnElement="IntCatch_Tom_CancelSignal">
+        <dc:Bounds x="2522" y="132" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2497" y="108" width="86" height="20" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_Cancels" bpmnElement="Task_Tom_Cancels">
+        <dc:Bounds x="2620" y="110" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Tom_Cancelled" bpmnElement="End_Tom_Cancelled">
+        <dc:Bounds x="2772" y="132" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2750" y="175" width="80" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Tom_Scheduled" bpmnElement="End_Tom_Scheduled">
+        <dc:Bounds x="3022" y="232" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="3015" y="275" width="51" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_AddCalendar" bpmnElement="Task_Tom_AddCalendar">
+        <dc:Bounds x="2860" y="210" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tom_ViewsMeeting" bpmnElement="Task_Tom_ViewsMeeting">
+        <dc:Bounds x="2720" y="210" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_1" bpmnElement="Flow_Tom_1">
+        <di:waypoint x="288" y="250" />
+        <di:waypoint x="340" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_2" bpmnElement="Flow_Tom_2">
+        <di:waypoint x="440" y="250" />
+        <di:waypoint x="490" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_3" bpmnElement="Flow_Tom_3">
+        <di:waypoint x="590" y="250" />
+        <di:waypoint x="640" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_4" bpmnElement="Flow_Tom_4">
+        <di:waypoint x="740" y="250" />
+        <di:waypoint x="790" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_5" bpmnElement="Flow_Tom_5">
+        <di:waypoint x="890" y="250" />
+        <di:waypoint x="940" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_6" bpmnElement="Flow_Tom_6">
+        <di:waypoint x="1040" y="250" />
+        <di:waypoint x="1095" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_No" bpmnElement="Flow_Tom_No">
+        <di:waypoint x="1120" y="225" />
+        <di:waypoint x="1120" y="150" />
+        <di:waypoint x="1200" y="150" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1128" y="183" width="15" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_Yes" bpmnElement="Flow_Tom_Yes">
+        <di:waypoint x="1145" y="250" />
+        <di:waypoint x="1200" y="250" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1155" y="232" width="18" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_EndNo" bpmnElement="Flow_Tom_EndNo">
+        <di:waypoint x="1300" y="150" />
+        <di:waypoint x="1352" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_7" bpmnElement="Flow_Tom_7">
+        <di:waypoint x="1300" y="250" />
+        <di:waypoint x="1350" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_8" bpmnElement="Flow_Tom_8">
+        <di:waypoint x="1450" y="250" />
+        <di:waypoint x="1500" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_9" bpmnElement="Flow_Tom_9">
+        <di:waypoint x="1600" y="250" />
+        <di:waypoint x="1650" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_10" bpmnElement="Flow_Tom_10">
+        <di:waypoint x="1750" y="250" />
+        <di:waypoint x="1800" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_11" bpmnElement="Flow_Tom_11">
+        <di:waypoint x="1900" y="250" />
+        <di:waypoint x="1950" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_12" bpmnElement="Flow_Tom_12">
+        <di:waypoint x="2050" y="250" />
+        <di:waypoint x="2100" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_13" bpmnElement="Flow_Tom_13">
+        <di:waypoint x="2200" y="250" />
+        <di:waypoint x="2250" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_14" bpmnElement="Flow_Tom_14">
+        <di:waypoint x="2350" y="250" />
+        <di:waypoint x="2405" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_ToConfirm" bpmnElement="Flow_Tom_ToConfirm">
+        <di:waypoint x="2455" y="250" />
+        <di:waypoint x="2522" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_ToCancel" bpmnElement="Flow_Tom_ToCancel">
+        <di:waypoint x="2430" y="225" />
+        <di:waypoint x="2430" y="150" />
+        <di:waypoint x="2522" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_CancelToTask" bpmnElement="Flow_Tom_CancelToTask">
+        <di:waypoint x="2558" y="150" />
+        <di:waypoint x="2620" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_EndCancel" bpmnElement="Flow_Tom_EndCancel">
+        <di:waypoint x="2720" y="150" />
+        <di:waypoint x="2772" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_16" bpmnElement="Flow_Tom_16">
+        <di:waypoint x="2558" y="250" />
+        <di:waypoint x="2720" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_17" bpmnElement="Flow_Tom_17">
+        <di:waypoint x="2820" y="250" />
+        <di:waypoint x="2860" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tom_18" bpmnElement="Flow_Tom_18">
+        <di:waypoint x="2960" y="250" />
+        <di:waypoint x="3022" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_Pool_Sophie" bpmnElement="Pool_Sophie" isHorizontal="true">
+        <dc:Bounds x="160" y="940" width="3400" height="350" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_Sophie" bpmnElement="Start_Sophie">
+        <dc:Bounds x="252" y="1092" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="252" y="1138" width="36" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sophie_SeesNotifications" bpmnElement="Task_Sophie_SeesNotifications">
+        <dc:Bounds x="340" y="1070" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sophie_ClicksInvitation" bpmnElement="Task_Sophie_ClicksInvitation">
+        <dc:Bounds x="490" y="1070" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sophie_ReadsComment" bpmnElement="Task_Sophie_ReadsComment">
+        <dc:Bounds x="640" y="1070" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_Sophie_ReviewProfile" bpmnElement="GW_Sophie_ReviewProfile" isMarkerVisible="true">
+        <dc:Bounds x="795" y="1085" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="775" y="1143" width="90" height="20" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sophie_ViewsProfile" bpmnElement="Task_Sophie_ViewsProfile">
+        <dc:Bounds x="900" y="1070" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sophie_SeesConversations" bpmnElement="Task_Sophie_SeesConversations">
+        <dc:Bounds x="1050" y="1070" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sophie_SeesTestimonials" bpmnElement="Task_Sophie_SeesTestimonials">
+        <dc:Bounds x="1200" y="1070" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_Sophie_ReviewMerge" bpmnElement="GW_Sophie_ReviewMerge" isMarkerVisible="true">
+        <dc:Bounds x="1355" y="1085" width="50" height="50" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sophie_ReturnsToInvitation" bpmnElement="Task_Sophie_ReturnsToInvitation">
+        <dc:Bounds x="1460" y="1070" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_Sophie_Accept" bpmnElement="GW_Sophie_Accept" isMarkerVisible="true">
+        <dc:Bounds x="1615" y="1085" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1620" y="1143" width="40" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Sophie_NotNow" bpmnElement="End_Sophie_NotNow">
+        <dc:Bounds x="1722" y="982" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1706" y="1025" width="69" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Sophie_Confirmed" bpmnElement="End_Sophie_Confirmed">
+        <dc:Bounds x="1872" y="1092" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1847" y="1135" width="87" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sophie_Confirms" bpmnElement="Task_Sophie_Confirms">
+        <dc:Bounds x="1720" y="1070" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sophie_1" bpmnElement="Flow_Sophie_1">
+        <di:waypoint x="288" y="1110" />
+        <di:waypoint x="340" y="1110" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sophie_2" bpmnElement="Flow_Sophie_2">
+        <di:waypoint x="440" y="1110" />
+        <di:waypoint x="490" y="1110" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sophie_3" bpmnElement="Flow_Sophie_3">
+        <di:waypoint x="590" y="1110" />
+        <di:waypoint x="640" y="1110" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sophie_4" bpmnElement="Flow_Sophie_4">
+        <di:waypoint x="740" y="1110" />
+        <di:waypoint x="795" y="1110" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sophie_ReviewYes" bpmnElement="Flow_Sophie_ReviewYes">
+        <di:waypoint x="845" y="1110" />
+        <di:waypoint x="900" y="1110" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="855" y="1092" width="18" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sophie_ReviewNo" bpmnElement="Flow_Sophie_ReviewNo">
+        <di:waypoint x="820" y="1085" />
+        <di:waypoint x="820" y="1000" />
+        <di:waypoint x="1380" y="1000" />
+        <di:waypoint x="1380" y="1085" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="828" y="1040" width="15" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sophie_5" bpmnElement="Flow_Sophie_5">
+        <di:waypoint x="1000" y="1110" />
+        <di:waypoint x="1050" y="1110" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sophie_6" bpmnElement="Flow_Sophie_6">
+        <di:waypoint x="1150" y="1110" />
+        <di:waypoint x="1200" y="1110" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sophie_7" bpmnElement="Flow_Sophie_7">
+        <di:waypoint x="1300" y="1110" />
+        <di:waypoint x="1355" y="1110" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sophie_ToReturn" bpmnElement="Flow_Sophie_ToReturn">
+        <di:waypoint x="1405" y="1110" />
+        <di:waypoint x="1460" y="1110" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sophie_8" bpmnElement="Flow_Sophie_8">
+        <di:waypoint x="1560" y="1110" />
+        <di:waypoint x="1615" y="1110" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sophie_NotNow" bpmnElement="Flow_Sophie_NotNow">
+        <di:waypoint x="1640" y="1085" />
+        <di:waypoint x="1640" y="1000" />
+        <di:waypoint x="1722" y="1000" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1650" y="1040" width="41" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sophie_Accept" bpmnElement="Flow_Sophie_Accept">
+        <di:waypoint x="1665" y="1110" />
+        <di:waypoint x="1720" y="1110" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1672" y="1092" width="34" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sophie_9" bpmnElement="Flow_Sophie_9">
+        <di:waypoint x="1820" y="1110" />
+        <di:waypoint x="1872" y="1110" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_Pool_System" bpmnElement="Pool_System" isHorizontal="true">
+        <dc:Bounds x="160" y="510" width="3400" height="350" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_System" bpmnElement="Start_System">
+        <dc:Bounds x="252" y="642" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="258" y="685" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sys_RendersLogin" bpmnElement="Task_Sys_RendersLogin">
+        <dc:Bounds x="340" y="620" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sys_RendersDiscover" bpmnElement="Task_Sys_RendersDiscover">
+        <dc:Bounds x="490" y="620" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sys_RendersConversation" bpmnElement="Task_Sys_RendersConversation">
+        <dc:Bounds x="640" y="620" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sys_AcceptsComment" bpmnElement="Task_Sys_AcceptsComment">
+        <dc:Bounds x="790" y="620" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sys_PresentsInviteFlow" bpmnElement="Task_Sys_PresentsInviteFlow">
+        <dc:Bounds x="940" y="620" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sys_CreatesPendingInvite" bpmnElement="Task_Sys_CreatesPendingInvite">
+        <dc:Bounds x="1090" y="620" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sys_NotifiesSophie" bpmnElement="Task_Sys_NotifiesSophie">
+        <dc:Bounds x="1240" y="620" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sys_RendersInviteForSophie" bpmnElement="Task_Sys_RendersInviteForSophie">
+        <dc:Bounds x="1390" y="620" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_Sys_EventBased" bpmnElement="GW_Sys_EventBased">
+        <dc:Bounds x="1545" y="635" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1525" y="692" width="90" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sys_RevealsLocation" bpmnElement="Task_Sys_RevealsLocation">
+        <dc:Bounds x="1860" y="620" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sys_HandlesCancellation" bpmnElement="Task_Sys_HandlesCancellation">
+        <dc:Bounds x="1860" y="520" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_System_Cancelled" bpmnElement="End_System_Cancelled">
+        <dc:Bounds x="2012" y="542" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1995" y="585" width="70" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sys_UpdatesStatus" bpmnElement="Task_Sys_UpdatesStatus">
+        <dc:Bounds x="2020" y="620" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sys_RemovesConversation" bpmnElement="Task_Sys_RemovesConversation">
+        <dc:Bounds x="2170" y="620" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sys_NotifiesTom" bpmnElement="Task_Sys_NotifiesTom">
+        <dc:Bounds x="2490" y="620" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_System" bpmnElement="End_System">
+        <dc:Bounds x="3012" y="642" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="3020" y="685" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Sys_GeneratesCalendar" bpmnElement="Task_Sys_GeneratesCalendar">
+        <dc:Bounds x="2860" y="620" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_IntCatch_Sys_SophieConfirm" bpmnElement="IntCatch_Sys_SophieConfirm">
+        <dc:Bounds x="1762" y="642" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1750" y="592" width="60" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_IntCatch_Sys_TomCancels" bpmnElement="IntCatch_Sys_TomCancels">
+        <dc:Bounds x="1762" y="542" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1742" y="518" width="77" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_1" bpmnElement="Flow_Sys_1">
+        <di:waypoint x="288" y="660" />
+        <di:waypoint x="340" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_2" bpmnElement="Flow_Sys_2">
+        <di:waypoint x="440" y="660" />
+        <di:waypoint x="490" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_3" bpmnElement="Flow_Sys_3">
+        <di:waypoint x="590" y="660" />
+        <di:waypoint x="640" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_4" bpmnElement="Flow_Sys_4">
+        <di:waypoint x="740" y="660" />
+        <di:waypoint x="790" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_5" bpmnElement="Flow_Sys_5">
+        <di:waypoint x="890" y="660" />
+        <di:waypoint x="940" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_6" bpmnElement="Flow_Sys_6">
+        <di:waypoint x="1040" y="660" />
+        <di:waypoint x="1090" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_7" bpmnElement="Flow_Sys_7">
+        <di:waypoint x="1190" y="660" />
+        <di:waypoint x="1240" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_8" bpmnElement="Flow_Sys_8">
+        <di:waypoint x="1340" y="660" />
+        <di:waypoint x="1390" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_9" bpmnElement="Flow_Sys_9">
+        <di:waypoint x="1490" y="660" />
+        <di:waypoint x="1545" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_ToSophieConfirm" bpmnElement="Flow_Sys_ToSophieConfirm">
+        <di:waypoint x="1595" y="660" />
+        <di:waypoint x="1762" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_ToTomCancel" bpmnElement="Flow_Sys_ToTomCancel">
+        <di:waypoint x="1570" y="635" />
+        <di:waypoint x="1570" y="560" />
+        <di:waypoint x="1762" y="560" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_ToCancelTask" bpmnElement="Flow_Sys_ToCancelTask">
+        <di:waypoint x="1798" y="560" />
+        <di:waypoint x="1860" y="560" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_10" bpmnElement="Flow_Sys_10">
+        <di:waypoint x="1798" y="660" />
+        <di:waypoint x="1860" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_11" bpmnElement="Flow_Sys_11">
+        <di:waypoint x="1960" y="660" />
+        <di:waypoint x="2020" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_EndCancel" bpmnElement="Flow_Sys_EndCancel">
+        <di:waypoint x="1960" y="560" />
+        <di:waypoint x="2012" y="560" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_12" bpmnElement="Flow_Sys_12">
+        <di:waypoint x="2120" y="660" />
+        <di:waypoint x="2170" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_13" bpmnElement="Flow_Sys_13">
+        <di:waypoint x="2270" y="660" />
+        <di:waypoint x="2490" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_14" bpmnElement="Flow_Sys_14">
+        <di:waypoint x="2590" y="660" />
+        <di:waypoint x="2860" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Sys_15" bpmnElement="Flow_Sys_15">
+        <di:waypoint x="2960" y="660" />
+        <di:waypoint x="3012" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_RemovesConversation" bpmnElement="Assoc_RemovesConversation">
+        <di:waypoint x="2253" y="700" />
+        <di:waypoint x="2297" y="740" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_Comment" bpmnElement="Assoc_Comment">
+        <di:waypoint x="1599" y="217" />
+        <di:waypoint x="1698" y="165" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_GeneralArea" bpmnElement="Assoc_GeneralArea">
+        <di:waypoint x="1446" y="213" />
+        <di:waypoint x="1497" y="165" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_SlotSelection" bpmnElement="Assoc_SlotSelection">
+        <di:waypoint x="2001" y="210" />
+        <di:waypoint x="2009" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_Annotation_SophieNotifications" bpmnElement="Annotation_SophieNotifications">
+        <dc:Bounds x="310" y="1180" width="220" height="45" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Annotation_PendingInvitations" bpmnElement="Annotation_PendingInvitations">
+        <dc:Bounds x="1830" y="1180" width="280" height="55" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_MsgFlow_TomLogin" bpmnElement="MsgFlow_TomLogin">
+        <di:waypoint x="390" y="290" />
+        <di:waypoint x="390" y="620" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="397" y="449" width="67" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_MsgFlow_TomComment" bpmnElement="MsgFlow_TomComment">
+        <di:waypoint x="1550" y="290" />
+        <di:waypoint x="1550" y="340" />
+        <di:waypoint x="840" y="340" />
+        <di:waypoint x="840" y="620" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1172" y="322" width="56" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_MsgFlow_TomInvite" bpmnElement="MsgFlow_TomInvite">
+        <di:waypoint x="2300" y="290" />
+        <di:waypoint x="2300" y="390" />
+        <di:waypoint x="1140" y="390" />
+        <di:waypoint x="1140" y="620" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2277" y="342" width="67" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_MsgFlow_SysNotifySophie" bpmnElement="MsgFlow_SysNotifySophie">
+        <di:waypoint x="1290" y="700" />
+        <di:waypoint x="1290" y="880" />
+        <di:waypoint x="270" y="880" />
+        <di:waypoint x="270" y="1092" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="764" y="846" width="53" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_MsgFlow_SophieConfirms" bpmnElement="MsgFlow_SophieConfirms">
+        <di:waypoint x="1780" y="1070" />
+        <di:waypoint x="1780" y="678" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1737" y="915" width="63" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_MsgFlow_SysNotifyTom" bpmnElement="MsgFlow_SysNotifyTom">
+        <di:waypoint x="2540" y="620" />
+        <di:waypoint x="2540" y="268" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2500" y="430" width="72" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_MsgFlow_TomCancels" bpmnElement="MsgFlow_TomCancels">
+        <di:waypoint x="2670" y="190" />
+        <di:waypoint x="2670" y="420" />
+        <di:waypoint x="1910" y="420" />
+        <di:waypoint x="1910" y="520" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2269" y="402" width="61" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_MsgFlow_SysCalendarTom" bpmnElement="MsgFlow_SysCalendarTom">
+        <di:waypoint x="2910" y="620" />
+        <di:waypoint x="2910" y="290" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2868" y="432" width="75" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_SophieNotifications" bpmnElement="Assoc_SophieNotifications">
+        <di:waypoint x="390" y="1150" />
+        <di:waypoint x="400" y="1180" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_PendingInvitations" bpmnElement="Assoc_PendingInvitations">
+        <di:waypoint x="1890" y="1128" />
+        <di:waypoint x="1920" y="1180" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_Annotation_RemovesConversation" bpmnElement="Annotation_RemovesConversation">
+        <dc:Bounds x="2230" y="740" width="280" height="55" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Annotation_Comment" bpmnElement="Annotation_Comment">
+        <dc:Bounds x="1650" y="110" width="240" height="55" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Annotation_GeneralArea" bpmnElement="Annotation_GeneralArea">
+        <dc:Bounds x="1430" y="110" width="240" height="55" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Annotation_SlotSelection" bpmnElement="Annotation_SlotSelection">
+        <dc:Bounds x="1930" y="115" width="220" height="45" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

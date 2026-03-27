@@ -4,7 +4,7 @@ import type { Actions, PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const { session } = await locals.safeGetSession();
 	if (session) {
-		redirect(302, '/dashboard');
+		redirect(302, '/discover');
 	}
 
 	const token = url.searchParams.get('token');
@@ -60,8 +60,12 @@ export const actions: Actions = {
 			return fail(400, { username, error: 'Email is required' });
 		}
 
-		if (typeof password !== 'string' || password.length < 6) {
-			return fail(400, { username, error: 'Password must be at least 6 characters' });
+		if (typeof password !== 'string' || password.length < 8) {
+			return fail(400, { username, error: 'Password must be at least 8 characters' });
+		}
+
+		if (password.length > 128) {
+			return fail(400, { username, error: 'Password must be at most 128 characters' });
 		}
 
 		// Re-validate the token

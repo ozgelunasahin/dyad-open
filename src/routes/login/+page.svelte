@@ -13,13 +13,13 @@
 
 <nav class="login-nav">
 	<a href="/" class="logo-link" aria-label="Back to home">
-		<img src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/logo.png" alt="dyad" class="site-logo" />
+		<img src="/images/logo.png" alt="dyad" class="site-logo" />
 	</a>
 </nav>
 
 <div class="split-layout">
 	<div class="image-half">
-		<img src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/log%20in.jpeg" alt="" />
+		<img src="/images/log-in.jpeg" alt="" />
 	</div>
 	<div class="form-half">
 		<div class="auth-card">
@@ -94,10 +94,10 @@
 			<div class="switch-auth">
 				{#if mode === 'login'}
 					<button type="button" class="link-btn" onclick={() => (mode = 'reset')}>Forgot password?</button>
-					<a href="/#join" class="link-btn">Join</a>
+					<a href="/waitlist" class="link-btn">Join</a>
 				{:else if mode === 'reset'}
 					<button type="button" class="link-btn" onclick={() => (mode = 'login')}>Sign in</button>
-					<a href="/#join" class="link-btn">Join</a>
+					<a href="/waitlist" class="link-btn">Join</a>
 				{:else}
 					<a href="/discover" class="link-btn">Go to dashboard</a>
 				{/if}

@@ -1,0 +1,589 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="bpmn-js (https://demo.bpmn.io)" exporterVersion="18.13.1">
+  <bpmn:collaboration id="Collaboration_StartConversation">
+    <bpmn:participant id="Pool_Sophie" name="Sophie (Conversation Starter)" processRef="Process_Sophie" />
+    <bpmn:participant id="Pool_System" name="System" processRef="Process_System" />
+    <bpmn:messageFlow id="MsgFlow_BrowseRequest" name="Browse request" sourceRef="Task_BrowseDiscover" targetRef="Task_RenderDiscover" />
+    <bpmn:messageFlow id="MsgFlow_EnterEditor" name="Enter editor" sourceRef="Task_ClickStartButton" targetRef="Catch_EditorRequest" />
+    <bpmn:messageFlow id="MsgFlow_ImageContent" name="Image content" sourceRef="Task_AddCoverImage" targetRef="Catch_ImageUpload" />
+    <bpmn:messageFlow id="MsgFlow_PublishAction" name="Publish action" sourceRef="Task_ClickPublish" targetRef="Catch_PublishClick" />
+    <bpmn:messageFlow id="MsgFlow_SchedulingOptions" name="Scheduling options" sourceRef="Task_SubmitOptions" targetRef="Catch_SubmitOptions" />
+    <bpmn:messageFlow id="MsgFlow_SchedulingUI" name="Scheduling UI" sourceRef="Task_PresentDatePicker" targetRef="Task_ChooseSlots" />
+    <bpmn:messageFlow id="MsgFlow_LocationUI" name="Location autocomplete" sourceRef="Task_LocationAutocomplete" targetRef="Task_ChooseLocation" />
+    <bpmn:textAnnotation id="Annotation_ChooseSlots">
+      <bpmn:text>1-3 slots with start time AND duration per slot. Duration used for calendar events and feedback gate timing.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="Annotation_AddCoverImage">
+      <bpmn:text>URL from internet or upload. System resizes to standard size+format.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_AddCoverImage" sourceRef="Task_AddCoverImage" targetRef="Annotation_AddCoverImage" />
+    <bpmn:textAnnotation id="Annotation_WriteContent">
+      <bpmn:text>Substack-meets-reddit style, freeform length. Basic rich text via keyboard shortcuts (ctrl+b etc). No formatting modals — healthy brain principle.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_WriteContent" sourceRef="Task_WriteContent" targetRef="Annotation_WriteContent" />
+    <bpmn:textAnnotation id="Annotation_PublishDecisions">
+      <bpmn:text>Meetings only, no in-app conversation. Platform enforces engagement through meeting invitations.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_PublishDecisions" sourceRef="Task_PublishDecisions" targetRef="Annotation_PublishDecisions" />
+    <bpmn:textAnnotation id="Annotation_ChooseLocation">
+      <bpmn:text>Autocomplete from location API, region-scoped (Berlin for now, other regions in future). Option to carry over same location to all slots.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="Annotation_GenerateArea">
+      <bpmn:text>Generates general area from exact location (Airbnb-style). Exact location stored but only shown to inviter after meeting confirmation.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="Annotation_PostPublish">
+      <bpmn:text>Time slots editable/removable post-publish as long as no invitation has been proposed. All slots expired = conversation archived. Re-publishing without rewriting TBD. Active conversation limit applies (exact number TBD).</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_PostPublish" sourceRef="End_ConversationPublished" targetRef="Annotation_PostPublish" />
+    <bpmn:association id="Assoc_ChooseLocation" sourceRef="Task_ChooseLocation" targetRef="Annotation_ChooseLocation" />
+    <bpmn:association id="Assoc_ChooseSlots" sourceRef="Task_ChooseSlots" targetRef="Annotation_ChooseSlots" />
+    <bpmn:association id="Assoc_GenerateArea" sourceRef="Task_GenerateArea" targetRef="Annotation_GenerateArea" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_Sophie" isExecutable="false">
+    <bpmn:startEvent id="Start_ArrivesOnSite" name="Arrives on site">
+      <bpmn:outgoing>Flow_S1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Task_LogIn" name="Logs in">
+      <bpmn:incoming>Flow_S1</bpmn:incoming>
+      <bpmn:outgoing>Flow_S2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_BrowseDiscover" name="Browses discover page">
+      <bpmn:incoming>Flow_S2</bpmn:incoming>
+      <bpmn:outgoing>Flow_S3</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_CheckConversations" name="Checks out some conversations">
+      <bpmn:incoming>Flow_S3</bpmn:incoming>
+      <bpmn:outgoing>Flow_S4</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Gateway_FindEngaging" name="Finds something engaging?">
+      <bpmn:incoming>Flow_S4</bpmn:incoming>
+      <bpmn:outgoing>Flow_GW_Yes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_GW_No</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="End_JoinsStory2" name="Joins Story 2 flow">
+      <bpmn:incoming>Flow_GW_Yes</bpmn:incoming>
+      <bpmn:linkEventDefinition id="LinkDef_JoinsStory2" name="Story 2" />
+    </bpmn:endEvent>
+    <bpmn:task id="Task_ClickStartButton" name="Clicks &#34;Start a conversation&#34; button">
+      <bpmn:incoming>Flow_GW_No</bpmn:incoming>
+      <bpmn:outgoing>Flow_S5</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_EnterEditor" name="Enters conversation editor">
+      <bpmn:incoming>Flow_S5</bpmn:incoming>
+      <bpmn:outgoing>Flow_S6</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_WriteContent" name="Writes content">
+      <bpmn:incoming>Flow_S6</bpmn:incoming>
+      <bpmn:outgoing>Flow_S7</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_AddCoverImage" name="Adds cover image">
+      <bpmn:incoming>Flow_S7</bpmn:incoming>
+      <bpmn:outgoing>Flow_S8</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_ClickPublish" name="Clicks publish">
+      <bpmn:incoming>Flow_S8</bpmn:incoming>
+      <bpmn:outgoing>Flow_S9</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_PublishDecisions" name="Prompted with publish decisions">
+      <bpmn:incoming>Flow_S9</bpmn:incoming>
+      <bpmn:outgoing>Flow_S10</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="Flow_S1" sourceRef="Start_ArrivesOnSite" targetRef="Task_LogIn" />
+    <bpmn:sequenceFlow id="Flow_S2" sourceRef="Task_LogIn" targetRef="Task_BrowseDiscover" />
+    <bpmn:sequenceFlow id="Flow_S3" sourceRef="Task_BrowseDiscover" targetRef="Task_CheckConversations" />
+    <bpmn:sequenceFlow id="Flow_S4" sourceRef="Task_CheckConversations" targetRef="Gateway_FindEngaging" />
+    <bpmn:sequenceFlow id="Flow_GW_Yes" name="Yes" sourceRef="Gateway_FindEngaging" targetRef="End_JoinsStory2" />
+    <bpmn:sequenceFlow id="Flow_GW_No" name="No" sourceRef="Gateway_FindEngaging" targetRef="Task_ClickStartButton" />
+    <bpmn:sequenceFlow id="Flow_S5" sourceRef="Task_ClickStartButton" targetRef="Task_EnterEditor" />
+    <bpmn:sequenceFlow id="Flow_S6" sourceRef="Task_EnterEditor" targetRef="Task_WriteContent" />
+    <bpmn:sequenceFlow id="Flow_S7" sourceRef="Task_WriteContent" targetRef="Task_AddCoverImage" />
+    <bpmn:sequenceFlow id="Flow_S8" sourceRef="Task_AddCoverImage" targetRef="Task_ClickPublish" />
+    <bpmn:sequenceFlow id="Flow_S9" sourceRef="Task_ClickPublish" targetRef="Task_PublishDecisions" />
+    <bpmn:sequenceFlow id="Flow_S10" sourceRef="Task_PublishDecisions" targetRef="Task_ChooseSlots" />
+    <bpmn:sequenceFlow id="Flow_S11" sourceRef="Task_ChooseSlots" targetRef="Task_ChooseLocation" />
+    <bpmn:sequenceFlow id="Flow_S12" sourceRef="Task_ChooseLocation" targetRef="Task_SubmitOptions" />
+    <bpmn:sequenceFlow id="Flow_S13" sourceRef="Task_SubmitOptions" targetRef="End_ConversationPublished" />
+    <bpmn:endEvent id="End_ConversationPublished" name="Conversation published">
+      <bpmn:incoming>Flow_S13</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:task id="Task_SubmitOptions" name="Submits options">
+      <bpmn:incoming>Flow_S12</bpmn:incoming>
+      <bpmn:outgoing>Flow_S13</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_ChooseLocation" name="Chooses location for each slot">
+      <bpmn:incoming>Flow_S11</bpmn:incoming>
+      <bpmn:outgoing>Flow_S12</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_ChooseSlots" name="Chooses 1-3 date/time slots (next 7 days)">
+      <bpmn:incoming>Flow_S10</bpmn:incoming>
+      <bpmn:outgoing>Flow_S11</bpmn:outgoing>
+    </bpmn:task>
+  </bpmn:process>
+  <bpmn:process id="Process_System" isExecutable="false">
+    <bpmn:sequenceFlow id="Flow_Sys10" sourceRef="Task_PublishToPages" targetRef="End_ConversationLive" />
+    <bpmn:sequenceFlow id="Flow_Sys9" sourceRef="Task_CreateRecord" targetRef="Task_PublishToPages" />
+    <bpmn:sequenceFlow id="Flow_Sys8" sourceRef="Task_GenerateArea" targetRef="Task_CreateRecord" />
+    <bpmn:sequenceFlow id="Flow_Sys7b" sourceRef="Catch_SubmitOptions" targetRef="Task_GenerateArea" />
+    <bpmn:sequenceFlow id="Flow_Sys7" sourceRef="Task_SameLocationShortcut" targetRef="Catch_SubmitOptions" />
+    <bpmn:sequenceFlow id="Flow_Sys6" sourceRef="Task_LocationAutocomplete" targetRef="Task_SameLocationShortcut" />
+    <bpmn:sequenceFlow id="Flow_Sys5" sourceRef="Task_PresentDatePicker" targetRef="Task_LocationAutocomplete" />
+    <bpmn:sequenceFlow id="Flow_Sys4" sourceRef="Task_PresentScheduling" targetRef="Task_PresentDatePicker" />
+    <bpmn:sequenceFlow id="Flow_Sys3b" sourceRef="Catch_PublishClick" targetRef="Task_PresentScheduling" />
+    <bpmn:sequenceFlow id="Flow_Sys3" sourceRef="Task_HandleImage" targetRef="Catch_PublishClick" />
+    <bpmn:sequenceFlow id="Flow_Sys2b" sourceRef="Catch_ImageUpload" targetRef="Task_HandleImage" />
+    <bpmn:sequenceFlow id="Flow_Sys2" sourceRef="Task_RenderEditor" targetRef="Catch_ImageUpload" />
+    <bpmn:sequenceFlow id="Flow_Sys1b" sourceRef="Catch_EditorRequest" targetRef="Task_RenderEditor" />
+    <bpmn:sequenceFlow id="Flow_Sys1" sourceRef="Task_RenderDiscover" targetRef="Catch_EditorRequest" />
+    <bpmn:sequenceFlow id="Flow_SysStart" sourceRef="Start_System" targetRef="Task_RenderDiscover" />
+    <bpmn:intermediateCatchEvent id="Catch_EditorRequest" name="Editor requested">
+      <bpmn:incoming>Flow_Sys1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys1b</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgDef_EditorRequest" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:endEvent id="End_ConversationLive" name="Conversation live">
+      <bpmn:incoming>Flow_Sys10</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:task id="Task_PublishToPages" name="Publishes to discover page, map, and profile">
+      <bpmn:incoming>Flow_Sys9</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys10</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_CreateRecord" name="Creates conversation record">
+      <bpmn:incoming>Flow_Sys8</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys9</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_GenerateArea" name="Generates general area from exact location">
+      <bpmn:incoming>Flow_Sys7b</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys8</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:intermediateCatchEvent id="Catch_SubmitOptions" name="Options submitted">
+      <bpmn:incoming>Flow_Sys7</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys7b</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgDef_SubmitOptions" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:task id="Task_SameLocationShortcut" name="Offers &#34;same location for all slots&#34; shortcut">
+      <bpmn:incoming>Flow_Sys6</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys7</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_LocationAutocomplete" name="Provides location autocomplete (region-scoped)">
+      <bpmn:incoming>Flow_Sys5</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys6</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_PresentDatePicker" name="Presents date/time picker">
+      <bpmn:incoming>Flow_Sys4</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys5</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_PresentScheduling" name="Presents scheduling flow on publish">
+      <bpmn:incoming>Flow_Sys3b</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys4</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:intermediateCatchEvent id="Catch_PublishClick" name="Publish clicked">
+      <bpmn:incoming>Flow_Sys3</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys3b</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgDef_PublishClick" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:task id="Task_HandleImage" name="Handles image upload / URL embed">
+      <bpmn:incoming>Flow_Sys2b</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys3</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:intermediateCatchEvent id="Catch_ImageUpload" name="Image received">
+      <bpmn:incoming>Flow_Sys2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys2b</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgDef_ImageUpload" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:task id="Task_RenderEditor" name="Renders conversation editor">
+      <bpmn:incoming>Flow_Sys1b</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_RenderDiscover" name="Renders discover page">
+      <bpmn:incoming>Flow_SysStart</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sys1</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:startEvent id="Start_System" name="System ready">
+      <bpmn:outgoing>Flow_SysStart</bpmn:outgoing>
+    </bpmn:startEvent>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_StartConversation">
+      <bpmndi:BPMNShape id="Pool_Sophie_di" bpmnElement="Pool_Sophie" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="2510" height="300" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_ArrivesOnSite_di" bpmnElement="Start_ArrivesOnSite">
+        <dc:Bounds x="252" y="192" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="236" y="235" width="70" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_LogIn_di" bpmnElement="Task_LogIn">
+        <dc:Bounds x="340" y="170" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_BrowseDiscover_di" bpmnElement="Task_BrowseDiscover">
+        <dc:Bounds x="490" y="170" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CheckConversations_di" bpmnElement="Task_CheckConversations">
+        <dc:Bounds x="640" y="170" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_FindEngaging_di" bpmnElement="Gateway_FindEngaging" isMarkerVisible="true">
+        <dc:Bounds x="795" y="185" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="776" y="155" width="88" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_JoinsStory2_di" bpmnElement="End_JoinsStory2">
+        <dc:Bounds x="802" y="302" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="780" y="345" width="82" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ClickStartButton_di" bpmnElement="Task_ClickStartButton">
+        <dc:Bounds x="900" y="170" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_EnterEditor_di" bpmnElement="Task_EnterEditor">
+        <dc:Bounds x="1050" y="170" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_WriteContent_di" bpmnElement="Task_WriteContent">
+        <dc:Bounds x="1200" y="170" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AddCoverImage_di" bpmnElement="Task_AddCoverImage">
+        <dc:Bounds x="1350" y="170" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ClickPublish_di" bpmnElement="Task_ClickPublish">
+        <dc:Bounds x="1500" y="170" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_PublishDecisions_di" bpmnElement="Task_PublishDecisions">
+        <dc:Bounds x="1650" y="170" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_ConversationPublished_di" bpmnElement="End_ConversationPublished">
+        <dc:Bounds x="2432" y="192" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2417" y="154.5" width="65" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SubmitOptions_di" bpmnElement="Task_SubmitOptions">
+        <dc:Bounds x="2140" y="170" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ChooseLocation_di" bpmnElement="Task_ChooseLocation">
+        <dc:Bounds x="1930" y="170" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ChooseSlots_di" bpmnElement="Task_ChooseSlots">
+        <dc:Bounds x="1790" y="170" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_S1_di" bpmnElement="Flow_S1">
+        <di:waypoint x="288" y="210" />
+        <di:waypoint x="340" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S2_di" bpmnElement="Flow_S2">
+        <di:waypoint x="440" y="210" />
+        <di:waypoint x="490" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S3_di" bpmnElement="Flow_S3">
+        <di:waypoint x="590" y="210" />
+        <di:waypoint x="640" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S4_di" bpmnElement="Flow_S4">
+        <di:waypoint x="740" y="210" />
+        <di:waypoint x="795" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_GW_Yes_di" bpmnElement="Flow_GW_Yes">
+        <di:waypoint x="820" y="235" />
+        <di:waypoint x="820" y="302" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="826" y="263" width="18" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_GW_No_di" bpmnElement="Flow_GW_No">
+        <di:waypoint x="845" y="210" />
+        <di:waypoint x="900" y="210" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="865" y="192" width="15" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S5_di" bpmnElement="Flow_S5">
+        <di:waypoint x="1000" y="210" />
+        <di:waypoint x="1050" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S6_di" bpmnElement="Flow_S6">
+        <di:waypoint x="1150" y="210" />
+        <di:waypoint x="1200" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S7_di" bpmnElement="Flow_S7">
+        <di:waypoint x="1300" y="210" />
+        <di:waypoint x="1350" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S8_di" bpmnElement="Flow_S8">
+        <di:waypoint x="1450" y="210" />
+        <di:waypoint x="1500" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S9_di" bpmnElement="Flow_S9">
+        <di:waypoint x="1600" y="210" />
+        <di:waypoint x="1650" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S10_di" bpmnElement="Flow_S10">
+        <di:waypoint x="1750" y="210" />
+        <di:waypoint x="1790" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S11_di" bpmnElement="Flow_S11">
+        <di:waypoint x="1890" y="210" />
+        <di:waypoint x="1930" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S12_di" bpmnElement="Flow_S12">
+        <di:waypoint x="2030" y="210" />
+        <di:waypoint x="2140" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S13_di" bpmnElement="Flow_S13">
+        <di:waypoint x="2240" y="210" />
+        <di:waypoint x="2432" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Pool_System_di" bpmnElement="Pool_System" isHorizontal="true">
+        <dc:Bounds x="160" y="530" width="2710" height="250" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_System_di" bpmnElement="Start_System">
+        <dc:Bounds x="252" y="632" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="236" y="675" width="68" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_RenderDiscover_di" bpmnElement="Task_RenderDiscover">
+        <dc:Bounds x="490" y="610" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_RenderEditor_di" bpmnElement="Task_RenderEditor">
+        <dc:Bounds x="1020" y="610" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Catch_ImageUpload_di" bpmnElement="Catch_ImageUpload">
+        <dc:Bounds x="1352" y="632" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1332" y="675" width="76" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_HandleImage_di" bpmnElement="Task_HandleImage">
+        <dc:Bounds x="1420" y="610" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Catch_PublishClick_di" bpmnElement="Catch_PublishClick">
+        <dc:Bounds x="1552" y="632" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1534" y="675" width="73" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_PresentScheduling_di" bpmnElement="Task_PresentScheduling">
+        <dc:Bounds x="1620" y="610" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_PresentDatePicker_di" bpmnElement="Task_PresentDatePicker">
+        <dc:Bounds x="1760" y="610" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_LocationAutocomplete_di" bpmnElement="Task_LocationAutocomplete">
+        <dc:Bounds x="1900" y="610" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SameLocationShortcut_di" bpmnElement="Task_SameLocationShortcut">
+        <dc:Bounds x="2040" y="610" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Catch_SubmitOptions_di" bpmnElement="Catch_SubmitOptions">
+        <dc:Bounds x="2172" y="632" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2147" y="675" width="89" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_GenerateArea_di" bpmnElement="Task_GenerateArea">
+        <dc:Bounds x="2240" y="610" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CreateRecord_di" bpmnElement="Task_CreateRecord">
+        <dc:Bounds x="2380" y="610" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_PublishToPages_di" bpmnElement="Task_PublishToPages">
+        <dc:Bounds x="2520" y="610" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_ConversationLive_di" bpmnElement="End_ConversationLive">
+        <dc:Bounds x="2662" y="632" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2638" y="675" width="85" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Catch_EditorRequest_di" bpmnElement="Catch_EditorRequest">
+        <dc:Bounds x="922" y="632" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="900" y="675" width="81" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_SysStart_di" bpmnElement="Flow_SysStart">
+        <di:waypoint x="288" y="650" />
+        <di:waypoint x="490" y="650" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Sys1_di" bpmnElement="Flow_Sys1">
+        <di:waypoint x="590" y="650" />
+        <di:waypoint x="922" y="650" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Sys1b_di" bpmnElement="Flow_Sys1b">
+        <di:waypoint x="958" y="650" />
+        <di:waypoint x="1020" y="650" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Sys2_di" bpmnElement="Flow_Sys2">
+        <di:waypoint x="1120" y="650" />
+        <di:waypoint x="1352" y="650" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Sys2b_di" bpmnElement="Flow_Sys2b">
+        <di:waypoint x="1388" y="650" />
+        <di:waypoint x="1420" y="650" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Sys3_di" bpmnElement="Flow_Sys3">
+        <di:waypoint x="1520" y="650" />
+        <di:waypoint x="1552" y="650" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Sys3b_di" bpmnElement="Flow_Sys3b">
+        <di:waypoint x="1588" y="650" />
+        <di:waypoint x="1620" y="650" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Sys4_di" bpmnElement="Flow_Sys4">
+        <di:waypoint x="1720" y="650" />
+        <di:waypoint x="1760" y="650" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Sys5_di" bpmnElement="Flow_Sys5">
+        <di:waypoint x="1860" y="650" />
+        <di:waypoint x="1900" y="650" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Sys6_di" bpmnElement="Flow_Sys6">
+        <di:waypoint x="2000" y="650" />
+        <di:waypoint x="2040" y="650" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Sys7_di" bpmnElement="Flow_Sys7">
+        <di:waypoint x="2140" y="650" />
+        <di:waypoint x="2172" y="650" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Sys7b_di" bpmnElement="Flow_Sys7b">
+        <di:waypoint x="2208" y="650" />
+        <di:waypoint x="2240" y="650" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Sys8_di" bpmnElement="Flow_Sys8">
+        <di:waypoint x="2340" y="650" />
+        <di:waypoint x="2380" y="650" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Sys9_di" bpmnElement="Flow_Sys9">
+        <di:waypoint x="2480" y="650" />
+        <di:waypoint x="2520" y="650" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Sys10_di" bpmnElement="Flow_Sys10">
+        <di:waypoint x="2620" y="650" />
+        <di:waypoint x="2662" y="650" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Assoc_PostPublish_di" bpmnElement="Assoc_PostPublish">
+        <di:waypoint x="2464" y="221" />
+        <di:waypoint x="2478" y="260" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Assoc_ChooseLocation_di" bpmnElement="Assoc_ChooseLocation">
+        <di:waypoint x="1980" y="170" />
+        <di:waypoint x="2030" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Assoc_ChooseSlots_di" bpmnElement="Assoc_ChooseSlots">
+        <di:waypoint x="1860" y="170" />
+        <di:waypoint x="1875" y="154" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Assoc_AddCoverImage_di" bpmnElement="Assoc_AddCoverImage">
+        <di:waypoint x="1420" y="170" />
+        <di:waypoint x="1428" y="154" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Assoc_WriteContent_di" bpmnElement="Assoc_WriteContent">
+        <di:waypoint x="1250" y="250" />
+        <di:waypoint x="1249" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Assoc_GenerateArea_di" bpmnElement="Assoc_GenerateArea">
+        <di:waypoint x="2330" y="690" />
+        <di:waypoint x="2342" y="700" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Annotation_PublishDecisions_di" bpmnElement="Annotation_PublishDecisions">
+        <dc:Bounds x="1620" y="90" width="180" height="65" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="MsgFlow_BrowseRequest_di" bpmnElement="MsgFlow_BrowseRequest">
+        <di:waypoint x="540" y="250" />
+        <di:waypoint x="540" y="610" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="517" y="419" width="77" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MsgFlow_EnterEditor_di" bpmnElement="MsgFlow_EnterEditor">
+        <di:waypoint x="940" y="250" />
+        <di:waypoint x="940" y="632" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="910" y="605" width="58" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MsgFlow_ImageContent_di" bpmnElement="MsgFlow_ImageContent">
+        <di:waypoint x="1370" y="250" />
+        <di:waypoint x="1370" y="632" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1353" y="434" width="70" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MsgFlow_PublishAction_di" bpmnElement="MsgFlow_PublishAction">
+        <di:waypoint x="1570" y="250" />
+        <di:waypoint x="1570" y="632" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1553" y="434" width="69" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MsgFlow_SchedulingOptions_di" bpmnElement="MsgFlow_SchedulingOptions">
+        <di:waypoint x="2190" y="250" />
+        <di:waypoint x="2190" y="632" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2172" y="432" width="55" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MsgFlow_SchedulingUI_di" bpmnElement="MsgFlow_SchedulingUI">
+        <di:waypoint x="1810" y="610" />
+        <di:waypoint x="1810" y="250" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1757" y="421" width="69" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MsgFlow_LocationUI_di" bpmnElement="MsgFlow_LocationUI">
+        <di:waypoint x="1950" y="610" />
+        <di:waypoint x="1950" y="250" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1905" y="415" width="67" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Assoc_PublishDecisions_di" bpmnElement="Assoc_PublishDecisions">
+        <di:waypoint x="1700" y="170" />
+        <di:waypoint x="1700" y="155" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Annotation_PostPublish_di" bpmnElement="Annotation_PostPublish">
+        <dc:Bounds x="2360" y="260" width="280" height="90" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Annotation_ChooseLocation_di" bpmnElement="Annotation_ChooseLocation">
+        <dc:Bounds x="2030" y="85" width="230" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Annotation_ChooseSlots_di" bpmnElement="Annotation_ChooseSlots">
+        <dc:Bounds x="1820" y="86" width="200" height="68" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Annotation_AddCoverImage_di" bpmnElement="Annotation_AddCoverImage">
+        <dc:Bounds x="1370" y="90" width="180" height="64" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Annotation_WriteContent_di" bpmnElement="Annotation_WriteContent">
+        <dc:Bounds x="1160" y="280" width="200" height="85" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Annotation_GenerateArea_di" bpmnElement="Annotation_GenerateArea">
+        <dc:Bounds x="2270" y="700" width="220" height="70" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

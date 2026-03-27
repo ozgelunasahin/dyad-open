@@ -1,0 +1,592 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="bpmn-js (https://demo.bpmn.io)" exporterVersion="18.13.1">
+  <bpmn:collaboration id="Collaboration_FirstTouch">
+    <bpmn:participant id="Participant_Visitor" name="Visitor / User" processRef="Process_Visitor" />
+    <bpmn:participant id="Participant_System" name="System" processRef="Process_System" />
+    <bpmn:participant id="Participant_Admin" name="Admin" processRef="Process_Admin" />
+    <bpmn:messageFlow id="MsgFlow_FormSubmission" name="Form submission" sourceRef="Task_FillForm" targetRef="Task_ReceiveForm" />
+    <bpmn:messageFlow id="MsgFlow_ConfirmationEmail" name="Confirmation email" sourceRef="Task_SendConfirmation" targetRef="Task_ReceiveConfirmation" />
+    <bpmn:messageFlow id="MsgFlow_AdminNotification" name="New request notification" sourceRef="Task_NotifyAdmin" targetRef="Catch_AdminReceivesNotification" />
+    <bpmn:messageFlow id="MsgFlow_AdminDecision" name="Decision" sourceRef="Task_SubmitDecision" targetRef="Catch_SystemReceivesDecision" />
+    <bpmn:messageFlow id="MsgFlow_DecisionEmail" name="Decision email" sourceRef="Task_SendDecisionEmail" targetRef="Catch_VisitorReceivesDecision" />
+    <bpmn:textAnnotation id="Annotation_RegionalVerification">
+      <bpmn:text>Regional verification is an open question — how to ensure user is in Berlin without compromising accessibility or privacy. Meeting locations being Berlin-only is a partial solution.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_RegionalVerification" sourceRef="Task_FillForm" targetRef="Annotation_RegionalVerification" />
+    <bpmn:textAnnotation id="Annotation_InviteLink">
+      <bpmn:text>Invite link is time-bound but resilient — if session drops mid-registration, same link works to resume. One account per link.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="Annotation_Username">
+      <bpmn:text>Part of onboarding. Username should not be given too much importance — users can protect their anonymity.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_Username" sourceRef="Task_PickUsername" targetRef="Annotation_Username" />
+    <bpmn:textAnnotation id="Annotation_Onboarding">
+      <bpmn:text>NOT a tutorial/guide with modals. Onboarding should induct users into platform norms organically. Content TBD.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_Onboarding" sourceRef="Task_CompletesOnboarding" targetRef="Annotation_Onboarding" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_Visitor" isExecutable="false">
+    <bpmn:startEvent id="Start_Visitor" name="Arrives on landing page">
+      <bpmn:outgoing>Flow_V1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Task_ViewLanding" name="Views landing page content">
+      <bpmn:incoming>Flow_V1</bpmn:incoming>
+      <bpmn:outgoing>Flow_V2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_FillForm" name="Fills out join request form">
+      <bpmn:incoming>Flow_V2</bpmn:incoming>
+      <bpmn:outgoing>Flow_V3</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_ReceiveConfirmation" name="Receives confirmation email">
+      <bpmn:incoming>Flow_V3</bpmn:incoming>
+      <bpmn:outgoing>Flow_V4</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:intermediateCatchEvent id="Catch_VisitorReceivesDecision" name="Receives decision update">
+      <bpmn:incoming>Flow_V4</bpmn:incoming>
+      <bpmn:outgoing>Flow_V5</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgDef_VisitorDecision" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:exclusiveGateway id="Gateway_Decision" name="Decision outcome?">
+      <bpmn:incoming>Flow_V5</bpmn:incoming>
+      <bpmn:outgoing>Flow_Denied</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Hold</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Accepted</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Task_RejectionNotice" name="Receives rejection notice">
+      <bpmn:incoming>Flow_Denied</bpmn:incoming>
+      <bpmn:outgoing>Flow_DeniedEnd</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="End_Denied" name="Request denied">
+      <bpmn:incoming>Flow_DeniedEnd</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:task id="Task_HoldNotice" name="Receives &#34;we&#39;ll be in touch&#34; notice">
+      <bpmn:incoming>Flow_Hold</bpmn:incoming>
+      <bpmn:outgoing>Flow_HoldEnd</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="End_Hold" name="On hold">
+      <bpmn:incoming>Flow_HoldEnd</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:task id="Task_AcceptanceEmail" name="Receives acceptance email with link">
+      <bpmn:incoming>Flow_Accepted</bpmn:incoming>
+      <bpmn:outgoing>Flow_V6</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_ClickInvite" name="Clicks invite link">
+      <bpmn:incoming>Flow_V6</bpmn:incoming>
+      <bpmn:outgoing>Flow_V7</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_PickUsername" name="Picks username">
+      <bpmn:incoming>Flow_V7</bpmn:incoming>
+      <bpmn:outgoing>Flow_V8</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_ArrivesOnboarding" name="Arrives on onboarding page">
+      <bpmn:incoming>Flow_V8</bpmn:incoming>
+      <bpmn:outgoing>Flow_V9</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_CompletesOnboarding" name="Completes onboarding">
+      <bpmn:incoming>Flow_V9</bpmn:incoming>
+      <bpmn:outgoing>Flow_V10</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="End_Registered" name="Registered &#38; onboarded user">
+      <bpmn:incoming>Flow_V10</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_V1" sourceRef="Start_Visitor" targetRef="Task_ViewLanding" />
+    <bpmn:sequenceFlow id="Flow_V2" sourceRef="Task_ViewLanding" targetRef="Task_FillForm" />
+    <bpmn:sequenceFlow id="Flow_V3" sourceRef="Task_FillForm" targetRef="Task_ReceiveConfirmation" />
+    <bpmn:sequenceFlow id="Flow_V4" sourceRef="Task_ReceiveConfirmation" targetRef="Catch_VisitorReceivesDecision" />
+    <bpmn:sequenceFlow id="Flow_V5" sourceRef="Catch_VisitorReceivesDecision" targetRef="Gateway_Decision" />
+    <bpmn:sequenceFlow id="Flow_Denied" name="Denied" sourceRef="Gateway_Decision" targetRef="Task_RejectionNotice" />
+    <bpmn:sequenceFlow id="Flow_DeniedEnd" sourceRef="Task_RejectionNotice" targetRef="End_Denied" />
+    <bpmn:sequenceFlow id="Flow_Hold" name="Hold" sourceRef="Gateway_Decision" targetRef="Task_HoldNotice" />
+    <bpmn:sequenceFlow id="Flow_HoldEnd" sourceRef="Task_HoldNotice" targetRef="End_Hold" />
+    <bpmn:sequenceFlow id="Flow_Accepted" name="Accepted" sourceRef="Gateway_Decision" targetRef="Task_AcceptanceEmail" />
+    <bpmn:sequenceFlow id="Flow_V6" sourceRef="Task_AcceptanceEmail" targetRef="Task_ClickInvite" />
+    <bpmn:sequenceFlow id="Flow_V7" sourceRef="Task_ClickInvite" targetRef="Task_PickUsername" />
+    <bpmn:sequenceFlow id="Flow_V8" sourceRef="Task_PickUsername" targetRef="Task_ArrivesOnboarding" />
+    <bpmn:sequenceFlow id="Flow_V9" sourceRef="Task_ArrivesOnboarding" targetRef="Task_CompletesOnboarding" />
+    <bpmn:sequenceFlow id="Flow_V10" sourceRef="Task_CompletesOnboarding" targetRef="End_Registered" />
+  </bpmn:process>
+  <bpmn:process id="Process_System" isExecutable="false">
+    <bpmn:startEvent id="Start_System" name="Process started">
+      <bpmn:outgoing>Flow_S0</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Task_RenderLanding" name="Renders landing page">
+      <bpmn:incoming>Flow_S0</bpmn:incoming>
+      <bpmn:outgoing>Flow_S1</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_ReceiveForm" name="Receives form submission">
+      <bpmn:incoming>Flow_S1</bpmn:incoming>
+      <bpmn:outgoing>Flow_S2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_SendConfirmation" name="Sends confirmation email to visitor">
+      <bpmn:incoming>Flow_S2</bpmn:incoming>
+      <bpmn:outgoing>Flow_S3</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_NotifyAdmin" name="Notifies admin of new request">
+      <bpmn:incoming>Flow_S3</bpmn:incoming>
+      <bpmn:outgoing>Flow_S4</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:intermediateCatchEvent id="Catch_SystemReceivesDecision" name="Receives admin decision">
+      <bpmn:incoming>Flow_S4</bpmn:incoming>
+      <bpmn:outgoing>Flow_S5</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgDef_SystemDecision" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:task id="Task_SendDecisionEmail" name="Sends decision email to user">
+      <bpmn:incoming>Flow_S5</bpmn:incoming>
+      <bpmn:outgoing>Flow_S5b</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Gateway_SystemDecision" name="Decision?">
+      <bpmn:incoming>Flow_S5b</bpmn:incoming>
+      <bpmn:outgoing>Flow_S6</bpmn:outgoing>
+      <bpmn:outgoing>Flow_S_DeniedHold</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Task_GenerateInvite" name="Generates invite link">
+      <bpmn:incoming>Flow_S6</bpmn:incoming>
+      <bpmn:outgoing>Flow_S7</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_CreateAccount" name="Creates account / sets username">
+      <bpmn:incoming>Flow_S7</bpmn:incoming>
+      <bpmn:outgoing>Flow_S8</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_ServeOnboarding" name="Serves onboarding flow">
+      <bpmn:incoming>Flow_S8</bpmn:incoming>
+      <bpmn:outgoing>Flow_S9</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_MarkRegistered" name="Marks user as registered &#38; onboarded">
+      <bpmn:incoming>Flow_S9</bpmn:incoming>
+      <bpmn:outgoing>Flow_S10</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="End_System_Registered" name="User registered">
+      <bpmn:incoming>Flow_S10</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_S0" sourceRef="Start_System" targetRef="Task_RenderLanding" />
+    <bpmn:sequenceFlow id="Flow_S1" sourceRef="Task_RenderLanding" targetRef="Task_ReceiveForm" />
+    <bpmn:sequenceFlow id="Flow_S2" sourceRef="Task_ReceiveForm" targetRef="Task_SendConfirmation" />
+    <bpmn:sequenceFlow id="Flow_S3" sourceRef="Task_SendConfirmation" targetRef="Task_NotifyAdmin" />
+    <bpmn:sequenceFlow id="Flow_S4" sourceRef="Task_NotifyAdmin" targetRef="Catch_SystemReceivesDecision" />
+    <bpmn:sequenceFlow id="Flow_S5" sourceRef="Catch_SystemReceivesDecision" targetRef="Task_SendDecisionEmail" />
+    <bpmn:sequenceFlow id="Flow_S5b" sourceRef="Task_SendDecisionEmail" targetRef="Gateway_SystemDecision" />
+    <bpmn:sequenceFlow id="Flow_S6" name="Accepted" sourceRef="Gateway_SystemDecision" targetRef="Task_GenerateInvite" />
+    <bpmn:sequenceFlow id="Flow_S_DeniedHold" name="Denied / Hold" sourceRef="Gateway_SystemDecision" targetRef="End_System_DeniedHold" />
+    <bpmn:sequenceFlow id="Flow_S7" sourceRef="Task_GenerateInvite" targetRef="Task_CreateAccount" />
+    <bpmn:sequenceFlow id="Flow_S8" sourceRef="Task_CreateAccount" targetRef="Task_ServeOnboarding" />
+    <bpmn:sequenceFlow id="Flow_S9" sourceRef="Task_ServeOnboarding" targetRef="Task_MarkRegistered" />
+    <bpmn:sequenceFlow id="Flow_S10" sourceRef="Task_MarkRegistered" targetRef="End_System_Registered" />
+    <bpmn:endEvent id="End_System_DeniedHold" name="Request denied or on hold">
+      <bpmn:incoming>Flow_S_DeniedHold</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:association id="Assoc_InviteLink" sourceRef="Task_GenerateInvite" targetRef="Annotation_InviteLink" />
+  </bpmn:process>
+  <bpmn:process id="Process_Admin" isExecutable="false">
+    <bpmn:startEvent id="Start_Admin" name="Awaiting requests">
+      <bpmn:outgoing>Flow_A0</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:intermediateCatchEvent id="Catch_AdminReceivesNotification" name="Receives notification">
+      <bpmn:incoming>Flow_A0</bpmn:incoming>
+      <bpmn:outgoing>Flow_A1</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgDef_AdminNotification" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:task id="Task_ReviewRequest" name="Reviews request">
+      <bpmn:incoming>Flow_A1</bpmn:incoming>
+      <bpmn:outgoing>Flow_A2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Gateway_AdminDecision" name="Accept / Deny / Hold">
+      <bpmn:incoming>Flow_A2</bpmn:incoming>
+      <bpmn:outgoing>Flow_A3</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Task_SubmitDecision" name="Submits decision">
+      <bpmn:incoming>Flow_A3</bpmn:incoming>
+      <bpmn:outgoing>Flow_A4</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="End_Admin" name="Decision submitted">
+      <bpmn:incoming>Flow_A4</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_A0" sourceRef="Start_Admin" targetRef="Catch_AdminReceivesNotification" />
+    <bpmn:sequenceFlow id="Flow_A1" sourceRef="Catch_AdminReceivesNotification" targetRef="Task_ReviewRequest" />
+    <bpmn:sequenceFlow id="Flow_A2" sourceRef="Task_ReviewRequest" targetRef="Gateway_AdminDecision" />
+    <bpmn:sequenceFlow id="Flow_A3" sourceRef="Gateway_AdminDecision" targetRef="Task_SubmitDecision" />
+    <bpmn:sequenceFlow id="Flow_A4" sourceRef="Task_SubmitDecision" targetRef="End_Admin" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_FirstTouch">
+      <bpmndi:BPMNShape id="Shape_Participant_Visitor" bpmnElement="Participant_Visitor" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="2200" height="350" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_Visitor" bpmnElement="Start_Visitor">
+        <dc:Bounds x="252" y="232" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="226" y="275" width="88" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ViewLanding" bpmnElement="Task_ViewLanding">
+        <dc:Bounds x="350" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_FillForm" bpmnElement="Task_FillForm">
+        <dc:Bounds x="500" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ReceiveConfirmation" bpmnElement="Task_ReceiveConfirmation">
+        <dc:Bounds x="650" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Catch_VisitorReceivesDecision" bpmnElement="Catch_VisitorReceivesDecision">
+        <dc:Bounds x="802" y="232" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="775" y="194.5" width="89" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_Decision" bpmnElement="Gateway_Decision" isMarkerVisible="true">
+        <dc:Bounds x="895" y="225" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="878" y="195" width="84" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_RejectionNotice" bpmnElement="Task_RejectionNotice">
+        <dc:Bounds x="1020" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Denied" bpmnElement="End_Denied">
+        <dc:Bounds x="1172" y="122" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1152" y="165" width="76" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_HoldNotice" bpmnElement="Task_HoldNotice">
+        <dc:Bounds x="1020" y="320" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Hold" bpmnElement="End_Hold">
+        <dc:Bounds x="1172" y="342" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1166" y="385" width="48" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_AcceptanceEmail" bpmnElement="Task_AcceptanceEmail">
+        <dc:Bounds x="1020" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ClickInvite" bpmnElement="Task_ClickInvite">
+        <dc:Bounds x="1170" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_PickUsername" bpmnElement="Task_PickUsername">
+        <dc:Bounds x="1320" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ArrivesOnboarding" bpmnElement="Task_ArrivesOnboarding">
+        <dc:Bounds x="1470" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_CompletesOnboarding" bpmnElement="Task_CompletesOnboarding">
+        <dc:Bounds x="1620" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Registered" bpmnElement="End_Registered">
+        <dc:Bounds x="1772" y="232" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1740" y="275" width="100" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_V1" bpmnElement="Flow_V1">
+        <di:waypoint x="288" y="250" />
+        <di:waypoint x="350" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_V2" bpmnElement="Flow_V2">
+        <di:waypoint x="450" y="250" />
+        <di:waypoint x="500" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_V3" bpmnElement="Flow_V3">
+        <di:waypoint x="600" y="250" />
+        <di:waypoint x="650" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_V4" bpmnElement="Flow_V4">
+        <di:waypoint x="750" y="250" />
+        <di:waypoint x="802" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_V5" bpmnElement="Flow_V5">
+        <di:waypoint x="838" y="250" />
+        <di:waypoint x="895" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Denied" bpmnElement="Flow_Denied">
+        <di:waypoint x="920" y="225" />
+        <di:waypoint x="920" y="140" />
+        <di:waypoint x="1020" y="140" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="930" y="163" width="36" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_DeniedEnd" bpmnElement="Flow_DeniedEnd">
+        <di:waypoint x="1120" y="140" />
+        <di:waypoint x="1172" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Hold" bpmnElement="Flow_Hold">
+        <di:waypoint x="920" y="275" />
+        <di:waypoint x="920" y="360" />
+        <di:waypoint x="1020" y="360" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="930" y="333" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_HoldEnd" bpmnElement="Flow_HoldEnd">
+        <di:waypoint x="1120" y="360" />
+        <di:waypoint x="1172" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Accepted" bpmnElement="Flow_Accepted">
+        <di:waypoint x="945" y="250" />
+        <di:waypoint x="1020" y="250" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="955" y="233" width="46" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_V6" bpmnElement="Flow_V6">
+        <di:waypoint x="1120" y="250" />
+        <di:waypoint x="1170" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_V7" bpmnElement="Flow_V7">
+        <di:waypoint x="1270" y="250" />
+        <di:waypoint x="1320" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_V8" bpmnElement="Flow_V8">
+        <di:waypoint x="1420" y="250" />
+        <di:waypoint x="1470" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_V9" bpmnElement="Flow_V9">
+        <di:waypoint x="1570" y="250" />
+        <di:waypoint x="1620" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_V10" bpmnElement="Flow_V10">
+        <di:waypoint x="1720" y="250" />
+        <di:waypoint x="1772" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_Participant_Admin" bpmnElement="Participant_Admin" isHorizontal="true">
+        <dc:Bounds x="160" y="780" width="2200" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_Admin" bpmnElement="Start_Admin">
+        <dc:Bounds x="742" y="862" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="718" y="905" width="84" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Catch_AdminReceivesNotification" bpmnElement="Catch_AdminReceivesNotification">
+        <dc:Bounds x="832" y="862" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="806" y="905" width="88" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ReviewRequest" bpmnElement="Task_ReviewRequest">
+        <dc:Bounds x="920" y="840" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_AdminDecision" bpmnElement="Gateway_AdminDecision" isMarkerVisible="true">
+        <dc:Bounds x="1065" y="855" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1040" y="912" width="100" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_SubmitDecision" bpmnElement="Task_SubmitDecision">
+        <dc:Bounds x="1160" y="840" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Admin" bpmnElement="End_Admin">
+        <dc:Bounds x="1312" y="862" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1286" y="905" width="88" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_A0" bpmnElement="Flow_A0">
+        <di:waypoint x="778" y="880" />
+        <di:waypoint x="832" y="880" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_A1" bpmnElement="Flow_A1">
+        <di:waypoint x="868" y="880" />
+        <di:waypoint x="920" y="880" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_A2" bpmnElement="Flow_A2">
+        <di:waypoint x="1020" y="880" />
+        <di:waypoint x="1065" y="880" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_A3" bpmnElement="Flow_A3">
+        <di:waypoint x="1115" y="880" />
+        <di:waypoint x="1160" y="880" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_A4" bpmnElement="Flow_A4">
+        <di:waypoint x="1260" y="880" />
+        <di:waypoint x="1312" y="880" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_Participant_System" bpmnElement="Participant_System" isHorizontal="true">
+        <dc:Bounds x="160" y="480" width="2250" height="250" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_System" bpmnElement="Start_System">
+        <dc:Bounds x="262" y="587" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="242" y="630" width="77" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_RenderLanding" bpmnElement="Task_RenderLanding">
+        <dc:Bounds x="350" y="565" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ReceiveForm" bpmnElement="Task_ReceiveForm">
+        <dc:Bounds x="500" y="565" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_SendConfirmation" bpmnElement="Task_SendConfirmation">
+        <dc:Bounds x="650" y="565" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_NotifyAdmin" bpmnElement="Task_NotifyAdmin">
+        <dc:Bounds x="800" y="565" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Catch_SystemReceivesDecision" bpmnElement="Catch_SystemReceivesDecision">
+        <dc:Bounds x="952" y="587" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="930" y="549.5" width="79" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_SendDecisionEmail" bpmnElement="Task_SendDecisionEmail">
+        <dc:Bounds x="1040" y="565" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_SystemDecision" bpmnElement="Gateway_SystemDecision" isMarkerVisible="true">
+        <dc:Bounds x="1185" y="580" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1181" y="556" width="49" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_GenerateInvite" bpmnElement="Task_GenerateInvite">
+        <dc:Bounds x="1290" y="565" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_CreateAccount" bpmnElement="Task_CreateAccount">
+        <dc:Bounds x="1440" y="565" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ServeOnboarding" bpmnElement="Task_ServeOnboarding">
+        <dc:Bounds x="1590" y="565" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_MarkRegistered" bpmnElement="Task_MarkRegistered">
+        <dc:Bounds x="1740" y="565" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_System_Registered" bpmnElement="End_System_Registered">
+        <dc:Bounds x="1892" y="587" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1872" y="630" width="76" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_System_DeniedHold" bpmnElement="End_System_DeniedHold">
+        <dc:Bounds x="1302" y="672" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1351" y="676" width="78" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Assoc_InviteLink" bpmnElement="Assoc_InviteLink">
+        <di:waypoint x="1340" y="565" />
+        <di:waypoint x="1343" y="545" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_S0" bpmnElement="Flow_S0">
+        <di:waypoint x="298" y="605" />
+        <di:waypoint x="350" y="605" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_S1" bpmnElement="Flow_S1">
+        <di:waypoint x="450" y="605" />
+        <di:waypoint x="500" y="605" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_S2" bpmnElement="Flow_S2">
+        <di:waypoint x="600" y="605" />
+        <di:waypoint x="650" y="605" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_S3" bpmnElement="Flow_S3">
+        <di:waypoint x="750" y="605" />
+        <di:waypoint x="800" y="605" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_S4" bpmnElement="Flow_S4">
+        <di:waypoint x="900" y="605" />
+        <di:waypoint x="952" y="605" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_S5" bpmnElement="Flow_S5">
+        <di:waypoint x="988" y="605" />
+        <di:waypoint x="1040" y="605" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_S5b" bpmnElement="Flow_S5b">
+        <di:waypoint x="1140" y="605" />
+        <di:waypoint x="1185" y="605" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_S6" bpmnElement="Flow_S6">
+        <di:waypoint x="1235" y="605" />
+        <di:waypoint x="1290" y="605" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1240" y="588" width="46" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_S_DeniedHold" bpmnElement="Flow_S_DeniedHold">
+        <di:waypoint x="1210" y="630" />
+        <di:waypoint x="1210" y="690" />
+        <di:waypoint x="1302" y="690" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1215" y="657" width="67" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_S7" bpmnElement="Flow_S7">
+        <di:waypoint x="1390" y="605" />
+        <di:waypoint x="1440" y="605" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_S8" bpmnElement="Flow_S8">
+        <di:waypoint x="1540" y="605" />
+        <di:waypoint x="1590" y="605" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_S9" bpmnElement="Flow_S9">
+        <di:waypoint x="1690" y="605" />
+        <di:waypoint x="1740" y="605" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_S10" bpmnElement="Flow_S10">
+        <di:waypoint x="1840" y="605" />
+        <di:waypoint x="1892" y="605" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_Annotation_RegionalVerification" bpmnElement="Annotation_RegionalVerification">
+        <dc:Bounds x="420" y="95" width="280" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Annotation_InviteLink" bpmnElement="Annotation_InviteLink">
+        <dc:Bounds x="1210" y="490" width="280" height="55" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Annotation_Username" bpmnElement="Annotation_Username">
+        <dc:Bounds x="1280" y="310" width="240" height="55" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Annotation_Onboarding" bpmnElement="Annotation_Onboarding">
+        <dc:Bounds x="1580" y="310" width="240" height="55" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_MsgFlow_FormSubmission" bpmnElement="MsgFlow_FormSubmission">
+        <di:waypoint x="550" y="290" />
+        <di:waypoint x="550" y="565" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="518" y="395" width="84" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_MsgFlow_ConfirmationEmail" bpmnElement="MsgFlow_ConfirmationEmail">
+        <di:waypoint x="700" y="565" />
+        <di:waypoint x="700" y="290" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="657" y="388" width="63" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_MsgFlow_AdminNotification" bpmnElement="MsgFlow_AdminNotification">
+        <di:waypoint x="850" y="645" />
+        <di:waypoint x="850" y="862" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="830" y="740" width="62" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_MsgFlow_AdminDecision" bpmnElement="MsgFlow_AdminDecision">
+        <di:waypoint x="1210" y="840" />
+        <di:waypoint x="1210" y="760" />
+        <di:waypoint x="970" y="760" />
+        <di:waypoint x="970" y="623" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1069" y="735" width="43" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_MsgFlow_DecisionEmail" bpmnElement="MsgFlow_DecisionEmail">
+        <di:waypoint x="1090" y="565" />
+        <di:waypoint x="1090" y="420" />
+        <di:waypoint x="820" y="420" />
+        <di:waypoint x="820" y="268" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="919" y="395" width="72" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_RegionalVerification" bpmnElement="Assoc_RegionalVerification">
+        <di:waypoint x="550" y="210" />
+        <di:waypoint x="550" y="165" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_Username" bpmnElement="Assoc_Username">
+        <di:waypoint x="1370" y="290" />
+        <di:waypoint x="1390" y="310" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_Onboarding" bpmnElement="Assoc_Onboarding">
+        <di:waypoint x="1670" y="290" />
+        <di:waypoint x="1690" y="310" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

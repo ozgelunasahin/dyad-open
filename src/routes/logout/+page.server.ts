@@ -3,5 +3,5 @@ import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	await locals.supabase.auth.signOut();
-	redirect(302, '/login');
+	redirect(302, '/');
 };
