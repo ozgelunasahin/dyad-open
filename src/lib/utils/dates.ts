@@ -19,3 +19,37 @@ export function getWeekDates(): WeekDate[] {
 		};
 	});
 }
+
+/**
+ * Hybrid timestamp: Today / Tomorrow / Day name / "29 Mar"
+ */
+export function formatHybridDate(iso: string): string {
+	const date = new Date(iso);
+	const now = new Date();
+	const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+	const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+	const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+	if (diffDays === 0) return 'Today';
+	if (diffDays === 1) return 'Tomorrow';
+	if (diffDays >= 2 && diffDays <= 6) {
+		return date.toLocaleDateString('en-GB', { weekday: 'long' });
+	}
+	return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+/** Format time: "15:00" */
+export function formatSlotTime(iso: string): string {
+	return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+}
+
+/** Format details line: "1 hour · Kreuzberg" */
+export function formatSlotDetails(durationMinutes: number, area: string): string {
+	const hours = Math.floor(durationMinutes / 60);
+	const mins = durationMinutes % 60;
+	let duration: string;
+	if (hours > 0 && mins > 0) duration = `${hours}h ${mins}m`;
+	else if (hours > 0) duration = hours === 1 ? '1 hour' : `${hours} hours`;
+	else duration = `${mins} min`;
+	return `${duration} · ${area}`;
+}
