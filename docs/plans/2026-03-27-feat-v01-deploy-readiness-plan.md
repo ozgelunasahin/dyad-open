@@ -128,13 +128,13 @@ Items deferred from v0.1. Prioritise based on tester feedback.
 
 ## Acceptance Criteria
 
-- [ ] No HTML injection possible in emails
-- [ ] TimeSlot fields validated at service layer
-- [ ] Password minimum 8 characters
-- [ ] All user-facing URLs use `/conversations/` not `/prompts/`
-- [ ] Old `/prompts/` URLs redirect to `/conversations/`
-- [ ] Cover image URLs validated against storage origin
-- [ ] Placeholder thumbnails have proper border-radius
+- [x] No HTML injection possible in emails
+- [x] TimeSlot fields validated at service layer
+- [x] Password minimum 8 characters
+- [x] All user-facing URLs use `/conversations/` not `/prompts/`
+- [x] Old `/prompts/` URLs redirect to `/conversations/`
+- [x] Cover image URLs validated against storage origin
+- [x] Placeholder thumbnails have proper border-radius
 - [ ] E2E tests pass
 - [ ] Deployed to production
 
