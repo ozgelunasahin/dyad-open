@@ -126,6 +126,23 @@ export class SupabasePromptCommandService implements PromptCommandService {
 		// Auto-expire pending invitations when slot is modified
 		await this.expirePendingInvitations(slotId);
 
+		// Validate individual fields if provided
+		if (updates.start_time !== undefined) {
+			const startDate = new Date(updates.start_time);
+			if (isNaN(startDate.getTime())) {
+				throw new Error('start_time must be a valid ISO 8601 date');
+			}
+			const oneHourFromNow = new Date(Date.now() + 60 * 60 * 1000);
+			if (startDate < oneHourFromNow) {
+				throw new Error('start_time must be at least 1 hour in the future');
+			}
+		}
+		if (updates.duration_minutes !== undefined) {
+			if (!Number.isInteger(updates.duration_minutes) || updates.duration_minutes < 15 || updates.duration_minutes > 480) {
+				throw new Error('duration_minutes must be an integer between 15 and 480');
+			}
+		}
+
 		const fields: Record<string, unknown> = {};
 		if (updates.start_time !== undefined) fields.start_time = updates.start_time;
 		if (updates.duration_minutes !== undefined) fields.duration_minutes = updates.duration_minutes;
@@ -261,6 +278,41 @@ export class SupabasePromptCommandService implements PromptCommandService {
 		return { id: data.id, prompt_id: data.prompt_id, accepted: data.accepted };
 	}
 
+	private validateSlotFields(slot: TimeSlotInput): void {
+		// start_time: must be valid ISO 8601, at least 1 hour in the future
+		const startDate = new Date(slot.start_time);
+		if (isNaN(startDate.getTime())) {
+			throw new Error('start_time must be a valid ISO 8601 date');
+		}
+		const oneHourFromNow = new Date(Date.now() + 60 * 60 * 1000);
+		if (startDate < oneHourFromNow) {
+			throw new Error('start_time must be at least 1 hour in the future');
+		}
+
+		// duration_minutes: integer, 15-480
+		if (!Number.isInteger(slot.duration_minutes) || slot.duration_minutes < 15 || slot.duration_minutes > 480) {
+			throw new Error('duration_minutes must be an integer between 15 and 480');
+		}
+
+		// location: required fields with correct types
+		const loc = slot.location;
+		if (!loc || typeof loc !== 'object') {
+			throw new Error('location is required and must be an object');
+		}
+		if (typeof loc.name !== 'string' || !loc.name.trim()) {
+			throw new Error('location.name is required');
+		}
+		if (typeof loc.address !== 'string' || !loc.address.trim()) {
+			throw new Error('location.address is required');
+		}
+		if (typeof loc.lat !== 'number' || loc.lat < -90 || loc.lat > 90) {
+			throw new Error('location.lat must be a number between -90 and 90');
+		}
+		if (typeof loc.lng !== 'number' || loc.lng < -180 || loc.lng > 180) {
+			throw new Error('location.lng must be a number between -180 and 180');
+		}
+	}
+
 	private async validateAndInsertSlots(
 		promptId: string,
 		slots: TimeSlotInput[],
@@ -268,6 +320,8 @@ export class SupabasePromptCommandService implements PromptCommandService {
 	): Promise<void> {
 		const rows = [];
 		for (const slot of slots) {
+			this.validateSlotFields(slot);
+
 			if (!validateRegion(slot.location, region)) {
 				throw new Error(`Location "${slot.location.name}" is outside the ${region} region`);
 			}

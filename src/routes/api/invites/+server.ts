@@ -1,7 +1,14 @@
 import { json, error } from '@sveltejs/kit';
+import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { sendEmail } from '$lib/server/email.js';
+import { escapeHtml } from '$lib/utils/escape-html.js';
 import { nanoid } from 'nanoid';
 import type { RequestHandler } from './$types';
+
+/** Derive the app origin from the Supabase URL or fall back to production. */
+const APP_ORIGIN = PUBLIC_SUPABASE_URL?.includes('localhost') || PUBLIC_SUPABASE_URL?.includes('127.0.0.1')
+	? 'http://localhost:5173'
+	: 'https://dyad.berlin';
 
 const INVITE_EXPIRY_DAYS = 14;
 
@@ -47,11 +54,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	if (existing && existing.length > 0) {
 		// Already has a valid invite — return the existing link
-		const origin = request.headers.get('origin') || 'https://dyad.berlin';
 		return json({
 			ok: true,
 			alreadyInvited: true,
-			inviteUrl: `${origin}/join?token=${existing[0].token}`
+			inviteUrl: `${APP_ORIGIN}/join?token=${existing[0].token}`
 		});
 	}
 
@@ -87,11 +93,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		error(500, 'Failed to create invitation');
 	}
 
-	const origin = request.headers.get('origin') || 'https://dyad.berlin';
-	const inviteUrl = `${origin}/join?token=${token}`;
+	const inviteUrl = `${APP_ORIGIN}/join?token=${token}`;
 
 	// Send invite email
-	const displayName = (typeof name === 'string' && name.trim()) || 'there';
+	const displayName = escapeHtml((typeof name === 'string' && name.trim()) || 'there');
 	sendEmail({
 		to: email.trim(),
 		subject: 'Welcome to dyad.',
