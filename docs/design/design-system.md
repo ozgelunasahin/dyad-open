@@ -190,6 +190,26 @@ Style: `--text-md`, `--text-muted`, no decoration, `--space-4` bottom margin.
 - Focus: `outline: none`, border-color: `--text-muted`
 - Placeholder: `--text-muted` color
 
+### Guidance Through Placeholders
+
+The app uses placeholder text as its primary guidance mechanism — no tutorial modals, no persistent labels, no instruction paragraphs above form fields.
+
+**The pattern:** Grey placeholder text tells the user what to do. Once they type, the instructions disappear. The interface is clean after interaction.
+
+**Examples:**
+- Editor title: "Title" (large, light serif)
+- Editor body: "Start writing..."
+- Response textarea: "Write a response..."
+- Invitation message: "Add a message..."
+- Search input: "Search" (large, centered)
+
+**Rules:**
+- Placeholder text is short — a verb phrase, not a question or sentence
+- No labels above inputs that duplicate the placeholder meaning
+- No persistent hint text below inputs (exception: privacy notes like "Only visible to you and the author")
+- Section titles are minimal or absent — the placeholder IS the affordance
+- Use `--text-muted` at reduced opacity so placeholders feel like whispers, not instructions
+
 ### Monospace Metadata
 
 Used for: @usernames, dates, stat labels, slot areas, badges.
