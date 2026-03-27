@@ -60,9 +60,8 @@
 	}
 
 	.slot-card.selected {
-		background: var(--text-primary);
-		color: var(--bg-canvas);
 		border-color: var(--text-primary);
+		border-width: 2px;
 	}
 
 	.slot-card.invited {
@@ -85,10 +84,6 @@
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
 		opacity: 0.6;
-	}
-
-	.slot-card.selected .slot-details {
-		opacity: 0.7;
 	}
 
 	.slot-badge {

@@ -15,21 +15,12 @@
 	let responseError = $state('');
 	let hasResponse = $derived(!!data.myComment || responseStatus === 'sent');
 
-	// Invitation flow state machine
-	let inviteStep = $state<'hidden' | 'prompt' | 'picking' | 'confirming' | 'sent'>('hidden');
+	// Invitation flow
 	let selectedSlotId = $state<string | null>(null);
 	let inviteMessage = $state('');
-	let inviteStatus = $state<'idle' | 'sending' | 'error'>('idle');
+	let inviteStatus = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
 	let inviteError = $state('');
 	let invitedSlotIds = $state(new Set(data.invitedSlotIds ?? []));
-
-	// Show invite prompt after response, unless already sent all invitations
-	$effect(() => {
-		if (hasResponse && inviteStep === 'hidden' && data.prompt.available_slots.length > 0) {
-			const hasUninvitedSlots = data.prompt.available_slots.some(s => !invitedSlotIds.has(s.id));
-			if (hasUninvitedSlots) inviteStep = 'prompt';
-		}
-	});
 
 	let selectedSlot = $derived(data.prompt.available_slots.find(s => s.id === selectedSlotId));
 
@@ -75,7 +66,7 @@
 			});
 			if (res.ok) {
 				if (selectedSlotId) invitedSlotIds = new Set([...invitedSlotIds, selectedSlotId]);
-				inviteStep = 'sent';
+				inviteStatus = 'sent';
 			} else {
 				const err = await res.json().catch(() => ({}));
 				const rawError = (err as any).error ?? 'Failed to send invitation';
@@ -134,94 +125,15 @@
 		{/if}
 	</div>
 
-	<!-- Available times (read-only, before responding) -->
-	{#if !isOwnPrompt && !hasResponse && data.prompt.available_slots.length > 0}
-		<section class="slots-section">
-			{#each data.prompt.available_slots as slot}
-				<SlotCard startTime={slot.start_time} durationMinutes={slot.duration_minutes} area={slot.general_area} />
-			{/each}
-		</section>
-	{/if}
-
-	<!-- Response + Invitation flow (non-authors only) -->
+	<!-- Response section (non-authors only) -->
 	{#if !isOwnPrompt}
 		<section class="response-section">
 			{#if hasResponse}
-				<!-- Show the actual response text -->
 				<div class="my-response">
 					<p class="my-response-text">{responseStatus === 'sent' ? responseText : data.myComment?.body}</p>
 					<button class="btn-text" onclick={() => responseStatus = 'idle'}>Edit</button>
 				</div>
-
-				<!-- Staged invitation flow -->
-				{#if inviteStep === 'prompt'}
-					<div class="invite-prompt-section">
-						<p class="invite-question">Would you like to meet @{data.prompt.author_username} in person?</p>
-						<div class="invite-prompt-actions">
-							<button class="btn-primary" onclick={() => inviteStep = 'picking'}>Pick a time</button>
-							<button class="btn-text" onclick={() => inviteStep = 'hidden'}>Not now</button>
-						</div>
-					</div>
-				{/if}
-
-				{#if inviteStep === 'picking'}
-					<div class="invite-picking">
-						<p class="invite-question">When would you like to meet?</p>
-						{#each data.prompt.available_slots as slot}
-							<SlotCard
-								startTime={slot.start_time}
-								durationMinutes={slot.duration_minutes}
-								area={slot.general_area}
-								invited={invitedSlotIds.has(slot.id)}
-								onclick={() => { selectedSlotId = slot.id; inviteStep = 'confirming'; }}
-							/>
-						{/each}
-					</div>
-				{/if}
-
-				{#if inviteStep === 'confirming' && selectedSlot}
-					<div class="invite-confirming">
-						<SlotCard
-							startTime={selectedSlot.start_time}
-							durationMinutes={selectedSlot.duration_minutes}
-							area={selectedSlot.general_area}
-							selected
-						/>
-
-						<textarea
-							class="invite-message"
-							placeholder="Add a message..."
-							bind:value={inviteMessage}
-							rows={2}
-							disabled={inviteStatus === 'sending'}
-						></textarea>
-
-						{#if inviteError}<p class="field-error">{inviteError}</p>{/if}
-
-						<div class="invite-confirm-actions">
-							<button class="btn-primary" onclick={sendInvite} disabled={inviteStatus === 'sending'}>
-								{inviteStatus === 'sending' ? 'Sending...' : 'Send invitation'}
-							</button>
-							<button class="btn-text" onclick={() => { selectedSlotId = null; inviteStep = 'picking'; }}>
-								Change time
-							</button>
-						</div>
-					</div>
-				{/if}
-
-				{#if inviteStep === 'sent' && selectedSlot}
-					<div class="invite-sent-card">
-						<p class="invite-sent-text">Invitation sent to @{data.prompt.author_username}</p>
-						<SlotCard
-							startTime={selectedSlot.start_time}
-							durationMinutes={selectedSlot.duration_minutes}
-							area={selectedSlot.general_area}
-						/>
-						<p class="invite-sent-hint">Waiting for a response.</p>
-					</div>
-				{/if}
 			{:else}
-				<!-- Response form -->
 				<textarea
 					class="response-input"
 					placeholder="Write a response..."
@@ -233,6 +145,54 @@
 				<button class="btn-secondary" onclick={submitResponse} disabled={responseStatus === 'sending' || !responseText.trim()}>
 					{responseStatus === 'sending' ? 'Sending...' : 'Send'}
 				</button>
+			{/if}
+		</section>
+	{/if}
+
+	<!-- Available times + invitation flow (always below response, non-authors only) -->
+	{#if !isOwnPrompt && data.prompt.available_slots.length > 0}
+		<section class="slots-section">
+			{#if hasResponse && inviteStatus !== 'sent'}
+				<p class="invite-question">Would you like to meet @{data.prompt.author_username} in person?</p>
+			{/if}
+
+			{#each data.prompt.available_slots as slot}
+				<SlotCard
+					startTime={slot.start_time}
+					durationMinutes={slot.duration_minutes}
+					area={slot.general_area}
+					selected={selectedSlotId === slot.id}
+					invited={invitedSlotIds.has(slot.id)}
+					onclick={hasResponse && inviteStatus !== 'sent' ? () => { selectedSlotId = selectedSlotId === slot.id ? null : slot.id; } : undefined}
+				/>
+			{/each}
+
+			{#if selectedSlotId && inviteStatus !== 'sent'}
+				{#if inviteError}<p class="field-error">{inviteError}</p>{/if}
+				<div class="invite-action-row">
+					<button class="btn-primary" onclick={sendInvite} disabled={inviteStatus === 'sending'}>
+						{inviteStatus === 'sending' ? 'Sending...' : 'Send invitation'}
+					</button>
+					<input
+						type="text"
+						class="invite-message-inline"
+						placeholder="Add a message (optional)"
+						bind:value={inviteMessage}
+						disabled={inviteStatus === 'sending'}
+					/>
+				</div>
+			{/if}
+
+			{#if inviteStatus === 'sent' && selectedSlot}
+				<div class="invite-sent-card">
+					<p class="invite-sent-text">Invitation sent to @{data.prompt.author_username}</p>
+					<SlotCard
+						startTime={selectedSlot.start_time}
+						durationMinutes={selectedSlot.duration_minutes}
+						area={selectedSlot.general_area}
+					/>
+					<p class="invite-sent-hint">Waiting for a response.</p>
+				</div>
 			{/if}
 		</section>
 	{/if}
@@ -315,29 +275,29 @@
 	.my-response { margin-bottom: var(--space-6); }
 	.my-response-text { font-size: var(--text-md); line-height: var(--leading-relaxed); margin: 0 0 var(--space-2); }
 
-	/* Invitation flow stages */
-	.invite-question { font-size: var(--text-md); margin: 0 0 var(--space-4); }
-	.invite-prompt-actions { display: flex; align-items: center; gap: var(--space-4); }
-	.invite-picking { margin-top: var(--space-2); }
-	.invite-confirming { margin-top: var(--space-2); }
+	/* Invitation flow */
+	.invite-section { margin-top: var(--space-2); }
+	.invite-question { font-size: var(--text-md); color: var(--text-muted); margin: 0 0 var(--space-4); }
 
-	.invite-message {
-		font-size: var(--text-base);
-		width: 100%;
-		padding: var(--space-3);
+	.invite-action-row {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		margin-top: var(--space-2);
+	}
+
+	.invite-message-inline {
+		flex: 1;
+		font-size: var(--text-sm);
+		padding: var(--space-2) var(--space-3);
 		border: 1px solid var(--border-link);
 		border-radius: var(--radius-input);
 		background: transparent;
-		resize: vertical;
-		line-height: 1.6;
 		box-sizing: border-box;
-		margin-top: var(--space-3);
-		margin-bottom: var(--space-3);
+		min-width: 0;
 	}
-	.invite-message:focus { outline: none; border-color: var(--text-muted); }
-	.invite-message::placeholder { color: var(--text-muted); }
-
-	.invite-confirm-actions { display: flex; align-items: center; gap: var(--space-4); }
+	.invite-message-inline:focus { outline: none; border-color: var(--text-muted); }
+	.invite-message-inline::placeholder { color: var(--text-muted); }
 
 	/* Sent state */
 	.invite-sent-card {

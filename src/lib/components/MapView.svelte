@@ -85,8 +85,15 @@
 
 			const marker = L.marker(pin.position, { icon });
 			marker.on('click', () => {
-				const nearby = pins.filter(p => p.area === pin.area).map(p => p.prompt);
-				// Always show BottomSheet preview — same UX for single or multiple
+				const clickedPos = pin.position;
+				const nearby = pins
+					.filter(p => p.area === pin.area)
+					.sort((a, b) => {
+						const distA = (a.position[0] - clickedPos[0]) ** 2 + (a.position[1] - clickedPos[1]) ** 2;
+						const distB = (b.position[0] - clickedPos[0]) ** 2 + (b.position[1] - clickedPos[1]) ** 2;
+						return distA - distB;
+					})
+					.map(p => p.prompt);
 				onSelectPin(nearby.length > 0 ? nearby : [pin.prompt], pin.area);
 			});
 			marker.addTo(markerLayer);
@@ -175,12 +182,15 @@
 	}
 
 	:global(.marker-img) {
-		width: 44px;
-		height: 44px;
+		width: 44px !important;
+		height: 44px !important;
 		border-radius: 50%;
 		object-fit: cover;
 		border: 2px solid #f5f3f0;
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+		box-sizing: border-box;
+		display: block;
+		aspect-ratio: 1;
 	}
 
 	:global(.marker-placeholder) {
@@ -192,10 +202,10 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		
 		font-size: 18px;
 		font-weight: 500;
 		border: 2px solid #f5f3f0;
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+		box-sizing: border-box;
 	}
 </style>
