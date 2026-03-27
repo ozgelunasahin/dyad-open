@@ -11,6 +11,7 @@
 		selectedDays = new Set<string>(),
 		onToggleDay,
 		showDateFilter = false,
+		onSearchClick,
 		// Editor variant props
 		saveStatus = 'idle',
 		onBack,
@@ -25,6 +26,7 @@
 		selectedDays?: Set<string>;
 		onToggleDay?: (date: string) => void;
 		showDateFilter?: boolean;
+		onSearchClick?: () => void;
 		// Editor variant
 		saveStatus?: 'idle' | 'saving' | 'saved' | 'error';
 		onBack?: () => void;
@@ -160,8 +162,8 @@
 			</button>
 		{/if}
 
-		<!-- Search pill (placeholder — not functional in v0.1) -->
-		<button class="search-pill" aria-label="Search" disabled>
+		<!-- Search pill -->
+		<button class="search-pill" aria-label="Search" onclick={onSearchClick}>
 			<svg width="16" height="16" viewBox="0 0 20 20" fill="none">
 				<circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.6"/>
 				<path d="M14 14l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
@@ -255,9 +257,11 @@
 		border-radius: var(--radius-pill);
 		color: var(--text-muted);
 		font-size: var(--text-sm);
-		cursor: not-allowed;
-		opacity: 0.7;
+		cursor: pointer;
+		transition: background 0.15s;
 	}
+
+	.search-pill:hover { background: rgba(0, 0, 0, 0.1); }
 
 	/* === Editor variant === */
 	.back-text-btn {
