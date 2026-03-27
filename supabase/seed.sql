@@ -103,7 +103,7 @@ INSERT INTO prompts (id, author_id, title, body, cover_image_url, state, region,
   ('seed-prompt-published', '11111111-1111-1111-1111-111111111111',
    'What we owe each other as strangers',
    '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"The stranger is a peculiar figure — neither friend nor enemy, neither known nor entirely unknown. What is the minimum we owe someone we will never see again?"}]}]}'::jsonb,
-   NULL, 'published', 'berlin',
+   'http://127.0.0.1:54321/storage/v1/object/public/uploads/seed/test-cover.png', 'published', 'berlin',
    NOW(), NOW() - interval '1 day', NOW());
 
 -- Time slots for the published prompt (future dates)
@@ -139,11 +139,11 @@ INSERT INTO time_slots (prompt_id, start_time, duration_minutes, exact_location,
    'Kreuzberg', 52.4988, 13.4238);
 
 -- A published prompt by the other user (for RLS testing)
-INSERT INTO prompts (id, author_id, title, body, state, region, published_at, created_at, updated_at) VALUES
+INSERT INTO prompts (id, author_id, title, body, cover_image_url, state, region, published_at, created_at, updated_at) VALUES
   ('seed-prompt-other', '22222222-2222-2222-2222-222222222222',
    'Language and what slips through it',
    '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Every language carves the world differently."}]}]}'::jsonb,
-   'published', 'berlin',
+   'http://127.0.0.1:54321/storage/v1/object/public/uploads/seed/test-cover.png', 'published', 'berlin',
    NOW(), NOW() - interval '2 days', NOW());
 
 INSERT INTO time_slots (id, prompt_id, start_time, duration_minutes, exact_location, general_area, general_area_lat, general_area_lng) VALUES

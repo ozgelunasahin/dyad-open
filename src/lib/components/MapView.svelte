@@ -6,10 +6,9 @@
 	interface Props {
 		prompts: PromptSummary[];
 		onSelectPin: (prompts: PromptSummary[], area: string) => void;
-		onNavigate: (promptId: string) => void;
-	}
+		}
 
-	let { prompts, onSelectPin, onNavigate }: Props = $props();
+	let { prompts, onSelectPin, initialCenter, initialZoom, onMoveEnd }: Props = $props();
 
 	let mapContainer: HTMLElement | undefined = $state();
 	let map: LeafletMap | undefined;
@@ -20,7 +19,6 @@
 	const DEFAULT_ZOOM = 12;
 	const FUZZ_MIN_METERS = 150;
 	const FUZZ_MAX_METERS = 400;
-	const CIRCLE_RADIUS_METERS = 300;
 
 	// ── Deterministic fuzz from slot ID ──────────────────────────────────────
 	// Simple hash: converts a string to a number between 0 and 1
@@ -70,14 +68,6 @@
 		const pins = buildPins(prompts);
 
 		for (const pin of pins) {
-			// Translucent fuzzy circle
-			L.circle(pin.position, {
-				radius: CIRCLE_RADIUS_METERS,
-				fillColor: '#1a1a1a',
-				fillOpacity: 0.06,
-				stroke: false
-			}).addTo(markerLayer);
-
 			// Cover image marker (or placeholder)
 			// Escape HTML attributes to prevent XSS from user-controlled URLs/titles
 			const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -96,13 +86,8 @@
 			const marker = L.marker(pin.position, { icon });
 			marker.on('click', () => {
 				const nearby = pins.filter(p => p.area === pin.area).map(p => p.prompt);
-				if (nearby.length <= 1) {
-					// Single conversation — navigate directly
-					onNavigate(pin.prompt.id);
-				} else {
-					// Multiple conversations in this area — show list
-					onSelectPin(nearby, pin.area);
-				}
+				// Always show BottomSheet preview — same UX for single or multiple
+				onSelectPin(nearby.length > 0 ? nearby : [pin.prompt], pin.area);
 			});
 			marker.addTo(markerLayer);
 		}
@@ -119,8 +104,8 @@
 		(L.Icon.Default as any).prototype.options.imagePath = '/leaflet/';
 
 		map = L.map(mapContainer, {
-			center: BERLIN_CENTER,
-			zoom: DEFAULT_ZOOM,
+			center: initialCenter ?? BERLIN_CENTER,
+			zoom: initialZoom ?? DEFAULT_ZOOM,
 			zoomControl: false,
 			attributionControl: true
 		});
@@ -130,11 +115,22 @@
 			maxZoom: 18
 		}).addTo(map);
 
+		// Report map position changes (debounced)
+		let moveEndTimer: ReturnType<typeof setTimeout>;
+		map.on('moveend', () => {
+			clearTimeout(moveEndTimer);
+			moveEndTimer = setTimeout(() => {
+				if (!map) return;
+				const c = map.getCenter();
+				onMoveEnd?.([c.lat, c.lng], map.getZoom());
+			}, 300);
+		});
+
 		markerLayer = L.layerGroup().addTo(map);
 		rebuildMarkers(L);
 
 		// Center on user location if available (no animation — instant jump)
-		if ('geolocation' in navigator) {
+		if (!initialCenter && 'geolocation' in navigator) {
 			navigator.geolocation.getCurrentPosition(
 				(pos) => {
 					map?.setView([pos.coords.latitude, pos.coords.longitude], 13, { animate: false });
@@ -144,8 +140,11 @@
 		}
 	});
 
+	let prevPrompts: PromptSummary[] | undefined;
 	$effect(() => {
-		if (leafletModule && markerLayer) {
+		const currentPrompts = prompts;
+		if (leafletModule && markerLayer && currentPrompts !== prevPrompts) {
+			prevPrompts = currentPrompts;
 			rebuildMarkers(leafletModule);
 		}
 	});
@@ -166,19 +165,8 @@
 <style>
 	.map-container {
 		width: 100%;
-		height: calc(100vh - 120px);
+		height: 100%;
 		min-height: 400px;
-		border-radius: var(--radius-card, 12px);
-		overflow: hidden;
-	}
-
-	@media (max-width: 430px) {
-		.map-container {
-			height: calc(100vh - 80px);
-			border-radius: 0;
-			margin: 0 -1rem;
-			width: calc(100% + 2rem);
-		}
 	}
 
 	:global(.marker-pin) {
@@ -189,7 +177,7 @@
 	:global(.marker-img) {
 		width: 44px;
 		height: 44px;
-		border-radius: 8px;
+		border-radius: 50%;
 		object-fit: cover;
 		border: 2px solid #f5f3f0;
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
@@ -198,7 +186,7 @@
 	:global(.marker-placeholder) {
 		width: 44px;
 		height: 44px;
-		border-radius: 8px;
+		border-radius: 50%;
 		background: #1a1a1a;
 		color: #f5f3f0;
 		display: flex;
