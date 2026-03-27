@@ -20,10 +20,12 @@
 	let acceptingId = $state<string | null>(null);
 	let acceptError = $state('');
 
-	function formatSlotDate(iso: string): string {
-		const d = new Date(iso);
-		return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+	function formatDate(iso: string): string {
+		return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 	}
+
+	// Alias for template clarity
+	const formatSlotDate = formatDate;
 
 	function formatSlotTime(iso: string): string {
 		return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
@@ -220,7 +222,7 @@
 			{#each data.comments as comment}
 				{@const invitation = data.receivedInvitations.find(inv => inv.inviter_id === comment.author_id)}
 				<div class="response-card" class:has-invitation={!!invitation}>
-					<span class="response-username">@{comment.author_username ?? 'anonymous'}</span>
+					<span class="response-meta">@{comment.author_username ?? 'anonymous'} · {formatDate(comment.created_at)}</span>
 					<p class="response-body">{comment.body}</p>
 
 					{#if invitation}
@@ -233,8 +235,6 @@
 								{acceptingId === invitation.id ? 'Accepting...' : 'Accept'}
 							</button>
 						</div>
-					{:else}
-						<span class="response-date">{new Date(comment.created_at).toLocaleDateString()}</span>
 					{/if}
 				</div>
 			{/each}
@@ -242,7 +242,7 @@
 			<!-- Invitations without a matching comment (edge case) -->
 			{#each data.receivedInvitations.filter(inv => !data.comments.some(c => c.author_id === inv.inviter_id)) as inv}
 				<div class="response-card has-invitation">
-					<span class="response-username">@{inv.inviter_username}</span>
+					<span class="response-meta">@{inv.inviter_username} · {formatDate(inv.created_at)}</span>
 					{#if inv.comment_body}
 						<p class="response-body">{inv.comment_body}</p>
 					{/if}
@@ -311,7 +311,7 @@
 	.response-invitation { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--border-link); }
 	.inv-slot { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin-bottom: var(--space-2); }
 	.inv-message { font-size: var(--text-sm); color: var(--text-secondary); font-style: italic; margin: 0 0 var(--space-3); }
-	.response-username { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); display: block; margin-bottom: var(--space-1); }
+	.response-meta { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); display: block; margin-bottom: var(--space-1); }
 
 	.response-input { font-size: var(--text-base); width: 100%; padding: var(--space-3); border: 1px solid var(--border-link); border-radius: var(--radius-input); background: transparent; resize: vertical; line-height: 1.6; box-sizing: border-box; margin-bottom: var(--space-3); }
 	.response-input:focus { outline: none; border-color: var(--text-muted); }
