@@ -59,8 +59,22 @@
 		</div>
 	{/if}
 
-	{#if data.promptId}
-		<a href="/prompts/{data.promptId}?from=meeting" class="conversation-link">View conversation: {data.promptTitle}</a>
+	{#if data.prompt}
+		<a href="/prompts/{data.prompt.id}?from=meeting" class="prompt-item">
+			<div class="prompt-row">
+				<div class="row-thumb">
+					{#if data.prompt.cover_image_url}
+						<img src={data.prompt.cover_image_url} alt="" class="thumb-img" />
+					{:else}
+						<div class="thumb-placeholder"></div>
+					{/if}
+				</div>
+				<div class="row-body">
+					<h3 class="row-title">{data.prompt.title || 'Untitled'}</h3>
+					<span class="row-status">{data.prompt.state === 'published' ? 'Published' : data.prompt.state === 'archived' ? 'Archived' : ''}</span>
+				</div>
+			</div>
+		</a>
 	{/if}
 
 	{#if data.meeting.state === 'scheduled' || data.meeting.state === 'active'}
@@ -89,8 +103,15 @@
 	.note-label { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); display: block; margin-bottom: var(--space-1); }
 	.note-body { font-size: var(--text-md); line-height: var(--leading-normal); margin: 0; font-style: italic; color: var(--text-secondary); }
 
-	.conversation-link { display: block; font-size: var(--text-sm); color: var(--text-muted); margin-bottom: var(--space-6); }
-	.conversation-link:hover { color: var(--text-primary); }
+	.prompt-item { display: block; border: 1px solid var(--border-link); border-radius: var(--radius-card); margin-bottom: var(--space-6); transition: opacity 0.15s; }
+	.prompt-item:hover { opacity: 0.72; }
+	.prompt-row { display: flex; gap: var(--space-4); padding: var(--space-4); align-items: stretch; }
+	.row-thumb { position: relative; flex-shrink: 0; width: 72px; min-height: 72px; border-radius: var(--radius-input); overflow: hidden; }
+	.thumb-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+	.thumb-placeholder { position: absolute; inset: 0; background: var(--bg-control); }
+	.row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+	.row-title { margin: 0 0 var(--space-1); font-size: var(--text-md); font-weight: 500; line-height: var(--leading-tight); }
+	.row-status { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
 
 	.cancel-btn { font-size: var(--text-sm); padding: var(--space-2) var(--space-5); border: 1px solid var(--border-link); border-radius: var(--radius-input); background: none; color: var(--text-muted); cursor: pointer; }
 	.cancel-btn:hover { border-color: var(--color-danger); color: var(--color-danger); }

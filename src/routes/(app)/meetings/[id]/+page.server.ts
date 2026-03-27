@@ -24,7 +24,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	// Load other participant's username and the conversation context
 	const [{ data: otherProfile }, { data: prompt }, { data: invitation }] = await Promise.all([
 		locals.supabase.from('profiles').select('username').eq('id', otherId).single(),
-		locals.supabase.from('prompts').select('id, title').eq('id', meeting.prompt_id).single(),
+		locals.supabase.from('prompts').select('id, title, cover_image_url, state, author_id').eq('id', meeting.prompt_id).single(),
 		locals.supabase
 			.from('prompt_invitations')
 			.select('message')
@@ -39,8 +39,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	return {
 		meeting,
 		otherUsername: otherProfile?.username ?? 'someone',
-		promptId: prompt?.id ?? null,
-		promptTitle: prompt?.title ?? null,
+		prompt: prompt ? {
+			id: prompt.id,
+			title: prompt.title,
+			cover_image_url: prompt.cover_image_url,
+			state: prompt.state
+		} : null,
 		invitationMessage: invitation?.message ?? null
 	};
 };
