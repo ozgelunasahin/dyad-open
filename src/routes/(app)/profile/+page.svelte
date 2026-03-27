@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import type { Prompt } from '$lib/domain/types';
+	import { goto } from '$app/navigation';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
 
 	let { data }: { data: PageData } = $props();
@@ -8,6 +9,20 @@
 	let drafts = $derived(data.prompts.filter((p: Prompt) => p.state === 'draft'));
 	let published = $derived(data.prompts.filter((p: Prompt) => p.state === 'published'));
 	let archived = $derived(data.prompts.filter((p: Prompt) => p.state === 'archived'));
+
+	// Collect cover images for thumbnail stacks
+	let conversationCovers = $derived(
+		[...published, ...drafts]
+			.map((p: Prompt) => p.cover_image_url)
+			.filter((url): url is string => !!url)
+			.slice(0, 2)
+	);
+	let archiveCovers = $derived(
+		archived
+			.map((p: Prompt) => p.cover_image_url)
+			.filter((url): url is string => !!url)
+			.slice(0, 2)
+	);
 
 	// Detail view state
 	let activeView = $state<'overview' | 'conversations' | 'meetings' | 'archive' | 'invitations'>('overview');
@@ -33,6 +48,7 @@
 			<div class="profile-stats">
 				<div class="stat"><span class="stat-num">{published.length}</span><span class="stat-label">ACTIVE</span></div>
 				<div class="stat"><span class="stat-num">{data.meetings.length}</span><span class="stat-label">MEETINGS</span></div>
+				<div class="stat"><span class="stat-num">{data.sentInvitations.length}</span><span class="stat-label">SAVED</span></div>
 			</div>
 		</div>
 
@@ -40,8 +56,11 @@
 		<div class="action-grid">
 			<button class="action-card" onclick={() => activeView = 'conversations'}>
 				<div class="card-thumb-stack">
-					{#if published.length > 0}
-						<div class="thumb-placeholder"></div>
+					{#if conversationCovers.length >= 2}
+						<img src={conversationCovers[1]} alt="" class="thumb-img thumb-back" />
+						<img src={conversationCovers[0]} alt="" class="thumb-img thumb-front" />
+					{:else if conversationCovers.length === 1}
+						<img src={conversationCovers[0]} alt="" class="thumb-img thumb-front" />
 					{:else}
 						<div class="thumb-placeholder"></div>
 					{/if}
@@ -59,7 +78,14 @@
 
 			<button class="action-card" onclick={() => activeView = 'archive'}>
 				<div class="card-thumb-stack">
-					<div class="thumb-placeholder"></div>
+					{#if archiveCovers.length >= 2}
+						<img src={archiveCovers[1]} alt="" class="thumb-img thumb-back" />
+						<img src={archiveCovers[0]} alt="" class="thumb-img thumb-front" />
+					{:else if archiveCovers.length === 1}
+						<img src={archiveCovers[0]} alt="" class="thumb-img thumb-front" />
+					{:else}
+						<div class="thumb-placeholder"></div>
+					{/if}
 				</div>
 				<span class="card-label">Archive</span>
 			</button>
@@ -126,7 +152,7 @@
 	{/if}
 </div>
 
-<FloatingNav position="bottom" active="profile" />
+<FloatingNav position="bottom" active="profile" onMapClick={() => goto('/discover?view=map')} />
 
 <style>
 	.content { width: 100%; max-width: 700px; padding-bottom: 80px; }
@@ -136,164 +162,116 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: flex-start;
-		padding: 24px;
-		margin-bottom: 24px;
+		padding: var(--space-6);
+		margin-bottom: var(--space-6);
 		background: var(--bg-canvas);
-		border: 1px solid var(--border-link, rgba(0,0,0,0.08));
-		border-radius: var(--radius-card, 12px);
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-card);
 	}
 
 	.avatar {
 		width: 80px;
 		height: 80px;
-		border-radius: 8px;
-		background: var(--bg-control, rgba(0,0,0,0.05));
-		border: 1px dashed var(--border-link, rgba(0,0,0,0.15));
+		border-radius: var(--radius-input);
+		background: var(--bg-control);
+		border: 1px dashed var(--border-link);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-family: 'SangBleu Sunrise', Georgia, serif;
 		font-size: 28px;
-		color: var(--text-muted, #999);
-		margin-bottom: 12px;
+		color: var(--text-muted);
+		margin-bottom: var(--space-3);
 	}
 
-	.profile-name {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
-		font-size: 1.25rem;
-		font-weight: 500;
-		color: var(--text-primary);
-	}
+	.profile-name { font-size: var(--text-xl); font-weight: 500; }
+	.profile-handle { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-muted); }
 
-	.profile-handle {
-		font-family: monospace;
-		font-size: 0.85rem;
-		color: var(--text-muted, #999);
-	}
-
-	.profile-stats {
-		display: flex;
-		flex-direction: column;
-		align-items: flex-end;
-		gap: 4px;
-	}
-
-	.stat { display: flex; align-items: baseline; gap: 6px; }
-	.stat-num { font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 1.1rem; font-weight: 500; color: var(--text-primary); }
-	.stat-label { font-family: 'SF Mono', monospace; font-size: 0.65rem; letter-spacing: 0.06em; color: var(--text-muted, #999); }
+	.profile-stats { display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-1); }
+	.stat { display: flex; align-items: baseline; gap: var(--space-2); }
+	.stat-num { font-size: var(--text-xl); font-weight: 500; }
+	.stat-label { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.06em; color: var(--text-muted); }
 
 	/* Action card grid */
-	.action-grid {
-		display: grid;
-		grid-template-columns: repeat(2, 1fr);
-		gap: 12px;
-	}
+	.action-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-3); }
 
 	.action-card {
 		background: var(--bg-canvas);
-		border: 1px solid var(--border-link, rgba(0,0,0,0.08));
-		border-radius: var(--radius-card, 12px);
-		padding: 20px 16px;
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-card);
+		padding: var(--space-5) var(--space-4);
 		cursor: pointer;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 12px;
+		gap: var(--space-3);
 		transition: background 0.15s;
 		position: relative;
-		font-family: 'SangBleu Sunrise', Georgia, serif;
 	}
 
-	.action-card:hover { background: var(--bg-control, rgba(0,0,0,0.02)); }
+	.action-card:hover { background: var(--bg-control); }
 
-	.card-thumb-stack {
-		width: 48px;
-		height: 48px;
-		position: relative;
+	/* Stacked thumbnail images */
+	.card-thumb-stack { width: 80px; height: 64px; position: relative; }
+
+	.thumb-img {
+		position: absolute;
+		width: 52px;
+		height: 60px;
+		object-fit: cover;
+		border-radius: var(--radius-input);
+		border: 2px solid var(--bg-canvas);
+		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
 	}
+
+	.thumb-front { top: 2px; left: 50%; transform: translateX(-50%) rotate(-3deg); z-index: 2; }
+	.thumb-back { top: 0; left: 50%; transform: translateX(-40%) rotate(5deg); z-index: 1; }
 
 	.thumb-placeholder {
-		width: 40px;
-		height: 48px;
-		background: var(--bg-control, rgba(0,0,0,0.06));
-		border-radius: 4px;
-		position: absolute;
-		top: 0;
-		left: 50%;
-		transform: translateX(-50%);
+		width: 48px; height: 56px;
+		background: var(--bg-control);
+		border-radius: var(--radius-input);
+		position: absolute; top: 4px; left: 50%; transform: translateX(-50%);
 	}
 
-	.card-label {
-		font-size: 0.9rem;
-		color: var(--text-primary);
-	}
+	.card-label { font-size: var(--text-md); }
 
-	.active-dot {
-		position: absolute;
-		top: 12px;
-		right: 12px;
-		width: 8px;
-		height: 8px;
-		border-radius: 50%;
-		background: var(--color-success, #3d9e5a);
-	}
+	.active-dot { position: absolute; top: var(--space-3); right: var(--space-3); width: 8px; height: 8px; border-radius: 50%; background: var(--color-success); }
 
 	.count-badge {
-		position: absolute;
-		top: 10px;
-		right: 10px;
-		font-family: 'SF Mono', monospace;
-		font-size: 10px;
-		background: var(--text-primary);
-		color: var(--bg-canvas);
-		padding: 1px 5px;
-		border-radius: 8px;
+		position: absolute; top: 10px; right: 10px;
+		font-family: var(--font-mono); font-size: 10px;
+		background: var(--text-primary); color: var(--bg-canvas);
+		padding: 1px 5px; border-radius: var(--space-2);
 	}
 
-	/* Detail views */
+	/* Detail views — .back-btn uses same pattern as global .back-link */
 	.back-btn {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
-		font-size: 0.9rem;
-		color: var(--text-muted, #666);
+		font-size: var(--text-md);
+		color: var(--text-muted);
 		background: none;
 		border: none;
 		cursor: pointer;
 		padding: 0;
-		margin-bottom: 16px;
+		margin-bottom: var(--space-4);
 	}
-
 	.back-btn:hover { color: var(--text-primary); }
 
-	.view-title {
-		font-family: 'SangBleu Sunrise', Georgia, serif;
-		font-size: 1.2rem;
-		font-weight: normal;
-		color: var(--text-primary);
-		margin: 0 0 16px;
-	}
+	.view-title { font-size: var(--text-xl); font-weight: normal; margin: 0 0 var(--space-4); }
 
 	.list-item {
 		display: flex;
 		align-items: center;
-		gap: 10px;
-		padding: 12px 0;
-		border-bottom: 1px solid var(--border-link, rgba(0,0,0,0.06));
-		text-decoration: none;
-		color: inherit;
+		gap: var(--space-3);
+		padding: var(--space-3) 0;
+		border-bottom: 1px solid var(--border-link);
 		transition: opacity 0.15s;
 	}
-
 	.list-item:hover { opacity: 0.7; }
-	.item-title { flex: 1; font-family: 'SangBleu Sunrise', Georgia, serif; font-size: 0.95rem; color: var(--text-primary); }
-	.item-date { font-family: 'SF Mono', monospace; font-size: 11px; color: var(--text-muted, #999); flex-shrink: 0; }
+	.item-title { flex: 1; font-size: var(--text-md); }
+	.item-date { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); flex-shrink: 0; }
 
-	.badge { font-family: 'SF Mono', monospace; font-size: 10px; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.04em; flex-shrink: 0; }
-	.badge-draft { background: rgba(0,0,0,0.06); color: var(--text-muted, #666); }
-	.badge-published { background: rgba(61,158,90,0.12); color: #2d7a42; }
-	.badge-archived { background: rgba(0,0,0,0.04); color: var(--text-muted, #999); }
-	.badge-pending { background: rgba(245,158,11,0.12); color: #b45309; }
-	.badge-accepted { background: rgba(61,158,90,0.12); color: #2d7a42; }
+	/* .badge and .badge-* use global shared classes */
 
-	.empty { font-family: 'SangBleu Sunrise', Georgia, serif; color: var(--text-muted, #999); text-align: center; padding: 32px 0; }
-	.empty a { color: var(--text-primary); text-decoration: underline; }
+	.empty { color: var(--text-muted); text-align: center; padding: var(--space-8) 0; }
+	.empty a { text-decoration: underline; }
 </style>

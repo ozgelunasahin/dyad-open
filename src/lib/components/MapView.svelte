@@ -7,12 +7,9 @@
 		prompts: PromptSummary[];
 		onSelectPin: (prompts: PromptSummary[], area: string) => void;
 		onNavigate: (promptId: string) => void;
-		initialCenter?: [number, number] | null;
-		initialZoom?: number | null;
-		onMoveEnd?: (center: [number, number], zoom: number) => void;
 	}
 
-	let { prompts, onSelectPin, onNavigate, initialCenter, initialZoom, onMoveEnd }: Props = $props();
+	let { prompts, onSelectPin, onNavigate }: Props = $props();
 
 	let mapContainer: HTMLElement | undefined = $state();
 	let map: LeafletMap | undefined;
@@ -23,6 +20,7 @@
 	const DEFAULT_ZOOM = 12;
 	const FUZZ_MIN_METERS = 150;
 	const FUZZ_MAX_METERS = 400;
+	const CIRCLE_RADIUS_METERS = 300;
 
 	// ── Deterministic fuzz from slot ID ──────────────────────────────────────
 	// Simple hash: converts a string to a number between 0 and 1
@@ -72,6 +70,14 @@
 		const pins = buildPins(prompts);
 
 		for (const pin of pins) {
+			// Translucent fuzzy circle
+			L.circle(pin.position, {
+				radius: CIRCLE_RADIUS_METERS,
+				fillColor: '#1a1a1a',
+				fillOpacity: 0.06,
+				stroke: false
+			}).addTo(markerLayer);
+
 			// Cover image marker (or placeholder)
 			// Escape HTML attributes to prevent XSS from user-controlled URLs/titles
 			const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -113,8 +119,8 @@
 		(L.Icon.Default as any).prototype.options.imagePath = '/leaflet/';
 
 		map = L.map(mapContainer, {
-			center: initialCenter ?? BERLIN_CENTER,
-			zoom: initialZoom ?? DEFAULT_ZOOM,
+			center: BERLIN_CENTER,
+			zoom: DEFAULT_ZOOM,
 			zoomControl: false,
 			attributionControl: true
 		});
@@ -124,37 +130,22 @@
 			maxZoom: 18
 		}).addTo(map);
 
-		// Report map position changes (debounced — moveend fires many times during inertial scroll)
-		let moveEndTimer: ReturnType<typeof setTimeout>;
-		map.on('moveend', () => {
-			clearTimeout(moveEndTimer);
-			moveEndTimer = setTimeout(() => {
-				if (!map) return;
-				const c = map.getCenter();
-				onMoveEnd?.([c.lat, c.lng], map.getZoom());
-			}, 300);
-		});
-
 		markerLayer = L.layerGroup().addTo(map);
 		rebuildMarkers(L);
 
-		// Center on user location if available (only if no initial position was provided)
-		if (!initialCenter && 'geolocation' in navigator) {
+		// Center on user location if available (no animation — instant jump)
+		if ('geolocation' in navigator) {
 			navigator.geolocation.getCurrentPosition(
 				(pos) => {
-					map?.setView([pos.coords.latitude, pos.coords.longitude], 13);
+					map?.setView([pos.coords.latitude, pos.coords.longitude], 13, { animate: false });
 				},
 				() => { /* permission denied or error — stay on Berlin center */ }
 			);
 		}
 	});
 
-	// Only rebuild markers when prompts data changes — not on every pan/zoom
-	let prevPrompts: PromptSummary[] | undefined;
 	$effect(() => {
-		const currentPrompts = prompts;
-		if (leafletModule && markerLayer && currentPrompts !== prevPrompts) {
-			prevPrompts = currentPrompts;
+		if (leafletModule && markerLayer) {
 			rebuildMarkers(leafletModule);
 		}
 	});
@@ -175,8 +166,19 @@
 <style>
 	.map-container {
 		width: 100%;
-		height: 100%;
+		height: calc(100vh - 120px);
 		min-height: 400px;
+		border-radius: var(--radius-card, 12px);
+		overflow: hidden;
+	}
+
+	@media (max-width: 430px) {
+		.map-container {
+			height: calc(100vh - 80px);
+			border-radius: 0;
+			margin: 0 -1rem;
+			width: calc(100% + 2rem);
+		}
 	}
 
 	:global(.marker-pin) {
@@ -187,7 +189,7 @@
 	:global(.marker-img) {
 		width: 44px;
 		height: 44px;
-		border-radius: 50%;
+		border-radius: 8px;
 		object-fit: cover;
 		border: 2px solid #f5f3f0;
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
@@ -196,13 +198,13 @@
 	:global(.marker-placeholder) {
 		width: 44px;
 		height: 44px;
-		border-radius: 50%;
+		border-radius: 8px;
 		background: #1a1a1a;
 		color: #f5f3f0;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-family: 'SangBleu Sunrise', Georgia, serif;
+		
 		font-size: 18px;
 		font-weight: 500;
 		border: 2px solid #f5f3f0;
