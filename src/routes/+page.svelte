@@ -61,7 +61,7 @@
 		<div class="cards-scroll">
 			{#if data.prompts && data.prompts.length > 0}
 				{#each data.prompts as prompt}
-					<ConversationCard {prompt} onclick={() => window.location.href = '/login'} />
+					<ConversationCard {prompt} onclick={() => window.location.href = '/waitlist'} />
 				{/each}
 			{:else}
 				<p class="empty-state">No conversations yet. Check back soon.</p>
