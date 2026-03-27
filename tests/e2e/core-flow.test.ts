@@ -21,7 +21,7 @@ test('Full flow: respond → invite → accept', async ({ browser }) => {
 		author_id: sophie.id,
 		title: 'E2E: Conversation about testing',
 		body: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Test conversation.' }] }] },
-		cover_image_url: 'https://placekitten.com/400/300',
+		cover_image_url: `${SUPABASE_URL}/storage/v1/object/public/uploads/seed/test-cover.png`,
 		state: 'published',
 		published_at: new Date().toISOString(),
 		region: 'berlin'
