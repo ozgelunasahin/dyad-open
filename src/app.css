@@ -151,6 +151,14 @@ button, input, textarea, select {
 	color: inherit;
 }
 
+/* Buttons are unstyled by default — add appearance via .btn-primary, .btn-secondary, etc. */
+button {
+	border: none;
+	background: none;
+	padding: 0;
+	cursor: pointer;
+}
+
 a {
 	color: inherit;
 	text-decoration: none;
