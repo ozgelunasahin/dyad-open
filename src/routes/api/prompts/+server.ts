@@ -30,8 +30,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		if (contentError) return json({ error: contentError }, { status: 400 });
 	}
 
-	if (body.coverImageUrl !== undefined && typeof body.coverImageUrl === 'string' && !body.coverImageUrl.startsWith(STORAGE_URL_PREFIX)) {
-		return json({ error: 'Invalid cover image URL' }, { status: 400 });
+	if (body.coverImageUrl !== undefined) {
+		if (typeof body.coverImageUrl !== 'string' || !body.coverImageUrl.startsWith(STORAGE_URL_PREFIX)) {
+			return json({ error: 'Invalid cover image URL' }, { status: 400 });
+		}
 	}
 
 	const service = new SupabasePromptCommandService(locals.supabase);
