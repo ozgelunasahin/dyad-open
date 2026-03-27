@@ -14,7 +14,10 @@
 		</a>
 		<nav class="sidebar-nav">
 			<a href="/discover" class="sidebar-link" class:active={currentPath === '/discover'}>Discover</a>
-			<a href="/profile" class="sidebar-link" class:active={currentPath === '/profile'}>Profile</a>
+			<a href="/profile" class="sidebar-link" class:active={currentPath === '/profile'}>
+				Profile
+				{#if data.attentionCount > 0}<span class="sidebar-badge">{data.attentionCount}</span>{/if}
+			</a>
 		</nav>
 		<div class="sidebar-bottom">
 			<span class="sidebar-username">@{data.username}</span>
@@ -55,6 +58,17 @@
 	.sidebar-link { display: block; padding: 0.5rem 0.65rem; color: var(--text-muted); text-decoration: none; font-size: 0.9rem; border-radius: 4px; transition: color 0.15s, background 0.15s; }
 	.sidebar-link:hover { color: var(--text-primary); background: var(--bg-control, rgba(0, 0, 0, 0.03)); }
 	.sidebar-link.active { color: var(--text-primary); font-weight: 500; }
+
+	.sidebar-badge {
+		font-family: var(--font-mono);
+		font-size: 10px;
+		background: var(--text-primary);
+		color: var(--bg-canvas);
+		padding: 1px 5px;
+		border-radius: var(--space-2);
+		margin-left: var(--space-2);
+		vertical-align: middle;
+	}
 
 	.sidebar-bottom { margin-top: auto; display: flex; flex-direction: column; gap: 0.5rem; }
 	.sidebar-username { color: var(--text-muted); font-size: 0.8rem; font-family: monospace; }
