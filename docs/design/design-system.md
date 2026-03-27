@@ -237,6 +237,17 @@ Pulsing green dot next to city name:
 animation: pulse 2.5s ease-in-out infinite;
 ```
 
+## Search Overlay
+
+Full-screen overlay triggered from FloatingNav search pill. Client-side text matching.
+
+- Full viewport, `--bg-canvas` background, z-index 900, fade transition (180ms)
+- Large centered input: `clamp(2rem, 10vw, 3.5rem)`, weight 300, centered, transparent
+- Before search: suggestion chips (pill-shaped, `rgba(0,0,0,0.06)` bg, `--radius-pill`)
+- After search: result rows with 52x52 cover thumb, title (weight 500), snippet (2-line clamp)
+- Escape closes, Enter submits
+- Body scroll locked while open
+
 ## Conversation Detail Page
 
 From `ref-conversation-detail-mobile.jpg`:
