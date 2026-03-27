@@ -30,6 +30,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	let receivedInvitations: Array<{
 		id: string;
 		inviter_id: string;
+		slot_id: string;
 		state: string;
 		inviter_username: string;
 		message: string | null;
@@ -47,6 +48,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			.select(`
 				id,
 				inviter_id,
+				slot_id,
 				message,
 				state,
 				created_at,
@@ -69,6 +71,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			receivedInvitations = enriched.map((inv: any) => ({
 				id: inv.id,
 				inviter_id: inv.inviter_id,
+				slot_id: inv.slot_id,
 				state: inv.state,
 				inviter_username: inviterMap.get(inv.inviter_id) ?? 'anonymous',
 				message: inv.message,
