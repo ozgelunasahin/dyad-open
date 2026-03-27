@@ -30,6 +30,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	let receivedInvitations: Array<{
 		id: string;
 		inviter_id: string;
+		state: string;
 		inviter_username: string;
 		message: string | null;
 		comment_body: string | null;
@@ -39,20 +40,21 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		created_at: string;
 	}> = [];
 
-	if (isAuthor && myInvitations.length > 0) {
-		// Query invitations with comment and slot joins (FK-based)
+	if (isAuthor) {
+		// Query all invitations (pending + accepted) with comment and slot joins
 		const { data: enriched } = await locals.supabase
 			.from('prompt_invitations')
 			.select(`
 				id,
 				inviter_id,
 				message,
+				state,
 				created_at,
 				comment:comment_id(body),
 				slot:slot_id(start_time, duration_minutes, general_area)
 			`)
 			.eq('prompt_id', params.id)
-			.eq('state', 'pending')
+			.in('state', ['pending', 'accepted'])
 			.order('created_at', { ascending: true });
 
 		if (enriched) {
@@ -67,6 +69,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			receivedInvitations = enriched.map((inv: any) => ({
 				id: inv.id,
 				inviter_id: inv.inviter_id,
+				state: inv.state,
 				inviter_username: inviterMap.get(inv.inviter_id) ?? 'anonymous',
 				message: inv.message,
 				comment_body: inv.comment?.body ?? null,
@@ -94,12 +97,24 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		}));
 	}
 
+	// Load meetings for this prompt (to link accepted invitations to meetings)
+	let promptMeetings: Array<{ id: string; slot_id: string; scheduled_time: string }> = [];
+	if (isAuthor) {
+		const { data: meetings } = await locals.supabase
+			.from('meetings')
+			.select('id, slot_id, scheduled_time')
+			.eq('prompt_id', params.id)
+			.in('state', ['scheduled', 'active', 'awaiting_feedback', 'completed']);
+		promptMeetings = (meetings ?? []) as any[];
+	}
+
 	return {
 		prompt: detail,
 		comments: enrichedComments,
 		myComment,
 		invitedSlotIds: [...invitedSlotIds],
 		receivedInvitations,
+		promptMeetings,
 		user: { id: userId }
 	};
 };

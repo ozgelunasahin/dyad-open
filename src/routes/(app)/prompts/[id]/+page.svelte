@@ -225,19 +225,26 @@
 		<section class="responses-received">
 			{#each data.comments as comment}
 				{@const invitation = data.receivedInvitations.find(inv => inv.inviter_id === comment.author_id)}
+				{@const meeting = invitation?.state === 'accepted' ? data.promptMeetings?.find(m => m.slot_id === invitation.slot_id) : null}
 				<div class="response-card" class:has-invitation={!!invitation}>
 					<span class="response-meta">@{comment.author_username ?? 'anonymous'} · {formatDate(comment.created_at)}</span>
 					<p class="response-body">{comment.body}</p>
 
 					{#if invitation}
 						<div class="response-invitation">
-							<div class="inv-slot">{formatSlotDate(invitation.slot_start_time)} · {formatSlotTime(invitation.slot_start_time)} · {invitation.slot_general_area}</div>
-							{#if invitation.message}
-								<p class="inv-message">{invitation.message}</p>
+							{#if invitation.state === 'accepted' && meeting}
+								<a href="/meetings/{meeting.id}" class="meeting-link">
+									Meeting scheduled · {formatSlotDate(invitation.slot_start_time)} · {formatSlotTime(invitation.slot_start_time)} · {invitation.slot_general_area}
+								</a>
+							{:else}
+								<div class="inv-slot">{formatSlotDate(invitation.slot_start_time)} · {formatSlotTime(invitation.slot_start_time)} · {invitation.slot_general_area}</div>
+								{#if invitation.message}
+									<p class="inv-message">{invitation.message}</p>
+								{/if}
+								<button class="invite-btn" onclick={() => acceptInvitation(invitation.id)} disabled={acceptingId === invitation.id}>
+									{acceptingId === invitation.id ? 'Accepting...' : 'Accept'}
+								</button>
 							{/if}
-							<button class="invite-btn" onclick={() => acceptInvitation(invitation.id)} disabled={acceptingId === invitation.id}>
-								{acceptingId === invitation.id ? 'Accepting...' : 'Accept'}
-							</button>
 						</div>
 					{/if}
 				</div>
@@ -313,6 +320,8 @@
 
 	.response-card.has-invitation { border: 1px solid var(--border-link); border-radius: var(--radius-card); padding: var(--space-4); margin-bottom: var(--space-3); }
 	.response-invitation { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--border-link); }
+	.meeting-link { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-success); display: block; }
+	.meeting-link:hover { opacity: 0.7; }
 	.inv-slot { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin-bottom: var(--space-2); }
 	.inv-message { font-size: var(--text-sm); color: var(--text-secondary); font-style: italic; margin: 0 0 var(--space-3); }
 	.response-meta { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); display: block; margin-bottom: var(--space-1); }
