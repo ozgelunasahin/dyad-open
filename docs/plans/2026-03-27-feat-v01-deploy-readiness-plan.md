@@ -19,9 +19,9 @@ User-supplied `displayName` interpolated directly into HTML emails without escap
 **Files:** `src/routes/api/contact/+server.ts`, `src/routes/api/invites/+server.ts`
 
 **Fix:**
-- [ ] Create `src/lib/utils/escape-html.ts` with `escapeHtml()` (escape `&`, `<`, `>`, `"`, `'`)
-- [ ] Apply to all user-supplied values in both email templates
-- [ ] Hardcode origin as `PUBLIC_SUPABASE_URL` or env var instead of `request.headers.get('origin')` (fixes #040 too)
+- [x] Create `src/lib/utils/escape-html.ts` with `escapeHtml()` (escape `&`, `<`, `>`, `"`, `'`)
+- [x] Apply to all user-supplied values in both email templates
+- [x] Hardcode origin as `PUBLIC_SUPABASE_URL` or env var instead of `request.headers.get('origin')` (fixes #040 too)
 
 ### 1b. TimeSlot Input Validation (#049)
 
@@ -30,10 +30,10 @@ No runtime validation on slot fields. Malformed data passes straight to DB.
 **Files:** `src/lib/services/prompt-command.ts` (inside `validateAndInsertSlots`)
 
 **Fix:**
-- [ ] Validate `start_time` is valid ISO 8601 date, at least 1 hour in the future
-- [ ] Validate `duration_minutes` is integer, 15-480 range
-- [ ] Validate `location` has required fields: `name` (string), `address` (string), `lat` (number, -90 to 90), `lng` (number, -180 to 180)
-- [ ] Return clear error messages per field
+- [x] Validate `start_time` is valid ISO 8601 date, at least 1 hour in the future
+- [x] Validate `duration_minutes` is integer, 15-480 range
+- [x] Validate `location` has required fields: `name` (string), `address` (string), `lat` (number, -90 to 90), `lng` (number, -180 to 180)
+- [x] Return clear error messages per field
 
 ### 1c. Password Policy (#041)
 
@@ -42,9 +42,9 @@ Currently 6-char minimum. NIST says 8.
 **Files:** `src/routes/join/+page.server.ts`
 
 **Fix:**
-- [ ] Change minimum from 6 to 8 characters
-- [ ] Add maximum of 128 characters
-- [ ] Update error message text
+- [x] Change minimum from 6 to 8 characters
+- [x] Add maximum of 128 characters
+- [x] Update error message text
 
 ## Phase 2: Route Rename (#082)
 

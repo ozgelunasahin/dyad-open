@@ -1,5 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import { sendEmail } from '$lib/server/email.js';
+import { escapeHtml } from '$lib/utils/escape-html.js';
 import type { RequestHandler } from './$types';
 
 // Simple in-memory rate limiter (per-process; sufficient for single-instance deploys)
@@ -109,7 +110,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 	}
 
 	// Send welcome email (fire-and-forget — don't block the response)
-	const displayName = (typeof name === 'string' && name.trim()) || 'there';
+	const displayName = escapeHtml((typeof name === 'string' && name.trim()) || 'there');
 	sendEmail({
 		to: email.trim(),
 		subject: "What's in a conversation?",
