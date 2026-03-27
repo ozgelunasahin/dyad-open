@@ -20,6 +20,10 @@ This approach was flagged as potentially overengineered. The `?from=` param chai
 - Does the `?from=` propagation break in practice? (refresh, deep link, share URL)
 - Once conversation + meeting views are unified (todo #083), does this become moot?
 
+## Note
+
+The current implementation feels right: explicit, clear, user-oriented, PWA-friendly. Unifying meetings and conversations (#083) may supersede parts of this — if there's only one view, there's only one place to go back to. Revisit after that work lands.
+
 ## Source
 
 - User testing session 2026-03-27: "back button should say where it goes"
