@@ -8,19 +8,31 @@
 	import SearchOverlay from '$lib/components/SearchOverlay.svelte';
 	import { getWeekDates } from '$lib/utils/dates';
 
+	import type { Snapshot } from './$types';
+
 	let { data }: { data: PageData } = $props();
 	let viewMode = $state<'list' | 'map'>('list');
 	let searchOpen = $state(false);
 	let selectedPinPrompts = $state<PromptSummary[]>([]);
 	let selectedPinArea = $state('');
 
+	// Map state for persistence
+	let mapCenter = $state<[number, number] | null>(null);
+	let mapZoom = $state<number | null>(null);
+
+	// SvelteKit snapshot — persists map state across navigation
+	export const snapshot: Snapshot<{ center: [number, number] | null; zoom: number | null; viewMode: 'list' | 'map' }> = {
+		capture: () => ({ center: mapCenter, zoom: mapZoom, viewMode }),
+		restore: (value) => {
+			mapCenter = value.center;
+			mapZoom = value.zoom;
+			viewMode = value.viewMode;
+		}
+	};
+
 	function handlePinSelect(prompts: PromptSummary[], area: string) {
 		selectedPinPrompts = prompts;
 		selectedPinArea = area;
-	}
-
-	function handlePinNavigate(promptId: string) {
-		goto(`/prompts/${promptId}`);
 	}
 
 	function closeSheet() {
@@ -142,7 +154,13 @@
 			{:else}
 
 				{#if viewMode === 'map'}
-					<MapView prompts={filteredPrompts} onSelectPin={handlePinSelect} onNavigate={handlePinNavigate} />
+					<MapView
+						prompts={filteredPrompts}
+						onSelectPin={handlePinSelect}
+						initialCenter={mapCenter}
+						initialZoom={mapZoom}
+						onMoveEnd={(c, z) => { mapCenter = c; mapZoom = z; }}
+					/>
 					{#if selectedPinPrompts.length > 0}
 						<BottomSheet prompts={selectedPinPrompts} area={selectedPinArea} onClose={closeSheet} />
 					{/if}
