@@ -4,14 +4,13 @@ import { dirname, join } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const authFile = join(__dirname, 'tests/.auth/user.json');
 
 export default defineConfig({
 	testDir: './tests',
-	fullyParallel: true,
+	fullyParallel: false, // E2E tests may share state
 	forbidOnly: !!process.env.CI,
 	retries: process.env.CI ? 2 : 0,
-	workers: process.env.CI ? 1 : undefined,
+	workers: 1, // Sequential for multi-user flows
 	reporter: 'html',
 	use: {
 		baseURL: 'http://localhost:5173',
@@ -21,13 +20,13 @@ export default defineConfig({
 	projects: [
 		{
 			name: 'setup',
-			testMatch: /.*\.setup\.ts/
+			testMatch: /auth\.setup\.ts/
 		},
 		{
-			name: 'chromium',
+			name: 'e2e',
+			testMatch: /e2e\/.*\.test\.ts/,
 			use: {
 				...devices['Desktop Chrome'],
-				storageState: authFile
 			},
 			dependencies: ['setup']
 		}

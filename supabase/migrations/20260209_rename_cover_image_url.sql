@@ -1,2 +1,0 @@
--- No-op: column rename reverted to keep existing cover_image_url references working.
--- See PR #23 finding 042.

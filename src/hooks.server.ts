@@ -40,5 +40,50 @@ export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.session = session;
 	event.locals.user = user;
 
+	// Redirect old /prompts/ URLs to /conversations/
+	if (event.url.pathname.startsWith('/prompts/')) {
+		const newPath = event.url.pathname.replace('/prompts/', '/conversations/') + event.url.search;
+		return new Response(null, { status: 302, headers: { Location: newPath } });
+	}
+
+	// Feedback gate: block app access when user has due feedback
+	if (user) {
+		const pathname = event.url.pathname;
+
+		// Skip gate for static assets, auth routes, and feedback routes
+		const isExempt =
+			pathname.startsWith('/_app/') ||
+			pathname.startsWith('/feedback') ||
+			pathname.startsWith('/api/feedback') ||
+			pathname.startsWith('/api/auth') ||
+			pathname.startsWith('/api/vocabulary') ||
+			pathname.startsWith('/auth') ||
+			pathname.startsWith('/logout') ||
+			pathname.endsWith('.webmanifest') ||
+			pathname.startsWith('/service-worker') ||
+			pathname.startsWith('/favicon') ||
+			pathname.startsWith('/impressum') ||
+			pathname.startsWith('/datenschutz');
+
+		if (!isExempt) {
+			const { SupabaseGateService } = await import('$lib/services/gate.js');
+			const gateService = new SupabaseGateService(event.locals.supabase);
+			const gateStatus = await gateService.checkGate(user.id);
+
+			if (gateStatus.gated && gateStatus.feedbackFormId) {
+				if (pathname.startsWith('/api/')) {
+					return new Response(JSON.stringify({ error: 'gated', feedbackFormId: gateStatus.feedbackFormId }), {
+						status: 403,
+						headers: { 'Content-Type': 'application/json' }
+					});
+				}
+				return new Response(null, {
+					status: 303,
+					headers: { Location: `/feedback/${gateStatus.feedbackFormId}` }
+				});
+			}
+		}
+	}
+
 	return resolve(event);
 };

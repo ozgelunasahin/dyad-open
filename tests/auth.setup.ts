@@ -1,33 +1,30 @@
 import { test as setup, expect } from '@playwright/test';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const authFile = join(__dirname, '.auth/user.json');
+const users = [
+	{ email: 'sophie@dyad.berlin', password: 'local-fixture-not-a-secret', file: 'tests/.auth/sophie.json' },
+	{ email: 'tom@dyad.berlin', password: 'local-fixture-not-a-secret', file: 'tests/.auth/tom.json' },
+];
 
-setup('authenticate', async ({ page }) => {
-	await page.goto('/login');
+for (const user of users) {
+	setup(`authenticate ${user.email}`, async ({ page }) => {
+		// Small delay between auth attempts to avoid rate limiting
+		await page.waitForTimeout(500);
+		await page.goto('/login');
+		await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
 
-	// Wait for form to be ready
-	await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
+		const emailInput = page.getByRole('textbox', { name: 'Email' });
+		const passwordInput = page.getByRole('textbox', { name: 'Password' });
 
-	// Fill form fields
-	const emailInput = page.getByRole('textbox', { name: 'Email' });
-	const passwordInput = page.getByRole('textbox', { name: 'Password' });
+		await emailInput.click();
+		await emailInput.fill(user.email);
+		await passwordInput.click();
+		await passwordInput.fill(user.password);
 
-	await emailInput.click();
-	await emailInput.fill('test@dyad.berlin');
+		await page.getByRole('button', { name: 'Sign in' }).click();
 
-	await passwordInput.click();
-	await passwordInput.fill('test123');
-
-	// Submit
-	await page.getByRole('button', { name: 'Sign in' }).click();
-
-	// Wait for redirect to dashboard
-	await expect(page).toHaveURL('/dashboard', { timeout: 10000 });
-
-	// Save auth state
-	await page.context().storageState({ path: authFile });
-});
+		// Wait for redirect — could be /discover or /feedback/[id] (if gated)
+		// Supabase auth can be slow on first login
+		await page.waitForURL(url => !url.pathname.includes('/login'), { timeout: 30000 });
+		await page.context().storageState({ path: user.file });
+	});
+}

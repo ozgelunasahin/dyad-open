@@ -49,13 +49,13 @@
 
 <nav class="login-nav">
 	<a href="/" class="logo-link" aria-label="Back to home">
-		<img src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/logo.png" alt="dyad" class="site-logo" />
+		<img src="/images/logo.png" alt="dyad" class="site-logo" />
 	</a>
 </nav>
 
 <div class="split-layout">
 	<div class="image-half">
-		<img src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/sign%20in.jpeg" alt="" />
+		<img src="/images/sign-in.jpeg" alt="" />
 	</div>
 	<div class="form-half">
 		<div class="auth-card">
@@ -204,7 +204,7 @@
 
 	.subtitle {
 		margin: 0 0 1.5rem 0;
-		font-family: 'SangBleu Sunrise', Georgia, serif;
+		
 		color: var(--text-muted);
 		font-size: 0.95rem;
 	}
@@ -224,7 +224,7 @@
 
 	.freewrite-label {
 		display: block;
-		font-family: 'SangBleu Sunrise', Georgia, serif;
+		
 		font-size: 0.85rem;
 		color: var(--text-muted);
 		margin-bottom: 6px;
@@ -233,7 +233,7 @@
 
 	textarea {
 		width: 100%;
-		font-family: 'SangBleu Sunrise', Georgia, serif;
+		
 		font-size: 0.9rem;
 		padding: 0.75rem;
 		border: 1px solid var(--border-link);

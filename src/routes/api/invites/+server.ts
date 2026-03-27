@@ -1,8 +1,14 @@
 import { json, error } from '@sveltejs/kit';
-import { Resend } from 'resend';
-import { env } from '$env/dynamic/private';
+import { PUBLIC_SUPABASE_URL } from '$env/static/public';
+import { sendEmail } from '$lib/server/email.js';
+import { escapeHtml } from '$lib/utils/escape-html.js';
 import { nanoid } from 'nanoid';
 import type { RequestHandler } from './$types';
+
+/** Derive the app origin from the Supabase URL or fall back to production. */
+const APP_ORIGIN = PUBLIC_SUPABASE_URL?.includes('localhost') || PUBLIC_SUPABASE_URL?.includes('127.0.0.1')
+	? 'http://localhost:5173'
+	: 'https://dyad.berlin';
 
 const INVITE_EXPIRY_DAYS = 14;
 
@@ -48,11 +54,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	if (existing && existing.length > 0) {
 		// Already has a valid invite — return the existing link
-		const origin = request.headers.get('origin') || 'https://dyad.berlin';
 		return json({
 			ok: true,
 			alreadyInvited: true,
-			inviteUrl: `${origin}/join?token=${existing[0].token}`
+			inviteUrl: `${APP_ORIGIN}/join?token=${existing[0].token}`
 		});
 	}
 
@@ -88,34 +93,25 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		error(500, 'Failed to create invitation');
 	}
 
-	const origin = request.headers.get('origin') || 'https://dyad.berlin';
-	const inviteUrl = `${origin}/join?token=${token}`;
+	const inviteUrl = `${APP_ORIGIN}/join?token=${token}`;
 
 	// Send invite email
-	const displayName = (typeof name === 'string' && name.trim()) || 'there';
-	if (env.RESEND_API_KEY) {
-		const resend = new Resend(env.RESEND_API_KEY);
-		try {
-			await resend.emails.send({
-				from: 'dyad. <hello@dyad.berlin>',
-				to: email.trim(),
-				subject: "Welcome to dyad.",
-				html: `
-					<div style="font-family: Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 40px 20px; color: #1a1a1a; line-height: 1.7;">
-						<p>Hi ${displayName},</p>
-						<p>You've been invited to join dyad — a community of independent thinkers who meet through writing.</p>
-						<p><a href="${inviteUrl}" style="color: #1a1a1a; font-weight: bold; text-decoration: underline;">Join dyad</a></p>
-						<p style="font-size: 14px; color: #666;">This link expires in ${INVITE_EXPIRY_DAYS} days.</p>
-						<hr style="border: none; border-top: 1px solid #e0ddd8; margin: 32px 0 16px;" />
-						<a href="https://dyad.berlin" style="display: inline-block;"><img src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/logo%20dark.png" alt="dyad" style="height: 32px; width: auto; margin-bottom: 8px;" /></a>
-						<p style="font-size: 12px; color: #999; margin: 0;">cultivating a culture of conversation</p>
-					</div>
-				`
-			});
-		} catch (err) {
-			console.error('[invites] Failed to send invite email:', err);
-		}
-	}
+	const displayName = escapeHtml((typeof name === 'string' && name.trim()) || 'there');
+	sendEmail({
+		to: email.trim(),
+		subject: 'Welcome to dyad.',
+		html: `
+			<div style="font-family: Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 40px 20px; color: #1a1a1a; line-height: 1.7;">
+				<p>Hi ${displayName},</p>
+				<p>You've been invited to join dyad — a community of independent thinkers who meet through writing.</p>
+				<p><a href="${inviteUrl}" style="color: #1a1a1a; font-weight: bold; text-decoration: underline;">Join dyad</a></p>
+				<p style="font-size: 14px; color: #666;">This link expires in ${INVITE_EXPIRY_DAYS} days.</p>
+				<hr style="border: none; border-top: 1px solid #e0ddd8; margin: 32px 0 16px;" />
+				<a href="https://dyad.berlin" style="display: inline-block;"><img src="/images/logo-dark.png" alt="dyad" style="height: 32px; width: auto; margin-bottom: 8px;" /></a>
+				<p style="font-size: 12px; color: #999; margin: 0;">cultivating a culture of conversation</p>
+			</div>
+		`
+	}).catch((err) => console.error('[invites] Failed to send invite email:', err));
 
 	return json({ ok: true, inviteUrl });
 };
