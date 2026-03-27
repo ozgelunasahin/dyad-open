@@ -1,8 +1,13 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 
 	let { data }: { data: PageData } = $props();
+
+	let from = $derived($page.url.searchParams.get('from'));
+	let backHref = $derived(from === 'profile' ? '/profile' : '/discover');
+	let backLabel = $derived(from === 'profile' ? '← back to profile' : '← back to discover');
 	let responseText = $state(data.myComment?.body ?? '');
 	let responseStatus = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
 	let responseError = $state('');
@@ -18,10 +23,12 @@
 	let acceptingId = $state<string | null>(null);
 	let acceptError = $state('');
 
-	function formatSlotDate(iso: string): string {
-		const d = new Date(iso);
-		return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+	function formatDate(iso: string): string {
+		return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 	}
+
+	// Alias for template clarity
+	const formatSlotDate = formatDate;
 
 	function formatSlotTime(iso: string): string {
 		return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
@@ -86,7 +93,7 @@
 			const res = await fetch(`/api/invitations/${invitationId}/accept`, { method: 'POST' });
 			if (res.ok) {
 				const { meetingId } = await res.json();
-				goto(`/meetings/${meetingId}`);
+				goto(`/meetings/${meetingId}?from=${from ?? 'discover'}`);
 			} else {
 				const err = await res.json().catch(() => ({}));
 				acceptError = (err as any).error ?? 'Failed to accept';
@@ -106,14 +113,14 @@
 </svelte:head>
 
 <div class="content">
-	<a href="/discover" class="back-link">← Back</a>
+	<a href={backHref} class="back-link">{backLabel}</a>
 
 	{#if data.prompt.cover_image_url}
 		<img src={data.prompt.cover_image_url} alt="" class="cover" loading="lazy" />
 	{/if}
 
 	<h1 class="title">{data.prompt.title}</h1>
-	<p class="meta">@{data.prompt.author_username}</p>
+	<p class="meta">@{data.prompt.author_username} · {formatDate(data.prompt.published_at)}</p>
 
 	<div class="body">
 		{#if data.prompt.body_html}
@@ -212,43 +219,56 @@
 		</section>
 	{/if}
 
-	<!-- Author view: received invitations -->
-	{#if isOwnPrompt && data.receivedInvitations.length > 0}
-		<section class="invitations-received">
-			{#each data.receivedInvitations as inv}
-				<div class="invitation-card">
-					<div class="inv-header">
-						<span class="inv-username">@{inv.inviter_username}</span>
-						<span class="inv-slot">{formatSlotDate(inv.slot_start_time)} · {formatSlotTime(inv.slot_start_time)} · {inv.slot_general_area}</span>
-					</div>
+	<!-- Author view: responses + their invitations together -->
+	{#if isOwnPrompt && (data.comments.length > 0 || data.receivedInvitations.length > 0)}
+		<section class="responses-received">
+			{#each data.comments as comment}
+				{@const invitation = data.receivedInvitations.find(inv => inv.inviter_id === comment.author_id)}
+				{@const meeting = invitation?.state === 'accepted' ? data.promptMeetings?.find(m => m.slot_id === invitation.slot_id) : null}
+				<div class="response-card" class:has-invitation={!!invitation}>
+					<span class="response-meta">@{comment.author_username ?? 'anonymous'} · {formatDate(comment.created_at)}</span>
+					<p class="response-body">{comment.body}</p>
+
+					{#if invitation}
+						<div class="response-invitation">
+							{#if invitation.state === 'accepted' && meeting}
+								<a href="/meetings/{meeting.id}?from={from ?? 'discover'}" class="meeting-link">
+									Meeting scheduled · {formatSlotDate(invitation.slot_start_time)} · {formatSlotTime(invitation.slot_start_time)} · {invitation.slot_general_area}
+								</a>
+							{:else}
+								<div class="inv-slot">{formatSlotDate(invitation.slot_start_time)} · {formatSlotTime(invitation.slot_start_time)} · {invitation.slot_general_area}</div>
+								{#if invitation.message}
+									<p class="inv-message">{invitation.message}</p>
+								{/if}
+								<button class="invite-btn" onclick={() => acceptInvitation(invitation.id)} disabled={acceptingId === invitation.id}>
+									{acceptingId === invitation.id ? 'Accepting...' : 'Accept'}
+								</button>
+							{/if}
+						</div>
+					{/if}
+				</div>
+			{/each}
+
+			<!-- Invitations without a matching comment (edge case) -->
+			{#each data.receivedInvitations.filter(inv => !data.comments.some(c => c.author_id === inv.inviter_id)) as inv}
+				<div class="response-card has-invitation">
+					<span class="response-meta">@{inv.inviter_username} · {formatDate(inv.created_at)}</span>
 					{#if inv.comment_body}
-						<p class="inv-response">{inv.comment_body}</p>
+						<p class="response-body">{inv.comment_body}</p>
 					{/if}
-					{#if inv.message}
-						<p class="inv-message">{inv.message}</p>
-					{/if}
-					<div class="inv-actions">
+					<div class="response-invitation">
+						<div class="inv-slot">{formatSlotDate(inv.slot_start_time)} · {formatSlotTime(inv.slot_start_time)} · {inv.slot_general_area}</div>
+						{#if inv.message}
+							<p class="inv-message">{inv.message}</p>
+						{/if}
 						<button class="invite-btn" onclick={() => acceptInvitation(inv.id)} disabled={acceptingId === inv.id}>
 							{acceptingId === inv.id ? 'Accepting...' : 'Accept'}
 						</button>
 					</div>
 				</div>
 			{/each}
-			{#if acceptError}<p class="field-error">{acceptError}</p>{/if}
-		</section>
-	{/if}
 
-	<!-- Author view: responses without invitations -->
-	{#if isOwnPrompt && data.comments.length > 0}
-		<section class="responses-received">
-			<h2 class="section-title">Responses</h2>
-			{#each data.comments as comment}
-				<div class="response-card">
-					<span class="response-username">@{comment.author_username ?? 'anonymous'}</span>
-					<p class="response-body">{comment.body}</p>
-					<span class="response-date">{new Date(comment.created_at).toLocaleDateString()}</span>
-				</div>
-			{/each}
+			{#if acceptError}<p class="field-error">{acceptError}</p>{/if}
 		</section>
 	{/if}
 </div>
@@ -297,14 +317,13 @@
 		border-radius: var(--radius-card);
 	}
 
-	.invitation-card { padding: var(--space-4); border: 1px solid var(--border-link); border-radius: var(--radius-card); margin-bottom: var(--space-3); }
-	.inv-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--space-2); flex-wrap: wrap; gap: var(--space-2); }
-	.inv-username { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
-	.inv-slot { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
-	.inv-response { font-size: var(--text-base); line-height: var(--leading-normal); margin: 0 0 var(--space-2); }
+	.response-card.has-invitation { border: 1px solid var(--border-link); border-radius: var(--radius-card); padding: var(--space-4); margin-bottom: var(--space-3); }
+	.response-invitation { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--border-link); }
+	.meeting-link { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-success); display: block; }
+	.meeting-link:hover { opacity: 0.7; }
+	.inv-slot { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin-bottom: var(--space-2); }
 	.inv-message { font-size: var(--text-sm); color: var(--text-secondary); font-style: italic; margin: 0 0 var(--space-3); }
-	.inv-actions { display: flex; gap: var(--space-2); }
-	.response-username { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); display: block; margin-bottom: var(--space-1); }
+	.response-meta { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); display: block; margin-bottom: var(--space-1); }
 
 	.response-input { font-size: var(--text-base); width: 100%; padding: var(--space-3); border: 1px solid var(--border-link); border-radius: var(--radius-input); background: transparent; resize: vertical; line-height: 1.6; box-sizing: border-box; margin-bottom: var(--space-3); }
 	.response-input:focus { outline: none; border-color: var(--text-muted); }

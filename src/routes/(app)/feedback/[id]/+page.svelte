@@ -61,8 +61,10 @@
 			<a href="/discover" class="continue-link">Continue to discover</a>
 		</div>
 	{:else if step === 'met'}
+		{#if data.meetingContext}
+			<p class="meeting-context">You met @{data.meetingContext.otherUsername} on {data.meetingContext.meetingDate}</p>
+		{/if}
 		<h1 class="page-title">How did it go?</h1>
-		<p class="desc">Your feedback helps build trust in the community.</p>
 
 		<div class="met-choices">
 			<button class="met-btn" class:selected={didMeet} onclick={() => { didMeet = true; step = 'rating'; }}>
@@ -112,7 +114,8 @@
 <style>
 	.content { width: 100%; max-width: 560px; }
 
-	.page-title {  font-size: 1.5rem; font-weight: normal; color: var(--text-primary); margin: 0 0 8px; }
+	.meeting-context { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin: 0 0 var(--space-4); }
+	.page-title { font-size: var(--text-2xl); font-weight: normal; margin: 0 0 var(--space-2); }
 	.desc {  font-size: 0.9rem; color: var(--text-muted, #666); margin: 0 0 28px; }
 
 	.met-choices { display: flex; gap: 12px; }

@@ -6,14 +6,27 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		redirect(302, '/login');
 	}
 
-	const { data: profile } = await locals.supabase
-		.from('profiles')
-		.select('username')
-		.eq('id', locals.user.id)
-		.single();
+	const [{ data: profile }, { count: invitationCount }, { count: feedbackCount }] = await Promise.all([
+		locals.supabase
+			.from('profiles')
+			.select('username')
+			.eq('id', locals.user.id)
+			.single(),
+		locals.supabase
+			.from('prompt_invitations')
+			.select('*', { count: 'exact', head: true })
+			.eq('invitee_id', locals.user.id)
+			.eq('state', 'pending'),
+		locals.supabase
+			.from('feedback_forms')
+			.select('*', { count: 'exact', head: true })
+			.eq('user_id', locals.user.id)
+			.eq('state', 'due')
+	]);
 
 	return {
 		user: locals.user,
-		username: profile?.username ?? ''
+		username: profile?.username ?? '',
+		attentionCount: (invitationCount ?? 0) + (feedbackCount ?? 0)
 	};
 };
