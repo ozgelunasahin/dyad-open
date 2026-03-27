@@ -55,10 +55,12 @@ test('Full flow: respond → invite → accept', async ({ browser }) => {
 		await expect(tomPage.getByText('I want to discuss this')).toBeVisible({ timeout: 5000 });
 		await expect(tomPage.getByText('Would you like to meet @sophie in person?')).toBeVisible();
 
-		// === Tom sends invitation ===
-		await tomPage.getByRole('button', { name: 'Select' }).first().click();
+		// === Tom sends invitation (staged flow) ===
+		await tomPage.getByRole('button', { name: 'Pick a time' }).click();
+		// Tap the slot card (it's a button with the time details)
+		await tomPage.getByRole('button', { name: /Tomorrow|Today|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|\d+ \w+/ }).first().click();
 		await tomPage.getByPlaceholder('Add a message...').fill('See you there!');
-		await tomPage.getByRole('button', { name: 'Invite to meet' }).click();
+		await tomPage.getByRole('button', { name: 'Send invitation' }).click();
 		await expect(tomPage.getByText('Invitation sent')).toBeVisible({ timeout: 5000 });
 
 		await tomContext.close();
