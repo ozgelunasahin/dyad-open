@@ -214,43 +214,51 @@
 		</section>
 	{/if}
 
-	<!-- Author view: received invitations -->
-	{#if isOwnPrompt && data.receivedInvitations.length > 0}
-		<section class="invitations-received">
-			{#each data.receivedInvitations as inv}
-				<div class="invitation-card">
-					<div class="inv-header">
-						<span class="inv-username">@{inv.inviter_username}</span>
-						<span class="inv-slot">{formatSlotDate(inv.slot_start_time)} · {formatSlotTime(inv.slot_start_time)} · {inv.slot_general_area}</span>
-					</div>
+	<!-- Author view: responses + their invitations together -->
+	{#if isOwnPrompt && (data.comments.length > 0 || data.receivedInvitations.length > 0)}
+		<section class="responses-received">
+			{#each data.comments as comment}
+				{@const invitation = data.receivedInvitations.find(inv => inv.inviter_id === comment.author_id)}
+				<div class="response-card" class:has-invitation={!!invitation}>
+					<span class="response-username">@{comment.author_username ?? 'anonymous'}</span>
+					<p class="response-body">{comment.body}</p>
+
+					{#if invitation}
+						<div class="response-invitation">
+							<div class="inv-slot">{formatSlotDate(invitation.slot_start_time)} · {formatSlotTime(invitation.slot_start_time)} · {invitation.slot_general_area}</div>
+							{#if invitation.message}
+								<p class="inv-message">{invitation.message}</p>
+							{/if}
+							<button class="invite-btn" onclick={() => acceptInvitation(invitation.id)} disabled={acceptingId === invitation.id}>
+								{acceptingId === invitation.id ? 'Accepting...' : 'Accept'}
+							</button>
+						</div>
+					{:else}
+						<span class="response-date">{new Date(comment.created_at).toLocaleDateString()}</span>
+					{/if}
+				</div>
+			{/each}
+
+			<!-- Invitations without a matching comment (edge case) -->
+			{#each data.receivedInvitations.filter(inv => !data.comments.some(c => c.author_id === inv.inviter_id)) as inv}
+				<div class="response-card has-invitation">
+					<span class="response-username">@{inv.inviter_username}</span>
 					{#if inv.comment_body}
-						<p class="inv-response">{inv.comment_body}</p>
+						<p class="response-body">{inv.comment_body}</p>
 					{/if}
-					{#if inv.message}
-						<p class="inv-message">{inv.message}</p>
-					{/if}
-					<div class="inv-actions">
+					<div class="response-invitation">
+						<div class="inv-slot">{formatSlotDate(inv.slot_start_time)} · {formatSlotTime(inv.slot_start_time)} · {inv.slot_general_area}</div>
+						{#if inv.message}
+							<p class="inv-message">{inv.message}</p>
+						{/if}
 						<button class="invite-btn" onclick={() => acceptInvitation(inv.id)} disabled={acceptingId === inv.id}>
 							{acceptingId === inv.id ? 'Accepting...' : 'Accept'}
 						</button>
 					</div>
 				</div>
 			{/each}
-			{#if acceptError}<p class="field-error">{acceptError}</p>{/if}
-		</section>
-	{/if}
 
-	<!-- Author view: responses without invitations -->
-	{#if isOwnPrompt && data.comments.length > 0}
-		<section class="responses-received">
-			<h2 class="section-title">Responses</h2>
-			{#each data.comments as comment}
-				<div class="response-card">
-					<span class="response-username">@{comment.author_username ?? 'anonymous'}</span>
-					<p class="response-body">{comment.body}</p>
-					<span class="response-date">{new Date(comment.created_at).toLocaleDateString()}</span>
-				</div>
-			{/each}
+			{#if acceptError}<p class="field-error">{acceptError}</p>{/if}
 		</section>
 	{/if}
 </div>
@@ -299,13 +307,10 @@
 		border-radius: var(--radius-card);
 	}
 
-	.invitation-card { padding: var(--space-4); border: 1px solid var(--border-link); border-radius: var(--radius-card); margin-bottom: var(--space-3); }
-	.inv-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--space-2); flex-wrap: wrap; gap: var(--space-2); }
-	.inv-username { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
-	.inv-slot { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
-	.inv-response { font-size: var(--text-base); line-height: var(--leading-normal); margin: 0 0 var(--space-2); }
+	.response-card.has-invitation { border: 1px solid var(--border-link); border-radius: var(--radius-card); padding: var(--space-4); margin-bottom: var(--space-3); }
+	.response-invitation { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--border-link); }
+	.inv-slot { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin-bottom: var(--space-2); }
 	.inv-message { font-size: var(--text-sm); color: var(--text-secondary); font-style: italic; margin: 0 0 var(--space-3); }
-	.inv-actions { display: flex; gap: var(--space-2); }
 	.response-username { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); display: block; margin-bottom: var(--space-1); }
 
 	.response-input { font-size: var(--text-base); width: 100%; padding: var(--space-3); border: 1px solid var(--border-link); border-radius: var(--radius-input); background: transparent; resize: vertical; line-height: 1.6; box-sizing: border-box; margin-bottom: var(--space-3); }
