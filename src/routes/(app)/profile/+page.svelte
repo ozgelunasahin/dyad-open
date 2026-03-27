@@ -85,7 +85,7 @@
 						<button class="btn-accept" onclick={() => acceptInvitation(inv.id)} disabled={acceptingId === inv.id}>
 							{acceptingId === inv.id ? 'Accepting...' : 'Accept'}
 						</button>
-						<a href="/prompts/{inv.prompt_id}?from=profile" class="btn-view">View conversation</a>
+						<a href="/prompts/{inv.prompt_id}" class="btn-view">View conversation</a>
 					</div>
 				</div>
 			{/each}
@@ -127,7 +127,7 @@
 		{:else}
 			<div class="prompt-list">
 				{#each published as prompt}
-					<a href="/prompts/{prompt.id}?from=profile" class="prompt-item">
+					<a href="/prompts/{prompt.id}" class="prompt-item">
 						<div class="prompt-row">
 							<div class="row-thumb">
 								{#if prompt.cover_image_url}
@@ -163,7 +163,7 @@
 				{/each}
 
 				{#each data.respondedPrompts as rp}
-					<a href="/prompts/{rp.prompt_id}?from=profile" class="prompt-item">
+					<a href="/prompts/{rp.prompt_id}" class="prompt-item">
 						<div class="prompt-row">
 							<div class="row-thumb">
 								<div class="thumb-placeholder"></div>
@@ -177,7 +177,7 @@
 				{/each}
 
 				{#each archived as prompt}
-					<a href="/prompts/{prompt.id}?from=profile" class="prompt-item past">
+					<a href="/prompts/{prompt.id}" class="prompt-item past">
 						<div class="prompt-row">
 							<div class="row-thumb">
 								{#if prompt.cover_image_url}
