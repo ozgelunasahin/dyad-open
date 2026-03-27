@@ -1,16 +1,13 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 
 	let { data }: { data: PageData } = $props();
 
-	function goBack() {
-		if (window.history.length > 1) {
-			window.history.back();
-		} else {
-			goto('/discover');
-		}
-	}
+	let from = $derived($page.url.searchParams.get('from'));
+	let backHref = $derived(from === 'profile' ? '/profile' : '/discover');
+	let backLabel = $derived(from === 'profile' ? '← back to profile' : '← back to discover');
 	let responseText = $state(data.myComment?.body ?? '');
 	let responseStatus = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
 	let responseError = $state('');
@@ -96,7 +93,7 @@
 			const res = await fetch(`/api/invitations/${invitationId}/accept`, { method: 'POST' });
 			if (res.ok) {
 				const { meetingId } = await res.json();
-				goto(`/meetings/${meetingId}`);
+				goto(`/meetings/${meetingId}?from=${from ?? 'discover'}`);
 			} else {
 				const err = await res.json().catch(() => ({}));
 				acceptError = (err as any).error ?? 'Failed to accept';
@@ -116,7 +113,7 @@
 </svelte:head>
 
 <div class="content">
-	<button class="back-link" onclick={goBack}>← Back</button>
+	<a href={backHref} class="back-link">{backLabel}</a>
 
 	{#if data.prompt.cover_image_url}
 		<img src={data.prompt.cover_image_url} alt="" class="cover" loading="lazy" />
@@ -235,7 +232,7 @@
 					{#if invitation}
 						<div class="response-invitation">
 							{#if invitation.state === 'accepted' && meeting}
-								<a href="/meetings/{meeting.id}" class="meeting-link">
+								<a href="/meetings/{meeting.id}?from={from ?? 'discover'}" class="meeting-link">
 									Meeting scheduled · {formatSlotDate(invitation.slot_start_time)} · {formatSlotTime(invitation.slot_start_time)} · {invitation.slot_general_area}
 								</a>
 							{:else}

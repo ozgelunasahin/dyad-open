@@ -1,17 +1,14 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 	let cancelling = $state(false);
 
-	function goBack() {
-		if (window.history.length > 1) {
-			window.history.back();
-		} else {
-			goto('/profile');
-		}
-	}
+	let from = $derived($page.url.searchParams.get('from'));
+	let backHref = $derived(from === 'profile' ? '/profile' : '/discover');
+	let backLabel = $derived(from === 'profile' ? '← back to profile' : '← back to discover');
 
 	function formatDate(iso: string): string {
 		return new Date(iso).toLocaleDateString('en-US', {
@@ -36,7 +33,7 @@
 </svelte:head>
 
 <div class="content">
-	<button class="back-link" onclick={goBack}>← Back</button>
+	<a href={backHref} class="back-link">{backLabel}</a>
 
 	<div class="meeting-header">
 		<span class="meeting-with">Meeting with @{data.otherUsername}</span>

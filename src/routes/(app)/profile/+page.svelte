@@ -85,7 +85,7 @@
 						<button class="btn-accept" onclick={() => acceptInvitation(inv.id)} disabled={acceptingId === inv.id}>
 							{acceptingId === inv.id ? 'Accepting...' : 'Accept'}
 						</button>
-						<a href="/prompts/{inv.prompt_id}" class="btn-view">View conversation</a>
+						<a href="/prompts/{inv.prompt_id}?from=profile" class="btn-view">View conversation</a>
 					</div>
 				</div>
 			{/each}
@@ -104,13 +104,13 @@
 		<section class="profile-section">
 			<h2 class="section-title">Meetings</h2>
 			{#each upcomingMeetings as meeting}
-				<a href="/meetings/{meeting.id}" class="meeting-row">
+				<a href="/meetings/{meeting.id}?from=profile" class="meeting-row">
 					<div class="meeting-when">{formatDate(meeting.scheduled_time)} · {formatTime(meeting.scheduled_time)}</div>
 					<div class="meeting-details">{meeting.duration_minutes} min · {meeting.general_area ?? 'TBD'}</div>
 				</a>
 			{/each}
 			{#each pastMeetings as meeting}
-				<a href="/meetings/{meeting.id}" class="meeting-row past">
+				<a href="/meetings/{meeting.id}?from=profile" class="meeting-row past">
 					<div class="meeting-when">{formatDate(meeting.scheduled_time)}</div>
 					<div class="meeting-details">Past</div>
 				</a>
@@ -127,7 +127,7 @@
 		{:else}
 			<div class="prompt-list">
 				{#each published as prompt}
-					<a href="/prompts/{prompt.id}" class="prompt-item">
+					<a href="/prompts/{prompt.id}?from=profile" class="prompt-item">
 						<div class="prompt-row">
 							<div class="row-thumb">
 								{#if prompt.cover_image_url}
@@ -163,7 +163,7 @@
 				{/each}
 
 				{#each data.respondedPrompts as rp}
-					<a href="/prompts/{rp.prompt_id}" class="prompt-item">
+					<a href="/prompts/{rp.prompt_id}?from=profile" class="prompt-item">
 						<div class="prompt-row">
 							<div class="row-thumb">
 								<div class="thumb-placeholder"></div>
