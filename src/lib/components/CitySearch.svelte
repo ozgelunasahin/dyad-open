@@ -139,7 +139,7 @@
 
 	.city-search input[type='text'] {
 		width: 100%;
-		font-family: 'SangBleu Sunrise', Georgia, serif;
+		
 		font-size: 14px;
 		padding: 10px 14px;
 		border: 1px solid var(--border-link, rgba(0, 0, 0, 0.12));
@@ -186,7 +186,7 @@
 		background: none;
 		border: none;
 		border-bottom: 1px solid var(--border-link, rgba(0, 0, 0, 0.06));
-		font-family: 'SangBleu Sunrise', Georgia, serif;
+		
 		font-size: 13px;
 		color: var(--text-primary, #1a1a1a);
 		cursor: pointer;
