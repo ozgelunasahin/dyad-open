@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import { goto } from '$app/navigation';
 
 	let { data }: { data: PageData } = $props();
 	let responseText = $state(data.myComment?.body ?? '');
@@ -8,9 +9,14 @@
 	let hasResponse = $derived(!!data.myComment || responseStatus === 'sent');
 
 	let selectedSlotId = $state<string | null>(null);
+	let inviteMessage = $state('');
 	let inviteStatus = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
 	let inviteError = $state('');
 	let invitedSlotIds = $state(new Set(data.invitedSlotIds ?? []));
+
+	// Author: accept invitation
+	let acceptingId = $state<string | null>(null);
+	let acceptError = $state('');
 
 	function formatSlotDate(iso: string): string {
 		const d = new Date(iso);
@@ -51,7 +57,7 @@
 			const res = await fetch(`/api/prompts/${data.prompt.id}/invitations`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ slotId: selectedSlotId })
+				body: JSON.stringify({ slotId: selectedSlotId, message: inviteMessage.trim() || undefined })
 			});
 			if (res.ok) {
 					inviteStatus = 'sent';
@@ -70,6 +76,25 @@
 		} catch {
 			inviteError = 'Network error';
 			inviteStatus = 'error';
+		}
+	}
+
+	async function acceptInvitation(invitationId: string) {
+		acceptingId = invitationId;
+		acceptError = '';
+		try {
+			const res = await fetch(`/api/invitations/${invitationId}/accept`, { method: 'POST' });
+			if (res.ok) {
+				const { meetingId } = await res.json();
+				goto(`/meetings/${meetingId}`);
+			} else {
+				const err = await res.json().catch(() => ({}));
+				acceptError = (err as any).error ?? 'Failed to accept';
+			}
+		} catch {
+			acceptError = 'Network error';
+		} finally {
+			acceptingId = null;
 		}
 	}
 
@@ -148,6 +173,15 @@
 					</div>
 				{/each}
 
+				{#if selectedSlotId}
+					<textarea
+						class="response-input"
+						placeholder="Add a message..."
+						bind:value={inviteMessage}
+						rows={2}
+						disabled={inviteStatus === 'sending'}
+					></textarea>
+				{/if}
 				{#if inviteError}<p class="field-error">{inviteError}</p>{/if}
 				{#if selectedSlotId}
 					<button class="invite-btn" onclick={sendInvite} disabled={inviteStatus === 'sending'}>
@@ -164,12 +198,39 @@
 		{/if}
 	{/if}
 
-	<!-- Author view: responses received -->
+	<!-- Author view: received invitations -->
+	{#if isOwnPrompt && data.receivedInvitations.length > 0}
+		<section class="invitations-received">
+			{#each data.receivedInvitations as inv}
+				<div class="invitation-card">
+					<div class="inv-header">
+						<span class="inv-username">@{inv.inviter_username}</span>
+						<span class="inv-slot">{formatSlotDate(inv.slot_start_time)} · {formatSlotTime(inv.slot_start_time)} · {inv.slot_general_area}</span>
+					</div>
+					{#if inv.comment_body}
+						<p class="inv-response">{inv.comment_body}</p>
+					{/if}
+					{#if inv.message}
+						<p class="inv-message">{inv.message}</p>
+					{/if}
+					<div class="inv-actions">
+						<button class="invite-btn" onclick={() => acceptInvitation(inv.id)} disabled={acceptingId === inv.id}>
+							{acceptingId === inv.id ? 'Accepting...' : 'Accept'}
+						</button>
+					</div>
+				</div>
+			{/each}
+			{#if acceptError}<p class="field-error">{acceptError}</p>{/if}
+		</section>
+	{/if}
+
+	<!-- Author view: responses without invitations -->
 	{#if isOwnPrompt && data.comments.length > 0}
 		<section class="responses-received">
-			<h2 class="section-title">Responses received</h2>
+			<h2 class="section-title">Responses</h2>
 			{#each data.comments as comment}
 				<div class="response-card">
+					<span class="response-username">@{comment.author_username ?? 'anonymous'}</span>
 					<p class="response-body">{comment.body}</p>
 					<span class="response-date">{new Date(comment.created_at).toLocaleDateString()}</span>
 				</div>
@@ -206,7 +267,16 @@
 	.select-slot:hover { border-color: var(--text-primary); }
 	.invited-badge { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-success); padding: var(--space-2) var(--space-3); }
 
-	.response-section, .invite-section, .responses-received { margin-top: var(--space-6); padding-top: var(--space-6); border-top: 1px solid var(--border-link); }
+	.response-section, .invite-section, .responses-received, .invitations-received { margin-top: var(--space-6); padding-top: var(--space-6); border-top: 1px solid var(--border-link); }
+
+	.invitation-card { padding: var(--space-4); border: 1px solid var(--border-link); border-radius: var(--radius-card); margin-bottom: var(--space-3); }
+	.inv-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--space-2); flex-wrap: wrap; gap: var(--space-2); }
+	.inv-username { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
+	.inv-slot { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
+	.inv-response { font-size: var(--text-base); line-height: var(--leading-normal); margin: 0 0 var(--space-2); }
+	.inv-message { font-size: var(--text-sm); color: var(--text-secondary); font-style: italic; margin: 0 0 var(--space-3); }
+	.inv-actions { display: flex; gap: var(--space-2); }
+	.response-username { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); display: block; margin-bottom: var(--space-1); }
 
 	.response-input { font-size: var(--text-base); width: 100%; padding: var(--space-3); border: 1px solid var(--border-link); border-radius: var(--radius-input); background: transparent; resize: vertical; line-height: 1.6; box-sizing: border-box; margin-bottom: var(--space-3); }
 	.response-input:focus { outline: none; border-color: var(--text-muted); }

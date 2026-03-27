@@ -71,19 +71,50 @@ Backend is fully implemented. All API endpoints exist. The gaps are entirely fro
 - [ ] Label: "Add a message" (optional)
 - [ ] Pass `message` field in the POST to `/api/prompts/[id]/invitations`
 
-### Phase 3: Profile "Needs Your Attention"
+### Phase 3: Profile Restructure — Conversations as the Organising Unit
+
+**Key insight:** The current profile splits activity into entity-type buckets (Conversations, Meetings, Invitations). But the user thinks in terms of **one continuous thread per conversation**: I published something → someone responded → they invited me → I accepted → we met → we gave feedback. All of that should live under the conversation, not scattered across tabs.
+
+**New profile structure:**
+
+```
+[Profile header card — identity + stats]
+
+[Needs your attention — ONLY visible when items exist]
+  - Pending invitations to review (compact cards, link to prompt)
+  - Feedback due (link to feedback form)
+
+[My conversations — the main section]
+  Each conversation card shows its current state:
+  - Published (active, waiting for engagement)
+  - Has responses (count)
+  - Has pending invitations (count, needs action)
+  - Meeting scheduled (date, with whom)
+  - Awaiting feedback
+  - Complete (archived)
+
+  Click → conversation detail page (which now has the full context)
+
+[Archive — separate top-level section alongside Discover and Profile]
+  Completed conversations with feedback history
+```
 
 **Profile page** (`src/routes/(app)/profile/+page.svelte`):
-- [ ] Add "Needs your attention" section above the action card grid
-- [ ] Section only visible when there are items; completely absent when empty
-- [ ] Load received invitations in `+page.server.ts` (invitations where the user is the prompt author and state = 'pending')
-- [ ] Each item: compact card with prompt title, @inviter, time slot, Accept button
-- [ ] Tapping card navigates to the prompt detail page (where full context is)
+- [ ] Replace 2x2 action card grid with a conversation-centric list
+- [ ] Each conversation shows its lifecycle state (published → engaged → meeting → feedback → complete)
+- [ ] "Needs your attention" section above conversations — pending invitations + feedback due
+- [ ] Remove separate "Meetings" and "Invitations" tabs — that data lives on the conversation
+- [ ] Keep stacked cover thumbnails for visual richness
 
 **Sidebar badge** (`src/routes/(app)/+layout.svelte`):
 - [ ] Add a count badge next to "Profile" in the sidebar when attention items > 0
 - [ ] Count = pending received invitations + due feedback forms
 - [ ] Use `--font-mono`, small, dark bg, light text (matches existing `count-badge` pattern)
+
+**Archive** (future consideration):
+- [ ] Archive could become a top-level route `/archive` alongside `/discover` and `/profile`
+- [ ] Shows completed conversations with their full history (responses, meeting, feedback)
+- [ ] Not in this PR — note for future
 
 ### Phase 4: Meeting Detail Improvements
 
