@@ -6,15 +6,36 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const service = new SupabaseFeedbackService(locals.supabase);
 
 	const [form, vocabulary] = await Promise.all([
-		// Load by form ID — the gate redirects with form ID in the URL
 		service.getFormById(params.id, locals.user!.id).catch(() => null),
 		service.getVocabulary()
 	]);
 
-	// If the form doesn't exist or isn't for this user, redirect away
 	if (!form) {
 		redirect(302, '/discover');
 	}
 
-	return { form, vocabulary };
+	// Load meeting context (other participant + conversation title)
+	let meetingContext: { otherUsername: string; promptTitle: string; meetingDate: string } | null = null;
+	if (form.meeting_id) {
+		const { data: meeting } = await locals.supabase
+			.from('meetings')
+			.select('scheduled_time, user_a, user_b, prompt_id')
+			.eq('id', form.meeting_id)
+			.single();
+
+		if (meeting) {
+			const otherId = meeting.user_a === locals.user!.id ? meeting.user_b : meeting.user_a;
+			const [{ data: otherProfile }, { data: prompt }] = await Promise.all([
+				locals.supabase.from('profiles').select('username').eq('id', otherId).single(),
+				locals.supabase.from('prompts').select('title').eq('id', meeting.prompt_id).single()
+			]);
+			meetingContext = {
+				otherUsername: otherProfile?.username ?? 'someone',
+				promptTitle: prompt?.title ?? 'a conversation',
+				meetingDate: new Date(meeting.scheduled_time).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+			};
+		}
+	}
+
+	return { form, vocabulary, meetingContext };
 };

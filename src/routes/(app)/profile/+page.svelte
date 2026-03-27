@@ -6,29 +6,53 @@
 
 	let { data }: { data: PageData } = $props();
 
-	let drafts = $derived(data.prompts.filter((p: Prompt) => p.state === 'draft'));
 	let published = $derived(data.prompts.filter((p: Prompt) => p.state === 'published'));
+	let drafts = $derived(data.prompts.filter((p: Prompt) => p.state === 'draft'));
 	let archived = $derived(data.prompts.filter((p: Prompt) => p.state === 'archived'));
 
-	// Collect cover images for thumbnail stacks
-	let conversationCovers = $derived(
-		[...published, ...drafts]
-			.map((p: Prompt) => p.cover_image_url)
-			.filter((url): url is string => !!url)
-			.slice(0, 2)
+	let upcomingMeetings = $derived(
+		data.meetings.filter(m => new Date(m.scheduled_time) > new Date())
+			.sort((a, b) => new Date(a.scheduled_time).getTime() - new Date(b.scheduled_time).getTime())
 	);
-	let archiveCovers = $derived(
-		archived
-			.map((p: Prompt) => p.cover_image_url)
-			.filter((url): url is string => !!url)
-			.slice(0, 2)
+	let pastMeetings = $derived(
+		data.meetings.filter(m => new Date(m.scheduled_time) <= new Date())
+			.sort((a, b) => new Date(b.scheduled_time).getTime() - new Date(a.scheduled_time).getTime())
 	);
 
-	// Detail view state
-	let activeView = $state<'overview' | 'conversations' | 'meetings' | 'archive' | 'invitations'>('overview');
+	let acceptingId = $state<string | null>(null);
+	let acceptError = $state('');
+
+	async function acceptInvitation(invitationId: string) {
+		acceptingId = invitationId;
+		acceptError = '';
+		try {
+			const res = await fetch(`/api/invitations/${invitationId}/accept`, { method: 'POST' });
+			if (res.ok) {
+				const { meetingId } = await res.json();
+				goto(`/meetings/${meetingId}`);
+			} else {
+				const err = await res.json().catch(() => ({}));
+				acceptError = (err as any).error ?? 'Failed to accept';
+			}
+		} catch {
+			acceptError = 'Network error';
+		} finally {
+			acceptingId = null;
+		}
+	}
 
 	function formatDate(iso: string): string {
-		return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+		return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+	}
+
+	function formatTime(iso: string): string {
+		return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+	}
+
+	function promptStatus(prompt: Prompt): string {
+		if (prompt.state === 'draft') return 'Draft';
+		if (prompt.state === 'archived') return 'Archived';
+		return 'Published';
 	}
 </script>
 
@@ -37,119 +61,141 @@
 </svelte:head>
 
 <div class="content">
-	{#if activeView === 'overview'}
-		<!-- Profile header card -->
-		<div class="profile-card">
-			<div class="profile-left">
-				<div class="avatar">{(data.username ?? 'U')[0].toUpperCase()}</div>
-				<div class="profile-name">{data.username}</div>
-				<div class="profile-handle">@{data.username}</div>
-			</div>
-			<div class="profile-stats">
-				<div class="stat"><span class="stat-num">{published.length}</span><span class="stat-label">ACTIVE</span></div>
-				<div class="stat"><span class="stat-num">{data.meetings.length}</span><span class="stat-label">MEETINGS</span></div>
-				<div class="stat"><span class="stat-num">{data.sentInvitations.length}</span><span class="stat-label">SAVED</span></div>
-			</div>
+	<!-- Profile header -->
+	<div class="profile-header">
+		<div class="avatar">{(data.username ?? 'U')[0].toUpperCase()}</div>
+		<div>
+			<div class="profile-name">{data.username}</div>
+			<div class="profile-handle">@{data.username}</div>
 		</div>
+	</div>
 
-		<!-- Action card grid -->
-		<div class="action-grid">
-			<button class="action-card" onclick={() => activeView = 'conversations'}>
-				<div class="card-thumb-stack">
-					{#if conversationCovers.length >= 2}
-						<img src={conversationCovers[1]} alt="" class="thumb-img thumb-back" />
-						<img src={conversationCovers[0]} alt="" class="thumb-img thumb-front" />
-					{:else if conversationCovers.length === 1}
-						<img src={conversationCovers[0]} alt="" class="thumb-img thumb-front" />
-					{:else}
-						<div class="thumb-placeholder"></div>
+	<!-- 1. Needs your attention -->
+	{#if data.receivedInvitations.length > 0 || data.feedbackDue.length > 0}
+		<section class="profile-section">
+			{#each data.receivedInvitations as inv}
+				<div class="attention-card">
+					<span class="attention-who">@{inv.inviter_username} wants to meet</span>
+					<span class="attention-context">{inv.prompt_title}</span>
+					<span class="attention-slot">{formatDate(inv.slot_start_time)} · {formatTime(inv.slot_start_time)} · {inv.slot_general_area}</span>
+					{#if inv.message}
+						<p class="attention-message">{inv.message}</p>
 					{/if}
+					<div class="attention-actions">
+						<button class="btn-accept" onclick={() => acceptInvitation(inv.id)} disabled={acceptingId === inv.id}>
+							{acceptingId === inv.id ? 'Accepting...' : 'Accept'}
+						</button>
+						<a href="/prompts/{inv.prompt_id}?from=profile" class="btn-view">View conversation</a>
+					</div>
 				</div>
-				<span class="card-label">Conversations</span>
-				{#if published.length > 0}<span class="active-dot"></span>{/if}
-			</button>
-
-			<button class="action-card" onclick={() => activeView = 'meetings'}>
-				<div class="card-thumb-stack">
-					<div class="thumb-placeholder"></div>
-				</div>
-				<span class="card-label">Meetings</span>
-			</button>
-
-			<button class="action-card" onclick={() => activeView = 'archive'}>
-				<div class="card-thumb-stack">
-					{#if archiveCovers.length >= 2}
-						<img src={archiveCovers[1]} alt="" class="thumb-img thumb-back" />
-						<img src={archiveCovers[0]} alt="" class="thumb-img thumb-front" />
-					{:else if archiveCovers.length === 1}
-						<img src={archiveCovers[0]} alt="" class="thumb-img thumb-front" />
-					{:else}
-						<div class="thumb-placeholder"></div>
-					{/if}
-				</div>
-				<span class="card-label">Archive</span>
-			</button>
-
-			<button class="action-card" onclick={() => activeView = 'invitations'}>
-				<div class="card-thumb-stack">
-					<div class="thumb-placeholder"></div>
-				</div>
-				<span class="card-label">Invitations</span>
-				{#if data.sentInvitations.length > 0}<span class="count-badge">{data.sentInvitations.length}</span>{/if}
-			</button>
-		</div>
-
-	{:else}
-		<!-- Detail views -->
-		<button class="back-btn" onclick={() => activeView = 'overview'}>← Back</button>
-
-		{#if activeView === 'conversations'}
-			<h2 class="view-title">My conversations</h2>
-			{#each [...published, ...drafts] as prompt (prompt.id)}
-				<a href={prompt.state === 'draft' ? `/prompts/${prompt.id}/edit` : `/prompts/${prompt.id}`} class="list-item">
-					<span class="item-title">{prompt.title || 'Untitled'}</span>
-					<span class="badge badge-{prompt.state}">{prompt.state}</span>
-					<span class="item-date">{formatDate(prompt.updated_at)}</span>
+			{/each}
+			{#each data.feedbackDue as fb}
+				<a href="/feedback/{fb.id}" class="attention-card">
+					<span class="attention-who">Feedback due</span>
+					<span class="attention-context">How did your meeting go?</span>
 				</a>
-			{:else}
-				<p class="empty">No conversations yet. <a href="/prompts/new">Start one</a></p>
 			{/each}
-
-		{:else if activeView === 'meetings'}
-			<h2 class="view-title">Meetings</h2>
-			{#each data.meetings as meeting}
-				<a href="/meetings/{meeting.id}" class="list-item">
-					<span class="item-title">{formatDate(meeting.scheduled_time)}</span>
-					<span class="item-date">{meeting.duration_minutes} min</span>
-				</a>
-			{:else}
-				<p class="empty">No meetings yet.</p>
-			{/each}
-
-		{:else if activeView === 'archive'}
-			<h2 class="view-title">Archive</h2>
-			{#each archived as prompt (prompt.id)}
-				<a href="/prompts/{prompt.id}" class="list-item">
-					<span class="item-title">{prompt.title || 'Untitled'}</span>
-					<span class="item-date">{formatDate(prompt.updated_at)}</span>
-				</a>
-			{:else}
-				<p class="empty">No archived conversations.</p>
-			{/each}
-
-		{:else if activeView === 'invitations'}
-			<h2 class="view-title">Invitations sent</h2>
-			{#each data.sentInvitations as inv}
-				<div class="list-item">
-					<span class="item-title">{inv.prompts?.title ?? 'Untitled'}</span>
-					<span class="badge badge-{inv.state}">{inv.state}</span>
-					<span class="item-date">{formatDate(inv.created_at)}</span>
-				</div>
-			{:else}
-				<p class="empty">No invitations sent.</p>
-			{/each}
-		{/if}
+			{#if acceptError}<p class="field-error">{acceptError}</p>{/if}
+		</section>
 	{/if}
+
+	<!-- 2. Meetings -->
+	{#if upcomingMeetings.length > 0 || pastMeetings.length > 0}
+		<section class="profile-section">
+			<h2 class="section-title">Meetings</h2>
+			{#each upcomingMeetings as meeting}
+				<a href="/meetings/{meeting.id}?from=profile" class="meeting-row">
+					<div class="meeting-when">{formatDate(meeting.scheduled_time)} · {formatTime(meeting.scheduled_time)}</div>
+					<div class="meeting-details">{meeting.duration_minutes} min · {meeting.general_area ?? 'TBD'}</div>
+				</a>
+			{/each}
+			{#each pastMeetings as meeting}
+				<a href="/meetings/{meeting.id}?from=profile" class="meeting-row past">
+					<div class="meeting-when">{formatDate(meeting.scheduled_time)}</div>
+					<div class="meeting-details">Past</div>
+				</a>
+			{/each}
+		</section>
+	{/if}
+
+	<!-- 3. Conversations (reuses discover card pattern) -->
+	<section class="profile-section">
+		<h2 class="section-title">Conversations</h2>
+
+		{#if published.length === 0 && drafts.length === 0 && data.respondedPrompts.length === 0 && archived.length === 0}
+			<p class="empty">No conversations yet. <a href="/prompts/new">Start one</a></p>
+		{:else}
+			<div class="prompt-list">
+				{#each published as prompt}
+					<a href="/prompts/{prompt.id}?from=profile" class="prompt-item">
+						<div class="prompt-row">
+							<div class="row-thumb">
+								{#if prompt.cover_image_url}
+									<img src={prompt.cover_image_url} alt="" class="thumb-img" />
+								{:else}
+									<div class="thumb-placeholder"></div>
+								{/if}
+							</div>
+							<div class="row-body">
+								<h3 class="row-title">{prompt.title || 'Untitled'}</h3>
+								<span class="row-status">Published</span>
+							</div>
+						</div>
+					</a>
+				{/each}
+
+				{#each drafts as prompt}
+					<a href="/prompts/{prompt.id}/edit" class="prompt-item draft">
+						<div class="prompt-row">
+							<div class="row-thumb">
+								{#if prompt.cover_image_url}
+									<img src={prompt.cover_image_url} alt="" class="thumb-img" />
+								{:else}
+									<div class="thumb-placeholder"></div>
+								{/if}
+							</div>
+							<div class="row-body">
+								<h3 class="row-title">{prompt.title || 'Untitled'}</h3>
+								<span class="row-status">Draft</span>
+							</div>
+						</div>
+					</a>
+				{/each}
+
+				{#each data.respondedPrompts as rp}
+					<a href="/prompts/{rp.prompt_id}?from=profile" class="prompt-item">
+						<div class="prompt-row">
+							<div class="row-thumb">
+								<div class="thumb-placeholder"></div>
+							</div>
+							<div class="row-body">
+								<h3 class="row-title">{rp.prompt_title}</h3>
+								<span class="row-status">Responded</span>
+							</div>
+						</div>
+					</a>
+				{/each}
+
+				{#each archived as prompt}
+					<a href="/prompts/{prompt.id}" class="prompt-item past">
+						<div class="prompt-row">
+							<div class="row-thumb">
+								{#if prompt.cover_image_url}
+									<img src={prompt.cover_image_url} alt="" class="thumb-img" />
+								{:else}
+									<div class="thumb-placeholder"></div>
+								{/if}
+							</div>
+							<div class="row-body">
+								<h3 class="row-title">{prompt.title || 'Untitled'}</h3>
+								<span class="row-status">Archived</span>
+							</div>
+						</div>
+					</a>
+				{/each}
+			</div>
+		{/if}
+	</section>
 </div>
 
 <FloatingNav position="bottom" active="profile" onMapClick={() => goto('/discover?view=map')} />
@@ -157,121 +203,54 @@
 <style>
 	.content { width: 100%; max-width: 700px; padding-bottom: 80px; }
 
-	/* Profile header card */
-	.profile-card {
-		display: flex;
-		justify-content: space-between;
-		align-items: flex-start;
-		padding: var(--space-6);
-		margin-bottom: var(--space-6);
-		background: var(--bg-canvas);
-		border: 1px solid var(--border-link);
-		border-radius: var(--radius-card);
-	}
-
-	.avatar {
-		width: 80px;
-		height: 80px;
-		border-radius: var(--radius-input);
-		background: var(--bg-control);
-		border: 1px dashed var(--border-link);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 28px;
-		color: var(--text-muted);
-		margin-bottom: var(--space-3);
-	}
-
+	/* Profile header */
+	.profile-header { display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-8); }
+	.avatar { width: 56px; height: 56px; border-radius: var(--radius-input); background: var(--bg-control); display: flex; align-items: center; justify-content: center; font-size: 22px; color: var(--text-muted); flex-shrink: 0; }
 	.profile-name { font-size: var(--text-xl); font-weight: 500; }
 	.profile-handle { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-muted); }
 
-	.profile-stats { display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-1); }
-	.stat { display: flex; align-items: baseline; gap: var(--space-2); }
-	.stat-num { font-size: var(--text-xl); font-weight: 500; }
-	.stat-label { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.06em; color: var(--text-muted); }
+	/* Sections */
+	.profile-section { margin-bottom: var(--space-8); }
 
-	/* Action card grid */
-	.action-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-3); }
+	/* Attention cards */
+	.attention-card { display: block; padding: var(--space-4); border: 1px solid var(--border-link); border-radius: var(--radius-card); margin-bottom: var(--space-3); color: inherit; transition: opacity 0.15s; }
+	.attention-card:hover { opacity: 0.85; }
+	.attention-who { font-size: var(--text-md); font-weight: 500; display: block; }
+	.attention-context { font-size: var(--text-sm); color: var(--text-muted); display: block; }
+	.attention-slot { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); display: block; margin: var(--space-2) 0; }
+	.attention-message { font-size: var(--text-sm); color: var(--text-secondary); font-style: italic; margin: 0 0 var(--space-3); }
+	.attention-actions { display: flex; gap: var(--space-3); align-items: center; margin-top: var(--space-2); }
+	.btn-accept { font-size: var(--text-base); padding: var(--space-2) var(--space-5); background: var(--text-primary); color: var(--bg-canvas); border: 1px solid var(--text-primary); border-radius: var(--radius-input); cursor: pointer; }
+	.btn-accept:disabled { opacity: 0.5; cursor: not-allowed; }
+	.btn-view { font-size: var(--text-sm); color: var(--text-muted); }
+	.btn-view:hover { color: var(--text-primary); }
 
-	.action-card {
-		background: var(--bg-canvas);
-		border: 1px solid var(--border-link);
-		border-radius: var(--radius-card);
-		padding: var(--space-5) var(--space-4);
-		cursor: pointer;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: var(--space-3);
-		transition: background 0.15s;
-		position: relative;
-	}
+	/* Meeting rows — their own display language */
+	.meeting-row { display: block; padding: var(--space-4); border: 1px solid var(--border-link); border-radius: var(--radius-card); margin-bottom: var(--space-3); transition: opacity 0.15s; }
+	.meeting-row:hover { opacity: 0.85; }
+	.meeting-row.past { opacity: 0.5; }
+	.meeting-when { font-size: var(--text-md); font-weight: 500; }
+	.meeting-details { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin-top: var(--space-1); }
 
-	.action-card:hover { background: var(--bg-control); }
+	/* Conversation cards — reuses discover row pattern */
+	.prompt-list { display: flex; flex-direction: column; }
 
-	/* Stacked thumbnail images */
-	.card-thumb-stack { width: 80px; height: 64px; position: relative; }
+	.prompt-item { border-bottom: 1px solid var(--border-link); display: block; transition: opacity 0.15s; }
+	.prompt-item:hover { opacity: 0.72; }
+	.prompt-item:last-child { border-bottom: none; }
+	.prompt-item.draft { opacity: 0.7; }
+	.prompt-item.past { opacity: 0.5; }
 
-	.thumb-img {
-		position: absolute;
-		width: 52px;
-		height: 60px;
-		object-fit: cover;
-		border-radius: var(--radius-input);
-		border: 2px solid var(--bg-canvas);
-		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
-	}
+	.prompt-row { display: flex; gap: var(--space-4); padding: var(--space-4) 0; align-items: stretch; }
 
-	.thumb-front { top: 2px; left: 50%; transform: translateX(-50%) rotate(-3deg); z-index: 2; }
-	.thumb-back { top: 0; left: 50%; transform: translateX(-40%) rotate(5deg); z-index: 1; }
+	.row-thumb { position: relative; flex-shrink: 0; width: 72px; min-height: 72px; border-radius: var(--radius-input); overflow: hidden; }
+	.thumb-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+	.thumb-placeholder { position: absolute; inset: 0; background: var(--bg-control); }
 
-	.thumb-placeholder {
-		width: 48px; height: 56px;
-		background: var(--bg-control);
-		border-radius: var(--radius-input);
-		position: absolute; top: 4px; left: 50%; transform: translateX(-50%);
-	}
+	.row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+	.row-title { margin: 0 0 var(--space-1); font-size: var(--text-md); font-weight: 500; line-height: var(--leading-tight); }
+	.row-status { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
 
-	.card-label { font-size: var(--text-md); }
-
-	.active-dot { position: absolute; top: var(--space-3); right: var(--space-3); width: 8px; height: 8px; border-radius: 50%; background: var(--color-success); }
-
-	.count-badge {
-		position: absolute; top: 10px; right: 10px;
-		font-family: var(--font-mono); font-size: 10px;
-		background: var(--text-primary); color: var(--bg-canvas);
-		padding: 1px 5px; border-radius: var(--space-2);
-	}
-
-	/* Detail views — .back-btn uses same pattern as global .back-link */
-	.back-btn {
-		font-size: var(--text-md);
-		color: var(--text-muted);
-		background: none;
-		border: none;
-		cursor: pointer;
-		padding: 0;
-		margin-bottom: var(--space-4);
-	}
-	.back-btn:hover { color: var(--text-primary); }
-
-	.view-title { font-size: var(--text-xl); font-weight: normal; margin: 0 0 var(--space-4); }
-
-	.list-item {
-		display: flex;
-		align-items: center;
-		gap: var(--space-3);
-		padding: var(--space-3) 0;
-		border-bottom: 1px solid var(--border-link);
-		transition: opacity 0.15s;
-	}
-	.list-item:hover { opacity: 0.7; }
-	.item-title { flex: 1; font-size: var(--text-md); }
-	.item-date { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); flex-shrink: 0; }
-
-	/* .badge and .badge-* use global shared classes */
-
-	.empty { color: var(--text-muted); text-align: center; padding: var(--space-8) 0; }
+	.empty { color: var(--text-muted); padding: var(--space-6) 0; }
 	.empty a { text-decoration: underline; }
 </style>
