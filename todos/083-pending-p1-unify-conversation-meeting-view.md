@@ -1,5 +1,5 @@
 ---
-status: pending
+status: deferred-v0.2
 priority: p1
 issue_id: "083"
 tags: [ux, architecture, profile]
