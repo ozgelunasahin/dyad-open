@@ -199,6 +199,44 @@ Used for: @usernames, dates, stat labels, slot areas, badges.
 - Color: `--text-muted`
 - Often `text-transform: uppercase`, `letter-spacing: 0.04em`
 
+## Landing Page
+
+Split-screen layout for anonymous visitors.
+
+**Desktop**: CSS grid `1fr 1fr`, full viewport height, no scroll on outer container.
+- **Left column**: fixed hero. Logo + "log in" at top. Hero content pinned to bottom via `margin-top: auto`. Contains: RotatingHeadline, tagline with left border, city row (pulsing green dot + "BERLIN" monospace), "join waitlist →" button. Footer: theme toggle, legal links.
+- **Right column**: scrollable list of ConversationCard components from published prompts.
+
+**Mobile** (≤430px): single column, hero at top, cards below, everything scrollable.
+
+### RotatingHeadline
+
+Cycles through `['writers', 'artists', 'researchers', 'people with questions', 'you']` with "in conversation" on a new line.
+- Interval: 2800ms between words
+- Transition: 420ms fade + translateY (6px up on exit, 6px down on enter)
+- Font: `clamp(3.2rem, 5.5vw, 6rem)`, normal weight, line-height 0.92
+- Mobile: `font-size: 11vw`
+
+### ConversationCard
+
+Used on landing page right column. Shows:
+- Cover image thumbnail (88×96px, `--radius-input` corners) or grey placeholder
+- Neighbourhood (monospace, uppercase, `--text-xs`)
+- Date (monospace, `--text-xs`)
+- Title (serif, `--text-lg`, weight 500)
+- Body excerpt (3-line clamp, `--text-md`)
+
+### City Dot
+
+Pulsing green dot next to city name:
+```css
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+animation: pulse 2.5s ease-in-out infinite;
+```
+
 ## Conversation Detail Page
 
 From `ref-conversation-detail-mobile.jpg`:
@@ -223,6 +261,8 @@ From `ref-map-mobile.jpg`:
 - **Hover transitions**: 0.15s on backgrounds, colors, borders
 - **Theme transitions**: 0.2s ease on all color properties (global)
 - **Map geolocation**: instant jump, no animation (`animate: false`)
+- **RotatingHeadline**: 2800ms interval, 420ms fade+slide per word
+- **City dot pulse**: 2.5s ease-in-out infinite opacity 1→0.4→1
 
 ## What This Document Does NOT Cover
 
