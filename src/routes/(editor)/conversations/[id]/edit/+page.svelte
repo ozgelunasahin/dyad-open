@@ -185,7 +185,7 @@
 				body: JSON.stringify({ slots })
 			});
 			if (res.ok) {
-				goto(`/prompts/${data.prompt.id}`);
+				goto(`/conversations/${data.prompt.id}`);
 			} else {
 				const err = await res.json().catch(() => ({}));
 				publishError = (err as any).error ?? 'Failed to publish';
@@ -200,7 +200,7 @@
 	// ── Unpublish ──────────────────────────────────────────────────────────────
 	async function handleUnpublish() {
 		const res = await fetch(`/api/prompts/${data.prompt.id}/unpublish`, { method: 'POST' });
-		if (res.ok) goto(`/prompts/${data.prompt.id}/edit`, { invalidateAll: true });
+		if (res.ok) goto(`/conversations/${data.prompt.id}/edit`, { invalidateAll: true });
 	}
 
 	function handleBack() {

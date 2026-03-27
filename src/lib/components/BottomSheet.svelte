@@ -31,7 +31,7 @@
 
 		<div class="sheet-body">
 			{#each prompts as prompt}
-				<a href="/prompts/{prompt.id}" class="sheet-card">
+				<a href="/conversations/{prompt.id}" class="sheet-card">
 					{#if prompt.cover_image_url}
 						<img src={prompt.cover_image_url} alt="" class="card-thumb" loading="lazy" />
 					{/if}

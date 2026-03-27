@@ -171,7 +171,7 @@
 			<span>Search</span>
 		</button>
 
-		<a href="/prompts/new" class="nav-btn" aria-label="Start a conversation">
+		<a href="/conversations/new" class="nav-btn" aria-label="Start a conversation">
 			<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
 				<path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
 			</svg>

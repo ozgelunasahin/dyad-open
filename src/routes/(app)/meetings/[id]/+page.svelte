@@ -65,7 +65,7 @@
 	{/if}
 
 	{#if data.prompt}
-		<a href="/prompts/{data.prompt.id}" class="prompt-item">
+		<a href="/conversations/{data.prompt.id}" class="prompt-item">
 			<div class="prompt-row">
 				<div class="row-thumb">
 					{#if data.prompt.cover_image_url}

@@ -155,7 +155,7 @@
 				<div class="empty-state">
 					<p>No conversations available right now.</p>
 					<p class="empty-hint">Check back soon, or start your own.</p>
-					<a href="/prompts/new" class="start-prompt-btn" style="margin-top: 16px; display: inline-block;">Start a conversation</a>
+					<a href="/conversations/new" class="start-prompt-btn" style="margin-top: 16px; display: inline-block;">Start a conversation</a>
 				</div>
 			{:else if filteredPrompts.length === 0}
 					<div class="empty-state">
@@ -165,7 +165,7 @@
 				{:else}
 					<div class="prompt-list">
 						{#each filteredPrompts as prompt}
-							<a href="/prompts/{prompt.id}" class="prompt-item">
+							<a href="/conversations/{prompt.id}" class="prompt-item">
 								<div class="prompt-row">
 									<div class="row-thumb">
 										{#if prompt.cover_image_url}
@@ -212,7 +212,7 @@
 	<SearchOverlay
 		prompts={data.prompts}
 		onClose={() => searchOpen = false}
-		onSelect={(id) => { searchOpen = false; goto(`/prompts/${id}`); }}
+		onSelect={(id) => { searchOpen = false; goto(`/conversations/${id}`); }}
 	/>
 {/if}
 
