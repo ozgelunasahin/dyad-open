@@ -1,14 +1,16 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
 
 	let { data }: { data: PageData } = $props();
-	let backHref = $derived(
-		$page.url.searchParams.get('from') === 'profile' ? '/profile'
-		: $page.url.searchParams.get('from') === 'meeting' ? '/profile'
-		: '/discover'
-	);
+
+	function goBack() {
+		if (window.history.length > 1) {
+			window.history.back();
+		} else {
+			goto('/discover');
+		}
+	}
 	let responseText = $state(data.myComment?.body ?? '');
 	let responseStatus = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
 	let responseError = $state('');
@@ -114,7 +116,7 @@
 </svelte:head>
 
 <div class="content">
-	<a href={backHref} class="back-link">← Back</a>
+	<button class="back-link" onclick={goBack}>← Back</button>
 
 	{#if data.prompt.cover_image_url}
 		<img src={data.prompt.cover_image_url} alt="" class="cover" loading="lazy" />

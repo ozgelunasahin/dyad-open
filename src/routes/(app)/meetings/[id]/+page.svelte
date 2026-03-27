@@ -5,6 +5,14 @@
 	let { data }: { data: PageData } = $props();
 	let cancelling = $state(false);
 
+	function goBack() {
+		if (window.history.length > 1) {
+			window.history.back();
+		} else {
+			goto('/profile');
+		}
+	}
+
 	function formatDate(iso: string): string {
 		return new Date(iso).toLocaleDateString('en-US', {
 			weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit'
@@ -28,7 +36,7 @@
 </svelte:head>
 
 <div class="content">
-	<a href="/profile" class="back-link">← Back</a>
+	<button class="back-link" onclick={goBack}>← Back</button>
 
 	<div class="meeting-header">
 		<span class="meeting-with">Meeting with @{data.otherUsername}</span>
@@ -60,7 +68,7 @@
 	{/if}
 
 	{#if data.prompt}
-		<a href="/prompts/{data.prompt.id}?from=meeting" class="prompt-item">
+		<a href="/prompts/{data.prompt.id}" class="prompt-item">
 			<div class="prompt-row">
 				<div class="row-thumb">
 					{#if data.prompt.cover_image_url}
