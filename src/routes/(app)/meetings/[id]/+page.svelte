@@ -76,7 +76,7 @@
 				</div>
 				<div class="row-body">
 					<h3 class="row-title">{data.prompt.title || 'Untitled'}</h3>
-					<span class="row-status">{data.prompt.state === 'published' ? 'Published' : data.prompt.state === 'archived' ? 'Archived' : ''}</span>
+					<span class="row-status">{data.prompt.published_at ? formatDate(data.prompt.published_at) : ''}</span>
 				</div>
 			</div>
 		</a>
