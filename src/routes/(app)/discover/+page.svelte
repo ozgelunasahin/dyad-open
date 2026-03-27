@@ -534,6 +534,7 @@
 		inset: 0;
 		background: var(--bg-control, rgba(0, 0, 0, 0.05));
 		border: 1px solid var(--border-link);
+		border-radius: inherit;
 	}
 
 	.row-body {

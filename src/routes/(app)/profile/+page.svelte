@@ -245,7 +245,7 @@
 
 	.row-thumb { position: relative; flex-shrink: 0; width: 72px; min-height: 72px; border-radius: var(--radius-input); overflow: hidden; }
 	.thumb-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-	.thumb-placeholder { position: absolute; inset: 0; background: var(--bg-control); }
+	.thumb-placeholder { position: absolute; inset: 0; background: var(--bg-control); border-radius: inherit; }
 
 	.row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
 	.row-title { margin: 0 0 var(--space-1); font-size: var(--text-md); font-weight: 500; line-height: var(--leading-tight); }

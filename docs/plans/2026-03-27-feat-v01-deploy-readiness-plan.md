@@ -69,8 +69,8 @@ Accept only Supabase storage URLs, reject arbitrary external URLs.
 **Files:** `src/routes/api/prompts/+server.ts`, `src/routes/api/prompts/[id]/+server.ts`
 
 **Fix:**
-- [ ] Validate `coverImageUrl` starts with `PUBLIC_SUPABASE_URL + '/storage/'`
-- [ ] Reject with 400 if external URL
+- [x] Validate `coverImageUrl` starts with `PUBLIC_SUPABASE_URL + '/storage/'`
+- [x] Reject with 400 if external URL
 
 ### 3b. Empty Cover Placeholder Styling (#088)
 
@@ -79,8 +79,8 @@ Placeholder divs lack border-radius, look inconsistent with the rest of the desi
 **Files:** `src/routes/(app)/discover/+page.svelte`, `src/routes/(app)/profile/+page.svelte`
 
 **Fix:**
-- [ ] Add `border-radius: var(--radius-sm, 4px)` to `.thumb-placeholder`
-- [ ] Verify parent `overflow: hidden` clips correctly
+- [x] Add `border-radius: inherit` to `.thumb-placeholder`
+- [x] Verify parent `overflow: hidden` clips correctly
 
 ## v0.2 Roadmap
 

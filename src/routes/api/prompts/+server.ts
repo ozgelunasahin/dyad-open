@@ -1,4 +1,5 @@
 import { json } from '@sveltejs/kit';
+import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import type { RequestHandler } from './$types';
 import { requireAuth } from '$lib/server/auth.js';
 import { parseJsonBody } from '$lib/server/parse-body.js';
@@ -7,6 +8,7 @@ import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
 import { validateTiptapContent } from '$lib/server/validate-tiptap-content.js';
 
 const MAX_TITLE_LENGTH = 200;
+const STORAGE_URL_PREFIX = `${PUBLIC_SUPABASE_URL}/storage/`;
 
 /** POST /api/prompts — create a draft prompt */
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -26,6 +28,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	if (body.body !== undefined) {
 		const contentError = validateTiptapContent(body.body);
 		if (contentError) return json({ error: contentError }, { status: 400 });
+	}
+
+	if (body.coverImageUrl !== undefined && typeof body.coverImageUrl === 'string' && !body.coverImageUrl.startsWith(STORAGE_URL_PREFIX)) {
+		return json({ error: 'Invalid cover image URL' }, { status: 400 });
 	}
 
 	const service = new SupabasePromptCommandService(locals.supabase);
