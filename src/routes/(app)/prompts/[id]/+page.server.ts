@@ -39,14 +39,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	}> = [];
 
 	if (isAuthor && myInvitations.length > 0) {
-		// Join invitations with profiles, comments, and time slots
+		// Query invitations with comment and slot joins (FK-based)
 		const { data: enriched } = await locals.supabase
 			.from('prompt_invitations')
 			.select(`
 				id,
+				inviter_id,
 				message,
 				created_at,
-				inviter:inviter_id(username),
 				comment:comment_id(body),
 				slot:slot_id(start_time, duration_minutes, general_area)
 			`)
@@ -55,9 +55,17 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			.order('created_at', { ascending: true });
 
 		if (enriched) {
+			// Separate lookup for inviter usernames (no FK from inviter_id to profiles)
+			const inviterIds = [...new Set(enriched.map((inv: any) => inv.inviter_id))];
+			const { data: inviterProfiles } = await locals.supabase
+				.from('profiles')
+				.select('id, username')
+				.in('id', inviterIds);
+			const inviterMap = new Map((inviterProfiles ?? []).map((p: any) => [p.id, p.username]));
+
 			receivedInvitations = enriched.map((inv: any) => ({
 				id: inv.id,
-				inviter_username: inv.inviter?.username ?? 'anonymous',
+				inviter_username: inviterMap.get(inv.inviter_id) ?? 'anonymous',
 				message: inv.message,
 				comment_body: inv.comment?.body ?? null,
 				slot_start_time: inv.slot?.start_time,
