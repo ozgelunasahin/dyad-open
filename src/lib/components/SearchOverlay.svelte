@@ -22,8 +22,10 @@
 		'living in Berlin',
 	];
 
+	const STOP_WORDS = new Set(['a', 'an', 'the', 'in', 'on', 'at', 'to', 'for', 'of', 'and', 'or', 'is', 'it', 'i', 'my', 'we', 'do', 'so', 'no', 'not', 'but', 'with', 'this', 'that', 'from', 'by', 'as', 'be', 'are', 'was', 'who', 'what', 'how', 'about']);
+
 	function score(prompt: PromptSummary, q: string): number {
-		const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+		const words = q.toLowerCase().split(/\s+/).filter(w => w && !STOP_WORDS.has(w));
 		if (!words.length) return 0;
 		const title = (prompt.title ?? '').toLowerCase();
 		const snippet = (prompt.body_snippet ?? '').toLowerCase();
