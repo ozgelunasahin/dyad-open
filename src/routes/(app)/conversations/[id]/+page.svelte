@@ -2,6 +2,8 @@
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import SlotCard from '$lib/components/SlotCard.svelte';
+	import { formatHybridDate, formatSlotTime, formatSlotDetails } from '$lib/utils/dates.js';
 
 	let { data }: { data: PageData } = $props();
 
@@ -13,11 +15,23 @@
 	let responseError = $state('');
 	let hasResponse = $derived(!!data.myComment || responseStatus === 'sent');
 
+	// Invitation flow state machine
+	let inviteStep = $state<'hidden' | 'prompt' | 'picking' | 'confirming' | 'sent'>('hidden');
 	let selectedSlotId = $state<string | null>(null);
 	let inviteMessage = $state('');
-	let inviteStatus = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
+	let inviteStatus = $state<'idle' | 'sending' | 'error'>('idle');
 	let inviteError = $state('');
 	let invitedSlotIds = $state(new Set(data.invitedSlotIds ?? []));
+
+	// Show invite prompt after response, unless already sent all invitations
+	$effect(() => {
+		if (hasResponse && inviteStep === 'hidden' && data.prompt.available_slots.length > 0) {
+			const hasUninvitedSlots = data.prompt.available_slots.some(s => !invitedSlotIds.has(s.id));
+			if (hasUninvitedSlots) inviteStep = 'prompt';
+		}
+	});
+
+	let selectedSlot = $derived(data.prompt.available_slots.find(s => s.id === selectedSlotId));
 
 	// Author: accept invitation
 	let acceptingId = $state<string | null>(null);
@@ -25,13 +39,6 @@
 
 	function formatDate(iso: string): string {
 		return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-	}
-
-	// Alias for template clarity
-	const formatSlotDate = formatDate;
-
-	function formatSlotTime(iso: string): string {
-		return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 	}
 
 	async function submitResponse() {
@@ -67,17 +74,14 @@
 				body: JSON.stringify({ slotId: selectedSlotId, message: inviteMessage.trim() || undefined })
 			});
 			if (res.ok) {
-					inviteStatus = 'sent';
-					if (selectedSlotId) invitedSlotIds = new Set([...invitedSlotIds, selectedSlotId]);
-				}
-			else {
+				if (selectedSlotId) invitedSlotIds = new Set([...invitedSlotIds, selectedSlotId]);
+				inviteStep = 'sent';
+			} else {
 				const err = await res.json().catch(() => ({}));
 				const rawError = (err as any).error ?? 'Failed to send invitation';
-				if (rawError.includes('uq_one_pending_invitation')) {
-					inviteError = 'You already have a pending invitation for this time.';
-				} else {
-					inviteError = rawError;
-				}
+				inviteError = rawError.includes('uq_one_pending_invitation')
+					? 'You already have a pending invitation for this time.'
+					: rawError;
 				inviteStatus = 'error';
 			}
 		} catch {
@@ -130,18 +134,11 @@
 		{/if}
 	</div>
 
-	<!-- Available times (visible to everyone, read-only for non-authors before responding) -->
-	{#if !isOwnPrompt && data.prompt.available_slots.length > 0}
-		<section class="slots-info">
+	<!-- Available times (read-only, before responding) -->
+	{#if !isOwnPrompt && !hasResponse && data.prompt.available_slots.length > 0}
+		<section class="slots-section">
 			{#each data.prompt.available_slots as slot}
-				<div class="slot-item">
-					<div class="slot-info">
-						<span class="slot-date">{formatSlotDate(slot.start_time)}</span>
-						<span class="slot-time">{formatSlotTime(slot.start_time)}</span>
-						<span class="slot-duration">{slot.duration_minutes} min</span>
-						<span class="slot-area">{slot.general_area}</span>
-					</div>
-				</div>
+				<SlotCard startTime={slot.start_time} durationMinutes={slot.duration_minutes} area={slot.general_area} />
 			{/each}
 		</section>
 	{/if}
@@ -149,57 +146,78 @@
 	<!-- Response + Invitation flow (non-authors only) -->
 	{#if !isOwnPrompt}
 		<section class="response-section">
-			{#if responseStatus === 'sent' || data.myComment}
+			{#if hasResponse}
 				<!-- Show the actual response text -->
 				<div class="my-response">
 					<p class="my-response-text">{responseStatus === 'sent' ? responseText : data.myComment?.body}</p>
-					<button class="edit-response-btn" onclick={() => responseStatus = 'idle'}>Edit</button>
+					<button class="btn-text" onclick={() => responseStatus = 'idle'}>Edit</button>
 				</div>
 
-				<!-- Invitation flow -->
-				{#if data.prompt.available_slots.length > 0 && inviteStatus !== 'sent'}
-					<div class="invite-flow">
-						<p class="invite-prompt">Would you like to meet @{data.prompt.author_username} in person?</p>
-
-						{#each data.prompt.available_slots as slot}
-							<div class="slot-item" class:selected={selectedSlotId === slot.id}>
-								<div class="slot-info">
-									<span class="slot-date">{formatSlotDate(slot.start_time)}</span>
-									<span class="slot-time">{formatSlotTime(slot.start_time)}</span>
-									<span class="slot-duration">{slot.duration_minutes} min</span>
-									<span class="slot-area">{slot.general_area}</span>
-								</div>
-								{#if invitedSlotIds.has(slot.id)}
-									<span class="invited-badge">Invited</span>
-								{:else}
-									<button class="select-slot" onclick={() => selectedSlotId = selectedSlotId === slot.id ? null : slot.id}>
-										{selectedSlotId === slot.id ? 'Selected' : 'Select'}
-									</button>
-								{/if}
-							</div>
-						{/each}
-
-						{#if selectedSlotId}
-							<textarea
-								class="response-input"
-								placeholder="Add a message..."
-								bind:value={inviteMessage}
-								rows={2}
-								disabled={inviteStatus === 'sending'}
-							></textarea>
-						{/if}
-						{#if inviteError}<p class="field-error">{inviteError}</p>{/if}
-						{#if selectedSlotId}
-							<button class="invite-btn" onclick={sendInvite} disabled={inviteStatus === 'sending'}>
-								{inviteStatus === 'sending' ? 'Sending...' : 'Invite to meet'}
-							</button>
-						{/if}
+				<!-- Staged invitation flow -->
+				{#if inviteStep === 'prompt'}
+					<div class="invite-prompt-section">
+						<p class="invite-question">Would you like to meet @{data.prompt.author_username} in person?</p>
+						<div class="invite-prompt-actions">
+							<button class="btn-primary" onclick={() => inviteStep = 'picking'}>Pick a time</button>
+							<button class="btn-text" onclick={() => inviteStep = 'hidden'}>Not now</button>
+						</div>
 					</div>
 				{/if}
 
-				{#if inviteStatus === 'sent'}
-					<div class="invitation-sent-card">
-						<p class="invite-prompt">Invitation sent — waiting for @{data.prompt.author_username}</p>
+				{#if inviteStep === 'picking'}
+					<div class="invite-picking">
+						<p class="invite-question">When would you like to meet?</p>
+						{#each data.prompt.available_slots as slot}
+							<SlotCard
+								startTime={slot.start_time}
+								durationMinutes={slot.duration_minutes}
+								area={slot.general_area}
+								invited={invitedSlotIds.has(slot.id)}
+								onclick={() => { selectedSlotId = slot.id; inviteStep = 'confirming'; }}
+							/>
+						{/each}
+					</div>
+				{/if}
+
+				{#if inviteStep === 'confirming' && selectedSlot}
+					<div class="invite-confirming">
+						<SlotCard
+							startTime={selectedSlot.start_time}
+							durationMinutes={selectedSlot.duration_minutes}
+							area={selectedSlot.general_area}
+							selected
+						/>
+
+						<textarea
+							class="invite-message"
+							placeholder="Add a message..."
+							bind:value={inviteMessage}
+							rows={2}
+							disabled={inviteStatus === 'sending'}
+						></textarea>
+
+						{#if inviteError}<p class="field-error">{inviteError}</p>{/if}
+
+						<div class="invite-confirm-actions">
+							<button class="btn-primary" onclick={sendInvite} disabled={inviteStatus === 'sending'}>
+								{inviteStatus === 'sending' ? 'Sending...' : 'Send invitation'}
+							</button>
+							<button class="btn-text" onclick={() => { selectedSlotId = null; inviteStep = 'picking'; }}>
+								Change time
+							</button>
+						</div>
+					</div>
+				{/if}
+
+				{#if inviteStep === 'sent' && selectedSlot}
+					<div class="invite-sent-card">
+						<p class="invite-sent-text">Invitation sent to @{data.prompt.author_username}</p>
+						<SlotCard
+							startTime={selectedSlot.start_time}
+							durationMinutes={selectedSlot.duration_minutes}
+							area={selectedSlot.general_area}
+						/>
+						<p class="invite-sent-hint">Waiting for a response.</p>
 					</div>
 				{/if}
 			{:else}
@@ -212,7 +230,7 @@
 					disabled={responseStatus === 'sending'}
 				></textarea>
 				{#if responseError}<p class="field-error">{responseError}</p>{/if}
-				<button class="submit-btn" onclick={submitResponse} disabled={responseStatus === 'sending' || !responseText.trim()}>
+				<button class="btn-secondary" onclick={submitResponse} disabled={responseStatus === 'sending' || !responseText.trim()}>
 					{responseStatus === 'sending' ? 'Sending...' : 'Send'}
 				</button>
 			{/if}
@@ -233,14 +251,15 @@
 						<div class="response-invitation">
 							{#if invitation.state === 'accepted' && meeting}
 								<a href="/meetings/{meeting.id}?from={from ?? 'discover'}" class="meeting-link">
-									Meeting scheduled · {formatSlotDate(invitation.slot_start_time)} · {formatSlotTime(invitation.slot_start_time)} · {invitation.slot_general_area}
+									Meeting scheduled
 								</a>
+								<SlotCard startTime={invitation.slot_start_time} durationMinutes={invitation.slot_duration_minutes ?? 60} area={invitation.slot_general_area} />
 							{:else}
-								<div class="inv-slot">{formatSlotDate(invitation.slot_start_time)} · {formatSlotTime(invitation.slot_start_time)} · {invitation.slot_general_area}</div>
+								<SlotCard startTime={invitation.slot_start_time} durationMinutes={invitation.slot_duration_minutes ?? 60} area={invitation.slot_general_area} />
 								{#if invitation.message}
 									<p class="inv-message">{invitation.message}</p>
 								{/if}
-								<button class="invite-btn" onclick={() => acceptInvitation(invitation.id)} disabled={acceptingId === invitation.id}>
+								<button class="btn-primary" onclick={() => acceptInvitation(invitation.id)} disabled={acceptingId === invitation.id}>
 									{acceptingId === invitation.id ? 'Accepting...' : 'Accept'}
 								</button>
 							{/if}
@@ -257,11 +276,11 @@
 						<p class="response-body">{inv.comment_body}</p>
 					{/if}
 					<div class="response-invitation">
-						<div class="inv-slot">{formatSlotDate(inv.slot_start_time)} · {formatSlotTime(inv.slot_start_time)} · {inv.slot_general_area}</div>
+						<SlotCard startTime={inv.slot_start_time} durationMinutes={inv.slot_duration_minutes ?? 60} area={inv.slot_general_area} />
 						{#if inv.message}
 							<p class="inv-message">{inv.message}</p>
 						{/if}
-						<button class="invite-btn" onclick={() => acceptInvitation(inv.id)} disabled={acceptingId === inv.id}>
+						<button class="btn-primary" onclick={() => acceptInvitation(inv.id)} disabled={acceptingId === inv.id}>
 							{acceptingId === inv.id ? 'Accepting...' : 'Accept'}
 						</button>
 					</div>
@@ -274,7 +293,6 @@
 </div>
 
 <style>
-	/* .back-link uses global shared class */
 	.content { width: 100%; max-width: 700px; }
 
 	.cover { width: 100%; max-height: 400px; object-fit: cover; border-radius: var(--radius-card); margin-bottom: var(--space-6); }
@@ -289,59 +307,71 @@
 	.body :global(a) { color: var(--text-link); text-decoration: underline; }
 	.body :global(img) { max-width: 100%; border-radius: 4px; }
 
-	/* .section-title uses global shared class */
+	/* Sections */
+	.slots-section { margin-bottom: var(--space-6); }
+	.response-section, .responses-received { margin-top: var(--space-6); padding-top: var(--space-6); border-top: 1px solid var(--border-link); }
 
-	.slot-item { display: flex; justify-content: space-between; align-items: center; padding: var(--space-3) 0; border-bottom: 1px solid var(--border-link); }
-	.slot-item.selected { background: rgba(61,158,90,0.06); margin: 0 calc(-1 * var(--space-2)); padding: var(--space-3) var(--space-2); border-radius: 4px; }
-	.slot-info { display: flex; gap: var(--space-3); font-size: var(--text-base); }
-	.slot-date { font-weight: 500; }
-	.slot-time, .slot-duration { color: var(--text-muted); }
-	.slot-area { font-family: var(--font-mono); font-size: var(--text-xs); text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.04em; }
-	.select-slot { font-size: var(--text-sm); padding: var(--space-2) var(--space-3); border: 1px solid var(--border-link); border-radius: 4px; background: none; cursor: pointer; }
-	.select-slot:hover { border-color: var(--text-primary); }
-	.invited-badge { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-success); padding: var(--space-2) var(--space-3); }
-
-	.slots-info { margin-bottom: var(--space-6); }
-	.response-section, .invite-section, .responses-received, .invitations-received { margin-top: var(--space-6); padding-top: var(--space-6); border-top: 1px solid var(--border-link); }
-
-	.my-response { margin-bottom: var(--space-4); }
+	/* My response */
+	.my-response { margin-bottom: var(--space-6); }
 	.my-response-text { font-size: var(--text-md); line-height: var(--leading-relaxed); margin: 0 0 var(--space-2); }
 
-	.invite-flow { margin-top: var(--space-4); }
-	.invite-prompt { font-size: var(--text-md); color: var(--text-muted); margin: 0 0 var(--space-4); }
+	/* Invitation flow stages */
+	.invite-question { font-size: var(--text-md); margin: 0 0 var(--space-4); }
+	.invite-prompt-actions { display: flex; align-items: center; gap: var(--space-4); }
+	.invite-picking { margin-top: var(--space-2); }
+	.invite-confirming { margin-top: var(--space-2); }
 
-	.invitation-sent-card {
-		margin-top: var(--space-4);
+	.invite-message {
+		font-size: var(--text-base);
+		width: 100%;
+		padding: var(--space-3);
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-input);
+		background: transparent;
+		resize: vertical;
+		line-height: 1.6;
+		box-sizing: border-box;
+		margin-top: var(--space-3);
+		margin-bottom: var(--space-3);
+	}
+	.invite-message:focus { outline: none; border-color: var(--text-muted); }
+	.invite-message::placeholder { color: var(--text-muted); }
+
+	.invite-confirm-actions { display: flex; align-items: center; gap: var(--space-4); }
+
+	/* Sent state */
+	.invite-sent-card {
+		margin-top: var(--space-2);
 		padding: var(--space-4);
 		border: 1px solid var(--border-link);
 		border-radius: var(--radius-card);
 	}
+	.invite-sent-text { font-size: var(--text-md); font-weight: 500; margin: 0 0 var(--space-3); }
+	.invite-sent-hint { font-size: var(--text-sm); color: var(--text-muted); margin: 0; }
 
-	.response-card.has-invitation { border: 1px solid var(--border-link); border-radius: var(--radius-card); padding: var(--space-4); margin-bottom: var(--space-3); }
-	.response-invitation { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--border-link); }
-	.meeting-link { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-success); display: block; }
-	.meeting-link:hover { opacity: 0.7; }
-	.inv-slot { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin-bottom: var(--space-2); }
-	.inv-message { font-size: var(--text-sm); color: var(--text-secondary); font-style: italic; margin: 0 0 var(--space-3); }
-	.response-meta { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); display: block; margin-bottom: var(--space-1); }
-
-	.response-input { font-size: var(--text-base); width: 100%; padding: var(--space-3); border: 1px solid var(--border-link); border-radius: var(--radius-input); background: transparent; resize: vertical; line-height: 1.6; box-sizing: border-box; margin-bottom: var(--space-3); }
+	/* Response form */
+	.response-input {
+		font-size: var(--text-base);
+		width: 100%;
+		padding: var(--space-3);
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-input);
+		background: transparent;
+		resize: vertical;
+		line-height: 1.6;
+		box-sizing: border-box;
+		margin-bottom: var(--space-3);
+	}
 	.response-input:focus { outline: none; border-color: var(--text-muted); }
 	.response-input::placeholder { color: var(--text-muted); }
 
-	.edit-response-btn { font-size: var(--text-xs); color: var(--text-muted); background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; }
-
-	.invite-btn { font-size: var(--text-base); padding: var(--space-3) var(--space-6); background: var(--text-primary); color: var(--bg-canvas); border: 1px solid var(--text-primary); border-radius: var(--radius-input); cursor: pointer; margin-top: var(--space-3); }
-	.invite-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-	.submit-btn { font-size: var(--text-sm); padding: var(--space-2) var(--space-5); border: 1px solid var(--text-primary); border-radius: var(--radius-input); background: none; cursor: pointer; }
-	.submit-btn:hover:not(:disabled) { background: var(--text-primary); color: var(--bg-canvas); }
-	.submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-	.success { font-size: var(--text-base); color: var(--color-success); }
-	/* .field-error uses global shared class */
-
+	/* Author view */
 	.response-card { padding: var(--space-3) 0; border-bottom: 1px solid var(--border-link); }
+	.response-card.has-invitation { border: 1px solid var(--border-link); border-radius: var(--radius-card); padding: var(--space-4); margin-bottom: var(--space-3); border-bottom: none; }
+	.response-meta { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); display: block; margin-bottom: var(--space-1); }
 	.response-body { font-size: var(--text-base); margin: 0 0 var(--space-1); line-height: var(--leading-normal); }
-	.response-date { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
+	.response-invitation { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--border-link); }
+	.meeting-link { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-success); display: block; margin-bottom: var(--space-2); }
+	.meeting-link:hover { opacity: 0.7; }
+	.inv-message { font-size: var(--text-sm); color: var(--text-secondary); font-style: italic; margin: var(--space-2) 0 var(--space-3); }
 </style>

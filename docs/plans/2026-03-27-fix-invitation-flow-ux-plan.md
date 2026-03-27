@@ -96,28 +96,28 @@ Build the reusable pieces first. These come from the existing slot card plan (`d
 
 Rewrite the invitation section in `src/routes/(app)/conversations/[id]/+page.svelte`:
 
-- [ ] Add `inviteStep` state: `'prompt' | 'picking' | 'confirming' | 'sent'`
-- [ ] **Step: prompt** — show "Would you like to meet @author?" + "Pick a time" button (btn-primary) + "Not now" link (btn-text, sets step back to hidden)
-- [ ] **Step: picking** — show SlotCard list (sorted soonest first). Tapping a card sets `selectedSlotId` and advances to confirming.
-- [ ] **Step: confirming** — show selected SlotCard (read-only, selected state), textarea (placeholder: "Add a message..."), summary line, and "Send invitation" button (btn-primary)
-- [ ] **Step: sent** — collapse to a single card showing "Invitation sent to @author" + slot details + "Waiting for a response"
-- [ ] Remove local button/input CSS — use shared `.btn-primary`, `.btn-secondary`, `.btn-text` from `shared.css`
-- [ ] Remove green tint selection (`.slot-item.selected` with `rgba(61,158,90,...)`)
-- [ ] Remove the `.select-slot` button per slot
-- [ ] Keep the read-only slots section (before responding) but use SlotCard components there too
+- [x] Add `inviteStep` state: `'prompt' | 'picking' | 'confirming' | 'sent'`
+- [x] **Step: prompt** — show "Would you like to meet @author?" + "Pick a time" button (btn-primary) + "Not now" link (btn-text, sets step back to hidden)
+- [x] **Step: picking** — show SlotCard list (sorted soonest first). Tapping a card sets `selectedSlotId` and advances to confirming.
+- [x] **Step: confirming** — show selected SlotCard (read-only, selected state), textarea (placeholder: "Add a message..."), summary line, and "Send invitation" button (btn-primary)
+- [x] **Step: sent** — collapse to a single card showing "Invitation sent to @author" + slot details + "Waiting for a response"
+- [x] Remove local button/input CSS — use shared `.btn-primary`, `.btn-secondary`, `.btn-text` from `shared.css`
+- [x] Remove green tint selection (`.slot-item.selected` with `rgba(61,158,90,...)`)
+- [x] Remove the `.select-slot` button per slot
+- [x] Keep the read-only slots section (before responding) but use SlotCard components there too
 
 ### Phase 3: Conversation Detail — Author View
 
 Enhance the existing `.response-card.has-invitation` section:
 
-- [ ] Use SlotCard (read-only) instead of `.inv-slot` monospace text
-- [ ] Sort invitation cards by soonest proposed slot first
-- [ ] Keep Accept button as btn-primary
-- [ ] Keep meeting link display for accepted invitations
+- [x] Use SlotCard (read-only) instead of `.inv-slot` monospace text
+- [x] Sort invitation cards by soonest proposed slot first
+- [x] Keep Accept button as btn-primary
+- [x] Keep meeting link display for accepted invitations
 
 ### Phase 4: Cleanup
 
-- [ ] Remove unused local CSS classes: `.slot-item`, `.slot-info`, `.slot-date`, `.slot-time`, `.slot-duration`, `.slot-area`, `.select-slot`, `.invited-badge`, `.invite-flow`, `.invite-prompt`, `.invitation-sent-card`, `.invite-btn`, `.submit-btn`
+- [x] Remove unused local CSS classes: `.slot-item`, `.slot-info`, `.slot-date`, `.slot-time`, `.slot-duration`, `.slot-area`, `.select-slot`, `.invited-badge`, `.invite-flow`, `.invite-prompt`, `.invitation-sent-card`, `.invite-btn`, `.submit-btn`
 - [ ] Update design-system.md with SlotCard spec
 - [ ] Check off items in the slot card plan
 
