@@ -120,7 +120,7 @@
 	{/if}
 
 	<h1 class="title">{data.prompt.title}</h1>
-	<p class="meta">@{data.prompt.author_username}</p>
+	<p class="meta">@{data.prompt.author_username} · {formatDate(data.prompt.published_at)}</p>
 
 	<div class="body">
 		{#if data.prompt.body_html}
