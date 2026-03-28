@@ -73,13 +73,14 @@
 							type="password"
 							id="password"
 							name="password"
+							bind:value={password}
 							required
 							autocomplete={mode === 'login' ? 'current-password' : 'new-password'}
 							disabled={loading}
 							minlength={mode === 'update' ? 8 : undefined}
 						/>
 						{#if mode === 'update'}
-							<p class="hint">At least 6 characters</p>
+							<p class="hint">At least 8 characters</p>
 						{/if}
 					</div>
 				{/if}

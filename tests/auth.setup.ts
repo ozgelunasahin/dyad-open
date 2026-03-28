@@ -12,11 +12,8 @@ for (const user of users) {
 		await page.goto('/login');
 		await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
 
-		// Use pressSequentially — the login form's declarative value={} can overwrite fill()
-		await page.locator('#email').click();
-		await page.locator('#email').pressSequentially(user.email, { delay: 20 });
-		await page.locator('#password').click();
-		await page.locator('#password').pressSequentially(user.password, { delay: 20 });
+		await page.locator('#email').fill(user.email);
+		await page.locator('#password').fill(user.password);
 
 		await page.getByRole('button', { name: 'Sign in' }).click();
 
