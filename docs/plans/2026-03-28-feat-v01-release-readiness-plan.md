@@ -108,6 +108,7 @@ All migrations exist in `supabase/migrations/` but have not been applied to the 
 - [x] Run `supabase db push` — 5 migrations applied (20260403-20260407)
 - [x] Verify: uploads bucket exists, RPC functions callable, RLS policies active
 - [ ] **RBAC on production Supabase:** Before real user data exists, restrict who can push migrations and access the service role key. Remove CLI access to production from development machines. Migrations to production should go through a controlled process (e.g., Supabase dashboard by an authorised admin, or a CI pipeline with approval gate). The `SUPABASE_SERVICE_ROLE_KEY` must not be in any `.env` file on a development machine that can run `db push` against production.
+- [ ] **Set admin `app_metadata` on remote:** `UPDATE auth.users SET raw_app_meta_data = raw_app_meta_data || '{"role": "admin"}'::jsonb WHERE email = '<admin-email>';` — then the admin must log out and back in for the JWT to refresh with the new claim.
 
 ### B6. No revealed feedback UI
 
