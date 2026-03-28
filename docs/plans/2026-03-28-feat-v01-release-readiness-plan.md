@@ -379,12 +379,26 @@ The sidebar is being removed. FloatingNav becomes the primary navigation on ALL 
 - [ ] Security: archive function restricted to service_role (S2)
 - [ ] System runs unattended: cron jobs active, email delivers, no manual DB ops needed
 
+### E2E test coverage (must pass before tagging)
+
+Seed data provides 6 users with distinct states. Tests must cover:
+
+| Test | Users | Flow |
+|------|-------|------|
+| Smoke: landing, login, discover, profile, map | sophie, tom | Basic navigation |
+| Core flow: respond → invite → accept | sophie authors, tom responds | Full invitation cycle |
+| Feedback gate: redirect, submit, unlock | ava, ben | Gate blocks → form → submit → gate lifts |
+| Feedback reveal: both submit → locked → reveal visible | ava, ben | Simultaneous reveal promise |
+| Admin: waitlist view, invite button | lisa (admin) | Admin panel functional |
+
+Seed users: sophie/tom are FREE (no gate), ava/ben are GATED (due feedback), lisa is admin, marco has pending invitation.
+
 ### v0.1 continued (same release, stretch goals)
 
 - [ ] Progressive slot disclosure (teaser before response, full after)
 - [ ] Copy centralized in `src/lib/copy.ts`
 - [ ] Waitlist modal on landing page conversation click
-- [ ] Mobile Playwright tests pass
+- [ ] Mobile Playwright tests pass (375px viewport)
 - [ ] BottomSheet doesn't block map interaction
 - [ ] Invitation decline button exists
 - [ ] Email notifications for invitations and meetings
