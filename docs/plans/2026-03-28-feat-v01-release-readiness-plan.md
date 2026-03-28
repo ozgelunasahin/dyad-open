@@ -143,6 +143,7 @@ The admin must be able to operate the alpha test without developer intervention.
 - [ ] `/admin/waitlist` — list `contacts` table entries, sorted by newest. Show: name, email, city, freewrite excerpt, date. "Invite" button per row that calls `POST /api/invites`. **Show invited/not-invited status** (join `contacts` with `invitations` table on email). Filter: "Not yet invited" / "All".
 - [ ] `/admin/feedback` — list `app_feedback` table entries AND `feedback_forms.share_with_platform` entries. Show: user, page URL or meeting context, body, date.
 - [ ] Sidebar link "Admin" visible only to users with `can_publish_sites`
+- [ ] `/admin/settings` — simple key-value config flags. First flag: `show_fully_booked_conversations` (boolean, default true). Stored in a `config` table. Read by the discover query to control visibility of conversations where all slots are confirmed.
 - [ ] Minimal styling — use existing design tokens, no custom design needed
 
 ## Must Also Ship (promote from should-fix — one-line SQL fixes, ship with B5 migration push)
@@ -275,7 +276,7 @@ The sidebar is being removed. FloatingNav becomes the primary navigation on ALL 
 - [ ] Slots in the past or less than 1 hour away: show a user-facing message ("This time has passed" or "Too soon to book"), not an error. This is a valid interaction, not an exception — handle gracefully in the UI, don't bubble up a server error. Copy in copy.ts.
 
 **Discover:**
-- [ ] **Visibility policy change:** Conversations with pending invitations MUST remain visible on discover (currently hidden). Conversations with ALL timeslots confirmed for meetings should also remain visible — make this configurable with a flag (default: visible). The author's own conversations should also be visible (currently filtered out with `.neq('author_id', userId)` at `prompt-query.ts:48`).
+- [ ] **Visibility policy change:** Conversations with pending invitations or some slots confirmed always remain visible on discover — this is not configurable, it's the rule. Conversations with ALL timeslots confirmed: also visible by default, but **configurable via admin flag** (default: show). The author's own conversations should also be visible (currently filtered out with `.neq('author_id', userId)` at `prompt-query.ts:48`). Remove the `.eq('accepted', false)` slot filter that currently hides these.
 - [ ] **Confirmed timeslots hidden from non-participants** (safeguarding): accepted/confirmed slots must NOT be shown to potential inviters, as this reveals where a user will be at a specific time. Only unconfirmed slots are visible to others. The pre-response teaser should show: count of available (unconfirmed) slots and approximate region(s).
 - [ ] **Multiple invitations per slot:** Authors can receive multiple invitations for the same timeslot. Authors can confirm meetings for multiple timeslots. This is already supported by the DB schema — verify the UI does not prevent it.
 - [ ] Check stability of which conversations are shown — ensure consistent ordering so the page doesn't jump between visits
