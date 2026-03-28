@@ -50,7 +50,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	if (user) {
 		const pathname = event.url.pathname;
 
-		// Skip gate for static assets, auth routes, and feedback routes
+		// Skip gate for static assets, auth routes, feedback routes, and admin
 		const isExempt =
 			pathname.startsWith('/_app/') ||
 			pathname.startsWith('/feedback') ||
@@ -59,6 +59,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			pathname.startsWith('/api/vocabulary') ||
 			pathname.startsWith('/auth') ||
 			pathname.startsWith('/logout') ||
+			pathname.startsWith('/admin') ||
 			pathname.endsWith('.webmanifest') ||
 			pathname.startsWith('/service-worker') ||
 			pathname.startsWith('/favicon') ||
@@ -71,6 +72,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 			const gateStatus = await gateService.checkGate(user.id);
 
 			if (gateStatus.gated && gateStatus.feedbackFormId) {
+				// Admin bypass: check app_metadata (no DB query — from JWT)
+				const isAdmin = event.locals.user?.app_metadata?.role === 'admin';
+				if (isAdmin) {
+					return resolve(event);
+				}
+
 				if (pathname.startsWith('/api/')) {
 					return new Response(JSON.stringify({ error: 'gated', feedbackFormId: gateStatus.feedbackFormId }), {
 						status: 403,

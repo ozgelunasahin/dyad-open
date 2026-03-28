@@ -16,14 +16,7 @@ async function requireAdmin(locals: App.Locals) {
 	if (!locals.user) {
 		error(401, 'Authentication required');
 	}
-
-	const { data: profile } = await locals.supabase
-		.from('profiles')
-		.select('can_publish_sites')
-		.eq('id', locals.user.id)
-		.single();
-
-	if (!profile?.can_publish_sites) {
+	if (locals.user.app_metadata?.role !== 'admin') {
 		error(403, 'Admin access required');
 	}
 }
