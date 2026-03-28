@@ -1,0 +1,181 @@
+<script lang="ts">
+	let dialog: HTMLDialogElement | undefined = $state();
+	let description = $state('');
+	let type = $state<'bug' | 'feature' | 'other'>('bug');
+	let submitting = $state(false);
+	let submitted = $state(false);
+	let error = $state('');
+
+	function open() {
+		description = '';
+		type = 'bug';
+		submitted = false;
+		error = '';
+		dialog?.showModal();
+	}
+
+	async function submit() {
+		if (description.length < 10) {
+			error = 'Please write at least 10 characters';
+			return;
+		}
+		submitting = true;
+		error = '';
+		const context = {
+			page_url: window.location.href,
+			user_agent: navigator.userAgent
+		};
+		try {
+			const res = await fetch('/api/feedback/app', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ type, description, context })
+			});
+			if (res.ok) {
+				submitted = true;
+				setTimeout(() => dialog?.close(), 1500);
+			} else {
+				const body = await res.json().catch(() => ({}));
+				error = (body as any).error ?? 'Failed to submit';
+			}
+		} catch {
+			error = 'Network error';
+		} finally {
+			submitting = false;
+		}
+	}
+</script>
+
+<button class="feedback-trigger" onclick={open} aria-label="Send feedback">?</button>
+
+<dialog bind:this={dialog}>
+	{#if submitted}
+		<div class="feedback-success">
+			<p>Thanks for your feedback!</p>
+		</div>
+	{:else}
+		<div class="feedback-form">
+			<div class="feedback-header">
+				<h3>Send feedback</h3>
+				<button class="close-btn" onclick={() => dialog?.close()}>×</button>
+			</div>
+
+			<div class="type-selector">
+				<button class="type-btn" class:active={type === 'bug'} onclick={() => type = 'bug'}>Bug</button>
+				<button class="type-btn" class:active={type === 'feature'} onclick={() => type = 'feature'}>Feature</button>
+				<button class="type-btn" class:active={type === 'other'} onclick={() => type = 'other'}>Other</button>
+			</div>
+
+			<textarea
+				bind:value={description}
+				placeholder="What happened? What did you expect?"
+				rows={4}
+				disabled={submitting}
+			></textarea>
+
+			{#if error}<p class="error">{error}</p>{/if}
+
+			<button class="btn-primary" onclick={submit} disabled={submitting || description.length < 10}>
+				{submitting ? 'Sending...' : 'Send'}
+			</button>
+		</div>
+	{/if}
+</dialog>
+
+<style>
+	.feedback-trigger {
+		position: fixed;
+		bottom: var(--space-4);
+		right: var(--space-4);
+		width: 40px;
+		height: 40px;
+		border-radius: 50%;
+		background: var(--text-primary);
+		color: var(--bg-canvas);
+		font-size: var(--text-lg);
+		font-weight: 500;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 900;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+		transition: opacity 0.15s;
+	}
+	.feedback-trigger:hover { opacity: 0.85; }
+
+	dialog {
+		border: none;
+		border-radius: var(--radius-card);
+		padding: 0;
+		max-width: 420px;
+		width: 90vw;
+		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+	}
+	dialog::backdrop {
+		background: rgba(0, 0, 0, 0.3);
+	}
+
+	.feedback-form {
+		padding: var(--space-6);
+	}
+
+	.feedback-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: var(--space-4);
+	}
+	.feedback-header h3 {
+		font-size: var(--text-lg);
+		font-weight: normal;
+		margin: 0;
+	}
+	.close-btn {
+		font-size: var(--text-xl);
+		color: var(--text-muted);
+	}
+	.close-btn:hover { color: var(--text-primary); }
+
+	.type-selector {
+		display: flex;
+		gap: var(--space-2);
+		margin-bottom: var(--space-4);
+	}
+	.type-btn {
+		font-size: var(--text-sm);
+		padding: var(--space-2) var(--space-3);
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-input);
+		color: var(--text-muted);
+		transition: all 0.15s;
+	}
+	.type-btn.active {
+		border-color: var(--text-primary);
+		color: var(--text-primary);
+		font-weight: 500;
+	}
+
+	textarea {
+		width: 100%;
+		font-size: var(--text-base);
+		padding: var(--space-3);
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-input);
+		background: transparent;
+		resize: vertical;
+		line-height: 1.6;
+		box-sizing: border-box;
+		margin-bottom: var(--space-3);
+	}
+	textarea:focus { outline: none; border-color: var(--text-muted); }
+	textarea::placeholder { color: var(--text-muted); }
+
+	.error { font-size: var(--text-sm); color: var(--color-danger); margin: 0 0 var(--space-2); }
+
+	.feedback-success {
+		padding: var(--space-8) var(--space-6);
+		text-align: center;
+		font-size: var(--text-md);
+		color: var(--text-primary);
+	}
+</style>

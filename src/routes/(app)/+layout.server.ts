@@ -24,9 +24,12 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 			.eq('state', 'due')
 	]);
 
+	const isAdmin = locals.user?.app_metadata?.role === 'admin';
+
 	return {
 		user: locals.user,
 		username: profile?.username ?? '',
-		attentionCount: (invitationCount ?? 0) + (feedbackCount ?? 0)
+		attentionCount: (invitationCount ?? 0) + (feedbackCount ?? 0),
+		isAdmin
 	};
 };

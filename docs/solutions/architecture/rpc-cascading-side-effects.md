@@ -61,8 +61,51 @@ Checklist when extending an existing function in a new migration:
 4. Test the extended function with the original test cases (regression) plus the new behavior
 5. Check for race conditions: if two users could call the function simultaneously, add `FOR UPDATE` locks on shared rows
 
+### 4. Archive must cancel pending invitations atomically
+
+**Discovered during Session 3 planning (2026-03-28).** The `unpublish` method in `prompt-command.ts` transitions a prompt from `published` to `archived` but does NOT cancel pending invitations for the prompt's slots. This leaves phantom invitations: invitees see them in their attention count, and could even accept an invitation for an archived prompt.
+
+**Fix:** Create an `archive_prompt` RPC that atomically archives the prompt AND expires pending invitations:
+
+```sql
+CREATE OR REPLACE FUNCTION archive_prompt(p_prompt_id TEXT)
+RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM prompts WHERE id = p_prompt_id
+                 AND author_id = (SELECT auth.uid()) AND state = 'published') THEN
+    RAISE EXCEPTION 'Not found or not archivable';
+  END IF;
+
+  UPDATE prompt_invitations SET state = 'expired', resolved_at = NOW()
+  WHERE slot_id IN (SELECT id FROM time_slots WHERE prompt_id = p_prompt_id)
+    AND state = 'pending';
+
+  UPDATE prompts SET state = 'archived', archived_at = NOW()
+  WHERE id = p_prompt_id;
+END; $$;
+```
+
+### 5. Cross-user notifications must go through SECURITY DEFINER
+
+**Discovered during Session 3 planning (2026-03-28).** When cancelling a meeting, the other participant needs a notification. But the `notifications` INSERT RLS policy restricts inserts to `auth.uid() = user_id` — a user can only insert notifications for themselves. Loosening this to allow cross-user inserts would be a security regression (notification injection).
+
+**Fix:** Add the notification INSERT inside the existing `cancel_meeting` SECURITY DEFINER function. This follows the same pattern as `advance_scheduled_meetings` creating feedback forms: the side effect belongs in the atomic function, not in application code.
+
+```sql
+-- Inside cancel_meeting, after creating the cancellation record:
+INSERT INTO notifications (user_id, type, data)
+VALUES (
+  CASE WHEN v_caller = v_meeting.participant_a THEN v_meeting.participant_b
+       ELSE v_meeting.participant_a END,
+  'meeting_cancelled',
+  jsonb_build_object('meeting_id', p_meeting_id, 'cancelled_by', v_caller)
+);
+```
+
+Also requires updating the `notifications_type_check` constraint to include `'meeting_cancelled'`.
+
 ## Why This Matters
 
 A future developer adding a new feature (e.g., notifications on meeting creation) might be tempted to create a separate `create_notification_after_meeting()` trigger or a second RPC call. This creates a failure window: the meeting exists but the notification doesn't. If the notification is critical (like feedback form creation is), it must go inside the existing atomic function.
 
-The general signal: whenever you find yourself writing "call X, then call Y" in a service method and both must succeed, those two operations probably belong in a single database function.
+The general signal: whenever you find yourself writing "call X, then call Y" in a service method and both must succeed, those two operations probably belong in a single database function. And whenever you need to write data for a different user (cross-user notifications, feedback forms for both participants), the INSERT must go inside a SECURITY DEFINER function — RLS correctly prevents regular users from writing rows for other users.

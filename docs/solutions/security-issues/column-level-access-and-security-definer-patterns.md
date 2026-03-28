@@ -113,9 +113,41 @@ WHERE cr.cancelled_by = v_caller AND cr.tier = 'late';
 
 This keeps all business logic tamper-proof — the client only provides the meeting ID and an optional reason string.
 
+### 6. Application-layer filtering is not a security boundary
+
+**Discovered during Session 3 planning (2026-03-28).** The `time_slots` table had column-level grants correctly hiding `exact_location`, but the ROW-level visibility of accepted slots was enforced only in application code (`.eq('accepted', false)` in `prompt-query.ts`). The RLS policies allowed any authenticated user to SELECT accepted slots — including their `start_time`, `general_area`, and fuzzed coordinates.
+
+This means a direct Supabase REST API query (`/rest/v1/time_slots_public?accepted=eq.true`) bypasses the application filter entirely, revealing confirmed meeting times and approximate locations. For a platform facilitating in-person meetings between strangers, this is a stalking vector.
+
+**Fix:** Add an RLS policy that hides accepted slots from non-participants:
+
+```sql
+CREATE POLICY "Authenticated users read available slots of published prompts"
+  ON time_slots FOR SELECT TO authenticated
+  USING (
+    -- Authors see their own slots
+    EXISTS (SELECT 1 FROM prompts WHERE prompts.id = time_slots.prompt_id
+            AND prompts.author_id = (SELECT auth.uid()))
+    OR (
+      -- Non-authors see only unaccepted slots of published prompts
+      accepted = FALSE
+      AND EXISTS (SELECT 1 FROM prompts WHERE prompts.id = time_slots.prompt_id
+                  AND prompts.state = 'published')
+    )
+    OR (
+      -- Meeting participants see their accepted slot
+      EXISTS (SELECT 1 FROM meetings WHERE meetings.slot_id = time_slots.id
+              AND (SELECT auth.uid()) IN (meetings.participant_a, meetings.participant_b))
+    )
+  );
+```
+
+**The general rule:** Any filter applied in application code (`prompt-query.ts`, page loaders, API endpoints) that has privacy or safeguarding implications MUST also be enforced at the RLS layer. Application-layer filtering is a UX convenience; RLS is the security boundary. The Supabase anon key is public — any authenticated user can query any table directly.
+
 ## Prevention
 
 - When hiding columns: use column-level REVOKE/GRANT, not table-level REVOKE (which breaks RLS)
+- When hiding rows by state: enforce in RLS, not just in application queries (direct API access bypasses application code)
 - When changing function return types: DROP first, then CREATE (not CREATE OR REPLACE), then re-grant
 - When extending atomic functions: add to the existing function, don't create a second one
 - When exposing sensitive data conditionally: use two-tier RPC (full access + metadata-only)
