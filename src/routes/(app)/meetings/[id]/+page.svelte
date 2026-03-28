@@ -90,7 +90,7 @@
 	{/if}
 </div>
 
-<FloatingNav variant="default" attentionCount={$page.data.attentionCount ?? 0} />
+<FloatingNav variant="default" attentionCount={data.attentionCount ?? 0} />
 
 <style>
 	/* .back-link uses global shared class */
