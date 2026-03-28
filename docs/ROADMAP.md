@@ -6,39 +6,40 @@
 
 **Operating constraint:** Must run unattended for weeks. The main developer will have limited availability. A non-technical co-founder (admin) must be able to operate the platform from an in-app admin panel. No database surgery, no curl commands.
 
-### What works now (shipped in PRs #32-61)
+### Feature status
 
-- Landing page with conversation previews for anonymous visitors
-- Waitlist form (`/waitlist`) that saves to `contacts` table
-- Invite-based registration (`/join?token=...`) with username + password
-- Discover page with list view, map view (Leaflet), search overlay, date/area filters
-- Conversation editor (TipTap rich text) with cover image upload, auto-save, publish flow
-- Time slot scheduling (1-3 slots per conversation, rolling 7-day window, Nominatim location search)
-- Response-first invitation flow (write response → select slot → send invitation)
-- Author views received invitations and can accept → meeting created
-- Meeting detail page with location reveal
-- Feedback form with adjective vocabulary, simultaneous reveal (backend complete)
-- Feedback gate (app locked until feedback submitted)
-- SvelteKit on Cloudflare Pages, Supabase backend with RLS
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Landing page with conversation previews | DONE | Anon visitors see real conversations |
+| Waitlist form | DONE | Saves to `contacts` table, sends welcome email |
+| Invite-based registration | **PENDING** | Signup RPC broken — blocker B1 |
+| Discover page (list + map + search) | DONE | |
+| Conversation editor + publish flow | DONE | TipTap, cover image upload, slot scheduling |
+| Response-first invitation flow | DONE | Write response → select slot → send |
+| Author accepts invitation → meeting | DONE | |
+| Meeting detail with location reveal | DONE | |
+| Feedback form + gate | **PENDING** | Backend done; wrong column names (B3), no cron trigger (B2) |
+| Simultaneous feedback reveal | **PENDING** | Backend done, no frontend (B6) |
+| Production email delivery | **PENDING** | Mailpit only, needs EU provider (B4) |
+| Remote Supabase migrations | **PENDING** | Not yet applied (B5) |
+| In-app feedback/report button | **PENDING** | Not yet built (B7) |
+| Admin panel (waitlist, invite, feedback) | **PENDING** | Not yet built (B8) |
+| Security fixes (RLS, function grants) | **PENDING** | Notifications INSERT policy, archive function |
+| Progressive slot disclosure | **PENDING** | Teaser before response, full after |
+| Centralized copy (`copy.ts`) | **PENDING** | Prep for localization |
+| Waitlist modal on landing page | **PENDING** | Keep user in context |
+| Mobile Playwright tests | **PENDING** | Mobile UX unverified |
+| BottomSheet non-blocking | **PENDING** | Reverted, needs proper solution |
+| Invitation decline button | **PENDING** | Authors can only accept or ignore |
+| Email notifications | **PENDING** | Invitation received, accepted, cancelled |
+| Performance optimizations | **PENDING** | Query parallelization in discover + detail |
 
-### Gaps to close for v0.1 (see `docs/plans/2026-03-28-feat-v01-release-readiness-plan.md`)
-
-**Blockers (8):**
-1. Fix `confirm_user_email` RPC — signup is broken
-2. Enable pg_cron for meeting lifecycle transitions
-3. Fix wrong column names in feedback/layout loaders
-4. Wire production email delivery (EU provider)
-5. Apply all migrations to remote Supabase
-6. Build revealed feedback UI (frontend for simultaneous reveal)
-7. Add in-app feedback/report button + table
-8. Build admin panel (waitlist view, invite button, feedback view)
-
-**Should-fix (14):** Security fixes, performance optimizations, progressive slot disclosure, centralized copy, waitlist modal, mobile tests, BottomSheet interaction, decline invitation, email notifications, design polish.
+**Detailed implementation plan:** `docs/plans/2026-03-28-feat-v01-release-readiness-plan.md`
 
 ### Explicit non-goals for v0.1
 - Public profiles
 - Open conversations for non-members
-- EN/DE localization
+- EN/DE localization (but copy centralization prepares for it)
 - Onboarding flow
 - Notifications UI (bell icon)
 - Venue partnerships
