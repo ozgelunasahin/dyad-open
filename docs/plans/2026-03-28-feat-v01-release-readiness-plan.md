@@ -324,9 +324,14 @@ Items flagged by user, co-founder, and agents:
 - Add-to-calendar (Story 2/4 open question — defer explicitly)
 - Feedback reveal notification (how users discover the reveal is available)
 
-## Stale Documentation to Fix
+## Documentation to Update
 
-From crosslink audit (already partially addressed in consolidation PR #62):
+### Design principles / engineering principles to add:
+
+- [ ] **No defensive fallbacks during alpha.** Add to design principles or a new engineering principles doc: don't use `?? 'TBD'`, `?? 'Unknown'`, or `?? 0` patterns that silently mask null data. Show the actual null so bugs surface. Defensive fallbacks are for public releases, not alpha. The `general_area ?? 'TBD'` hid a real data bug for weeks.
+- [ ] **Audit existing codebase for `?? 'TBD'` and similar patterns** — replace with explicit null display or debug indicators during alpha.
+
+### Stale content fixes (from crosslink audit):
 
 - [ ] `design-principles.md`: "Comments" heading → "Responses" (per domain language)
 - [ ] `design-principles.md`: "Following profiles" mentioned but undocumented — add guardrails or remove
