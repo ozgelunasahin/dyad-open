@@ -141,13 +141,24 @@ Current: 40 pending todos. Many may be stale or superseded.
 
 ## Acceptance Criteria
 
-- [ ] Solution documents created for significant learnings across 30 PRs
-- [ ] CLAUDE.md reflects current codebase state
-- [ ] Design docs updated with implemented patterns
-- [ ] Completed plans archived
-- [ ] Stale todos archived, remaining re-prioritised
-- [ ] Git tag v0.1.0 on main
-- [ ] CHANGELOG.md exists
+**This plan is a documentation consolidation — NOT a code implementation plan.** The deliverable is up-to-date documentation that serves as the basis for subsequent brainstorm and planning sessions to enact the v0.1 release work.
+
+- [x] Solution documents created for significant learnings across 30 PRs (18 created)
+- [x] CLAUDE.md reflects current codebase state, including ways of working for co-founder
+- [x] Design docs updated: user archetypes, sustainability model, "Why This Exists", design principles, crosslink fixes
+- [x] Completed plans archived (7 archived)
+- [x] Stale todos archived (9 archived), remaining triaged
+- [x] CHANGELOG.md exists
+- [x] ROADMAP.md exists with v0.1 → v0.2 → v0.3 scope and DONE/PENDING feature status
+- [x] Release readiness plan exists (`2026-03-28-feat-v01-release-readiness-plan.md`) with gap analysis from 7 agents, 8 blockers, 14+ should-fix items, Ozge's feedback triaged
+- [x] Stale design PRs closed, branches consolidated to `archive/v01-design-reference`
+- [ ] Git tag v0.1.0 on main (after code work is done — NOT part of this PR)
+
+**What this PR does NOT do:**
+- No code changes
+- No blocker fixes (B1-B8)
+- No feature implementation
+- No branch cleanup (41 merged branches identified but not deleted — needs confirmation)
 
 ## Execution Strategy
 
