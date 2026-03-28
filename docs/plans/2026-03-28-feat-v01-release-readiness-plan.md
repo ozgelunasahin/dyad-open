@@ -241,11 +241,21 @@ Items flagged by user, co-founder, and agents:
 - [ ] Login opens as modal (same as waitlist modal, S9) with "Already have an account?" toggle
 - [ ] Conversation cards show booked/available status (e.g., "2/3 slots booked" indicator)
 
-**Navigation (critical for mobile):**
-- [ ] **Remove the left sidebar from discover page.** It takes up space and is redundant with FloatingNav.
-- [ ] **Add profile button to FloatingNav** — visible on all views (discover, conversation detail, etc.). Currently no way to reach profile on mobile from discover.
-- [ ] Move sign out + logged-in user indicator somewhere accessible without the sidebar (e.g., profile page, or a user menu in FloatingNav)
-- [ ] FloatingNav should provide toggle between discover ↔ profile on all pages
+**Navigation + notifications (open design question — needs brainstorm):**
+
+The sidebar is being removed from discover. The notification badge currently lives there. We need a navigation + notification solution that works on both mobile and desktop. This is a design decision, not just an implementation task.
+
+Options to explore:
+- FloatingNav on all pages (mobile + desktop) — consistent, add profile + notification indicator
+- Minimal top bar on desktop + FloatingNav on mobile — different components, same info
+- FloatingNav on mobile, persistent but minimal header on desktop
+
+Whatever the solution, it must:
+- [ ] Show notification count (pending invitations, due feedback, cancelled meetings) on both mobile and desktop
+- [ ] Provide navigation between discover ↔ profile on all pages
+- [ ] Include sign out somewhere accessible
+- [ ] Work without the left sidebar (remove sidebar from discover)
+- [ ] Feel consistent — not two completely different navigation paradigms
 
 **Map view:**
 - [ ] Pin click: show conversations within the clicked fuzz region, NOT all in the Bezirk. Sort by distance to fuzz centroid. Don't show neighbourhood name as the BottomSheet header — use a neutral label or count.
