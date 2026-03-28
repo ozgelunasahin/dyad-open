@@ -241,21 +241,21 @@ Items flagged by user, co-founder, and agents:
 - [ ] Login opens as modal (same as waitlist modal, S9) with "Already have an account?" toggle
 - [ ] Conversation cards show booked/available status (e.g., "2/3 slots booked" indicator)
 
-**Navigation + notifications (open design question — needs brainstorm):**
+**Navigation + notifications:**
 
-The sidebar is being removed from discover. The notification badge currently lives there. We need a navigation + notification solution that works on both mobile and desktop. This is a design decision, not just an implementation task.
+The sidebar is being removed. FloatingNav becomes the primary navigation on ALL viewports (mobile and desktop). The exact desktop layout can evolve, but v0.1 must ship with a working solution.
 
-Options to explore:
-- FloatingNav on all pages (mobile + desktop) — consistent, add profile + notification indicator
-- Minimal top bar on desktop + FloatingNav on mobile — different components, same info
-- FloatingNav on mobile, persistent but minimal header on desktop
+**v0.1 minimum (must ship):**
+- [ ] Remove left sidebar from discover (and all pages)
+- [ ] FloatingNav on all pages, both mobile and desktop
+- [ ] Add profile button to FloatingNav with notification badge (count of: pending invitations + due feedback + cancelled meetings)
+- [ ] Sign out accessible from profile page (not nav — keep nav clean)
+- [ ] Same actions and information available on mobile and desktop — no features hidden by viewport
 
-Whatever the solution, it must:
-- [ ] Show notification count (pending invitations, due feedback, cancelled meetings) on both mobile and desktop
-- [ ] Provide navigation between discover ↔ profile on all pages
-- [ ] Include sign out somewhere accessible
-- [ ] Work without the left sidebar (remove sidebar from discover)
-- [ ] Feel consistent — not two completely different navigation paradigms
+**Open design question (refine during/after alpha):**
+- Should desktop FloatingNav be top-anchored (like current) or evolve into a persistent header?
+- Exact layout of nav items at wider viewports
+- Whether notification badge opens a dropdown or just navigates to profile
 
 **Map view:**
 - [ ] Pin click: show conversations within the clicked fuzz region, NOT all in the Bezirk. Sort by distance to fuzz centroid. Don't show neighbourhood name as the BottomSheet header — use a neutral label or count.
