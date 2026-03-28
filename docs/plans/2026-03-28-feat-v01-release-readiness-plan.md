@@ -131,19 +131,15 @@ The admin must be able to operate the alpha test without developer intervention.
 
 **Fix:**
 - [ ] Create `/admin` route group with admin auth guard (`can_publish_sites` on profile)
-- [ ] `/admin/waitlist` — list `contacts` table entries, sorted by newest. Show: name, email, city, freewrite excerpt, date. "Invite" button per row that calls `POST /api/invites`.
-- [ ] `/admin/feedback` — list `app_feedback` table entries. Show: user, page URL, body, date.
-- [ ] `/admin/users` — list `profiles` joined with invitation status. Show: username, email, joined date.
+- [ ] **Add `/admin` to feedback gate exemption list in `hooks.server.ts`** — if the admin has a due feedback form, they must still access the admin panel. Without this, the system stops working unattended.
+- [ ] `/admin/waitlist` — list `contacts` table entries, sorted by newest. Show: name, email, city, freewrite excerpt, date. "Invite" button per row that calls `POST /api/invites`. **Show invited/not-invited status** (join `contacts` with `invitations` table on email). Filter: "Not yet invited" / "All".
+- [ ] `/admin/feedback` — list `app_feedback` table entries AND `feedback_forms.share_with_platform` entries. Show: user, page URL or meeting context, body, date.
 - [ ] Sidebar link "Admin" visible only to users with `can_publish_sites`
 - [ ] Minimal styling — use existing design tokens, no custom design needed
 
-## Should Fix (v0.1, but won't block testers if missed)
+## Must Also Ship (promote from should-fix — one-line SQL fixes, ship with B5 migration push)
 
 ### S1. Notifications INSERT policy — any user can spam any other user
-
-**Source:** Security sentinel (H1)
-
-RLS policy only checks `auth.uid() IS NOT NULL`, not that `user_id` matches.
 
 - [ ] Fix: `WITH CHECK (auth.uid() = user_id)` or remove INSERT from authenticated entirely
 
@@ -163,27 +159,7 @@ Join page HTML says `minlength={6}`, hint text says "At least 6 characters", ser
 
 - [ ] Align all to 8: join form `minlength`, hint text, login password update validation
 
-### S4. Discover page query waterfall (3 sequential queries)
-
-**Source:** Performance oracle (CRITICAL-1)
-
-`getPublishedPrompts` runs slots and username queries sequentially when they could be parallel. Adds ~100ms.
-
-- [ ] Parallelize with `Promise.all` (pattern already exists in `getPublishedPromptsPublic`)
-
-### S5. Conversation detail author view — sequential query waterfall
-
-**Source:** Performance oracle (CRITICAL-3)
-
-Author page runs 4 sequential queries that could be 2 parallel batches. Adds ~200ms.
-
-- [ ] Restructure into two `Promise.all` calls
-
 ### S6. "New conversation" button not discoverable
-
-**Source:** Spec-flow analyzer
-
-The FloatingNav has a `+` button on discover, but there's no persistent "create" action in the sidebar.
 
 - [ ] Already exists in FloatingNav — verify it's visible on all screen sizes
 
@@ -280,16 +256,14 @@ Items flagged by user, co-founder, and agents:
 - [ ] Add "Archive" button on own conversation detail page
 - [ ] Body placeholder text needs to be more descriptive
 
+**Email copy:**
+- [ ] Invite email: change "a community of independent thinkers who meet through writing" → inclusive language per design principles ("Avoid intellectualism signals")
+- [ ] Fix relative image paths in all email templates (`/images/logo-dark.png` → `https://dyad.berlin/images/logo-dark.png`)
+
 **General:**
 - [ ] Audit all pages at mobile viewport — identify layout breaks
 - [ ] Response submission: no confirmation feedback (subtle transition)
 - [ ] Conversation 404: silent redirect to discover, should show message
-
-### S13. Decline invitation
-
-Authors can only accept or ignore. No decline button.
-
-- [ ] Add "Not this time" button that transitions invitation to `declined`
 - [ ] Notify the inviter
 
 ### S14. Email notifications for key events
@@ -310,6 +284,18 @@ Authors can only accept or ignore. No decline button.
 - Onboarding / first-run experience
 - Republish archived conversations (API exists, no UI)
 - Delete draft conversations
+- Query parallelization (discover waterfall S4, detail waterfall S5) — invisible at alpha scale
+- Centralized copy / string management (S8) — go straight to DB-backed i18n in v0.2
+- Mobile Playwright tests (S10) — manual phone testing for alpha
+- BottomSheet non-blocking interaction (S11) — workaround exists
+- Decline invitation button (S13) — ignoring works at alpha scale
+- Email notifications for events (S14) — opted-in testers will check the app
+- Landing page discover embed with map (S12 subset) — current layout works for invite-link arrivals
+- Waitlist modal on landing page (S9) — redirect to /waitlist works
+- Progressive slot disclosure (S7 partial) — showing all slots is fine for alpha
+- Feedback editing after submission (Story 4 requirement — defer, document explicitly)
+- Add-to-calendar (Story 2/4 open question — defer explicitly)
+- Feedback reveal notification (how users discover the reveal is available)
 
 ## Stale Documentation to Fix
 
