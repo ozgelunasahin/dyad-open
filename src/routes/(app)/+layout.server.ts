@@ -20,7 +20,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		locals.supabase
 			.from('feedback_forms')
 			.select('*', { count: 'exact', head: true })
-			.eq('user_id', locals.user.id)
+			.eq('reviewer_id', locals.user.id)
 			.eq('state', 'due')
 	]);
 

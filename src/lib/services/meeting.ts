@@ -4,7 +4,7 @@ import type { Meeting, MeetingWithLocation, MeetingDetail, CancellationTier } fr
 export interface MeetingService {
 	getWithLocation(meetingId: string): Promise<MeetingWithLocation | null>;
 	getDetail(meetingId: string): Promise<MeetingDetail | null>;
-	getMyMeetings(userId: string): Promise<Meeting[]>;
+	getMyMeetings(userId: string): Promise<(Meeting & { general_area: string | null })[]>;
 	cancel(meetingId: string, reason?: string): Promise<CancellationTier>;
 }
 
@@ -31,15 +31,20 @@ export class SupabaseMeetingService implements MeetingService {
 		return (Array.isArray(data) ? data[0] : data) as MeetingDetail;
 	}
 
-	async getMyMeetings(userId: string): Promise<Meeting[]> {
+	async getMyMeetings(userId: string): Promise<(Meeting & { general_area: string | null })[]> {
 		const { data, error } = await this.supabase
 			.from('meetings')
-			.select('*')
+			.select('*, slot:slot_id(general_area)')
 			.order('scheduled_time', { ascending: true });
 
 		if (error) throw new Error(`Failed to load meetings: ${error.message}`);
 		// RLS filters to only the user's own meetings
-		return (data ?? []) as Meeting[];
+		// Flatten the slot join into the meeting object
+		return (data ?? []).map((m: any) => ({
+			...m,
+			general_area: m.slot?.general_area ?? null,
+			slot: undefined
+		})) as (Meeting & { general_area: string | null })[];
 	}
 
 	async cancel(meetingId: string, reason?: string): Promise<CancellationTier> {

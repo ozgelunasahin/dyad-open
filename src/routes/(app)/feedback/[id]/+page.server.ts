@@ -19,12 +19,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	if (form.meeting_id) {
 		const { data: meeting } = await locals.supabase
 			.from('meetings')
-			.select('scheduled_time, user_a, user_b, prompt_id')
+			.select('scheduled_time, participant_a, participant_b, prompt_id')
 			.eq('id', form.meeting_id)
 			.single();
 
 		if (meeting) {
-			const otherId = meeting.user_a === locals.user!.id ? meeting.user_b : meeting.user_a;
+			const otherId = meeting.participant_a === locals.user!.id ? meeting.participant_b : meeting.participant_a;
 			const [{ data: otherProfile }, { data: prompt }] = await Promise.all([
 				locals.supabase.from('profiles').select('username').eq('id', otherId).single(),
 				locals.supabase.from('prompts').select('title').eq('id', meeting.prompt_id).single()
