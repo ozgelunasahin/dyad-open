@@ -94,9 +94,9 @@
 						required
 						autocomplete="new-password"
 						disabled={loading}
-						minlength={6}
+						minlength={8}
 					/>
-					<p class="hint">At least 6 characters</p>
+					<p class="hint">At least 8 characters</p>
 				</div>
 
 				<div class="form-group checkbox-group">

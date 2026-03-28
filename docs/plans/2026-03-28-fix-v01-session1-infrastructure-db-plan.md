@@ -20,17 +20,17 @@ Reviewed by: security-sentinel, architecture-strategist, code-simplicity-reviewe
 
 Three wrong column names cause silent failures. Fix in code, not SQL.
 
-- [ ] `src/routes/(app)/feedback/[id]/+page.server.ts:22` — change `user_a, user_b` → `participant_a, participant_b`
-- [ ] `src/routes/(app)/+layout.server.ts:23` — change `.eq('user_id', ...)` → `.eq('reviewer_id', ...)`
-- [ ] `src/routes/(app)/profile/+page.server.ts:70` — change `.eq('user_id', ...)` → `.eq('reviewer_id', ...)`
-- [ ] Remove `?? 'TBD'` from `src/routes/(app)/profile/+page.svelte:109` — show actual null during alpha
+- [x] `src/routes/(app)/feedback/[id]/+page.server.ts:22` — change `user_a, user_b` → `participant_a, participant_b`
+- [x] `src/routes/(app)/+layout.server.ts:23` — change `.eq('user_id', ...)` → `.eq('reviewer_id', ...)`
+- [x] `src/routes/(app)/profile/+page.server.ts:70` — change `.eq('user_id', ...)` → `.eq('reviewer_id', ...)`
+- [x] Remove `?? 'TBD'` from `src/routes/(app)/profile/+page.svelte:109` — show actual null during alpha
 
 ### 2. Fix meeting `general_area` display — code fix, not schema change
 
 **Review finding:** The `meetings` table does NOT have `exact_location` or `general_area` columns. The original plan was wrong — adding columns to the INSERT would have caused a failed migration. The `get_meeting_with_location` RPC already JOINs `time_slots` to get location data. The bug is that `getMyMeetings` in `MeetingService` does `select('*')` which returns no location data.
 
-- [ ] Fix `MeetingService.getMyMeetings()` to use a relational query that includes `time_slots.general_area` (Supabase `.select('*, time_slots!inner(general_area)')` pattern, or a new lightweight RPC)
-- [ ] Update the `Meeting` type or return type to include `general_area`
+- [x] Fix `MeetingService.getMyMeetings()` — join via `slot:slot_id(general_area)`, flatten into result
+- [x] Update return type to `(Meeting & { general_area: string | null })[]`
 
 ### 3. Fix signup flow (B1) — new migration + small code change
 
@@ -38,12 +38,12 @@ Three wrong column names cause silent failures. Fix in code, not SQL.
 
 **Security requirement:** The function must look up the email from the invitation row (not accept it as a free parameter) to prevent confirming arbitrary emails. Use `FOR UPDATE` lock on the invitation.
 
-- [ ] `supabase/migrations/20260404_fix_signup_flow.sql`:
-  - `CREATE OR REPLACE FUNCTION confirm_user_email(user_email text)` — add guard: check that a consumed (`used_at IS NOT NULL`) invitation exists for this email before confirming. Use `FOR UPDATE` on the invitation row.
-  - Re-grant to `anon`: `GRANT EXECUTE ON FUNCTION confirm_user_email(text) TO anon;`
-- [ ] `src/routes/join/+page.server.ts:105` — change `Promise.all([use_invitation, confirm_user_email])` to sequential: `await use_invitation` then `await confirm_user_email`
-- [ ] Fix password frontend: `minlength={6}` → `8`, hint text → "At least 8 characters"
-- [ ] Also fix login password update: `src/routes/login/+page.server.ts` — verify minimum is 8
+- [x] `supabase/migrations/20260406_fix_signup_flow.sql` (renamed from 20260404 to avoid version conflict):
+  - `CREATE OR REPLACE FUNCTION confirm_user_email(user_email text)` — add guard: check consumed invitation exists for this email
+  - Re-grant to `anon`
+- [x] `src/routes/join/+page.server.ts:105` — changed `Promise.all` to sequential calls
+- [x] Fix password frontend: `minlength={8}`, hint "At least 8 characters"
+- [x] Fix login password update: `src/routes/login/+page.server.ts` — minimum now 8
 
 ### 4. Fix accept_invitation RPC (B2) — new migration
 
@@ -53,23 +53,23 @@ Remove the 12-hour acceptance guard. Users CAN accept up to start time. The 12h 
 
 **Accepted risk:** Late acceptance (e.g., 5 min before start) creates a meeting that may immediately transition to `awaiting_feedback` when the cron runs. The user experience for this edge case is acknowledged but acceptable for alpha.
 
-- [ ] `supabase/migrations/20260405_fix_accept_and_expiry.sql`:
-  - `CREATE OR REPLACE FUNCTION accept_invitation(...)` — remove lines 47-52 equivalent (the 12h guard that expires the invitation)
-  - `CREATE OR REPLACE FUNCTION expire_stale_invitations()` — change `start_time - INTERVAL '12 hours' <= NOW()` to `start_time <= NOW()` (invitations expire at slot start time, not 12h before)
+- [x] `supabase/migrations/20260405_fix_accept_and_expiry.sql`:
+  - Removed 12h acceptance guard from `accept_invitation`
+  - Fixed `expire_stale_invitations`: `start_time <= NOW()` (was `start_time - INTERVAL '12 hours'`)
 
 ### 5. Security SQL fixes (S1 + S2) — deploy FIRST
 
 **Review finding:** `archive_stale_prompts` is currently callable by `anon`. Deploy this REVOKE as the first migration in the batch.
 
-- [ ] `supabase/migrations/20260404_security_fixes.sql` (numbered before other new migrations):
-  - Restrict `archive_stale_prompts`: `REVOKE EXECUTE ON FUNCTION archive_stale_prompts FROM public; GRANT EXECUTE ON FUNCTION archive_stale_prompts TO service_role;`
-  - Fix notifications INSERT policy: `DROP POLICY "Insert notifications for authenticated users" ON notifications; CREATE POLICY "Insert own notifications" ON notifications FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);`
+- [x] `supabase/migrations/20260404_security_fixes.sql`:
+  - Restricted `archive_stale_prompts` to service_role
+  - Fixed notifications INSERT policy to require `auth.uid() = user_id`
 
 ### 6. Local dry-run before pushing
 
 **Review finding:** Verify the full migration chain applies cleanly before pushing to remote.
 
-- [ ] Run `supabase db reset` locally — verify all migrations apply without errors
+- [x] Run `supabase db reset` locally — all migrations apply cleanly
 - [ ] Test signup flow locally
 - [ ] Test accept invitation locally
 - [ ] Verify feedback forms are created when `advance_scheduled_meetings()` is called manually
