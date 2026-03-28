@@ -74,7 +74,7 @@
 							required
 							autocomplete={mode === 'login' ? 'current-password' : 'new-password'}
 							disabled={loading}
-							minlength={mode === 'update' ? 6 : undefined}
+							minlength={mode === 'update' ? 8 : undefined}
 						/>
 						{#if mode === 'update'}
 							<p class="hint">At least 6 characters</p>

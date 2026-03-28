@@ -101,11 +101,10 @@ export const actions: Actions = {
 			return fail(400, { username, error: signUpError.message });
 		}
 
-		// Mark the invitation as used and auto-confirm email (invite-only, already validated)
-		await Promise.all([
-			locals.supabase.rpc('use_invitation', { invite_token: token }),
-			locals.supabase.rpc('confirm_user_email', { user_email: email })
-		]);
+		// Mark the invitation as used, then confirm the email.
+		// Sequential: confirm_user_email checks that a consumed invitation exists for this email.
+		await locals.supabase.rpc('use_invitation', { invite_token: token });
+		await locals.supabase.rpc('confirm_user_email', { user_email: email });
 
 		// Resolve referred_by: check invitation's invited_by first, then dyad_ref cookie
 		let referredById: string | null = null;
