@@ -67,7 +67,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		locals.supabase
 			.from('feedback_forms')
 			.select('id, meeting_id, state')
-			.eq('user_id', userId)
+			.eq('reviewer_id', userId)
 			.eq('state', 'due')
 			.then(({ data }) => data ?? [])
 	]);

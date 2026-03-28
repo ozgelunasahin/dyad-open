@@ -7,18 +7,13 @@ const users = [
 
 for (const user of users) {
 	setup(`authenticate ${user.email}`, async ({ page }) => {
-		// Small delay between auth attempts to avoid rate limiting
-		await page.waitForTimeout(500);
+		// Delay between auth attempts to avoid rate limiting and Svelte hydration races
+		await page.waitForTimeout(2000);
 		await page.goto('/login');
 		await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
 
-		const emailInput = page.getByRole('textbox', { name: 'Email' });
-		const passwordInput = page.getByRole('textbox', { name: 'Password' });
-
-		await emailInput.click();
-		await emailInput.fill(user.email);
-		await passwordInput.click();
-		await passwordInput.fill(user.password);
+		await page.locator('#email').fill(user.email);
+		await page.locator('#password').fill(user.password);
 
 		await page.getByRole('button', { name: 'Sign in' }).click();
 

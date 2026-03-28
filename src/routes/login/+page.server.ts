@@ -67,8 +67,8 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const password = data.get('password');
 
-		if (typeof password !== 'string' || password.length < 6) {
-			return fail(400, { error: 'Password must be at least 6 characters' });
+		if (typeof password !== 'string' || password.length < 8) {
+			return fail(400, { error: 'Password must be at least 8 characters' });
 		}
 
 		const { error } = await locals.supabase.auth.updateUser({ password });
