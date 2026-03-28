@@ -49,15 +49,15 @@ Reputation is surfaced through profile information visible when someone consider
 - **The user controls which received feedback to display** (from Story 4), but cancellation/no-show signals may not be hideable.
 - **Credibility is built over time.** Deleting an account to escape bad reputation isn't viable — marks are associated with the email address, and a fresh account starts with zero credibility.
 
-## Comments Are Private, Single-Shot Messages
+## Responses Are Private, Single-Shot Messages
 
-When users engage with a prompt on the discover page, their comment is a private one-way message to the starter — not a public thread.
+When users engage with a conversation on the discover page, their response is a private one-way message to the author — not a public thread. (Internal DB term: `prompt_comments`. User-facing term: "response". See `docs/design/domain-language.md`.)
 
-- **Commenters don't see each other's comments.** Each comment is a private channel between the commenter and the starter.
-- **Comments can be sent without an invitation.** One comment per user per prompt. Editable (with "edited" indicator).
-- **Multiple people can comment and/or invite** on the same prompt.
-- **The starter sees all comments and invitations** and can choose between them.
-- **Once a meeting is scheduled for a time slot, that slot is hidden** from other users. The prompt remains visible with its other available slots. If all slots are booked or expired, the prompt is archived.
+- **Respondents don't see each other's responses.** Each response is a private channel between the respondent and the author.
+- **Responses can be sent without an invitation.** One response per user per conversation. Editable (with "edited" indicator).
+- **Multiple people can respond and/or invite** on the same conversation.
+- **The author sees all responses and invitations** and can choose between them.
+- **Confirmed meeting time slots are hidden from non-participants** (safeguarding — see below). The conversation remains visible with its remaining available slots. Visibility of fully-booked conversations is configurable via admin settings.
 
 ## Location & Time Slots
 
@@ -144,7 +144,7 @@ Mapping of Dyad's design decisions against the Rebuild documents: Design Princip
 4. **Conversations:** Radically constrained. Single-shot private comments, no threading, no replies. The actual conversation happens in person.
 5. **Sharing:** Content is the prompt itself. No resharing, no virality mechanics. Content doesn't propagate; it sits on the discover page and map until its slots expire.
 6. **Presence:** Inverted. No online/offline status. Presence is physical: you prove you're present by showing up. Regional verification via physical-world signals (e.g. QR codes at locations) is consistent with this.
-7. **Relationships:** The platform does not push users toward persistent digital relationships. Following profiles is supported as a lightweight way to stay connected within the platform, and users can schedule repeat meetings. Some people may not want to exchange phone numbers, some may not carry phones at all. The relationship can live entirely within the platform through shared meeting history and feedback, or it can move outside the platform if both people choose that. Neither outcome is privileged.
+7. **Relationships:** The platform does not push users toward persistent digital relationships. Users can schedule repeat meetings. Some people may not want to exchange phone numbers, some may not carry phones at all. The relationship can live entirely within the platform through shared meeting history and feedback, or it can move outside the platform if both people choose that. Neither outcome is privileged. *(Note: "following profiles" was mentioned in earlier drafts but is not implemented and must be designed carefully to avoid becoming a sorting/curation mechanism that contradicts the anti-sorting philosophy. If implemented, following must NOT influence discover feed ordering. Deferred to v0.2+ with explicit anti-sorting guardrails.)*
 8. **Reputation:** Profile-visible, not score-based. Built through feedback, testimonials, and behavioural signals. Quality over popularity.
 9. **Groups:** Not in scope currently. The platform is designed around one-to-one encounters. Group meetups may become a natural extension in the future, but the core design is built for dyadic connection first.
 10. **Agency:** High in some ways (user controls feedback display, opt-in notifications, full cancellation rights), constrained in others (feedback gate is non-negotiable, no pre-meeting contact, no negotiation on meeting terms). The constraints are the design.

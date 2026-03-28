@@ -101,15 +101,15 @@ docs/solutions/
 ### Review and Update Design Docs
 
 - [x] `docs/design/design-system.md` — add SlotCard spec, hybrid timestamp rules
-- [ ] `docs/design/design-principles.md` — review against actual implementation, note any deviations
-- [ ] `docs/design/domain-language.md` — verify internal/user-facing term mapping is still accurate
+- [x] `docs/design/design-principles.md` — reviewed: "Comments" heading → "Responses", "Following profiles" annotated as deferred with anti-sorting guardrails, slot visibility updated for safeguarding, "No Tutorial Modals" → "No Interrupting Modals"
+- [x] `docs/design/domain-language.md` — verified: URL conflict updated for /conversations/ rename, all term mappings accurate
 
 ### Consolidate Brainstorm → Plan → Implementation Chain
 
 For each brainstorm, verify the chain is complete:
-- [ ] `2026-03-24-backend-implementation-sequence-brainstorm.md` → plans completed, archive
-- [ ] `2026-03-25-frontend-v01-core-journey-brainstorm.md` → plans completed, archive
-- [ ] `2026-03-27-user-testing-feedback-brainstorm.md` → partially implemented, keep active
+- [x] `2026-03-24-backend-implementation-sequence-brainstorm.md` → archived
+- [x] `2026-03-25-frontend-v01-core-journey-brainstorm.md` → archived
+- [x] `2026-03-27-user-testing-feedback-brainstorm.md` → kept active (partially implemented)
 
 ## Phase 3: Clean House
 
@@ -122,22 +122,22 @@ For each brainstorm, verify the chain is complete:
 
 Current: 40 pending todos. Many may be stale or superseded.
 
-- [ ] Read each todo, check if the referenced files/code still exist
-- [ ] Archive stale/superseded todos
-- [ ] Re-prioritise remaining todos for v0.2
-- [ ] Group into themes: security, UX, architecture, performance, testing
+- [x] Read each todo, check if the referenced files/code still exist
+- [x] Archive stale/superseded todos (#044 superseded by B1, #083 deferred to v0.2)
+- [x] Re-prioritise remaining todos for v0.2 (29 remain, all v0.2)
+- [x] Group into themes: security (9), architecture (12), performance (5), UX (8), testing (11) — overlapping tags
 
 ### Remove Dead Documentation
 
-- [ ] Check for docs referencing deleted files (canvas system, old routes)
-- [ ] Verify all internal links in docs/ resolve to existing files
+- [x] Check for docs referencing deleted files — crosslink audit done by agent, fixes applied: style-guide canvas refs updated, domain-language URL conflict updated, design-principles Sophie persona replaced, interoperability doc link fixed
+- [x] Verify all internal links in docs/ resolve to existing files — checked during crosslink audit
 
 ## Phase 4: Tag the Release
 
 - [x] Create `CHANGELOG.md` summarising v0.1 features
 - [ ] Git tag `v0.1.0` on main
 - [x] Update CLAUDE.md with v0.1 completion note
-- [ ] Create v0.2 roadmap summary (from deferred todos and the plan file)
+- [x] Create v0.2 roadmap summary — `docs/ROADMAP.md` exists with v0.1 DONE/PENDING status table, v0.1.x alpha fixes scope, v0.2 features + infrastructure + business, v0.3+ future
 
 ## Acceptance Criteria
 
@@ -147,7 +147,7 @@ Current: 40 pending todos. Many may be stale or superseded.
 - [x] CLAUDE.md reflects current codebase state, including ways of working for co-founder
 - [x] Design docs updated: user archetypes, sustainability model, "Why This Exists", design principles, crosslink fixes
 - [x] Completed plans archived (7 archived)
-- [x] Stale todos archived (9 archived), remaining triaged
+- [x] Stale todos archived (11 total: 9 completed + #044 superseded + #083 deferred), 29 remaining triaged for v0.2
 - [x] CHANGELOG.md exists
 - [x] ROADMAP.md exists with v0.1 → v0.2 → v0.3 scope and DONE/PENDING feature status
 - [x] Release readiness plan exists (`2026-03-28-feat-v01-release-readiness-plan.md`) with gap analysis from 7 agents, 8 blockers, 14+ should-fix items, Ozge's feedback triaged
