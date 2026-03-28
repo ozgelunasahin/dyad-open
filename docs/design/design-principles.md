@@ -116,10 +116,11 @@ The app is scoped to a region (Berlin for now). Users need to be in the region t
 - Users should be able to protect their anonymity. Usernames should not be given too much importance.
 - The platform needs to balance trust (reputation, feedback, showing up) with the right to pseudonymity.
 
-## No Tutorial Modals
+## No Interrupting Modals
 
 - Onboarding should NOT be a guided tour with modals highlighting UI elements. This is an anti-pattern.
 - Inducting users into platform norms should happen more organically. Approach TBD.
+- **Modals that keep the user in context are fine.** Example: the waitlist form appears as a modal when a non-member clicks a conversation on the landing page — they can fill it in and return to browsing, or dismiss and keep looking. The principle is: don't interrupt flow with demands for attention. Overlays that serve the user's current intent are not interruptions.
 
 ## Alignment with [Rebuild](https://rebuild.net) Design Framework
 

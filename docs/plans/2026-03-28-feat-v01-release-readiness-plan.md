@@ -155,9 +155,51 @@ The FloatingNav has a `+` button on discover, but there's no persistent "create"
 
 - [ ] Already exists in FloatingNav — verify it's visible on all screen sizes
 
-## v0.1.1 Sprint (hours to days after v0.1)
+### S7. Conversation detail — spacing and progressive slot disclosure
 
-### Mobile Playwright tests
+**Source:** User feedback (screenshot)
+
+No padding between Send button and slot cards. Also: showing full slot details before the user has responded is premature — it frontloads scheduling UI when the user hasn't committed to engaging yet.
+
+**Fix:**
+- [ ] Add `margin-bottom: var(--space-4)` between Send button and slots section
+- [ ] Before responding: show only a teaser — "Available to meet in Neukölln · 1 slot this week" (region + count, no specific times)
+- [ ] After responding: reveal full SlotCard components with specific times (current behaviour)
+- [ ] This aligns with the explorer archetype (Miri) — give a reason to respond without overwhelming with scheduling
+
+### S8. Centralized copy / string management
+
+**Source:** User requirement, existing todo #073
+
+All user-facing text (placeholder text, button labels, guidance copy) is hardcoded in Svelte components. Changing a word requires editing multiple files.
+
+**Fix for v0.1:**
+- [ ] Create `src/lib/copy.ts` — typed object with all user-facing strings
+- [ ] Components import strings from this module instead of hardcoding
+- [ ] Single file to update when iterating on copy
+
+**Architecture for v0.2 (EN/DE localization):**
+- Move strings to a Supabase table (`copy` or `translations`) keyed by `(key, locale)`
+- Admin-editable: change copy without deploying code
+- A/B experiments: serve different copy variants by user segment
+- Use `svelte-i18n` or `paraglide-js` as the interpolation layer on top of the DB store
+- The v0.1 `copy.ts` structure becomes the key schema for the database table
+
+### S9. Landing page — waitlist modal on conversation click
+
+**Source:** User requirement
+
+Currently, anonymous users clicking a conversation card on the landing page navigate to `/waitlist` (a separate page). They should instead see a modal overlay with the waitlist form, so they can enter their details and return to browsing — or dismiss and keep looking at conversations.
+
+**Fix:**
+- [ ] Create a WaitlistModal component (reuses the waitlist form fields)
+- [ ] Landing page: conversation card click opens the modal instead of navigating
+- [ ] Modal has: freewrite, name, city, email fields + submit + close button
+- [ ] On submit: same `POST /api/contact` call, show confirmation inline
+- [ ] On dismiss: return to landing page, conversation cards still visible
+- [ ] Note: this updates the earlier "no modals" principle — modals are fine when they keep the user in context. The principle is about not interrupting flow with tutorial overlays, not about avoiding all overlays.
+
+### S10. Mobile Playwright tests
 
 Full E2E test suite running in mobile viewport (375x667). We have not verified the mobile experience.
 
@@ -165,29 +207,28 @@ Full E2E test suite running in mobile viewport (375x667). We have not verified t
 - [ ] Run existing smoke + core flow tests at mobile size
 - [ ] Fix any layout/interaction issues found
 
-### BottomSheet map interaction
+### S11. BottomSheet map interaction
 
 The blocking backdrop was reverted. Need a proper solution where the sheet doesn't block map panning but can still be dismissed.
 
 - [ ] Design approach: partial backdrop (covers only sheet height) or swipe-to-dismiss
 - [ ] Implement and test on mobile
 
-### Frontend design polish
+### S12. Frontend design polish
 
 Items flagged by user and agents:
 - [ ] Audit all pages at mobile viewport — identify layout breaks
-- [ ] Slot cards: no visual cue that they're not clickable before responding
 - [ ] Response submission: no confirmation feedback (subtle transition)
 - [ ] Conversation 404: silent redirect to discover, should show message
 
-### Decline invitation
+### S13. Decline invitation
 
 Authors can only accept or ignore. No decline button.
 
 - [ ] Add "Not this time" button that transitions invitation to `declined`
 - [ ] Notify the inviter
 
-### Email notifications for key events
+### S14. Email notifications for key events
 
 - [ ] Invitation received
 - [ ] Invitation accepted
@@ -231,8 +272,11 @@ From crosslink audit (already partially addressed in consolidation PR #62):
 - [ ] Security: notifications INSERT policy fixed (S1)
 - [ ] Security: archive function restricted to service_role (S2)
 
-### v0.1.1 (days after v0.1)
+### v0.1 continued (same release, stretch goals)
 
+- [ ] Progressive slot disclosure (teaser before response, full after)
+- [ ] Copy centralized in `src/lib/copy.ts`
+- [ ] Waitlist modal on landing page conversation click
 - [ ] Mobile Playwright tests pass
 - [ ] BottomSheet doesn't block map interaction
 - [ ] Invitation decline button exists
