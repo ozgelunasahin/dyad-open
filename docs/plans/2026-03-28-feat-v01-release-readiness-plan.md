@@ -270,6 +270,7 @@ Items flagged by user, co-founder, and agents:
 
 **Profile:**
 - [ ] Group under a) Conversations and b) Meetings (already the structure, verify naming)
+- [ ] "Stack of cards" preview for each section — show top 2-3 items stacked/overlapping, click through to full list. This is the profile summary view; the full list is a sub-page or expanded view. (Future: meetings page with calendar view.)
 - [ ] Fix "TBD" display on meeting cards (likely missing data)
 - [ ] Add cancellation UI element that works (currently broken — likely B3 column name issue)
 - [ ] Visual distinction between conversations started vs responded to (CSS class hooks, can be subtle for now)
