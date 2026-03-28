@@ -10,7 +10,13 @@ How dyad sustains itself without betraying what it's for.
 
 **Transparency:** Publish the financials. Show what it costs to run, where the money goes. Ghost (the publishing platform) demonstrates that a transparent nonprofit structure can charge money without feeling extractive. Their framing — "reader-driven, subscription-funded models are re-aligning incentives and bringing communities back together" — applies directly to dyad.
 
-**Legal structure:** A German eingetragener Verein (e.V.) or Genossenschaft (cooperative) signals civic intent in a way that a GmbH cannot. The legal form IS the message in Berlin's civic landscape. No venture capital (which requires growth and exit). Consider the Open Food Network model: a multi-stakeholder cooperative running open-source software.
+**Legal structure: Steward ownership.** Dyad is incorporating under a steward ownership model — a structure where profit serves purpose, not the other way around. Voting control stays with people who operate the company, not external investors. Profits are reinvested or shared, never extracted through equity.
+
+We will never take VC funding through an equity model. Equity-based venture capital requires growth and exit — both structurally incompatible with building civic infrastructure. Instead, we are pursuing **patient capital** — purpose-aligned investors who accept capped returns and have no claim on governance.
+
+This is not just a funding strategy. It's a stand. Advocating for and innovating within steward ownership is part of what dyad is — demonstrating that social infrastructure can be built sustainably without selling it to the highest bidder.
+
+**Reference models:** We are in conversation with successfully steward-owned companies including Einhorn (consumer goods, Berlin) and VLYD (social platform). The Purpose Foundation's Steward Ownership network provides the legal frameworks and growing evidence base. See also: Ecosia (search engine, Berlin), Waschbär (retail), and the broader Verantwortungseigentum movement in Germany.
 
 ## Accessibility
 
@@ -110,7 +116,7 @@ As discussed in `docs/design/shared-infrastructure-opportunities.md`, a user's r
 | No ads, no data sales, ever | Structural commitment, not a marketing claim |
 | Solidarity pricing (3 tiers, same features) | Accessibility without charity framing; show the math |
 | Transparent financials | Trust through visibility, Ghost model |
-| e.V. or cooperative legal structure | Civic intent in legal form; no VC |
+| Steward ownership + patient capital | Profit serves purpose; no equity VC; voting stays with operators |
 | Open conversations | Non-members experience the real thing; founders and ambassadors as bridge |
 | Ambassador status earned, not applied for | Quality over program; one open conversation at a time |
 | Venue partnerships (dyad pays venue) | Inverted power dynamic; no Yelp/Groupon trap |
