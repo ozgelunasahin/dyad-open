@@ -59,7 +59,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 			pathname.startsWith('/api/vocabulary') ||
 			pathname.startsWith('/auth') ||
 			pathname.startsWith('/logout') ||
-			pathname.startsWith('/admin') ||
 			pathname.endsWith('.webmanifest') ||
 			pathname.startsWith('/service-worker') ||
 			pathname.startsWith('/favicon') ||
