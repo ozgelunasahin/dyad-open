@@ -17,6 +17,7 @@ DECLARE
   v_slot_id UUID;
   v_invitee_id UUID;
   v_slot_accepted BOOLEAN;
+  v_slot_start TIMESTAMPTZ;
   v_meeting_id UUID;
 BEGIN
   -- Lock invitation
@@ -33,13 +34,21 @@ BEGIN
     RAISE EXCEPTION 'Not authorized';
   END IF;
 
-  -- Lock slot and check availability
-  SELECT accepted INTO v_slot_accepted
+  -- Lock slot and check availability + timing
+  SELECT accepted, start_time INTO v_slot_accepted, v_slot_start
   FROM time_slots WHERE id = v_slot_id FOR UPDATE;
 
   IF v_slot_accepted THEN
     UPDATE prompt_invitations
     SET state = 'cancelled', resolved_at = NOW()
+    WHERE id = p_invitation_id;
+    RETURN NULL;
+  END IF;
+
+  -- Reject if slot start time has already passed
+  IF v_slot_start <= NOW() THEN
+    UPDATE prompt_invitations
+    SET state = 'expired', resolved_at = NOW()
     WHERE id = p_invitation_id;
     RETURN NULL;
   END IF;

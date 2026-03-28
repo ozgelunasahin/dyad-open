@@ -102,9 +102,15 @@ export const actions: Actions = {
 		}
 
 		// Mark the invitation as used, then confirm the email.
-		// Sequential: confirm_user_email checks that a consumed invitation exists for this email.
-		await locals.supabase.rpc('use_invitation', { invite_token: token });
-		await locals.supabase.rpc('confirm_user_email', { user_email: email });
+		// Sequential: confirm_user_email checks that a recently consumed invitation exists.
+		const { error: useError } = await locals.supabase.rpc('use_invitation', { invite_token: token });
+		if (useError) {
+			return fail(400, { username, error: 'This invitation could not be processed. Please try again.' });
+		}
+		const { error: confirmError } = await locals.supabase.rpc('confirm_user_email', { user_email: email });
+		if (confirmError) {
+			console.error('[join] Failed to confirm email after invitation:', confirmError);
+		}
 
 		// Resolve referred_by: check invitation's invited_by first, then dyad_ref cookie
 		let referredById: string | null = null;
