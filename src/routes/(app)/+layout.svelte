@@ -84,9 +84,8 @@
 
 	.main-content { flex: 1; min-width: 0; padding: 2rem; display: flex; flex-direction: column; align-items: center; }
 
-	/* Mobile: hide sidebar entirely — FloatingNav handles navigation */
+	/* Mobile: adjust content padding */
 	@media (max-width: 430px) {
-		.sidebar { display: none; }
 		.main-content { padding: 1rem; }
 	}
 </style>
