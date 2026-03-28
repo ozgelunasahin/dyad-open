@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import type { LayoutData } from './$types';
+	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
 
 	let { data, children }: { data: LayoutData; children: any } = $props();
 
@@ -18,6 +19,9 @@
 				Profile
 				{#if data.attentionCount > 0}<span class="sidebar-badge">{data.attentionCount}</span>{/if}
 			</a>
+			{#if data.isAdmin}
+				<a href="/admin" class="sidebar-link" class:active={currentPath.startsWith('/admin')}>Admin</a>
+			{/if}
 		</nav>
 		<div class="sidebar-bottom">
 			<span class="sidebar-username">@{data.username}</span>
@@ -29,6 +33,8 @@
 		{@render children()}
 	</main>
 </div>
+
+<FeedbackModal />
 
 <style>
 	.app-layout {

@@ -37,7 +37,15 @@ Before removing any existing UI element:
 4. **Prefer hiding over deleting.** A media query is reversible; deleting 170 lines of CSS is not.
 5. **Wait for design confirmation before merging destructive UI changes.** If in doubt, ask the human.
 
-This is now encoded in MEMORY.md as: "Desktop always shows sidebar; FloatingNav is mobile-only; NEVER remove sidebar."
+This was initially encoded in MEMORY.md as: "Desktop always shows sidebar; FloatingNav is mobile-only; NEVER remove sidebar."
+
+### Update (2026-03-28): Design decisions evolve
+
+During Session 3 planning, the sidebar rule evolved. The brainstorm decided "remove sidebar, FloatingNav everywhere" but the user clarified: sidebar should be **admin-toggleable on desktop** (default hidden), not permanently removed. This reconciles the original design reference (sidebar on desktop) with the new navigation direction (FloatingNav is primary).
+
+The MEMORY.md rule was updated to: "FloatingNav is the primary navigation on ALL viewports. The desktop sidebar is admin-toggleable via config flag (default: hidden). When enabled, sidebar and FloatingNav coexist on desktop."
+
+**The principle still holds:** check the design reference before removing UI. But the conclusion changed from "never remove" to "make it toggleable." The process (check before acting) is durable; the specific outcome (keep/hide/remove) is a decision that evolves with the product.
 
 ## Why This Matters
 

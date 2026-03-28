@@ -43,6 +43,16 @@ Each group has:
 
 The URL structure is unaffected: `/prompts/[id]/edit` works the same whether it's in `(app)` or `(editor)`.
 
+### Corollary: Don't render shared nav from the layout with child opt-out
+
+**Confirmed during Session 3 planning (2026-03-28).** The plan initially proposed rendering FloatingNav from `(app)/+layout.svelte` with a `default` variant, and having child pages like discover "suppress" it via Svelte context to render their own variant. Architecture review rejected this:
+
+- Same anti-pattern as conditional layout logic — the layout and children must coordinate visibility
+- Two components fighting for the same viewport position (both fixed-positioned at bottom)
+- Lifecycle coordination across SvelteKit navigation transitions is fragile
+
+**Correct approach:** Each page that needs a FloatingNav renders its own variant directly. The layout stays inert. More lines of code, zero coupling. This is the same principle as route groups: children choose their chrome, not the parent.
+
 ## Why This Matters
 
 Layout concerns bleed into every page inside a route group. Conditional layout logic (`{#if pathname.includes('edit')}`) is fragile and inverts the dependency -- the layout knows about its children instead of the children choosing their layout. Route groups make the layout decision at the filesystem level, where it's visible to anyone reading the directory structure.
