@@ -272,6 +272,7 @@ The sidebar is being removed. FloatingNav becomes the primary navigation on ALL 
 - [ ] After responding + selecting a slot: show optional meeting note ABOVE the "Send invitation" button (currently below — confusing order). Make it a proper textarea (not single-line input) so it's usable on mobile.
 - [ ] After sending invitation: immediately show the correct state (one slot marked "invited" + greyed out, others still visible). Currently the "invitation sent" view is different from the refreshed view — should be identical without needing a refresh.
 - [ ] Consistent spacing between all elements (Send button → slots gap fix from S7)
+- [ ] Slots in the past or less than 1 hour away: show a user-facing message ("This time has passed" or "Too soon to book"), not an error. This is a valid interaction, not an exception — handle gracefully in the UI, don't bubble up a server error. Copy in copy.ts.
 
 **Discover:**
 - [ ] Check stability of which conversations are shown — ensure consistent ordering so the page doesn't jump between visits
