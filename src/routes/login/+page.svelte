@@ -5,6 +5,8 @@
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	let loading = $state(false);
 	let mode = $state<'login' | 'reset' | 'update'>(data.mode === 'update' ? 'update' : 'login');
+	let email = $state(form?.email ?? '');
+	let password = $state('');
 </script>
 
 <svelte:head>
@@ -56,7 +58,7 @@
 							type="email"
 							id="email"
 							name="email"
-							value={form?.email ?? ''}
+							bind:value={email}
 							required
 							autocomplete="email"
 							disabled={loading}
