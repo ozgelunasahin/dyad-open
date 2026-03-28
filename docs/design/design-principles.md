@@ -2,6 +2,16 @@
 
 Cross-cutting decisions that shape multiple stories.
 
+## Why This Exists
+
+People come to dyad seeking safety, validation, belonging. The comfortable path to these is through affinity — finding people like you, forming cliques, retreating into shared language. This is the local minimum: it feels like connection but it reproduces the sorting that isolates us in the first place.
+
+The deeper need — across seekers, explorers, gatherers, and in-betweeners (see `docs/design/user-archetypes.md`) — is for a way to be with others that cuts across the categories we've been sorted into. Not "authentic connection" (a phrase that has been emptied of meaning), but the practice of encountering someone outside your category and discovering that the ground between you is more solid than you expected.
+
+Dyad's structural choices — no interest matching, no similarity algorithms, a commons not a feed, shared questions not shared identities — are not UX preferences. They are an attempt to build social infrastructure that cross-links rather than clusters. The conversation prompt is the emulsifier: it creates an interface where different people can be in contact, not by dissolving difference but by giving it a surface to meet across.
+
+Every feature that makes the platform "easier" by reducing friction through sorting (interest tags, personality matching, "people like you") accelerates the very isolation the platform exists to address. Efficiency is not the goal. The goal is encounter.
+
 ## Enabler, Not Replacement
 
 Dyad builds tools and infrastructure to help people build and develop diverse, intersected communities within cities. It is an enabler of in-person community, not a replacement for it. Every design decision should be evaluated against this: does it get people into the same room, or does it give them a reason to stay on their screens?
