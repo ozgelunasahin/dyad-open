@@ -275,6 +275,9 @@ The sidebar is being removed. FloatingNav becomes the primary navigation on ALL 
 - [ ] Slots in the past or less than 1 hour away: show a user-facing message ("This time has passed" or "Too soon to book"), not an error. This is a valid interaction, not an exception — handle gracefully in the UI, don't bubble up a server error. Copy in copy.ts.
 
 **Discover:**
+- [ ] **Visibility policy change:** Conversations with pending invitations MUST remain visible on discover (currently hidden). Conversations with ALL timeslots confirmed for meetings should also remain visible — make this configurable with a flag (default: visible). The author's own conversations should also be visible (currently filtered out with `.neq('author_id', userId)` at `prompt-query.ts:48`).
+- [ ] **Confirmed timeslots hidden from non-participants** (safeguarding): accepted/confirmed slots must NOT be shown to potential inviters, as this reveals where a user will be at a specific time. Only unconfirmed slots are visible to others. The pre-response teaser should show: count of available (unconfirmed) slots and approximate region(s).
+- [ ] **Multiple invitations per slot:** Authors can receive multiple invitations for the same timeslot. Authors can confirm meetings for multiple timeslots. This is already supported by the DB schema — verify the UI does not prevent it.
 - [ ] Check stability of which conversations are shown — ensure consistent ordering so the page doesn't jump between visits
 - [ ] Cover image thumbnails: use consistent fixed crop + aspect ratio (match map list view)
 - [ ] Search: keep current text-matching search for v0.1. Note for v0.2: explore embeddings-based semantic search (with a critical view on what this means for sovereignty and data processing).
@@ -341,6 +344,13 @@ The sidebar is being removed. FloatingNav becomes the primary navigation on ALL 
 
 - [ ] **No defensive fallbacks during alpha.** Add to design principles or a new engineering principles doc: don't use `?? 'TBD'`, `?? 'Unknown'`, or `?? 0` patterns that silently mask null data. Show the actual null so bugs surface. Defensive fallbacks are for public releases, not alpha. The `general_area ?? 'TBD'` hid a real data bug for weeks.
 - [ ] **Audit existing codebase for `?? 'TBD'` and similar patterns** — replace with explicit null display or debug indicators during alpha.
+- [ ] **Safeguarding.** Add a dedicated section to design principles. The platform facilitates in-person meetings between strangers — safeguarding must be on our radar from the start. Key principles:
+  - Confirmed meeting locations and times must NEVER be visible to non-participants (reveals where someone will be)
+  - Fuzzed locations provide approximate area for discovery, not precise coordinates
+  - No pre-meeting contact (already a principle — also a safeguarding measure)
+  - Cancellation and no-show patterns should be monitored (moderator review)
+  - Account reputation prevents bad actors from resetting (marks tied to email)
+  - Future: consider what data is visible to whom at each stage of the lifecycle, with a safeguarding lens on every decision
 
 ### Stale content fixes (from crosslink audit):
 
