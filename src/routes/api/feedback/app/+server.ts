@@ -26,7 +26,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	if (context && typeof context === 'object') {
 		if (typeof context.page_url === 'string') sanitizedContext.page_url = context.page_url.slice(0, 2048);
 		if (typeof context.user_agent === 'string') sanitizedContext.user_agent = context.user_agent.slice(0, 512);
-		if (Array.isArray(context.recent_errors)) sanitizedContext.recent_errors = context.recent_errors.slice(0, 10);
+		if (Array.isArray(context.recent_errors)) {
+			sanitizedContext.recent_errors = context.recent_errors
+				.slice(0, 10)
+				.map(e => typeof e === 'string' ? e.slice(0, 500) : String(e).slice(0, 500));
+		}
 	}
 
 	const { error: dbError } = await locals.supabase
