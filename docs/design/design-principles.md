@@ -2,6 +2,16 @@
 
 Cross-cutting decisions that shape multiple stories.
 
+## Why This Exists
+
+People come to dyad seeking safety, validation, belonging. The comfortable path to these is through affinity — finding people like you, forming cliques, retreating into shared language. This is the local minimum: it feels like connection but it reproduces the sorting that isolates us in the first place.
+
+The deeper need — across seekers, explorers, gatherers, and in-betweeners (see `docs/design/user-archetypes.md`) — is for a way to be with others that cuts across the categories we've been sorted into. Not "authentic connection" (a phrase that has been emptied of meaning), but the practice of encountering someone outside your category and discovering that the ground between you is more solid than you expected.
+
+Dyad's structural choices — no interest matching, no similarity algorithms, a commons not a feed, shared questions not shared identities — are not UX preferences. They are an attempt to build social infrastructure that cross-links rather than clusters. The conversation prompt is the emulsifier: it creates an interface where different people can be in contact, not by dissolving difference but by giving it a surface to meet across.
+
+Every feature that makes the platform "easier" by reducing friction through sorting (interest tags, personality matching, "people like you") accelerates the very isolation the platform exists to address. Efficiency is not the goal. The goal is encounter.
+
 ## Enabler, Not Replacement
 
 Dyad builds tools and infrastructure to help people build and develop diverse, intersected communities within cities. It is an enabler of in-person community, not a replacement for it. Every design decision should be evaluated against this: does it get people into the same room, or does it give them a reason to stay on their screens?
@@ -52,7 +62,7 @@ When users engage with a prompt on the discover page, their comment is a private
 ## Location & Time Slots
 
 - **Starter sets 1–3 time slots** at publish time, each with a preferred start time, duration, and location.
-- **Time slots use a rolling 7-day window.** Sophie keeps a prompt alive by opening new time slots. Without activity (no valid future time slots), the prompt is archived and requires re-publishing.
+- **Time slots use a rolling 7-day window.** The author keeps a prompt alive by opening new time slots. Without activity (no valid future time slots), the prompt is archived and requires re-publishing.
 - **Preferred time slot, not availability block.** Keep the interface simple — a specific start time and duration, not a range of availability. May be reviewed based on usage.
 - **Locations are selected from a location API** (autocomplete dropdown), scoped to the app instance region (Berlin for now, other regions in future).
 - **Easy carry-over**: option to apply the same location to all time slots without re-entering.
@@ -60,7 +70,7 @@ When users engage with a prompt on the discover page, their comment is a private
 - **The inviter picks ONE time+place option.** No negotiation. If the starter accepts, that's the meeting. It's scheduled.
 - **Meeting duration** is set by the starter (start time + duration per slot). Used for calendar events and feedback gate timing. Actual time spent is up to the participants.
 - **Time slots where the user already has an accepted meeting are hidden.** A user cannot have multiple meetings scheduled at the same time.
-- **Sophie can accept invitations for multiple time slots** (one per slot). Once accepted, that slot is no longer displayed to other users.
+- **The author can accept invitations for multiple time slots** (one per slot). Once accepted, that slot is no longer displayed to other users.
 
 ## Cancellation & Deletion
 
@@ -74,7 +84,7 @@ When users engage with a prompt on the discover page, their comment is a private
 
 - **Prompts can be re-published** by the author with new time slots, whether or not a meeting previously took place.
 - **After a completed meeting**, the prompt is archived. Both participants can see it in their private profiles and can choose to show feedback/info on their public profiles.
-- **Rolling 7-day window.** Without activity (no valid future time slots), the prompt is auto-archived. Sophie must re-publish to reactivate.
+- **Rolling 7-day window.** Without activity (no valid future time slots), the prompt is auto-archived. The author must re-publish to reactivate.
 
 ## Slot-Blocking Concern (Follow-Up Needed)
 
@@ -106,10 +116,11 @@ The app is scoped to a region (Berlin for now). Users need to be in the region t
 - Users should be able to protect their anonymity. Usernames should not be given too much importance.
 - The platform needs to balance trust (reputation, feedback, showing up) with the right to pseudonymity.
 
-## No Tutorial Modals
+## No Interrupting Modals
 
 - Onboarding should NOT be a guided tour with modals highlighting UI elements. This is an anti-pattern.
 - Inducting users into platform norms should happen more organically. Approach TBD.
+- **Modals that keep the user in context are fine.** Example: the waitlist form appears as a modal when a non-member clicks a conversation on the landing page — they can fill it in and return to browsing, or dismiss and keep looking. The principle is: don't interrupt flow with demands for attention. Overlays that serve the user's current intent are not interruptions.
 
 ## Alignment with [Rebuild](https://rebuild.net) Design Framework
 
@@ -128,7 +139,7 @@ Mapping of Dyad's design decisions against the Rebuild documents: Design Princip
 ### Social Design Framework Dimensions
 
 1. **Social Object:** The prompt (rich text + cover image + meeting availability). Well-defined lifecycle: published, engaged, scheduled, met, archived, optionally republished.
-2. **Platform Intent:** Experience-driven (ROX). No visible business model. Design oriented entirely around the quality of the meeting experience.
+2. **Platform Intent:** Experience-driven (ROX). Business model is transparent and value-aligned — subscription with solidarity pricing, not advertising or data sales (see `sustainability-and-accessibility.md`). Design oriented entirely around the quality of the meeting experience.
 3. **Identity:** Deliberately minimal. Users can protect their anonymity. Usernames are not given importance. Identity accrues through reputation: feedback, testimonials, showing-up history. Identity built through action rather than self-declaration.
 4. **Conversations:** Radically constrained. Single-shot private comments, no threading, no replies. The actual conversation happens in person.
 5. **Sharing:** Content is the prompt itself. No resharing, no virality mechanics. Content doesn't propagate; it sits on the discover page and map until its slots expire.

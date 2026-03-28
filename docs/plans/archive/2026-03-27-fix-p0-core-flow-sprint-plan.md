@@ -1,7 +1,7 @@
 ---
 title: "fix: P0 sprint — unblock the core user flow"
 type: fix
-status: active
+status: completed
 date: 2026-03-27
 origin: docs/brainstorms/2026-03-27-user-testing-feedback-brainstorm.md
 ---

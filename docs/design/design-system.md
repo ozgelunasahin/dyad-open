@@ -132,6 +132,18 @@ Pill-shaped, fixed, glassmorphic. Two variants.
 - Title (--text-lg, weight 500), date (--text-sm, muted), snippet (--text-md, 2-line clamp), area (uppercase monospace), @author
 - Divider: 1px `--border-link`
 
+**SlotCard** (`SlotCard.svelte`):
+- Full-width card: `--radius-card` corners, 1px `--border-link` border, `--space-4` padding
+- Two-line layout:
+  - Line 1: Hybrid date + time — "Today at 15:00" / "Tomorrow at 10:00" / "Saturday at 15:00" / "29 Mar at 15:00"
+  - Line 2: Duration + area — monospace, `--text-xs`, muted, uppercase — "1 hour · Kreuzberg"
+- States:
+  - Default: standard border
+  - Selected: `border-width: 2px; border-color: var(--text-primary)`
+  - Invited: `opacity: 0.5` + "Invited" badge
+  - Tappable when `onclick` provided (cursor: pointer, hover: border darkens)
+- Used in: conversation detail (slot selection + invitation display), author received invitations
+
 ### Bottom Sheets
 
 - Fixed backdrop with semi-transparent black (`rgba(0,0,0,0.3)`)
@@ -165,7 +177,7 @@ Always a text link: "← Back". Explicit destination, never `history.back()`.
 |------|------------|
 | Conversation detail | /discover |
 | Meeting detail | /profile |
-| Editor | /prompts/[id] (or history) |
+| Editor | /conversations/[id] (or history) |
 | Profile sub-views | Profile overview (onclick) |
 | Legal pages | / |
 

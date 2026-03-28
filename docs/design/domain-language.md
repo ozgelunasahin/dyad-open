@@ -33,7 +33,7 @@ The internal domain model uses precise technical terms. User-facing copy uses na
 | Situation | Risk | Resolution |
 |-----------|------|------------|
 | API returns `prompt` in JSON | Frontend must never display raw API field names | Map at the service/component boundary |
-| URL paths use `/prompts/` | Users see URLs in browser bar | Acceptable — URLs are technical, users don't read them carefully. Renaming would break bookmarks. |
+| URL paths now use `/conversations/` | Renamed in PR #59 | Old `/prompts/` URLs redirect via 302 in `hooks.server.ts`. API endpoints keep `/api/prompts/` (internal naming). |
 | Error messages from API use "prompt" | e.g., "Failed to create prompt" | Catch and rephrase at the UI layer: "Something went wrong. Please try again." |
 | "Conversation" could mean a chat feature | Users might expect messaging | We don't have messaging. "Conversation" means the in-person meeting. Clarify in onboarding if needed. |
 | Design docs reference "canvas" / "note" | Legacy terms from the canvas era | These are internal only and being phased out. |
