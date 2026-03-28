@@ -272,7 +272,7 @@ Items flagged by user, co-founder, and agents:
 - [ ] Group under a) Conversations and b) Meetings (already the structure, verify naming)
 - [ ] "Stack of cards" preview for each section — show top 2-3 items stacked/overlapping, click through to full list. This is the profile summary view; the full list is a sub-page or expanded view. (Future: meetings page with calendar view.)
 - [ ] Fix meeting `general_area` always null — **real data bug**: `accept_invitation` RPC (`20260331`) doesn't copy `exact_location` or `general_area` from `time_slots` to `meetings` when creating the record (line 66-73). Fix the INSERT to include these columns. Also: remove the `?? 'TBD'` fallback — show the actual null so bugs surface. No defensive fallbacks during alpha.
-- [ ] Add cancellation UI element that works (currently broken — likely B3 column name issue)
+- [ ] **Meeting cancellation is broken in two ways:** (1) Uses browser `confirm()` dialog instead of an in-app UI element — must be replaced with a proper modal/inline confirmation that matches the app's design language. (2) Clicking OK doesn't actually cancel — the API call fails (likely B3 column name issue or RPC parameter mismatch). Both must be fixed.
 - [ ] Visual distinction between conversations started vs responded to (CSS class hooks, can be subtle for now)
 
 **Editor:**
