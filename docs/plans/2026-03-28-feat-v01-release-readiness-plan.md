@@ -54,12 +54,18 @@ The function transitions meetings from `scheduled` → `awaiting_feedback` and c
 Similarly: `expire_stale_invitations` and `archive_stale_prompts` have no trigger.
 
 **Fix:** Enable `pg_cron` on remote Supabase and schedule:
-- `advance_scheduled_meetings()` — every 5 minutes
-- `expire_stale_invitations()` — every hour
-- `archive_stale_prompts()` — every hour
+- `advance_scheduled_meetings()` — every 5 minutes (transitions meetings to awaiting_feedback when start time passes, creates feedback forms)
+- `expire_stale_invitations()` — every hour (expires unresponded invitations — BUT see policy change below)
+- `archive_stale_prompts()` — every hour (archives conversations where all future time slots have expired — rolling 7-day window)
+
+**Policy change: invitation cutoff.** Users CAN send invitations right up until the timeslot start time (removing the previous 12-hour cutoff on sending). The 12-hour rule applies only to cancellation: if you accept a meeting within 12 hours of start time, you cannot cancel without consequence. This needs to be clearly communicated in the UI when accepting (copy in copy.ts, e.g., "This meeting starts in X hours. Once you accept, you won't be able to cancel.").
 
 - [ ] Enable pg_cron extension on remote Supabase
 - [ ] Create cron schedules for all 3 functions
+- [ ] Verify `expire_stale_invitations` uses slot start time (not 12h before) as the cutoff — invitations should only expire when the slot's start time actually passes
+- [ ] Verify `archive_stale_prompts` correctly identifies conversations with no future slots
+- [ ] Review `accept_invitation` RPC: remove or adjust the 12-hour rejection guard. Accepting within 12 hours is allowed, but the UI must warn about the cancellation consequence.
+- [ ] UI: when accepting a meeting starting within 12 hours, show a warning (copy from copy.ts)
 - [ ] Test: create a meeting with a past start time, verify feedback forms appear
 - [ ] Seed script: create two users in "met but haven't given feedback" state (meeting completed, feedback forms `due`, feedback gate active) for testing the feedback flow end-to-end
 - [ ] Fix seed script: `insert` for slots creates duplicates on re-run (use `upsert` or check for existing). This caused duplicate timeslots on dyad.berlin/conversations/seed-conv-belonging.
