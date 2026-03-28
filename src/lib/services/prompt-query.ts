@@ -195,11 +195,19 @@ export class SupabasePromptQueryService implements PromptQueryService {
 			return null;
 		}
 
-		const { data: slots } = await this.supabase
+		// Defense-in-depth: non-authors only see unaccepted slots.
+		// RLS also enforces this at DB layer (20260409_fix_time_slots_rls_safeguarding).
+		let slotsQuery = this.supabase
 			.from('time_slots_public')
 			.select('id, prompt_id, start_time, duration_minutes, general_area, general_area_lat, general_area_lng, accepted, created_at')
 			.eq('prompt_id', id)
 			.order('start_time', { ascending: true });
+
+		if (prompt.author_id !== userId) {
+			slotsQuery = slotsQuery.eq('accepted', false);
+		}
+
+		const { data: slots } = await slotsQuery;
 
 		const now = new Date();
 		const availableSlots = (slots ?? []).filter((s) => isAvailable(s as TimeSlot, now)) as TimeSlot[];
