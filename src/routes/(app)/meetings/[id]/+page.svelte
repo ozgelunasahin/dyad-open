@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import FloatingNav from '$lib/components/FloatingNav.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -88,6 +89,8 @@
 		</button>
 	{/if}
 </div>
+
+<FloatingNav variant="default" attentionCount={data.attentionCount ?? 0} />
 
 <style>
 	/* .back-link uses global shared class */

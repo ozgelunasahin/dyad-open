@@ -55,16 +55,28 @@ All in `src/routes/(app)/conversations/[id]/+page.svelte` unless noted:
 
 ## Phase C: Copy + Polish
 
-### 7. Copy changes (inline, no copy.ts)
+### 7. Copy changes (final pass before v0.1 release, after copy extraction)
 
-- [ ] Response placeholder: "Write a response..." → "Write a comment..."
-- [ ] Explainer text (item 2 above)
+Copy will be centrally stored (copy.ts or equivalent, per extraction plan). All copy changes reference the central store once it exists. This is a release-readiness pass, not an inline edit task.
+
+All copy needs a review pass before release. Known points for review:
+
+- [ ] Response placeholder: update to flow-guiding copy (e.g., "Write your response — once sent, you'll see available times to meet"). Uses the flow-guiding placeholder pattern (see design-system.md).
+- [ ] **"Response" vs "comment"** — domain language doc says "response" (intentional, gateway to invitation); co-founder feedback suggests "comment" (more casual). Needs a decision; update `domain-language.md` accordingly.
 - [ ] Invite email: inclusive language (replace "independent thinkers who meet through writing")
 - [ ] Email image paths: relative → absolute (`https://dyad.berlin/images/logo-dark.png`)
 - [ ] Date labels: "published on" / "edited" on conversation detail
 - [ ] Past-slot message: "This time has passed"
+- [ ] General review of all user-facing strings against `docs/design/domain-language.md`
 
-### 8. Responsive audit (run LAST)
+### 8. FloatingNav consistency + discover spacing
+
+**User feedback:** The nav jumps from top (discover) to bottom (other pages) — disorienting. And the first conversation card on discover is too close to the nav at zero scroll.
+
+- [ ] Make FloatingNav position consistent across ALL pages — either all top or all bottom. Recommendation: top everywhere (matches discover).
+- [ ] Add padding/margin-top to discover list content so first card doesn't sit directly under the nav bar at zero scroll
+
+### 9. Responsive audit (run LAST)
 
 - [ ] Mobile (375px): all pages, FloatingNav touch targets, form usability
 - [ ] Verify feedback "?" button doesn't overlap FloatingNav

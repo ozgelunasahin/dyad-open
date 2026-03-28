@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import SlotCard from '$lib/components/SlotCard.svelte';
+	import FloatingNav from '$lib/components/FloatingNav.svelte';
 	import { formatHybridDate, formatSlotTime, formatSlotDetails } from '$lib/utils/dates.js';
 
 	let { data }: { data: PageData } = $props();
@@ -251,6 +252,8 @@
 		</section>
 	{/if}
 </div>
+
+<FloatingNav variant="default" attentionCount={data.attentionCount ?? 0} />
 
 <style>
 	.content { width: 100%; max-width: 700px; }
