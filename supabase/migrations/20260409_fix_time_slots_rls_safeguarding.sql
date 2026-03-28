@@ -52,6 +52,10 @@ CREATE POLICY "Anon reads unaccepted slots of published prompts"
     )
   );
 
--- Performance index for the invitation count query in layout server
+-- Performance indexes
 CREATE INDEX IF NOT EXISTS idx_prompt_invitations_invitee_state
   ON prompt_invitations(invitee_id, state);
+
+-- Support the RLS EXISTS subquery on meetings.slot_id
+CREATE INDEX IF NOT EXISTS idx_meetings_slot_id
+  ON meetings(slot_id);
