@@ -110,12 +110,43 @@ Schema defined in `supabase/migrations/` (source of truth). Key tables:
 ## Design References
 
 - `docs/design/design-principles.md` — Core product principles (no pre-meeting contact, healthy brain, feedback gate)
+- `docs/design/design-system.md` — Visual language, tokens, component specs
 - `docs/design/domain-language.md` — Internal vs user-facing vocabulary
-- `docs/stories/` — User stories
-- `docs/solutions/` — Documented gotchas and patterns
+- `docs/design/user-archetypes.md` — Seekers, explorers, gatherers, in-betweeners
+- `docs/design/sustainability-and-accessibility.md` — Business model, steward ownership, venue partnerships
+- `docs/stories/` — User stories (001-004)
+- `docs/solutions/` — Documented gotchas and patterns (24 solution docs)
+- `docs/ROADMAP.md` — v0.1 → v0.2 → v0.3 scope and driving factors
 
 ## Todos & Plans
 
 The `todos/` directory contains prioritized findings from code reviews. Files follow the pattern `{NNN}-{status}-{priority}-{description}.md`. Completed items are in `todos/archive/`.
 
 The `docs/plans/` directory contains implementation plans. When resolving a todo or completing a plan, always move the file to the corresponding `archive/` subdirectory rather than deleting it.
+
+## Ways of Working
+
+### For all contributors (including non-technical co-founders using Claude Code)
+
+1. **Always work on a branch, never commit directly to main.** Create a branch, make changes, push, create a PR, review, merge. This protects main from broken code.
+
+2. **Read before writing.** Always read the file you're about to change. Understand the existing code before modifying it. Use the design docs and solution docs as context.
+
+3. **Run `npx svelte-check --threshold error` before pushing.** This catches type errors and broken imports. Pre-existing errors (15, all Supabase type widening) are known — only worry about NEW errors.
+
+4. **Commit messages follow conventional format.** `fix: description`, `feat: description`, `docs: description`, `refactor: description`. Keep them concise.
+
+5. **Check `docs/solutions/` before implementing.** Past gotchas are documented there. The TipTap reactive loop, Leaflet SSR issues, RLS visibility patterns — don't rediscover what's already known.
+
+6. **For copy/wording changes:** Edit `src/lib/copy.ts` (once it exists — part of v0.1 work). This is the single source for all user-facing text.
+
+7. **For CSS fixes:** Use design tokens from `src/app.css` (`--space-*`, `--text-*`, `--radius-*`). Don't hardcode pixel values. Check `docs/design/design-system.md` for the spec.
+
+8. **For bug fixes during alpha test:** Read the in-app feedback report, understand the issue, check if there's a related todo in `todos/`, fix on a branch, PR, merge. If unsure, leave a comment on the PR describing the uncertainty.
+
+### Admin operations (during alpha test)
+
+- **Invite new users:** Admin panel → Waitlist → click "Invite" next to the user
+- **View tester feedback:** Admin panel → Feedback
+- **View users:** Admin panel → Users
+- **No database access needed** for routine operations
