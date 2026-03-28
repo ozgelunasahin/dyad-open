@@ -7,13 +7,29 @@ date: 2026-03-28
 
 # v0.1 Release Readiness
 
-Full gap analysis from 7 parallel review agents (security sentinel, architecture strategist, spec-flow analyzer, performance oracle, story gap analysis, infrastructure readiness, plus earlier Story 1 deep-dive). This plan defines what must ship for v0.1, what can wait for v0.1.1 (days), and what's deferred to v0.2.
+Full gap analysis from 7 parallel review agents (security sentinel, architecture strategist, spec-flow analyzer, performance oracle, story gap analysis, infrastructure readiness, plus earlier Story 1 deep-dive).
+
+## Operating Constraints
+
+**This is an alpha playtest for a select group of testers.** The onboarding process doesn't need to be fully polished — testers can see some edges. What matters:
+
+1. **The core user journey must be representative.** Testers should be able to give meaningful feedback on: discovering conversations, writing responses, inviting to meet, accepting invitations, attending meetings, and giving feedback. The UX/UI for these must be representative of the intended experience.
+
+2. **Must run unattended for weeks.** The main developer will not be fully available after launch. The entire process — new users joining from the waitlist, getting approved, creating accounts, having conversations and meetings — must work without manual database intervention. Cron jobs must run. Email must deliver. The admin must be able to operate from an in-app panel.
+
+3. **Admin panel required (functional, not polished).** An app admin needs to:
+   - View waitlist submissions
+   - Approve/invite users (not via curl)
+   - View in-app feedback and bug reports from testers
+   - No design polish required, but must be functional
+
+4. **In-app feedback for testers.** A report/feedback button that lets testers submit issues and suggestions. An admin view to read and triage these.
 
 ## Definition of v0.1 Done
 
-A selected tester can: arrive at the landing page → join the waitlist → receive an admin invite → create an account → browse conversations on discover (list + map) → read a conversation → write a response → select a time slot → send an invitation → author accepts → both attend the meeting → both submit feedback → see each other's feedback → continue using the app.
+A selected tester can: arrive at the landing page → join the waitlist → admin approves via in-app panel → tester receives invite email → creates account → browses conversations on discover (list + map) → reads a conversation → writes a response → selects a time slot → sends an invitation → author accepts → both attend the meeting → both submit feedback → see each other's feedback → continue using the app → submit bug reports/feedback via report button.
 
-Plus: a report button for in-app feedback and bug reports.
+All of this works without developer intervention. Cron jobs run automatically. Email delivers. Admin operates from the app.
 
 ## Blockers (v0.1 cannot ship without these)
 
@@ -93,17 +109,32 @@ Users submit feedback but never see what the other person wrote. The simultaneou
 - [ ] After feedback submission, if state is `locked`, show revealed feedback inline
 - [ ] On meeting detail page, if meeting state is `completed`, show "Feedback" section with revealed `share_with_person` content and adjective tags
 
-### B7. App feedback / report button
+### B7. App feedback / report button + admin view
 
-**Source:** Spec-flow analyzer, user requirement
+**Source:** Spec-flow analyzer, user requirement, operating constraint #4
 
-No mechanism for testers to report issues or provide feedback from within the app.
+No mechanism for testers to report issues or provide feedback from within the app. No way for admin to view these reports.
 
 **Fix:**
-- [ ] Add a "Report" button in the sidebar footer (desktop) and FloatingNav (mobile)
-- [ ] On click: open a form/modal capturing: current URL, browser info, optional screenshot, free text description
-- [ ] Submit to a `bug_reports` table or a simple email to the team
-- [ ] Alternatively: embed a lightweight tool (e.g., link to a Tally form with URL pre-filled)
+- [ ] Create `app_feedback` table: `id, user_id, page_url, user_agent, body, created_at`
+- [ ] Create `POST /api/feedback/app` endpoint (authenticated, inserts to table)
+- [ ] Add a "Feedback" button in the sidebar footer (desktop) and FloatingNav (mobile)
+- [ ] On click: open a modal capturing: free text + auto-captured current URL and browser info
+- [ ] Submit to `app_feedback` table
+
+### B8. Admin panel (functional, not polished)
+
+**Source:** Operating constraint #2 and #3
+
+The admin must be able to operate the alpha test without developer intervention. Currently inviting users requires curl and there's no way to view waitlist or feedback.
+
+**Fix:**
+- [ ] Create `/admin` route group with admin auth guard (`can_publish_sites` on profile)
+- [ ] `/admin/waitlist` — list `contacts` table entries, sorted by newest. Show: name, email, city, freewrite excerpt, date. "Invite" button per row that calls `POST /api/invites`.
+- [ ] `/admin/feedback` — list `app_feedback` table entries. Show: user, page URL, body, date.
+- [ ] `/admin/users` — list `profiles` joined with invitation status. Show: username, email, joined date.
+- [ ] Sidebar link "Admin" visible only to users with `can_publish_sites`
+- [ ] Minimal styling — use existing design tokens, no custom design needed
 
 ## Should Fix (v0.1, but won't block testers if missed)
 
@@ -267,10 +298,12 @@ From crosslink audit (already partially addressed in consolidation PR #62):
 - [ ] Invite emails deliver to real addresses (B4 fixed)
 - [ ] Remote Supabase has all migrations (B5 fixed)
 - [ ] Users see each other's feedback after both submit (B6 fixed)
-- [ ] Report button exists in the app (B7 fixed)
+- [ ] Report/feedback button exists in the app (B7 fixed)
+- [ ] Admin can view waitlist, invite users, read feedback — all in-app (B8 fixed)
 - [ ] Attention badge shows correct count (B3 layout fix)
 - [ ] Security: notifications INSERT policy fixed (S1)
 - [ ] Security: archive function restricted to service_role (S2)
+- [ ] System runs unattended: cron jobs active, email delivers, no manual DB ops needed
 
 ### v0.1 continued (same release, stretch goals)
 
