@@ -106,7 +106,7 @@
 			{#each upcomingMeetings as meeting}
 				<a href="/meetings/{meeting.id}?from=profile" class="meeting-row">
 					<div class="meeting-when">{formatDate(meeting.scheduled_time)} · {formatTime(meeting.scheduled_time)}</div>
-					<div class="meeting-details">{meeting.duration_minutes} min · {meeting.general_area ?? 'TBD'}</div>
+					<div class="meeting-details">{meeting.duration_minutes} min · {meeting.general_area}</div>
 				</a>
 			{/each}
 			{#each pastMeetings as meeting}
