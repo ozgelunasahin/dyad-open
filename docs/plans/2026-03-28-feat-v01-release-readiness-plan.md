@@ -62,6 +62,8 @@ Similarly: `expire_stale_invitations` and `archive_stale_prompts` have no trigge
 - [ ] Create cron schedules for all 3 functions
 - [ ] Test: create a meeting with a past start time, verify feedback forms appear
 - [ ] Seed script: create two users in "met but haven't given feedback" state (meeting completed, feedback forms `due`, feedback gate active) for testing the feedback flow end-to-end
+- [ ] Fix seed script: `insert` for slots creates duplicates on re-run (use `upsert` or check for existing). This caused duplicate timeslots on dyad.berlin/conversations/seed-conv-belonging.
+- [ ] Consider DB constraint: no unique constraint prevents two slots at the same time for the same prompt. Add a check constraint or unique partial index on `(prompt_id, start_time)` to prevent this at the data level.
 
 ### B3. Wrong column names — feedback page renders blank
 
@@ -246,16 +248,19 @@ Items flagged by user, co-founder, and agents:
 
 **Conversation detail:**
 - [ ] Show neighbourhood next to username and date (e.g., "@mira · Thu, Mar 26 · Neukölln")
+- [ ] Date display: clarify this is "published on" date. Add "published" or "edited" label. (Copy in copy.ts when it exists)
 - [ ] Explainer text before response: "If this is a conversation you want to have, respond to unlock invitation"
-- [ ] Change "Write a response..." placeholder to "Write a comment..." (Ozge: "change respond to comment")
+- [ ] Change "Write a response..." placeholder to "Write a comment..." (Ozge: "change respond to comment") — all placeholder text lives in copy.ts
 - [ ] Remove "← back to discover" text link (use browser back / nav)
-- [ ] After sending invitation: hide the remaining available slot cards (only show the invited slot)
+- [ ] Progressive meeting availability: before responding, show a teaser ("Available to meet · Neukölln · 1 slot this week"). After responding, reveal full SlotCard components. This signals the conversation lifecycle without being too explicit — anticipation, not a form.
+- [ ] After responding + selecting a slot: show optional meeting note ABOVE the "Send invitation" button (currently below — confusing order). Make it a proper textarea (not single-line input) so it's usable on mobile.
+- [ ] After sending invitation: immediately show the correct state (one slot marked "invited" + greyed out, others still visible). Currently the "invitation sent" view is different from the refreshed view — should be identical without needing a refresh.
 - [ ] Consistent spacing between all elements (Send button → slots gap fix from S7)
-- [ ] Invitation note input: make larger (textarea, not single-line input)
 
 **Discover:**
 - [ ] Check stability of which conversations are shown — ensure consistent ordering so the page doesn't jump between visits
 - [ ] Cover image thumbnails: use consistent fixed crop + aspect ratio (match map list view)
+- [ ] Search: keep current text-matching search for v0.1. Note for v0.2: explore embeddings-based semantic search (with a critical view on what this means for sovereignty and data processing).
 
 **Profile:**
 - [ ] Group under a) Conversations and b) Meetings (already the structure, verify naming)
@@ -265,6 +270,7 @@ Items flagged by user, co-founder, and agents:
 
 **Editor:**
 - [ ] Add "Edit" link on own published conversation detail page
+- [ ] Body placeholder text is missing — add descriptive placeholder (in copy.ts)
 - [ ] Add "Archive" button on own conversation detail page
 - [ ] Body placeholder text needs to be more descriptive
 
