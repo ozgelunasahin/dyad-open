@@ -90,14 +90,14 @@ INSERT INTO prompts (id, author_id, title, body, cover_image_url, state, region,
   ('seed-prompt-published', '11111111-1111-1111-1111-111111111111',
    'What we owe each other as strangers',
    '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"The stranger is a peculiar figure — neither friend nor enemy, neither known nor entirely unknown. What is the minimum we owe someone we will never see again?"}]}]}'::jsonb,
-   'http://127.0.0.1:54321/storage/v1/object/public/uploads/seed/test-cover.png',
+   'https://picsum.photos/seed/dyad-strangers/800/400',
    'published', 'berlin', NOW(), NOW() - interval '1 day', NOW());
 
 INSERT INTO time_slots (id, prompt_id, start_time, duration_minutes, exact_location, general_area, general_area_lat, general_area_lng) VALUES
-  ('slot-published-1', 'seed-prompt-published', NOW() + interval '2 days', 90,
+  ('a0000001-0000-0000-0000-000000000001', 'seed-prompt-published', NOW() + interval '2 days', 90,
    '{"place_id":"1","name":"Café am Neuen See","address":"Lichtensteinallee 2, 10787 Berlin","lat":52.5095,"lng":13.3405}'::jsonb,
    'Tiergarten', 52.5145, 13.3501),
-  ('slot-published-2', 'seed-prompt-published', NOW() + interval '4 days', 60,
+  ('a0000001-0000-0000-0000-000000000002', 'seed-prompt-published', NOW() + interval '4 days', 60,
    '{"place_id":"2","name":"Tempelhofer Feld","address":"Tempelhofer Damm, 12101 Berlin","lat":52.4731,"lng":13.4015}'::jsonb,
    'Tempelhof', 52.4731, 13.4015);
 
@@ -116,7 +116,7 @@ INSERT INTO prompts (id, author_id, title, body, state, region, published_at, ar
    'archived', 'berlin', NOW() - interval '7 days', NOW() - interval '1 day', NOW() - interval '8 days', NOW() - interval '1 day');
 
 INSERT INTO time_slots (id, prompt_id, start_time, duration_minutes, exact_location, general_area, general_area_lat, general_area_lng) VALUES
-  ('slot-archived-1', 'seed-prompt-archived', NOW() - interval '2 days', 60,
+  ('a0000002-0000-0000-0000-000000000001', 'seed-prompt-archived', NOW() - interval '2 days', 60,
    '{"place_id":"4","name":"Betahaus","address":"Rudi-Dutschke-Straße 23, 10969 Berlin","lat":52.5069,"lng":13.3918}'::jsonb,
    'Kreuzberg', 52.4988, 13.4238);
 
@@ -125,11 +125,11 @@ INSERT INTO prompts (id, author_id, title, body, cover_image_url, state, region,
   ('seed-prompt-marco', '22222222-2222-2222-2222-222222222222',
    'Language and what slips through it',
    '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Every language carves the world differently."}]}]}'::jsonb,
-   'http://127.0.0.1:54321/storage/v1/object/public/uploads/seed/test-cover.png',
+   'https://picsum.photos/seed/dyad-language/800/400',
    'published', 'berlin', NOW(), NOW() - interval '2 days', NOW());
 
 INSERT INTO time_slots (id, prompt_id, start_time, duration_minutes, exact_location, general_area, general_area_lat, general_area_lng) VALUES
-  ('slot-marco-1', 'seed-prompt-marco', NOW() + interval '3 days', 60,
+  ('a0000003-0000-0000-0000-000000000001', 'seed-prompt-marco', NOW() + interval '3 days', 60,
    '{"place_id":"3","name":"Markthalle Neun","address":"Eisenbahnstraße 42/43, 10999 Berlin","lat":52.5006,"lng":13.4284}'::jsonb,
    'Kreuzberg', 52.4988, 13.4238);
 
@@ -138,14 +138,14 @@ INSERT INTO prompts (id, author_id, title, body, cover_image_url, state, region,
   ('seed-prompt-sophie', '33333333-3333-3333-3333-333333333333',
    'The shape of comfortable silence',
    '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"There is a particular quality of silence between two people who are comfortable together. How do we get there with someone new?"}]}]}'::jsonb,
-   'http://127.0.0.1:54321/storage/v1/object/public/uploads/seed/test-cover.png',
+   'https://picsum.photos/seed/dyad-silence/800/400',
    'published', 'berlin', NOW() - interval '3 days', NOW() - interval '4 days', NOW() - interval '1 day');
 
 INSERT INTO time_slots (id, prompt_id, start_time, duration_minutes, exact_location, general_area, general_area_lat, general_area_lng) VALUES
-  ('slot-sophie-1', 'seed-prompt-sophie', NOW() + interval '2 days', 60,
+  ('a0000004-0000-0000-0000-000000000001', 'seed-prompt-sophie', NOW() + interval '2 days', 60,
    '{"place_id":"5","name":"Volkspark Friedrichshain","address":"Am Friedrichshain, 10249 Berlin","lat":52.5283,"lng":13.4372}'::jsonb,
    'Friedrichshain', 52.5283, 13.4372),
-  ('slot-sophie-2', 'seed-prompt-sophie', NOW() + interval '5 days', 60,
+  ('a0000004-0000-0000-0000-000000000002', 'seed-prompt-sophie', NOW() + interval '5 days', 60,
    '{"place_id":"6","name":"Café Blume","address":"Schönhauser Allee 6, 10119 Berlin","lat":52.5310,"lng":13.4112}'::jsonb,
    'Prenzlauer Berg', 52.5310, 13.4112);
 
@@ -154,11 +154,11 @@ INSERT INTO prompts (id, author_id, title, body, cover_image_url, state, region,
   ('seed-prompt-ava', '55555555-5555-5555-5555-555555555555',
    'What does it mean to really listen?',
    '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Most conversations are two people waiting for their turn to speak. Real listening is something else entirely."}]}]}'::jsonb,
-   'http://127.0.0.1:54321/storage/v1/object/public/uploads/seed/test-cover.png',
+   'https://picsum.photos/seed/dyad-listening/800/400',
    'published', 'berlin', NOW() - interval '5 days', NOW() - interval '6 days', NOW() - interval '1 day');
 
 INSERT INTO time_slots (id, prompt_id, start_time, duration_minutes, exact_location, general_area, general_area_lat, general_area_lng, accepted) VALUES
-  ('slot-ava-past', 'seed-prompt-ava', NOW() - interval '1 day', 60,
+  ('a0000005-0000-0000-0000-000000000001', 'seed-prompt-ava', NOW() - interval '1 day', 60,
    '{"place_id":"7","name":"Bonanza Coffee","address":"Oderberger Str. 35, 10435 Berlin","lat":52.5393,"lng":13.4112}'::jsonb,
    'Prenzlauer Berg', 52.5393, 13.4112, true);
 
@@ -180,14 +180,14 @@ INSERT INTO prompt_comments (prompt_id, author_id, body) VALUES
 
 -- lisa → marco: pending invitation
 INSERT INTO prompt_invitations (id, prompt_id, slot_id, inviter_id, invitee_id, comment_id, message, state) VALUES
-  ('inv-lisa-pending', 'seed-prompt-marco', 'slot-marco-1',
+  ('b0000001-0000-0000-0000-000000000001', 'seed-prompt-marco', 'a0000003-0000-0000-0000-000000000001',
    '11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222',
    (SELECT id FROM prompt_comments WHERE prompt_id = 'seed-prompt-marco' AND author_id = '11111111-1111-1111-1111-111111111111'),
    'Free that afternoon — would be great to meet at Markthalle Neun.', 'pending');
 
 -- ben → ava: accepted invitation (past meeting)
 INSERT INTO prompt_invitations (id, prompt_id, slot_id, inviter_id, invitee_id, comment_id, message, state, resolved_at) VALUES
-  ('inv-ben-accepted', 'seed-prompt-ava', 'slot-ava-past',
+  ('b0000002-0000-0000-0000-000000000001', 'seed-prompt-ava', 'a0000005-0000-0000-0000-000000000001',
    '66666666-6666-6666-6666-666666666666', '55555555-5555-5555-5555-555555555555',
    (SELECT id FROM prompt_comments WHERE prompt_id = 'seed-prompt-ava' AND author_id = '66666666-6666-6666-6666-666666666666'),
    'Would love to meet for this conversation.', 'accepted', NOW() - interval '2 days');
@@ -197,28 +197,26 @@ INSERT INTO prompt_invitations (id, prompt_id, slot_id, inviter_id, invitee_id, 
 -- ============================================
 
 INSERT INTO meetings (id, invitation_id, prompt_id, participant_a, participant_b, slot_id, scheduled_time, duration_minutes, state) VALUES
-  ('meeting-ava-ben', 'inv-ben-accepted', 'seed-prompt-ava',
+  ('c0000001-0000-0000-0000-000000000001', 'b0000002-0000-0000-0000-000000000001', 'seed-prompt-ava',
    '55555555-5555-5555-5555-555555555555', '66666666-6666-6666-6666-666666666666',
-   'slot-ava-past', NOW() - interval '1 day', 60, 'awaiting_feedback');
+   'a0000005-0000-0000-0000-000000000001', NOW() - interval '1 day', 60, 'awaiting_feedback');
 
 -- ============================================
 -- FEEDBACK FORMS — due (gate active for ava + ben ONLY)
 -- ============================================
 
 INSERT INTO feedback_forms (id, meeting_id, reviewer_id, reviewee_id, state) VALUES
-  ('feedback-ava-reviews-ben', 'meeting-ava-ben',
+  ('d0000001-0000-0000-0000-000000000001', 'c0000001-0000-0000-0000-000000000001',
    '55555555-5555-5555-5555-555555555555', '66666666-6666-6666-6666-666666666666', 'due'),
-  ('feedback-ben-reviews-ava', 'meeting-ava-ben',
+  ('d0000001-0000-0000-0000-000000000002', 'c0000001-0000-0000-0000-000000000001',
    '66666666-6666-6666-6666-666666666666', '55555555-5555-5555-5555-555555555555', 'due');
 
 -- ============================================
 -- ADJECTIVE VOCABULARY
 -- ============================================
 
-INSERT INTO adjective_vocabulary (word, category) VALUES
-  ('thoughtful', 'positive'), ('warm', 'positive'), ('curious', 'positive'),
-  ('engaged', 'positive'), ('open', 'positive'), ('kind', 'positive'),
-  ('genuine', 'positive'), ('reserved', 'neutral'), ('quiet', 'neutral'),
-  ('intense', 'neutral'), ('distracted', 'negative'), ('dismissive', 'negative'),
-  ('late', 'negative')
+-- Vocabulary already seeded in migration 20260401. Add any extras here.
+INSERT INTO adjective_vocabulary (word) VALUES
+  ('engaged'), ('open'), ('reserved'), ('quiet'),
+  ('intense'), ('distracted'), ('dismissive'), ('late')
 ON CONFLICT (word) DO NOTHING;
