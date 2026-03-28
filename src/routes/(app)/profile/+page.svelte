@@ -196,9 +196,13 @@
 			</div>
 		{/if}
 	</section>
+
+	<div class="sign-out-section">
+		<a href="/logout" class="sign-out-link">sign out</a>
+	</div>
 </div>
 
-<FloatingNav position="bottom" active="profile" onMapClick={() => goto('/discover?view=map')} />
+<FloatingNav variant="default" attentionCount={data.attentionCount ?? 0} />
 
 <style>
 	.content { width: 100%; max-width: 700px; padding-bottom: 80px; }
@@ -253,4 +257,8 @@
 
 	.empty { color: var(--text-muted); padding: var(--space-6) 0; }
 	.empty a { text-decoration: underline; }
+
+	.sign-out-section { padding: var(--space-8) 0 var(--space-4); text-align: center; }
+	.sign-out-link { font-size: var(--text-sm); color: var(--text-muted); min-height: 44px; display: inline-flex; align-items: center; }
+	.sign-out-link:hover { color: var(--text-primary); }
 </style>

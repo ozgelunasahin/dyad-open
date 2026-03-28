@@ -55,14 +55,17 @@ All in `src/routes/(app)/conversations/[id]/+page.svelte` unless noted:
 
 ## Phase C: Copy + Polish
 
-### 7. Copy changes (inline, no copy.ts)
+### 7. Copy changes (final pass before v0.1 release, after copy extraction)
 
-- [ ] Response placeholder: "Write a response..." → "Write a comment..."
-- [ ] Explainer text (item 2 above)
+Copy will be centrally stored (copy.ts or equivalent, per extraction plan). All copy changes reference the central store once it exists. This is a release-readiness pass, not an inline edit task.
+
+- [ ] Response placeholder: update to flow-guiding copy (e.g., "Write your response — once sent, you'll see available times to meet"). Keep "response" not "comment" per domain language doc.
+- [ ] Replace separate explainer text with the flow-guiding placeholder (design-system.md updated to allow this pattern)
 - [ ] Invite email: inclusive language (replace "independent thinkers who meet through writing")
 - [ ] Email image paths: relative → absolute (`https://dyad.berlin/images/logo-dark.png`)
 - [ ] Date labels: "published on" / "edited" on conversation detail
 - [ ] Past-slot message: "This time has passed"
+- [ ] Review all user-facing strings against `docs/design/domain-language.md` — ensure "response" not "comment", "conversation" not "prompt", "neighbourhood" not "area"
 
 ### 8. Responsive audit (run LAST)
 

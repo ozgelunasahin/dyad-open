@@ -211,12 +211,13 @@ The app uses placeholder text as its primary guidance mechanism — no tutorial 
 **Examples:**
 - Editor title: "Title" (large, light serif)
 - Editor body: "Start writing..."
-- Response textarea: "Write a response..."
-- Invitation message: "Add a message..."
+- Response textarea: "Write your response — once sent, you'll see available times to meet"
+- Invitation message: "Add a note (optional)"
 - Search input: "Search" (large, centered)
 
 **Rules:**
-- Placeholder text is short — a verb phrase, not a question or sentence
+- Default: placeholder text is short — a verb phrase, not a question or sentence
+- **Flow-guiding placeholders:** At key transition points in the user journey (e.g., responding to a conversation, sending an invitation), the placeholder can describe what happens next. Keep it to one line. This replaces explainer text or instructional copy — the placeholder IS the guidance.
 - No labels above inputs that duplicate the placeholder meaning
 - No persistent hint text below inputs (exception: privacy notes like "Only visible to you and the author")
 - Section titles are minimal or absent — the placeholder IS the affordance

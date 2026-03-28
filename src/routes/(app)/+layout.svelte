@@ -44,9 +44,10 @@
 	}
 
 	.sidebar {
+		/* Hidden for alpha — FloatingNav handles navigation on all viewports */
+		display: none;
 		width: 180px;
 		flex-shrink: 0;
-		display: flex;
 		flex-direction: column;
 		padding: 1.5rem 1.25rem;
 		border-right: 1px solid var(--border-link);
