@@ -61,6 +61,7 @@ Similarly: `expire_stale_invitations` and `archive_stale_prompts` have no trigge
 - [ ] Enable pg_cron extension on remote Supabase
 - [ ] Create cron schedules for all 3 functions
 - [ ] Test: create a meeting with a past start time, verify feedback forms appear
+- [ ] Seed script: create two users in "met but haven't given feedback" state (meeting completed, feedback forms `due`, feedback gate active) for testing the feedback flow end-to-end
 
 ### B3. Wrong column names — feedback page renders blank
 
@@ -245,9 +246,40 @@ The blocking backdrop was reverted. Need a proper solution where the sheet doesn
 - [ ] Design approach: partial backdrop (covers only sheet height) or swipe-to-dismiss
 - [ ] Implement and test on mobile
 
-### S12. Frontend design polish
+### S12. Frontend design polish (including Ozge's feedback 2026-03-28)
 
-Items flagged by user and agents:
+Items flagged by user, co-founder, and agents:
+
+**Landing page:**
+- [ ] Add "private beta" label (same font as current "log in")
+- [ ] Login opens as modal (same as waitlist modal, S9) with "Already have an account?" toggle
+- [ ] Conversation cards show booked/available status
+
+**Map view:**
+- [ ] Pin click: show conversations within the clicked fuzz region, NOT all in the Bezirk. Sort by distance to fuzz centroid. Don't show neighbourhood name as the BottomSheet header — use a neutral label or count.
+- [ ] Single-conversation pins show just that conversation
+
+**Conversation detail:**
+- [ ] Show neighbourhood next to username and date (e.g., "@mira · Thu, Mar 26 · Neukölln")
+- [ ] Explainer text before response: "If this is a conversation you want to have, respond to unlock invitation"
+- [ ] Change "Write a response..." placeholder to "Write a comment..." (Ozge: "change respond to comment")
+- [ ] Remove "← back to discover" text link (use browser back / nav)
+- [ ] After sending invitation: hide the remaining available slot cards (only show the invited slot)
+- [ ] Consistent spacing between all elements (Send button → slots gap fix from S7)
+- [ ] Invitation note input: make larger (textarea, not single-line input)
+
+**Profile:**
+- [ ] Group under a) Conversations and b) Meetings (already the structure, verify naming)
+- [ ] Fix "TBD" display on meeting cards (likely missing data)
+- [ ] Add cancellation UI element that works (currently broken — likely B3 column name issue)
+- [ ] Visual distinction between conversations started vs responded to (CSS class hooks, can be subtle for now)
+
+**Editor:**
+- [ ] Add "Edit" link on own published conversation detail page
+- [ ] Add "Archive" button on own conversation detail page
+- [ ] Body placeholder text needs to be more descriptive
+
+**General:**
 - [ ] Audit all pages at mobile viewport — identify layout breaks
 - [ ] Response submission: no confirmation feedback (subtle transition)
 - [ ] Conversation 404: silent redirect to discover, should show message
