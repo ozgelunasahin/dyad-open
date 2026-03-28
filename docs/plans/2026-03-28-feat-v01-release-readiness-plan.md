@@ -105,8 +105,9 @@ Also: email templates use relative image paths (`/images/logo-dark.png`) — bro
 All migrations exist in `supabase/migrations/` but have not been applied to the remote instance. The uploads bucket, RPC functions, and RLS policies don't exist on remote.
 
 **Fix:**
-- [ ] Run `supabase db push --linked` or apply migrations via Supabase dashboard SQL editor
-- [ ] Verify: uploads bucket exists, RPC functions callable, RLS policies active
+- [x] Run `supabase db push` — 5 migrations applied (20260403-20260407)
+- [x] Verify: uploads bucket exists, RPC functions callable, RLS policies active
+- [ ] **RBAC on production Supabase:** Before real user data exists, restrict who can push migrations and access the service role key. Remove CLI access to production from development machines. Migrations to production should go through a controlled process (e.g., Supabase dashboard by an authorised admin, or a CI pipeline with approval gate). The `SUPABASE_SERVICE_ROLE_KEY` must not be in any `.env` file on a development machine that can run `db push` against production.
 
 ### B6. No revealed feedback UI
 
