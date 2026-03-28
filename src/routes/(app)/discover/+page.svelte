@@ -197,8 +197,10 @@
 
 <div class="floating-nav-wrapper">
 	<FloatingNav
+		variant="discover"
 		position="top"
 		active={viewMode === 'map' ? 'map' : ''}
+		attentionCount={data.attentionCount ?? 0}
 		onMapClick={() => viewMode = viewMode === 'map' ? 'list' : 'map'}
 		{weekDates}
 		selectedDays={selectedDates}

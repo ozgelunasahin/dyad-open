@@ -6,6 +6,7 @@
 		variant = 'discover',
 		position = 'bottom',
 		active = '',
+		attentionCount = 0,
 		onMapClick,
 		weekDates = [],
 		selectedDays = new Set<string>(),
@@ -18,9 +19,10 @@
 		onSaveDraft,
 		onPublish,
 	}: {
-		variant?: 'discover' | 'editor';
+		variant?: 'discover' | 'editor' | 'default';
 		position?: 'top' | 'bottom';
 		active?: string;
+		attentionCount?: number;
 		onMapClick?: () => void;
 		weekDates?: WeekDate[];
 		selectedDays?: Set<string>;
@@ -74,7 +76,7 @@
 	}
 </script>
 
-<nav class="floating-nav" class:top={position === 'top'} class:bottom={position === 'bottom'}>
+<nav class="floating-nav" class:top={position === 'top'} class:bottom={position === 'bottom'} aria-label="Navigation">
 	{#if variant === 'editor'}
 		<!-- Editor variant: Back, Saved indicator, Continue dropdown -->
 		<button class="back-text-btn" onclick={onBack} aria-label="Back">← Back</button>
@@ -127,8 +129,7 @@
 				</div>
 			{/if}
 		</div>
-	{:else}
-		<!-- Discover variant (default) -->
+	{:else if variant === 'discover'}
 		<button
 			class="nav-btn"
 			class:active-icon={active === 'map'}
@@ -175,6 +176,30 @@
 			<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
 				<path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
 			</svg>
+		</a>
+
+		<a href="/profile" class="nav-btn" aria-label="Profile">
+			<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+				<circle cx="10" cy="7" r="3.5" stroke="currentColor" stroke-width="1.6"/>
+				<path d="M3 18c0-3.3 3.1-6 7-6s7 2.7 7 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+			</svg>
+			{#if attentionCount > 0}<span class="badge-dot"><span class="sr-only">{attentionCount} notifications</span></span>{/if}
+		</a>
+	{:else if variant === 'default'}
+		<!-- Default variant: Discover + Profile -->
+		<a href="/discover" class="nav-btn" aria-label="Discover">
+			<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+				<circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.6"/>
+				<path d="M14 14l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+			</svg>
+		</a>
+
+		<a href="/profile" class="nav-btn" aria-label="Profile">
+			<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+				<circle cx="10" cy="7" r="3.5" stroke="currentColor" stroke-width="1.6"/>
+				<path d="M3 18c0-3.3 3.1-6 7-6s7 2.7 7 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+			</svg>
+			{#if attentionCount > 0}<span class="badge-dot"><span class="sr-only">{attentionCount} notifications</span></span>{/if}
 		</a>
 	{/if}
 </nav>
@@ -224,11 +249,12 @@
 	.floating-nav.bottom { bottom: 20px; }
 
 	.nav-btn {
+		position: relative;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 40px;
-		height: 40px;
+		width: 44px;
+		height: 44px;
 		border-radius: 50%;
 		color: var(--text-primary);
 		text-decoration: none;
@@ -241,6 +267,25 @@
 
 	.nav-btn:hover, .nav-btn.active-icon {
 		background: rgba(0, 0, 0, 0.07);
+	}
+
+	.badge-dot {
+		position: absolute;
+		top: 6px;
+		right: 6px;
+		width: 8px;
+		height: 8px;
+		background: var(--color-danger, #c00);
+		border-radius: 50%;
+		border: 2px solid rgba(245, 244, 240, 0.96);
+	}
+
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
 	}
 
 	.nav-spacer { flex: 1; }

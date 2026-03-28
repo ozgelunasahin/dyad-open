@@ -109,10 +109,16 @@
 			</button>
 		</div>
 	{/if}
+
+	<div class="sign-out-section">
+		<a href="/logout">sign out</a>
+	</div>
 </div>
 
 <style>
 	.content { width: 100%; max-width: 560px; }
+	.sign-out-section { padding: var(--space-8) 0; text-align: center; }
+	.sign-out-section a { font-size: var(--text-sm); color: var(--text-muted); }
 
 	.meeting-context { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin: 0 0 var(--space-4); }
 	.page-title { font-size: var(--text-2xl); font-weight: normal; margin: 0 0 var(--space-2); }

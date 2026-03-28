@@ -44,9 +44,10 @@
 	}
 
 	.sidebar {
+		/* Hidden for alpha — FloatingNav handles navigation on all viewports */
+		display: none;
 		width: 180px;
 		flex-shrink: 0;
-		display: flex;
 		flex-direction: column;
 		padding: 1.5rem 1.25rem;
 		border-right: 1px solid var(--border-link);
@@ -83,9 +84,8 @@
 
 	.main-content { flex: 1; min-width: 0; padding: 2rem; display: flex; flex-direction: column; align-items: center; }
 
-	/* Mobile: hide sidebar entirely — FloatingNav handles navigation */
+	/* Mobile: adjust content padding */
 	@media (max-width: 430px) {
-		.sidebar { display: none; }
 		.main-content { padding: 1rem; }
 	}
 </style>
