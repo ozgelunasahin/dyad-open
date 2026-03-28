@@ -229,12 +229,20 @@ Items flagged by user, co-founder, and agents:
 **Landing page:**
 - [ ] Replace right-side conversation cards with the full discover view (list + map toggle) for anonymous visitors. Reuse MapView + list components. Pin clicks and card clicks open the waitlist modal (gated — no navigation to conversation detail).
 - [ ] Add "private beta" label (same font as current "log in")
+- [ ] Move login button to a more intuitive position (near "join waitlist", not hidden top-right in monospace)
 - [ ] Login opens as modal (same as waitlist modal, S9) with "Already have an account?" toggle
-- [ ] Conversation cards show booked/available status
+- [ ] Conversation cards show booked/available status (e.g., "2/3 slots booked" indicator)
+
+**Navigation (critical for mobile):**
+- [ ] **Remove the left sidebar from discover page.** It takes up space and is redundant with FloatingNav.
+- [ ] **Add profile button to FloatingNav** — visible on all views (discover, conversation detail, etc.). Currently no way to reach profile on mobile from discover.
+- [ ] Move sign out + logged-in user indicator somewhere accessible without the sidebar (e.g., profile page, or a user menu in FloatingNav)
+- [ ] FloatingNav should provide toggle between discover ↔ profile on all pages
 
 **Map view:**
 - [ ] Pin click: show conversations within the clicked fuzz region, NOT all in the Bezirk. Sort by distance to fuzz centroid. Don't show neighbourhood name as the BottomSheet header — use a neutral label or count.
 - [ ] Single-conversation pins show just that conversation
+- [ ] **Cover image thumbnails in BottomSheet list must match discover list view** — use the same fixed crop + aspect ratio. Currently BottomSheet uses 64x64 squares, discover uses 88x96 rectangles. Pick one approach (the BottomSheet's fixed square crop is better — use it for both).
 
 **Conversation detail:**
 - [ ] Show neighbourhood next to username and date (e.g., "@mira · Thu, Mar 26 · Neukölln")
@@ -244,6 +252,10 @@ Items flagged by user, co-founder, and agents:
 - [ ] After sending invitation: hide the remaining available slot cards (only show the invited slot)
 - [ ] Consistent spacing between all elements (Send button → slots gap fix from S7)
 - [ ] Invitation note input: make larger (textarea, not single-line input)
+
+**Discover:**
+- [ ] Check stability of which conversations are shown — ensure consistent ordering so the page doesn't jump between visits
+- [ ] Cover image thumbnails: use consistent fixed crop + aspect ratio (match map list view)
 
 **Profile:**
 - [ ] Group under a) Conversations and b) Meetings (already the structure, verify naming)
@@ -260,8 +272,10 @@ Items flagged by user, co-founder, and agents:
 - [ ] Invite email: change "a community of independent thinkers who meet through writing" → inclusive language per design principles ("Avoid intellectualism signals")
 - [ ] Fix relative image paths in all email templates (`/images/logo-dark.png` → `https://dyad.berlin/images/logo-dark.png`)
 
-**General:**
-- [ ] Audit all pages at mobile viewport — identify layout breaks
+**Responsive:**
+- [ ] Audit all pages at mobile viewport (375px) — identify layout breaks
+- [ ] Audit at large desktop viewport (2560px+) — ensure content doesn't stretch awkwardly
+- [ ] Test on tablet-sized viewports (768-1024px) — verify sidebar/FloatingNav handoff
 - [ ] Response submission: no confirmation feedback (subtle transition)
 - [ ] Conversation 404: silent redirect to discover, should show message
 - [ ] Notify the inviter
