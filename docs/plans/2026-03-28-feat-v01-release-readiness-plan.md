@@ -251,6 +251,7 @@ The blocking backdrop was reverted. Need a proper solution where the sheet doesn
 Items flagged by user, co-founder, and agents:
 
 **Landing page:**
+- [ ] Replace right-side conversation cards with the full discover view (list + map toggle) for anonymous visitors. Reuse MapView + list components. Pin clicks and card clicks open the waitlist modal (gated — no navigation to conversation detail).
 - [ ] Add "private beta" label (same font as current "log in")
 - [ ] Login opens as modal (same as waitlist modal, S9) with "Already have an account?" toggle
 - [ ] Conversation cards show booked/available status
