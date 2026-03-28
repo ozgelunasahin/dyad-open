@@ -45,7 +45,7 @@ From user research interviews, March 2026. Four archetypes emerged — not as bo
 
 **Hesitation:** Two concerns. First: *reinforcing apartness* — just connecting with people from the same social circles and calling it outreach. Second: *accessibility and cost* — asking people to pay for connection when they're struggling with basic needs. "Not more tech bullshit."
 
-**Design implication:** The platform must actively resist becoming a bubble. This means: no algorithmic curation that optimises for similarity. No filtering by "interests" or "identity." The discover page should feel like a city — you encounter who's there, not who's like you. On accessibility: the platform must be free to use. If there's ever a business model, it cannot gate access to connection behind payment.
+**Design implication:** The platform must actively resist becoming a bubble. This means: no algorithmic curation that optimises for similarity. No filtering by "interests" or "identity." The discover page should feel like a city — you encounter who's there, not who's like you. On accessibility: connection must never be gated behind ability to pay. Solidarity pricing and open conversations address this — see `sustainability-and-accessibility.md`.
 
 ---
 
@@ -86,7 +86,7 @@ Frieda (gatherer) specifically fears that dyad becomes another echo chamber. Den
 Deniz and Jackson both want to know who's in the community before committing. But the platform also values pseudonymity and low-pressure participation. **Resolution:** People are visible through their writing and their meeting feedback, not through profiles or bios. You learn about someone by reading what they care about — not by reading a self-description.
 
 ### Accessibility vs. Sustainability
-Frieda challenges the platform directly: how can you ask people to pay for connection? **Design principle:** Dyad must be free to use. Connection is not a premium feature. If there's a revenue model, it's for infrastructure, not access.
+Frieda challenges the platform directly: how can you ask people to pay for connection? **Design principle:** Connection must never be gated behind ability to pay. Subscription with solidarity pricing, open conversations for non-members, venue partnerships that remove the cost of existing in public. See `sustainability-and-accessibility.md`.
 
 ---
 

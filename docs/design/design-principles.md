@@ -62,7 +62,7 @@ When users engage with a prompt on the discover page, their comment is a private
 ## Location & Time Slots
 
 - **Starter sets 1–3 time slots** at publish time, each with a preferred start time, duration, and location.
-- **Time slots use a rolling 7-day window.** Sophie keeps a prompt alive by opening new time slots. Without activity (no valid future time slots), the prompt is archived and requires re-publishing.
+- **Time slots use a rolling 7-day window.** The author keeps a prompt alive by opening new time slots. Without activity (no valid future time slots), the prompt is archived and requires re-publishing.
 - **Preferred time slot, not availability block.** Keep the interface simple — a specific start time and duration, not a range of availability. May be reviewed based on usage.
 - **Locations are selected from a location API** (autocomplete dropdown), scoped to the app instance region (Berlin for now, other regions in future).
 - **Easy carry-over**: option to apply the same location to all time slots without re-entering.
@@ -70,7 +70,7 @@ When users engage with a prompt on the discover page, their comment is a private
 - **The inviter picks ONE time+place option.** No negotiation. If the starter accepts, that's the meeting. It's scheduled.
 - **Meeting duration** is set by the starter (start time + duration per slot). Used for calendar events and feedback gate timing. Actual time spent is up to the participants.
 - **Time slots where the user already has an accepted meeting are hidden.** A user cannot have multiple meetings scheduled at the same time.
-- **Sophie can accept invitations for multiple time slots** (one per slot). Once accepted, that slot is no longer displayed to other users.
+- **The author can accept invitations for multiple time slots** (one per slot). Once accepted, that slot is no longer displayed to other users.
 
 ## Cancellation & Deletion
 
@@ -84,7 +84,7 @@ When users engage with a prompt on the discover page, their comment is a private
 
 - **Prompts can be re-published** by the author with new time slots, whether or not a meeting previously took place.
 - **After a completed meeting**, the prompt is archived. Both participants can see it in their private profiles and can choose to show feedback/info on their public profiles.
-- **Rolling 7-day window.** Without activity (no valid future time slots), the prompt is auto-archived. Sophie must re-publish to reactivate.
+- **Rolling 7-day window.** Without activity (no valid future time slots), the prompt is auto-archived. The author must re-publish to reactivate.
 
 ## Slot-Blocking Concern (Follow-Up Needed)
 
@@ -138,7 +138,7 @@ Mapping of Dyad's design decisions against the Rebuild documents: Design Princip
 ### Social Design Framework Dimensions
 
 1. **Social Object:** The prompt (rich text + cover image + meeting availability). Well-defined lifecycle: published, engaged, scheduled, met, archived, optionally republished.
-2. **Platform Intent:** Experience-driven (ROX). No visible business model. Design oriented entirely around the quality of the meeting experience.
+2. **Platform Intent:** Experience-driven (ROX). Business model is transparent and value-aligned — subscription with solidarity pricing, not advertising or data sales (see `sustainability-and-accessibility.md`). Design oriented entirely around the quality of the meeting experience.
 3. **Identity:** Deliberately minimal. Users can protect their anonymity. Usernames are not given importance. Identity accrues through reputation: feedback, testimonials, showing-up history. Identity built through action rather than self-declaration.
 4. **Conversations:** Radically constrained. Single-shot private comments, no threading, no replies. The actual conversation happens in person.
 5. **Sharing:** Content is the prompt itself. No resharing, no virality mechanics. Content doesn't propagate; it sits on the discover page and map until its slots expire.

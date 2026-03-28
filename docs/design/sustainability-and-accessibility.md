@@ -53,7 +53,7 @@ Dyad as part of a thriving urban habitat. Not a tech company that happens to ope
 
 ## Portable Reputation (Future, Handle With Care)
 
-As discussed in `docs/design/interoperability-and-open-infrastructure.md`, a user's reputation (meeting history, feedback, reliability signals) could in principle be made portable — transferable to other platforms via Verifiable Credentials or similar mechanisms.
+As discussed in `docs/design/shared-infrastructure-opportunities.md`, a user's reputation (meeting history, feedback, reliability signals) could in principle be made portable — transferable to other platforms via Verifiable Credentials or similar mechanisms.
 
 **The opportunity:** A person who has built trust through dozens of good meetings on dyad could carry that trust into other contexts. This is genuinely valuable and aligns with the interoperability vision.
 
@@ -76,5 +76,5 @@ As discussed in `docs/design/interoperability-and-open-infrastructure.md`, a use
 ## Sources
 
 - User research: Frieda's accessibility challenge (`docs/design/user-archetypes.md`)
-- Interoperability: `docs/design/interoperability-and-open-infrastructure.md`
+- Interoperability: `docs/design/shared-infrastructure-opportunities.md`
 - Design principles: "Why This Exists" (`docs/design/design-principles.md`)

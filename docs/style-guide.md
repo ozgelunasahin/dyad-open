@@ -6,22 +6,22 @@
 Page titles, section headers, and modal titles use Title Case - capitalize major words.
 
 **Examples:**
-- Your Canvases
+- My Conversations
 - Discover
-- Create New Canvas
-- Delete Canvas
+- Start a Conversation
+- Meetings
 - Getting Started
 
 ### Buttons & Actions (lowercase)
 All interactive elements like buttons, links that act as buttons, and action labels use lowercase.
 
 **Examples:**
-- + new canvas
+- start a conversation
 - sign out
 - delete
 - cancel
-- create canvas
-- creating...
+- send invitation
+- sending...
 
 ### Badges & Labels (Sentence case)
 Status indicators and informational badges use sentence case.
