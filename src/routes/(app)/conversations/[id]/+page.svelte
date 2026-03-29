@@ -12,6 +12,7 @@
 	let from = $derived($page.url.searchParams.get('from'));
 	let backHref = $derived(from === 'profile' ? '/profile' : '/discover');
 	let backLabel = $derived(from === 'profile' ? copy.nav.backToProfile : copy.nav.backToDiscover);
+	// svelte-ignore state_referenced_locally — intentional initial-value capture for editable field
 	let responseText = $state(data.myComment?.body ?? '');
 	let responseStatus = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
 	let responseError = $state('');
@@ -22,6 +23,7 @@
 	let inviteMessage = $state('');
 	let inviteStatus = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
 	let inviteError = $state('');
+	// svelte-ignore state_referenced_locally — intentional initial-value capture for local tracking
 	let invitedSlotIds = $state(new Set(data.invitedSlotIds ?? []));
 
 	let selectedSlot = $derived(data.prompt.available_slots.find(s => s.id === selectedSlotId));
@@ -103,7 +105,7 @@
 	}
 
 	let isOwnPrompt = $derived(data.prompt.author_id === data.user?.id);
-	let archiveDialog: ConfirmDialog;
+	let archiveDialog = $state<ConfirmDialog | undefined>();
 
 	async function archivePrompt() {
 		try {
@@ -139,7 +141,7 @@
 	{#if isOwnPrompt && data.prompt.state === 'published'}
 		<div class="author-actions">
 			<a href="/conversations/{data.prompt.id}/edit" class="btn-text">{copy.conversation.edit}</a>
-			<button class="btn-text" onclick={() => archiveDialog.open()}>{copy.conversation.archive}</button>
+			<button class="btn-text" onclick={() => archiveDialog?.open()}>{copy.conversation.archive}</button>
 		</div>
 		<ConfirmDialog
 			bind:this={archiveDialog}

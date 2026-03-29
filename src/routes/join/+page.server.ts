@@ -39,7 +39,7 @@ export const actions: Actions = {
 		const berlinBased = formData.get('berlin_based') === 'on';
 
 		if (typeof token !== 'string' || !token) {
-			return fail(400, { error: 'Invalid invitation token' });
+			return fail(400, { username: username?.toString(), error: 'Invalid invitation token' });
 		}
 
 		if (typeof username !== 'string' || username.length < 3) {

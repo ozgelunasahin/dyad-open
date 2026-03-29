@@ -73,6 +73,7 @@
 	<button class="close-btn" onclick={onClose} aria-label="Close search">&times;</button>
 
 	<div class="search-area">
+		<!-- svelte-ignore a11y_autofocus -->
 		<input
 			bind:value={query}
 			autofocus
@@ -265,6 +266,7 @@
 		line-height: 1.4;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
+		line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 	}

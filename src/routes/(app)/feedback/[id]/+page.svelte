@@ -19,6 +19,7 @@
 	let effectiveStep = $derived(userStep ?? initialStep(data.form.state));
 
 	// Revealed feedback — from server (locked on load) or from PATCH response
+	// svelte-ignore state_referenced_locally — intentional: server value captured, then updated via PATCH response
 	let revealedFeedback = $state<RevealedFeedback[]>(data.revealedFeedback ?? []);
 
 	// ── Form state ──────────────────────────────────────────────────────

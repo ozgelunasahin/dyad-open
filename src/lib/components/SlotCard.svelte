@@ -22,7 +22,6 @@
 		class:selected
 		class:past
 		onclick={onclick}
-		role="button"
 		aria-pressed={selected}
 	>
 		<span class="slot-date">{formatHybridDate(startTime)} at {formatSlotTime(startTime)}</span>

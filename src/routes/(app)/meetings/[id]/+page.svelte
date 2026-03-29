@@ -8,7 +8,7 @@
 
 	let { data }: { data: PageData } = $props();
 	let cancelling = $state(false);
-	let cancelDialog: ConfirmDialog;
+	let cancelDialog = $state<ConfirmDialog | undefined>();
 
 	let from = $derived($page.url.searchParams.get('from'));
 	let backHref = $derived(from === 'profile' ? '/profile' : '/discover');
@@ -122,7 +122,7 @@
 	{/if}
 
 	{#if data.meeting.state === 'scheduled'}
-		<button class="cancel-btn" onclick={() => cancelDialog.open()} disabled={cancelling}>
+		<button class="cancel-btn" onclick={() => cancelDialog?.open()} disabled={cancelling}>
 			{cancelling ? copy.meeting.cancelling : copy.meeting.cancelMeeting}
 		</button>
 		<ConfirmDialog

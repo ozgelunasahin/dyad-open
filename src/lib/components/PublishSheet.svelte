@@ -114,6 +114,7 @@
 		class="sheet"
 		role="dialog"
 		aria-modal="true"
+		tabindex="-1"
 		onclick={(e) => e.stopPropagation()}
 		transition:fly={{ y: 200, duration: 280 }}
 	>

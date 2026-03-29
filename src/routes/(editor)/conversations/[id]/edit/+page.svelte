@@ -11,8 +11,11 @@
 	let { data }: { data: PageData } = $props();
 
 	// ── Editable state ─────────────────────────────────────────────────────────
+	// svelte-ignore state_referenced_locally — intentional initial-value capture for editor fields
 	let title = $state(data.prompt.title ?? '');
+	// svelte-ignore state_referenced_locally
 	let body = $state<JSONContent>(data.prompt.body ?? { type: 'doc', content: [{ type: 'paragraph' }] });
+	// svelte-ignore state_referenced_locally
 	let coverImageUrl = $state(data.prompt.cover_image_url || '');
 	let coverPreview = $state<string | null>(null);
 
