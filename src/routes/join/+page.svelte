@@ -132,7 +132,7 @@
 <style>
 	.join-nav {
 		position: fixed;
-		top: 24px;
+		top: var(--space-6);
 		right: 0;
 		width: 50%;
 		z-index: 100;
@@ -172,7 +172,7 @@
 		width: 50%;
 		height: 100%;
 		position: relative;
-		padding: 16px 0 16px 16px;
+		padding: var(--space-4) 0 var(--space-4) var(--space-4);
 		box-sizing: border-box;
 	}
 
@@ -182,17 +182,17 @@
 		object-fit: cover;
 		object-position: center;
 		display: block;
-		border-radius: 8px;
+		border-radius: var(--radius-card);
 	}
 
 	.image-half::after {
 		content: '';
 		position: absolute;
-		top: 16px;
+		top: var(--space-4);
 		right: 0;
-		bottom: 16px;
-		left: 16px;
-		border-radius: 8px;
+		bottom: var(--space-4);
+		left: var(--space-4);
+		border-radius: var(--radius-card);
 		background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.4'/%3E%3C/svg%3E");
 		background-size: 128px 128px;
 		mix-blend-mode: overlay;
@@ -216,47 +216,47 @@
 	}
 
 	h1 {
-		margin: 0 0 0.5rem 0;
-		font-size: 1.75rem;
+		margin: 0 0 var(--space-2) 0;
+		font-size: var(--text-3xl);
 		font-weight: normal;
 		color: var(--text-primary);
 	}
 
 	.subtitle {
-		margin: 0 0 1.5rem 0;
+		margin: 0 0 var(--space-6) 0;
 		color: var(--text-muted);
-		font-size: 0.95rem;
+		font-size: var(--text-md);
 	}
 
 	.error-message {
 		background: rgba(220, 53, 69, 0.1);
 		border: 1px solid rgba(220, 53, 69, 0.3);
-		color: #dc3545;
-		padding: 0.75rem 1rem;
-		border-radius: 4px;
-		margin-bottom: 1.5rem;
-		font-size: 0.9rem;
+		color: var(--color-danger);
+		padding: var(--space-3) var(--space-4);
+		border-radius: var(--radius-input);
+		margin-bottom: var(--space-6);
+		font-size: var(--text-base);
 	}
 
 	.form-group {
-		margin-bottom: 1.25rem;
+		margin-bottom: var(--space-5);
 	}
 
 	label {
 		display: block;
-		margin-bottom: 0.5rem;
+		margin-bottom: var(--space-2);
 		color: var(--text-secondary);
-		font-size: 0.95rem;
+		font-size: var(--text-md);
 	}
 
 	input[type='text'],
 	input[type='email'],
 	input[type='password'] {
 		width: 100%;
-		padding: 0.75rem;
+		padding: var(--space-3);
 		border: 1px solid var(--border-link);
-		border-radius: 4px;
-		font-size: 1rem;
+		border-radius: var(--radius-input);
+		font-size: var(--text-lg);
 		font-family: inherit;
 		background: var(--bg-canvas);
 		color: var(--text-primary);
@@ -271,26 +271,26 @@
 
 	input:disabled,
 	input[readonly] {
-		opacity: 0.6;
+		opacity: var(--opacity-disabled);
 		cursor: not-allowed;
 	}
 
 	.hint {
-		margin: 0.5rem 0 0 0;
-		font-size: 0.85rem;
+		margin: var(--space-2) 0 0 0;
+		font-size: var(--text-sm);
 		color: var(--text-muted);
 	}
 
 	.checkbox-group {
-		margin-top: 0.5rem;
+		margin-top: var(--space-2);
 	}
 
 	.checkbox-label {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--space-2);
 		cursor: pointer;
-		font-size: 0.95rem;
+		font-size: var(--text-md);
 		color: var(--text-primary);
 	}
 
@@ -302,32 +302,32 @@
 
 	.submit-btn {
 		width: 100%;
-		padding: 0.85rem;
+		padding: var(--space-3);
 		background: var(--text-primary);
 		color: var(--bg-canvas);
 		border: none;
-		border-radius: 4px;
-		font-size: 1rem;
+		border-radius: var(--radius-input);
+		font-size: var(--text-lg);
 		font-family: inherit;
 		cursor: pointer;
 		transition: opacity 0.2s;
-		margin-top: 0.5rem;
+		margin-top: var(--space-2);
 	}
 
 	.submit-btn:hover:not(:disabled) {
-		opacity: 0.9;
+		opacity: var(--opacity-hover-btn);
 	}
 
 	.submit-btn:disabled {
-		opacity: 0.6;
+		opacity: var(--opacity-disabled);
 		cursor: not-allowed;
 	}
 
 	.switch-auth {
-		margin: 1.5rem 0 0 0;
+		margin: var(--space-6) 0 0 0;
 		text-align: center;
 		color: var(--text-muted);
-		font-size: 0.95rem;
+		font-size: var(--text-md);
 	}
 
 	.link-btn,
@@ -356,19 +356,19 @@
 		.image-half {
 			width: 100%;
 			height: 40vh;
-			padding: 16px 16px 0 16px;
+			padding: var(--space-4) var(--space-4) 0 var(--space-4);
 		}
 
 		.image-half img {
-			border-radius: 8px;
+			border-radius: var(--radius-input);
 		}
 
 		.image-half::after {
-			top: 16px;
-			right: 16px;
+			top: var(--space-4);
+			right: var(--space-4);
 			bottom: 0;
-			left: 16px;
-			border-radius: 8px;
+			left: var(--space-4);
+			border-radius: var(--radius-input);
 		}
 
 		.join-nav {

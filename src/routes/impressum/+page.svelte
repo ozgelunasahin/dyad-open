@@ -82,70 +82,70 @@
 	}
 
 	.legal-page {
-		max-width: 600px;
+		max-width: var(--content-narrow);
 		margin: 0 auto;
-		padding: 80px 24px 120px;
-		
-		font-size: 16px;
-		line-height: 1.7;
-		color: var(--text-secondary, #333);
+		padding: 80px var(--space-6) 120px;
+
+		font-size: var(--text-lg);
+		line-height: var(--leading-relaxed);
+		color: var(--text-secondary);
 	}
 
 	.back-link {
 		display: inline-block;
 		margin-bottom: 48px;
-		font-size: 14px;
-		color: var(--text-muted, #666);
+		font-size: var(--text-base);
+		color: var(--text-muted);
 		text-decoration: none;
 		transition: color 0.2s;
 	}
 
 	.back-link:hover {
-		color: var(--text-primary, #1a1a1a);
+		color: var(--text-primary);
 	}
 
 	h1 {
-		font-size: 28px;
+		font-size: var(--text-3xl);
 		font-weight: normal;
-		color: var(--text-primary, #1a1a1a);
-		margin: 0 0 8px;
+		color: var(--text-primary);
+		margin: 0 0 var(--space-2);
 	}
 
 	.subtitle {
-		font-size: 14px;
-		color: var(--text-muted, #666);
+		font-size: var(--text-base);
+		color: var(--text-muted);
 		margin: 0 0 48px;
 	}
 
 	h2 {
-		font-size: 16px;
+		font-size: var(--text-lg);
 		font-weight: 500;
-		color: var(--text-primary, #1a1a1a);
-		margin: 32px 0 8px;
+		color: var(--text-primary);
+		margin: var(--space-8) 0 var(--space-2);
 	}
 
 	h3 {
-		font-size: 15px;
+		font-size: var(--text-md);
 		font-weight: 500;
-		color: var(--text-primary, #1a1a1a);
-		margin: 24px 0 4px;
+		color: var(--text-primary);
+		margin: var(--space-6) 0 var(--space-1);
 	}
 
 	section {
-		margin-bottom: 8px;
+		margin-bottom: var(--space-2);
 	}
 
 	p {
-		margin: 0 0 8px;
+		margin: 0 0 var(--space-2);
 	}
 
 	a {
-		color: var(--text-secondary, #333);
+		color: var(--text-secondary);
 		text-decoration: underline;
 		text-underline-offset: 2px;
 	}
 
 	a:hover {
-		color: var(--text-primary, #1a1a1a);
+		color: var(--text-primary);
 	}
 </style>

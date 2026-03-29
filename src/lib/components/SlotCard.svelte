@@ -64,11 +64,11 @@
 	}
 
 	.slot-card.invited {
-		opacity: 0.5;
+		opacity: var(--opacity-disabled);
 	}
 
 	.slot-card.past {
-		opacity: 0.5;
+		opacity: var(--opacity-disabled);
 	}
 
 	.slot-date {

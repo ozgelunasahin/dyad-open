@@ -106,38 +106,38 @@
 		display: flex;
 		align-items: center;
 		gap: 2px;
-		padding: 6px 8px;
-		border: 1px solid var(--border-link, rgba(0, 0, 0, 0.12));
+		padding: var(--space-1) var(--space-2);
+		border: 1px solid var(--border-link);
 		border-bottom: none;
-		border-radius: 6px 6px 0 0;
-		background: var(--bg-control, rgba(0, 0, 0, 0.02));
+		border-radius: var(--radius-input) var(--radius-input) 0 0;
+		background: var(--bg-control);
 	}
 
 	.tb {
-		font-size: 13px;
-		padding: 4px 8px;
+		font-size: var(--text-sm);
+		padding: var(--space-1) var(--space-2);
 		border: none;
-		border-radius: 3px;
+		border-radius: var(--radius-input);
 		background: none;
-		color: var(--text-muted, #666);
+		color: var(--text-muted);
 		cursor: pointer;
 		transition: background 0.1s, color 0.1s;
 	}
 
-	.tb:hover { background: var(--bg-control, rgba(0, 0, 0, 0.06)); color: var(--text-primary); }
-	.tb.active { background: var(--text-primary, #1a1a1a); color: var(--bg-canvas, #f5f3f0); }
+	.tb:hover { background: var(--bg-control); color: var(--text-primary); }
+	.tb.active { background: var(--text-primary); color: var(--bg-canvas); }
 
 	.tb-sep {
 		width: 1px;
-		height: 16px;
-		background: var(--border-link, rgba(0, 0, 0, 0.1));
-		margin: 0 4px;
+		height: var(--space-4);
+		background: var(--border-link);
+		margin: 0 var(--space-1);
 	}
 
 	.editor {
-		border: 1px solid var(--border-link, rgba(0, 0, 0, 0.12));
-		border-radius: 0 0 6px 6px;
-		padding: 16px 20px;
+		border: 1px solid var(--border-link);
+		border-radius: 0 0 var(--radius-input) var(--radius-input);
+		padding: var(--space-4) var(--space-5);
 		min-height: 200px;
 	}
 
@@ -158,44 +158,44 @@
 	}
 
 	.editor :global(.tiptap h1) {
-		font-size: 1.5rem;
+		font-size: var(--text-2xl);
 		font-weight: 500;
 		margin: 1.2em 0 0.5em;
 	}
 
 	.editor :global(.tiptap h2) {
-		font-size: 1.2rem;
+		font-size: var(--text-xl);
 		font-weight: 500;
 		margin: 1em 0 0.4em;
 	}
 
 	.editor :global(.tiptap blockquote) {
-		border-left: 2px solid var(--text-muted, #ccc);
-		padding-left: 16px;
+		border-left: 2px solid var(--text-muted);
+		padding-left: var(--space-4);
 		margin: 0.75em 0;
-		color: var(--text-muted, #666);
+		color: var(--text-muted);
 	}
 
 	.editor :global(.tiptap ul),
 	.editor :global(.tiptap ol) {
-		padding-left: 24px;
+		padding-left: var(--space-6);
 		margin: 0.5em 0;
 	}
 
 	.editor :global(.tiptap a) {
-		color: var(--text-link, #555);
+		color: var(--text-link);
 		text-decoration: underline;
 	}
 
 	.editor :global(.tiptap img) {
 		max-width: 100%;
-		border-radius: 4px;
+		border-radius: var(--radius-input);
 		margin: 0.75em 0;
 	}
 
 	.editor :global(.tiptap p.is-editor-empty:first-child::before) {
 		content: 'Start writing your conversation...';
-		color: var(--text-muted, #c0bdb8);
+		color: var(--text-muted);
 		pointer-events: none;
 		float: left;
 		height: 0;

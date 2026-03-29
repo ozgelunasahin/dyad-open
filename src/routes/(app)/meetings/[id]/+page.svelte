@@ -139,7 +139,7 @@
 
 <style>
 	/* .back-link uses global shared class */
-	.content { width: 100%; max-width: 560px; }
+	.content { width: 100%; max-width: var(--content-narrow); }
 
 	.meeting-header { margin-bottom: var(--space-6); }
 	.meeting-with { font-size: var(--text-2xl); font-weight: normal; display: block; line-height: var(--leading-tight); }
@@ -157,14 +157,10 @@
 	.note-body { font-size: var(--text-md); line-height: var(--leading-normal); margin: 0; font-style: italic; color: var(--text-secondary); }
 
 	.prompt-item { display: block; border: 1px solid var(--border-link); border-radius: var(--radius-card); margin-bottom: var(--space-6); transition: opacity 0.15s; }
-	.prompt-item:hover { opacity: 0.72; }
-	.prompt-row { display: flex; gap: var(--space-4); padding: var(--space-4); align-items: stretch; }
-	.row-thumb { position: relative; flex-shrink: 0; width: 72px; min-height: 72px; border-radius: var(--radius-input); overflow: hidden; }
-	.thumb-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+	.prompt-item:hover { opacity: var(--opacity-hover-card); }
+	/* .row-thumb, .thumb-img, .row-body, .row-title, .row-status — shared.css */
+	.prompt-row { padding: var(--space-4); }
 	.thumb-placeholder { position: absolute; inset: 0; background: var(--bg-control); }
-	.row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
-	.row-title { margin: 0 0 var(--space-1); font-size: var(--text-md); font-weight: 500; line-height: var(--leading-tight); }
-	.row-status { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
 
 	/* Feedback status */
 	.feedback-status { margin-bottom: var(--space-6); padding: var(--space-4); border: 1px solid var(--border-link); border-radius: var(--radius-card); }
@@ -173,14 +169,10 @@
 
 	/* Revealed feedback */
 	.revealed-section { margin-bottom: var(--space-6); }
-	.section-title { font-size: var(--text-lg); font-weight: normal; margin: 0 0 var(--space-4); }
-	.reveal-card { padding: var(--space-5); border: 1px solid var(--border-link); border-radius: var(--radius-card); margin-bottom: var(--space-3); }
-	.reveal-noshow { font-size: var(--text-sm); color: var(--text-muted); font-style: italic; margin: 0 0 var(--space-3); }
-	.reveal-quote { font-size: var(--text-md); line-height: var(--leading-relaxed); margin: 0 0 var(--space-4); padding-left: var(--space-4); border-left: 2px solid var(--text-muted); color: var(--text-primary); }
-	.reveal-tags { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px; }
-	.reveal-tag { font-size: 12px; padding: 4px 12px; background: rgba(0,0,0,0.05); border-radius: 12px; color: var(--text-primary); }
+	.section-title { margin: 0 0 var(--space-4); }
+	/* .reveal-card, .reveal-noshow, .reveal-quote, .reveal-tags, .reveal-tag — shared.css */
 
 	.cancel-btn { font-size: var(--text-sm); padding: var(--space-2) var(--space-5); border: 1px solid var(--border-link); border-radius: var(--radius-input); background: none; color: var(--text-muted); cursor: pointer; }
 	.cancel-btn:hover { border-color: var(--color-danger); color: var(--color-danger); }
-	.cancel-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+	.cancel-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 </style>

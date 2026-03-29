@@ -134,7 +134,7 @@
 		height: 36px;
 		border: none;
 		background: transparent;
-		font-size: 1.6rem;
+		font-size: var(--text-2xl);
 		line-height: 1;
 		color: var(--text-muted);
 		cursor: pointer;
@@ -245,7 +245,7 @@
 		min-width: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 3px;
+		gap: var(--space-1);
 		justify-content: center;
 	}
 

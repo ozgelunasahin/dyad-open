@@ -46,14 +46,14 @@
 		bottom: 0;
 		left: 50%;
 		transform: translateX(-50%);
-		background: var(--bg-canvas, #f5f3f0);
-		border-radius: 16px 16px 0 0;
+		background: var(--bg-canvas);
+		border-radius: var(--radius-card) var(--radius-card) 0 0;
 		box-shadow: 0 -4px 32px rgba(0, 0, 0, 0.18);
 		width: 100%;
 		max-width: 480px;
 		max-height: 50vh;
 		overflow-y: auto;
-		padding: 20px;
+		padding: var(--space-5);
 		box-sizing: border-box;
 		z-index: 600;
 	}
@@ -61,44 +61,44 @@
 	.sheet-body {
 		display: flex;
 		flex-direction: column;
-		gap: 12px;
+		gap: var(--space-3);
 	}
 
 	.sheet-card {
 		display: flex;
-		gap: 12px;
-		padding: 12px 0;
-		border-bottom: 1px solid var(--border-link, rgba(0, 0, 0, 0.08));
+		gap: var(--space-3);
+		padding: var(--space-3) 0;
+		border-bottom: 1px solid var(--border-link);
 		text-decoration: none;
 		color: inherit;
 		transition: opacity 0.15s;
 	}
 
 	.sheet-card:last-child { border-bottom: none; }
-	.sheet-card:hover { opacity: 0.72; }
+	.sheet-card:hover { opacity: var(--opacity-hover-card); }
 
 	.card-thumb {
 		width: 64px;
 		height: 64px;
 		object-fit: cover;
-		border-radius: 6px;
+		border-radius: var(--radius-input);
 		flex-shrink: 0;
 	}
 
 	.card-content { flex: 1; min-width: 0; }
 
 	.card-title {
-		font-size: 0.95rem;
+		font-size: var(--text-md);
 		font-weight: 500;
 		color: var(--text-primary);
-		margin: 0 0 4px;
+		margin: 0 0 var(--space-1);
 		line-height: 1.3;
 	}
 
 	.card-snippet {
-		font-size: 0.8rem;
-		color: var(--text-muted, #666);
-		margin: 0 0 6px;
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+		margin: 0 0 var(--space-1);
 		line-height: 1.4;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
@@ -109,9 +109,9 @@
 
 	.card-meta {
 		display: flex;
-		gap: 8px;
-		font-size: 0.7rem;
-		color: var(--text-muted, #999);
+		gap: var(--space-2);
+		font-size: var(--text-xs);
+		color: var(--text-muted);
 	}
 
 	.meta-date {
@@ -122,8 +122,8 @@
 	@media (min-width: 769px) {
 		.sheet {
 			left: calc(50% + 90px);
-			bottom: 24px;
-			border-radius: 12px;
+			bottom: var(--space-6);
+			border-radius: var(--radius-card);
 			max-width: 680px;
 			max-height: 60vh;
 		}

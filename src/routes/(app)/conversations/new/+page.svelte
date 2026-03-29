@@ -1,3 +1,3 @@
-<p style="text-align: center; padding: 4rem; color: var(--text-muted, #999); ">
+<p style="text-align: center; padding: var(--space-10); color: var(--text-muted);">
 	Creating conversation...
 </p>
