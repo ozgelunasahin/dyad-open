@@ -53,7 +53,7 @@ export const copy = {
 	landing: {
 		_routes: ['/'],
 		_description: 'Landing page for unauthenticated visitors.',
-		rotatingWords: ['writers', 'artists', 'thinkers', 'listeners', 'neighbours', 'strangers', 'dreamers', 'you'],
+		rotatingWords: ['writers', 'parents', 'listeners', 'neighbours', 'strangers', 'friends', 'berliners', 'you'],
 		tagline: 'cultivating a culture of conversation',
 		joinWaitlist: 'join waitlist',
 		logIn: 'log in',
