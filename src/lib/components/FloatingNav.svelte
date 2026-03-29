@@ -4,7 +4,7 @@
 
 	let {
 		variant = 'discover',
-		position = 'top',
+		position = 'bottom',
 		active = '',
 		attentionCount = 0,
 		onMapClick,
@@ -186,13 +186,15 @@
 			{#if attentionCount > 0}<span class="badge-dot"><span class="sr-only">{attentionCount} notifications</span></span>{/if}
 		</a>
 	{:else if variant === 'default'}
-		<!-- Default variant: Discover + Profile -->
+		<!-- Default variant: Discover (left) + Profile (right) -->
 		<a href="/discover" class="nav-btn" aria-label="Discover">
 			<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
 				<circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.6"/>
 				<path d="M14 14l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
 			</svg>
 		</a>
+
+		<span class="nav-spacer"></span>
 
 		<a href="/profile" class="nav-btn" aria-label="Profile">
 			<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -248,10 +250,7 @@
 	.floating-nav.top { top: var(--space-4); }
 	.floating-nav.bottom { bottom: var(--space-5); }
 
-	/* Default variant hidden on desktop (sidebar handles nav) */
-	@media (min-width: 769px) {
-		.floating-nav.default-variant { display: none; }
-	}
+	/* FloatingNav visible on all viewports — no sidebar */
 
 	.nav-btn {
 		position: relative;
@@ -366,7 +365,7 @@
 
 	.continue-dropdown {
 		position: absolute;
-		top: calc(100% + var(--space-2));
+		bottom: calc(100% + var(--space-2));
 		right: 0;
 		background: var(--bg-canvas);
 		border-radius: var(--radius-card);
@@ -453,12 +452,4 @@
 	.clear-dates-top { top: 140px; }
 	.clear-dates-bottom { bottom: 148px; }
 
-	/* Desktop: offset all fixed-center elements by sidebar width */
-	@media (min-width: 769px) {
-		.floating-nav,
-		.date-panel,
-		.clear-dates {
-			left: calc(50% + 90px);
-		}
-	}
 </style>

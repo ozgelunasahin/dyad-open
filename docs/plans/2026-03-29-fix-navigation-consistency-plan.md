@@ -1,7 +1,7 @@
 ---
 title: "fix: Navigation consistency — remove sidebar, FloatingNav everywhere"
 type: fix
-status: active
+status: completed
 date: 2026-03-29
 reviewed: 2026-03-29
 ---

@@ -106,16 +106,18 @@ Derived from what the design reference actually uses. 8 levels.
 
 ### Breakpoints
 
-Two-tier responsive system:
 - **430px** — phone layout threshold (content stacking, column collapse)
-- **768px** — sidebar visibility threshold (sidebar shows/hides, FloatingNav default variant shows/hides)
 
-### Desktop (> 768px)
-- **Sidebar**: 180px wide, sticky, full height. Logo top, nav links, @username + sign out at bottom.
-- **Main content**: flex: 1, padding: 2rem, centered column, max-width varies by page.
-- **Sidebar divider**: 1px solid `--border-link`
+### All Viewports
 
-### Tablet/Phone (≤ 768px)
+- **No sidebar.** FloatingNav is the sole navigation on all viewports (desktop + mobile).
+- **FloatingNav**: fixed pill at bottom, glassmorphic. Visible everywhere.
+- **Main content**: full-width, padding: `--space-4`, centered column, max-width varies by page.
+- **Admin access**: icon button next to the feedback "?" button (bottom-right, admin users only).
+- **Sign-out**: on profile page only (standard PWA pattern).
+- **Desktop nav revisit planned for v0.2** — see `docs/design/archive/sidebar-desktop-nav-reference.md` for archived sidebar styling.
+
+### Phone (≤ 430px)
 - **Sidebar**: hidden entirely
 - **FloatingNav**: fixed pill at top, replaces sidebar navigation
 - **Main content**: padding: 1rem

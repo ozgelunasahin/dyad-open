@@ -176,7 +176,6 @@
 <div class="floating-nav-wrapper">
 	<FloatingNav
 		variant="discover"
-		position="top"
 		active={viewMode === 'map' ? 'map' : ''}
 		attentionCount={data.attentionCount ?? 0}
 		onMapClick={() => viewMode = viewMode === 'map' ? 'list' : 'map'}
@@ -206,16 +205,10 @@
 		left: 0;
 	}
 
-	@media (min-width: 769px) {
-		.map-pane {
-			left: 180px; /* sidebar width */
-		}
-	}
-
 	.content {
 		width: 100%;
 		max-width: var(--content-wide);
-		padding-top: 64px; /* Space for top-anchored FloatingNav */
+		padding-bottom: 80px; /* Space for bottom-anchored FloatingNav */
 	}
 
 	.empty-state {

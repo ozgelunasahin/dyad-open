@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { copy } from '$lib/copy';
 
+	let { isAdmin = false }: { isAdmin?: boolean } = $props();
+
 	let dialog: HTMLDialogElement | undefined = $state();
 	let description = $state('');
 	let type = $state<'bug' | 'feature' | 'other'>('bug');
@@ -48,7 +50,16 @@
 	}
 </script>
 
-<button class="feedback-trigger" onclick={open} aria-label="Send feedback">?</button>
+<div class="trigger-group">
+	{#if isAdmin}
+		<a href="/admin" class="admin-trigger" aria-label="Admin panel">
+			<svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+				<path d="M10 2L2 7v6l8 5 8-5V7L10 2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+			</svg>
+		</a>
+	{/if}
+	<button class="feedback-trigger" onclick={open} aria-label="Send feedback">?</button>
+</div>
 
 <dialog bind:this={dialog}>
 	{#if submitted}
@@ -85,10 +96,33 @@
 </dialog>
 
 <style>
-	.feedback-trigger {
+	.trigger-group {
 		position: fixed;
-		bottom: var(--space-4);
+		bottom: 80px; /* above FloatingNav */
 		right: var(--space-4);
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+		align-items: center;
+		z-index: 900;
+	}
+
+	.admin-trigger {
+		width: 36px;
+		height: 36px;
+		border-radius: 50%;
+		background: var(--bg-canvas);
+		color: var(--text-muted);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+		transition: color 0.15s;
+		border: 1px solid var(--border-link);
+	}
+	.admin-trigger:hover { color: var(--text-primary); }
+
+	.feedback-trigger {
 		width: 40px;
 		height: 40px;
 		border-radius: 50%;
@@ -99,7 +133,6 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		z-index: 900;
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 		transition: opacity 0.15s;
 	}

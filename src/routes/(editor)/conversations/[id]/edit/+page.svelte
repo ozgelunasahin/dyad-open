@@ -228,7 +228,6 @@
 <div class="floating-nav-wrapper">
 	<FloatingNav
 		variant="editor"
-		position="top"
 		saveStatus={saveStatus}
 		onBack={handleBack}
 		onSaveDraft={handleSaveDraft}
@@ -328,7 +327,7 @@
 
 <style>
 	.floating-nav-wrapper { display: block; }
-	.content { width: 100%; max-width: var(--content-standard); padding-top: 72px; }
+	.content { width: 100%; max-width: var(--content-standard); padding-bottom: 80px; }
 
 	/* Cover image placeholder */
 	.cover-placeholder {

@@ -436,8 +436,7 @@
 	.empty { color: var(--text-muted); padding: var(--space-6) 0; }
 	.empty a { text-decoration: underline; }
 
-	/* Mobile: top padding for FloatingNav */
-	@media (max-width: 768px) { .content { padding-top: 64px; } }
+	/* No top padding needed — FloatingNav is at bottom */
 
 	/* Sign-out: hidden on desktop (sidebar has it), visible on mobile */
 	.sign-out-section { display: none; }
