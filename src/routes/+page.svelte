@@ -232,6 +232,8 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-4);
+		/* Space above the fixed footer */
+		padding-bottom: var(--space-10);
 	}
 
 	.join-btn {
@@ -275,8 +277,6 @@
 		box-sizing: border-box;
 		z-index: 100;
 	}
-
-	.page-footer.hidden { display: none; }
 
 	.theme-toggle {
 		background: none;
@@ -407,6 +407,8 @@
 			width: 100%;
 			padding: var(--space-3) var(--space-4);
 		}
+
+		.page-footer.hidden { display: none; }
 
 		.right-col :global(.floating-nav-anchor) {
 			position: fixed;
