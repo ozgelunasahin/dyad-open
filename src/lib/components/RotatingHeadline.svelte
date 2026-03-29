@@ -69,10 +69,5 @@
 		.headline {
 			font-size: 11vw;
 		}
-		.rotating-wrapper {
-			/* Reserve two lines on mobile to prevent reflow
-			   when "people with questions" wraps */
-			min-height: 1.85em;
-		}
 	}
 </style>
