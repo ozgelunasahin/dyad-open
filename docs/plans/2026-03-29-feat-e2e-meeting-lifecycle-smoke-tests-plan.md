@@ -1,7 +1,7 @@
 ---
 title: "feat: E2E smoke tests for meeting lifecycle states"
 type: feat
-status: active
+status: completed
 date: 2026-03-29
 ---
 
@@ -133,12 +133,12 @@ test.describe('Meeting lifecycle states', () => {
 
 ## Acceptance Criteria
 
-- [ ] lisa, nina, kai added to `TEST_USERS` in `tests/helpers/auth.ts`
-- [ ] lisa, nina, kai authenticated in `tests/auth.setup.ts`
-- [ ] `tests/e2e/meeting-states.test.ts` — 7 smoke tests covering all states
-- [ ] All 7 tests pass on clean `supabase db reset`
-- [ ] Existing 15 tests still pass (no regressions)
-- [ ] Tests are read-only (no data mutation, no cleanup needed)
+- [x] lisa, nina, kai added to `TEST_USERS` in `tests/helpers/auth.ts`
+- [x] lisa, nina, kai authenticated in `tests/auth.setup.ts`
+- [x] `tests/e2e/meeting-states.test.ts` — 8 smoke tests covering all states
+- [x] All 8 tests pass on clean `supabase db reset`
+- [x] Existing tests still pass (26/26 total, no regressions)
+- [x] Tests are read-only (no data mutation, no cleanup needed)
 
 ## Context
 
