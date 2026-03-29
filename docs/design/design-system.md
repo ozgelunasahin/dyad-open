@@ -78,19 +78,46 @@ Derived from what the design reference actually uses. 8 levels.
 | Token | Value | Usage |
 |-------|-------|-------|
 | `--radius-pill` | 999px | FloatingNav, search pill, username badge, Continue button |
-| `--radius-card` | 12px | Profile card, action cards, cover preview, bottom sheet, dropdown |
+| `--radius-surface` | 20px | Container-level cards: profile card, action cards |
+| `--radius-card` | 12px | Content-level cards: cover preview, bottom sheet, dropdown, attention cards, meeting rows |
 | `--radius-input` | 6px | Inputs, buttons, selects, thumbnails, location dropdown |
+
+## Interaction Opacity
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--opacity-hover-card` | 0.72 | List items, cards, links on hover |
+| `--opacity-hover-btn` | 0.85 | Buttons, primary actions on hover |
+| `--opacity-disabled` | 0.5 | All disabled states |
+
+## Content Widths
+
+| Token | Value | Pages |
+|-------|-------|-------|
+| `--content-narrow` | 560px | Meetings detail, feedback form |
+| `--content-standard` | 700px | Conversation detail, profile, editor |
+| `--content-wide` | 800px | Discover feed |
+
+## Glassmorphic Surfaces
+
+`--bg-glass: rgba(245, 244, 240, 0.96)` — used for FloatingNav, date filter panel, and other floating UI. Dark mode: `rgba(10, 10, 10, 0.96)`.
 
 ## Layout
 
-### Desktop (> 430px)
+### Breakpoints
+
+Two-tier responsive system:
+- **430px** — phone layout threshold (content stacking, column collapse)
+- **768px** — sidebar visibility threshold (sidebar shows/hides, FloatingNav default variant shows/hides)
+
+### Desktop (> 768px)
 - **Sidebar**: 180px wide, sticky, full height. Logo top, nav links, @username + sign out at bottom.
-- **Main content**: flex: 1, padding: 2rem, centered column, max-width varies by page (700px for content pages, 800px for discover).
+- **Main content**: flex: 1, padding: 2rem, centered column, max-width varies by page.
 - **Sidebar divider**: 1px solid `--border-link`
 
-### Mobile (<= 430px)
+### Tablet/Phone (≤ 768px)
 - **Sidebar**: hidden entirely
-- **FloatingNav**: fixed pill at top or bottom, replaces sidebar navigation
+- **FloatingNav**: fixed pill at top, replaces sidebar navigation
 - **Main content**: padding: 1rem
 
 ### Editor

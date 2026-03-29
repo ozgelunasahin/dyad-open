@@ -103,7 +103,7 @@
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 		transition: opacity 0.15s;
 	}
-	.feedback-trigger:hover { opacity: 0.85; }
+	.feedback-trigger:hover { opacity: var(--opacity-hover-btn); }
 
 	dialog {
 		border: none;

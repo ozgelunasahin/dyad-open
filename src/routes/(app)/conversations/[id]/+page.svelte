@@ -280,7 +280,7 @@
 <FloatingNav variant="default" attentionCount={data.attentionCount ?? 0} />
 
 <style>
-	.content { width: 100%; max-width: 700px; }
+	.content { width: 100%; max-width: var(--content-standard); }
 
 	.cover { width: 100%; max-height: 400px; object-fit: cover; border-radius: var(--radius-card); margin-bottom: var(--space-6); }
 
@@ -292,7 +292,7 @@
 	.body :global(h1), .body :global(h2) { margin: 1.2em 0 0.5em; font-weight: 500; }
 	.body :global(blockquote) { border-left: 2px solid var(--text-muted); padding-left: var(--space-4); color: var(--text-muted); }
 	.body :global(a) { color: var(--text-link); text-decoration: underline; }
-	.body :global(img) { max-width: 100%; border-radius: 4px; }
+	.body :global(img) { max-width: 100%; border-radius: var(--radius-input); }
 
 	/* Author actions */
 	.author-actions { display: flex; gap: var(--space-4); margin-bottom: var(--space-6); }
@@ -357,6 +357,6 @@
 	.response-body { font-size: var(--text-base); margin: 0 0 var(--space-1); line-height: var(--leading-normal); }
 	.response-invitation { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--border-link); }
 	.meeting-link { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-success); display: block; margin-bottom: var(--space-2); }
-	.meeting-link:hover { opacity: 0.7; }
+	.meeting-link:hover { opacity: var(--opacity-hover-card); }
 	.inv-message { font-size: var(--text-sm); color: var(--text-secondary); font-style: italic; margin: var(--space-2) 0 var(--space-3); }
 </style>

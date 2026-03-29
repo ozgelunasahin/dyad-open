@@ -37,7 +37,7 @@
 		flex-shrink: 0;
 		display: flex;
 		flex-direction: column;
-		padding: 1.5rem 1.25rem;
+		padding: var(--space-6) var(--space-5);
 		border-right: 1px solid var(--border-link);
 		position: sticky;
 		top: 0;
@@ -45,18 +45,18 @@
 		box-sizing: border-box;
 	}
 
-	.sidebar-logo { display: block; margin-bottom: 1.25rem; padding: 0 0.65rem; }
+	.sidebar-logo { display: block; margin-bottom: var(--space-5); padding: 0 0.65rem; }
 	.sidebar-logo-img { width: 22px; height: auto; object-fit: contain; filter: brightness(0) opacity(0.4); }
 	:global([data-theme='dark']) .sidebar-logo-img { filter: brightness(0) invert(1) opacity(0.7); }
 
-	.sidebar-nav { display: flex; flex-direction: column; gap: 0.25rem; }
-	.sidebar-link { display: block; padding: 0.5rem 0.65rem; color: var(--text-muted); text-decoration: none; font-size: 0.9rem; border-radius: 4px; transition: color 0.15s, background 0.15s; }
-	.sidebar-link:hover { color: var(--text-primary); background: var(--bg-control, rgba(0, 0, 0, 0.03)); }
+	.sidebar-nav { display: flex; flex-direction: column; gap: var(--space-1); }
+	.sidebar-link { display: block; padding: var(--space-2) 0.65rem; color: var(--text-muted); text-decoration: none; font-size: var(--text-base); border-radius: var(--radius-input); transition: color 0.15s, background 0.15s; }
+	.sidebar-link:hover { color: var(--text-primary); background: var(--bg-control); }
 	.sidebar-link.active { color: var(--text-primary); font-weight: 500; }
 
 	.sidebar-badge {
 		font-family: var(--font-mono);
-		font-size: 10px;
+		font-size: var(--text-xs);
 		background: var(--text-primary);
 		color: var(--bg-canvas);
 		padding: 1px 5px;
@@ -65,9 +65,9 @@
 		vertical-align: middle;
 	}
 
-	.sidebar-bottom { margin-top: auto; display: flex; flex-direction: column; gap: 0.5rem; }
-	.sidebar-username { color: var(--text-muted); font-size: 0.8rem; font-family: var(--font-mono); }
-	.sidebar-logout { color: var(--text-muted); text-decoration: none; font-size: 0.8rem; transition: color 0.2s; }
+	.sidebar-bottom { margin-top: auto; display: flex; flex-direction: column; gap: var(--space-2); }
+	.sidebar-username { color: var(--text-muted); font-size: var(--text-sm); font-family: var(--font-mono); }
+	.sidebar-logout { color: var(--text-muted); text-decoration: none; font-size: var(--text-sm); transition: color 0.2s; }
 	.sidebar-logout:hover { color: var(--text-primary); }
 
 	@media (max-width: 768px) {

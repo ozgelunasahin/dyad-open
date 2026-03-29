@@ -14,7 +14,7 @@ origin: design review by 4 agents (architecture, pattern, simplicity, explore)
 
 4 review agents found 23+ categories of visual inconsistency. Root cause: CSS was written without consulting the token system. See `docs/solutions/process/design-system-is-a-contract-not-a-reference.md`.
 
-Key numbers: 25+ hardcoded font sizes (8 tokens exist), 3 colour systems, ~475 lines duplicated CSS, 6+ hover opacities, 7 border-radius values (3 tokens exist).
+Key numbers: 25+ hardcoded font sizes (8 tokens exist), 3 colour systems, ~475 lines duplicated CSS, 6+ hover opacities, 7 border-radius values (4 tokens after PR1 adds `--radius-surface`).
 
 ## PR 1: Token enforcement + shared CSS
 

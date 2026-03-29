@@ -133,7 +133,7 @@
 				<div class="empty-state">
 					<p>{copy.discover.noConversations}</p>
 					<p class="empty-hint">{copy.discover.checkBackSoon}</p>
-					<a href="/conversations/new" class="start-prompt-btn" style="margin-top: 16px; display: inline-block;">{copy.discover.startConversation}</a>
+					<a href="/conversations/new" class="start-prompt-btn" style="margin-top: var(--space-4); display: inline-block;">{copy.discover.startConversation}</a>
 				</div>
 			{:else if filteredPrompts.length === 0}
 					<div class="empty-state">
@@ -214,7 +214,7 @@
 
 	.content {
 		width: 100%;
-		max-width: 800px;
+		max-width: var(--content-wide);
 		padding-top: 64px; /* Space for top-anchored FloatingNav */
 	}
 
@@ -229,14 +229,14 @@
 	}
 
 	.empty-hint {
-		font-size: 0.9rem;
+		font-size: var(--text-base);
 	}
 
 	.clear-filters-link {
 		background: none;
 		border: none;
 		color: var(--text-muted);
-		font-size: 0.9rem;
+		font-size: var(--text-base);
 		font-family: inherit;
 		cursor: pointer;
 		text-decoration: underline;
@@ -254,17 +254,17 @@
 	}
 
 	.start-prompt-btn {
-				font-size: 13px;
-		padding: 8px 20px;
-		border: 1px solid var(--text-primary, #1a1a1a);
-		border-radius: 6px;
-		background: var(--text-primary, #1a1a1a);
-		color: var(--bg-canvas, #f5f3f0);
+				font-size: var(--text-sm);
+		padding: var(--space-2) var(--space-5);
+		border: 1px solid var(--text-primary);
+		border-radius: var(--radius-input);
+		background: var(--text-primary);
+		color: var(--bg-canvas);
 		text-decoration: none;
 		transition: opacity 0.15s;
 	}
 
-	.start-prompt-btn:hover { opacity: 0.8; }
+	.start-prompt-btn:hover { opacity: var(--opacity-hover-btn); }
 
 	.prompt-item {
 		border-bottom: 1px solid var(--border-link);
@@ -274,7 +274,7 @@
 		transition: opacity 0.15s;
 	}
 
-	.prompt-item:hover { opacity: 0.72; }
+	.prompt-item:hover { opacity: var(--opacity-hover-card); }
 
 	.prompt-item:last-child {
 		border-bottom: none;
@@ -282,19 +282,19 @@
 
 	.prompt-row {
 		display: flex;
-		gap: 1.25rem;
-		padding: 1.5rem 0;
+		gap: var(--space-5);
+		padding: var(--space-6) 0;
 		text-decoration: none;
 		transition: background 0.15s;
 		align-items: stretch;
 	}
 
 	.prompt-row:hover {
-		background: var(--bg-control, rgba(0, 0, 0, 0.02));
-		margin: 0 -0.75rem;
-		padding-left: 0.75rem;
-		padding-right: 0.75rem;
-		border-radius: 4px;
+		background: var(--bg-control);
+		margin: 0 calc(-1 * var(--space-3));
+		padding-left: var(--space-3);
+		padding-right: var(--space-3);
+		border-radius: var(--radius-input);
 	}
 
 	.row-thumb {
@@ -302,23 +302,17 @@
 		flex-shrink: 0;
 		width: 88px;
 		min-height: 96px;
-		border-radius: 6px;
+		border-radius: var(--radius-input);
 		overflow: hidden;
 		align-self: stretch;
 	}
 
-	.thumb-img {
-		position: absolute;
-		inset: 0;
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-	}
+	/* .thumb-img — shared.css */
 
 	.thumb-placeholder {
 		position: absolute;
 		inset: 0;
-		background: var(--bg-control, rgba(0, 0, 0, 0.05));
+		background: var(--bg-control);
 		border: 1px solid var(--border-link);
 		border-radius: inherit;
 	}
@@ -332,12 +326,12 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: baseline;
-		gap: 0.75rem;
+		gap: var(--space-3);
 	}
 
 	.row-title {
 		margin: 0;
-		font-size: 1.05rem;
+		font-size: var(--text-lg);
 		font-weight: 500;
 		color: var(--text-primary);
 		line-height: 1.3;
@@ -347,14 +341,14 @@
 	.date {
 		flex-shrink: 0;
 		color: var(--text-muted);
-		font-size: 0.8rem;
+		font-size: var(--text-sm);
 		white-space: nowrap;
 	}
 
 	.row-snippet {
-		margin: 0.4rem 0 0;
+		margin: var(--space-1) 0 0;
 		color: var(--text-secondary);
-		font-size: 0.9rem;
+		font-size: var(--text-base);
 		line-height: 1.55;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
@@ -365,20 +359,20 @@
 
 	.row-meta {
 		display: flex;
-		gap: 0.75rem;
+		gap: var(--space-3);
 		align-items: center;
-		margin-top: 0.35rem;
+		margin-top: var(--space-1);
 		color: var(--text-muted);
-		font-size: 0.8rem;
+		font-size: var(--text-sm);
 	}
 
 	.author {
 		font-family: var(--font-mono);
-		font-size: 0.78rem;
+		font-size: var(--text-sm);
 	}
 
 	.area {
-		font-size: 0.78rem;
+		font-size: var(--text-sm);
 		text-transform: uppercase;
 		letter-spacing: 0.03em;
 	}
@@ -396,11 +390,11 @@
 		.row-top {
 			flex-direction: column;
 			align-items: flex-start;
-			gap: 0.2rem;
+			gap: var(--space-1);
 		}
 
 		.date {
-			font-size: 0.75rem;
+			font-size: var(--text-xs);
 			color: var(--text-muted);
 		}
 	}

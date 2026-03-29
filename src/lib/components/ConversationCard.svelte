@@ -60,7 +60,7 @@
 		transition: opacity 0.15s;
 	}
 
-	.card:hover { opacity: 0.72; }
+	.card:hover { opacity: var(--opacity-hover-card); }
 
 	.thumb {
 		width: 88px;

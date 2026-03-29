@@ -267,7 +267,7 @@
 <FloatingNav variant="default" attentionCount={data.attentionCount ?? 0} />
 
 <style>
-	.content { width: 100%; max-width: 700px; padding-bottom: 80px; }
+	.content { width: 100%; max-width: var(--content-standard); padding-bottom: 80px; }
 
 	/* Profile card */
 	.profile-card {
@@ -276,7 +276,7 @@
 		align-items: flex-start;
 		padding: var(--space-6);
 		background: rgba(245, 244, 240, 0.7);
-		border-radius: 20px;
+		border-radius: var(--radius-surface);
 		margin-bottom: var(--space-5);
 	}
 
@@ -294,21 +294,21 @@
 
 	.stat { text-align: right; }
 	.stat-num { font-size: var(--text-2xl); font-weight: 600; display: block; line-height: 1.1; }
-	.stat-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+	.stat-label { font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
 
 	/* Sections */
 	.profile-section { margin-bottom: var(--space-8); }
 
 	/* Attention cards */
 	.attention-card { display: block; padding: var(--space-4); border: 1px solid var(--border-link); border-radius: var(--radius-card); margin-bottom: var(--space-3); color: inherit; transition: opacity 0.15s; }
-	.attention-card:hover { opacity: 0.85; }
+	.attention-card:hover { opacity: var(--opacity-hover-btn); }
 	.attention-who { font-size: var(--text-md); font-weight: 500; display: block; }
 	.attention-context { font-size: var(--text-sm); color: var(--text-muted); display: block; }
 	.attention-slot { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); display: block; margin: var(--space-2) 0; }
 	.attention-message { font-size: var(--text-sm); color: var(--text-secondary); font-style: italic; margin: 0 0 var(--space-3); }
 	.attention-actions { display: flex; gap: var(--space-3); align-items: center; margin-top: var(--space-2); }
 	.btn-accept { font-size: var(--text-base); padding: var(--space-2) var(--space-5); background: var(--text-primary); color: var(--bg-canvas); border: 1px solid var(--text-primary); border-radius: var(--radius-input); cursor: pointer; }
-	.btn-accept:disabled { opacity: 0.5; cursor: not-allowed; }
+	.btn-accept:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 	.btn-view { font-size: var(--text-sm); color: var(--text-muted); }
 	.btn-view:hover { color: var(--text-primary); }
 
@@ -316,8 +316,8 @@
 	.action-cards {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
-		gap: 12px;
-		padding: 4px 0 16px;
+		gap: var(--space-3);
+		padding: var(--space-1) 0 var(--space-4);
 	}
 
 	.action-card {
@@ -326,11 +326,11 @@
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		gap: 8px;
-		padding: 24px 12px 16px;
+		gap: var(--space-2);
+		padding: var(--space-6) var(--space-3) var(--space-4);
 		background: rgba(245, 244, 240, 0.7);
 		border: none;
-		border-radius: 20px;
+		border-radius: var(--radius-surface);
 		cursor: pointer;
 		font-family: inherit;
 		transition: background 0.2s, transform 0.15s;
@@ -358,7 +358,7 @@
 		width: 56px;
 		height: 56px;
 		object-fit: cover;
-		border-radius: 8px;
+		border-radius: var(--radius-input);
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 	}
 
@@ -369,8 +369,8 @@
 	.card-cover-empty {
 		width: 56px;
 		height: 56px;
-		border-radius: 8px;
-		background: var(--bg-control, rgba(0, 0, 0, 0.06));
+		border-radius: var(--radius-input);
+		background: var(--bg-control);
 		margin: 0 auto;
 	}
 
@@ -382,7 +382,7 @@
 		width: 10px;
 		height: 10px;
 		border-radius: 50%;
-		background: var(--color-success, #22c55e);
+		background: var(--color-success);
 	}
 
 	.action-card-badge.pulse {
@@ -416,12 +416,12 @@
 		padding: 0;
 		margin-bottom: var(--space-6);
 	}
-	.back-section-btn:hover { opacity: 0.7; }
+	.back-section-btn:hover { opacity: var(--opacity-hover-card); }
 
 	/* Meeting rows */
 	.meeting-row { display: block; padding: var(--space-4); border: 1px solid var(--border-link); border-radius: var(--radius-card); margin-bottom: var(--space-3); transition: opacity 0.15s; }
-	.meeting-row:hover { opacity: 0.85; }
-	.meeting-row.past { opacity: 0.5; }
+	.meeting-row:hover { opacity: var(--opacity-hover-btn); }
+	.meeting-row.past { opacity: var(--opacity-disabled); }
 	.meeting-when { font-size: var(--text-md); font-weight: 500; }
 	.meeting-details { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin-top: var(--space-1); }
 
@@ -429,20 +429,12 @@
 	.prompt-list { display: flex; flex-direction: column; }
 
 	.prompt-item { border-bottom: 1px solid var(--border-link); display: block; transition: opacity 0.15s; }
-	.prompt-item:hover { opacity: 0.72; }
+	.prompt-item:hover { opacity: var(--opacity-hover-card); }
 	.prompt-item:last-child { border-bottom: none; }
-	.prompt-item.draft { opacity: 0.7; }
-	.prompt-item.past { opacity: 0.5; }
+	.prompt-item.draft { opacity: var(--opacity-hover-card); }
+	.prompt-item.past { opacity: var(--opacity-disabled); }
 
-	.prompt-row { display: flex; gap: var(--space-4); padding: var(--space-4) 0; align-items: stretch; }
-
-	.row-thumb { position: relative; flex-shrink: 0; width: 72px; min-height: 72px; border-radius: var(--radius-input); overflow: hidden; }
-	.thumb-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-	.thumb-placeholder { position: absolute; inset: 0; background: var(--bg-control); border-radius: inherit; }
-
-	.row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
-	.row-title { margin: 0 0 var(--space-1); font-size: var(--text-md); font-weight: 500; line-height: var(--leading-tight); }
-	.row-status { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+	/* .prompt-row, .row-thumb, .thumb-img, .thumb-placeholder, .row-body, .row-title, .row-status — shared.css */
 
 	.empty { color: var(--text-muted); padding: var(--space-6) 0; }
 	.empty a { text-decoration: underline; }
@@ -450,7 +442,6 @@
 	/* Mobile: top padding for FloatingNav */
 	@media (max-width: 768px) { .content { padding-top: 64px; } }
 
-	.sign-out-section { padding: var(--space-8) 0 var(--space-4); text-align: center; }
-	.sign-out-link { font-size: var(--text-sm); color: var(--text-muted); min-height: 44px; display: inline-flex; align-items: center; }
-	.sign-out-link:hover { color: var(--text-primary); }
+	/* .sign-out-section — shared.css */
+	.sign-out-link { min-height: 44px; display: inline-flex; align-items: center; }
 </style>

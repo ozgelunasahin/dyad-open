@@ -206,7 +206,7 @@
 		height: 44px !important;
 		border-radius: 50%;
 		object-fit: cover;
-		border: 2px solid #f5f3f0;
+		border: 2px solid var(--bg-canvas);
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 		box-sizing: border-box;
 		display: block;
@@ -223,14 +223,14 @@
 		width: 44px;
 		height: 44px;
 		border-radius: 50%;
-		background: #1a1a1a;
-		color: #f5f3f0;
+		background: var(--text-primary);
+		color: var(--bg-canvas);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 18px;
+		font-size: var(--text-xl);
 		font-weight: 500;
-		border: 2px solid #f5f3f0;
+		border: 2px solid var(--bg-canvas);
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 		box-sizing: border-box;
 	}

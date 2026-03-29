@@ -214,54 +214,54 @@
 
 	.sheet {
 		position: relative;
-		background: var(--bg-canvas, #f5f3f0);
-		border-radius: 16px 16px 0 0;
+		background: var(--bg-canvas);
+		border-radius: var(--radius-card) var(--radius-card) 0 0;
 		box-shadow: 0 -4px 32px rgba(0, 0, 0, 0.18);
 		width: 100%;
 		max-width: 480px;
 		max-height: 85vh;
 		overflow-y: auto;
-		padding: 24px 20px;
+		padding: var(--space-6) var(--space-5);
 		box-sizing: border-box;
 	}
 
 	.sheet-close {
 		position: absolute;
-		top: 16px;
-		right: 16px;
-		font-size: 22px;
+		top: var(--space-4);
+		right: var(--space-4);
+		font-size: var(--text-2xl);
 		background: none;
 		border: none;
-		color: var(--text-muted, #999);
+		color: var(--text-muted);
 		cursor: pointer;
-		padding: 4px;
+		padding: var(--space-1);
 	}
 
 	.sheet-close:hover { color: var(--text-primary); }
 
 	.sheet-title {
-		font-size: 1.3rem;
+		font-size: var(--text-2xl);
 		font-weight: normal;
 		color: var(--text-primary);
-		margin: 0 0 4px;
+		margin: 0 0 var(--space-1);
 	}
 
 	.sheet-subtitle {
-		font-size: 0.85rem;
-		color: var(--text-muted, #666);
-		margin: 0 0 20px;
+		font-size: var(--text-base);
+		color: var(--text-muted);
+		margin: 0 0 var(--space-5);
 	}
 
 	.label {
-		font-size: 0.85rem;
-		color: var(--text-muted, #666);
-		margin: 0 0 8px;
+		font-size: var(--text-base);
+		color: var(--text-muted);
+		margin: 0 0 var(--space-2);
 	}
 
 	.day-picker {
 		display: flex;
-		gap: 4px;
-		margin-bottom: 20px;
+		gap: var(--space-1);
+		margin-bottom: var(--space-5);
 	}
 
 	.day-cell {
@@ -269,49 +269,49 @@
 		flex-direction: column;
 		align-items: center;
 		gap: 2px;
-		padding: 8px 0;
+		padding: var(--space-2) 0;
 		flex: 1;
 		background: none;
-		border: 1px solid var(--border-link, rgba(0, 0, 0, 0.12));
-		border-radius: 8px;
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-input);
 		cursor: pointer;
 		font-family: inherit;
-		color: var(--text-primary, #1a1a1a);
+		color: var(--text-primary);
 		transition: background 0.15s, color 0.15s, border-color 0.15s;
 	}
 
 	.day-cell.selected {
-		background: var(--text-primary, #1a1a1a);
-		color: var(--bg-canvas, #f5f3f0);
-		border-color: var(--text-primary, #1a1a1a);
+		background: var(--text-primary);
+		color: var(--bg-canvas);
+		border-color: var(--text-primary);
 	}
 
-	.day-name { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.04em; }
-	.day-num { font-size: 0.95rem; font-weight: 600; line-height: 1; }
+	.day-name { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; }
+	.day-num { font-size: var(--text-md); font-weight: 600; line-height: 1; }
 
 	.day-section {
-		margin-bottom: 16px;
-		padding: 12px;
-		border: 1px solid var(--border-link, rgba(0, 0, 0, 0.08));
-		border-radius: 8px;
+		margin-bottom: var(--space-4);
+		padding: var(--space-3);
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-input);
 	}
 
 	.day-header {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		margin-bottom: 12px;
+		margin-bottom: var(--space-3);
 	}
 
 	.day-header-text {
-		font-size: 0.9rem;
+		font-size: var(--text-base);
 		font-weight: 500;
 		color: var(--text-primary);
 	}
 
 	.add-time {
-		font-size: 0.78rem;
-		color: var(--text-muted, #666);
+		font-size: var(--text-sm);
+		color: var(--text-muted);
 		background: none;
 		border: none;
 		cursor: pointer;
@@ -321,7 +321,7 @@
 	.add-time:hover { color: var(--text-primary); }
 
 	.slot-config {
-		margin-bottom: 12px;
+		margin-bottom: var(--space-3);
 	}
 
 	.slot-config:last-child { margin-bottom: 0; }
@@ -329,51 +329,51 @@
 	.slot-time-row {
 		display: flex;
 		align-items: center;
-		gap: 8px;
-		margin-bottom: 8px;
+		gap: var(--space-2);
+		margin-bottom: var(--space-2);
 	}
 
 	.time-select, .duration-select {
-		font-size: 13px;
-		padding: 8px 10px;
-		border: 1px solid var(--border-link, rgba(0, 0, 0, 0.12));
-		border-radius: 4px;
+		font-size: var(--text-sm);
+		padding: var(--space-2) var(--space-3);
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-input);
 		background: transparent;
 		color: var(--text-primary);
 		flex: 1;
 	}
 
 	.for-label {
-		font-size: 0.85rem;
-		color: var(--text-muted, #666);
+		font-size: var(--text-base);
+		color: var(--text-muted);
 		flex-shrink: 0;
 	}
 
 	.publish-error {
-		font-size: 13px;
-		color: #c00;
-		margin: 8px 0;
+		font-size: var(--text-sm);
+		color: var(--color-danger);
+		margin: var(--space-2) 0;
 	}
 
 	.sheet-footer {
 		display: flex;
 		justify-content: flex-end;
-		margin-top: 16px;
+		margin-top: var(--space-4);
 	}
 
 	.publish-btn {
-		font-size: 14px;
-		padding: 10px 28px;
-		background: var(--text-primary, #1a1a1a);
-		color: var(--bg-canvas, #f5f3f0);
+		font-size: var(--text-base);
+		padding: var(--space-3) 28px;
+		background: var(--text-primary);
+		color: var(--bg-canvas);
 		border: 1px solid var(--text-primary);
-		border-radius: 6px;
+		border-radius: var(--radius-input);
 		cursor: pointer;
 		transition: opacity 0.15s;
 	}
 
-	.publish-btn:hover:not(:disabled) { opacity: 0.85; }
-	.publish-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+	.publish-btn:hover:not(:disabled) { opacity: var(--opacity-hover-btn); }
+	.publish-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 
 	@media (min-width: 768px) {
 		.backdrop {
@@ -381,7 +381,7 @@
 		}
 
 		.sheet {
-			border-radius: 16px;
+			border-radius: var(--radius-card);
 			max-height: 70vh;
 		}
 	}

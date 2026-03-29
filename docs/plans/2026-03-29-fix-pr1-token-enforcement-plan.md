@@ -1,7 +1,7 @@
 ---
 title: "fix: PR1 — Token enforcement + shared CSS extraction"
 type: fix
-status: active
+status: completed
 date: 2026-03-29
 origin: docs/plans/2026-03-29-fix-design-system-enforcement-plan.md
 reviewed: 2026-03-29
@@ -13,7 +13,7 @@ Replace all hardcoded CSS values with design tokens. Extract duplicated patterns
 
 ## Design Decisions (resolved 2026-03-29)
 
-1. **Border-radius: no new tokens.** Use existing three (6px, 12px, 999px). Round all hardcoded values to nearest: 3px/4px/8px → `--radius-input` (6px). 10px/16px/20px → `--radius-card` (12px). Fewer values = more coherence. The differences between 8/10/12/16/20 read as accidents, not decisions.
+1. **Border-radius: one new token.** Existing three (6px, 12px, 999px) cover content-level elements. Add `--radius-surface: 20px` for container-level cards (profile card, action cards) — this is an intentional design hierarchy, not an accident. The design system doc explicitly specifies 20px for profile action cards. Round remaining hardcoded values to nearest existing token: 3px/4px/8px → `--radius-input` (6px). 10px/16px → `--radius-card` (12px).
 
 2. **Colour shift on auth pages: accept it.** Replace Bootstrap `#dc3545` with `--color-danger` (#c00) and `#198754` with `--color-success` (#3d9e5a). The warm paper palette needs deeper, less saturated colours. The auth pages should look like they belong to the same app.
 
@@ -34,6 +34,7 @@ Replace all hardcoded CSS values with design tokens. Extract duplicated patterns
 - [ ] `--content-standard: 700px` — conversation detail, profile, editor
 - [ ] `--content-wide: 800px` — discover
 - [ ] `--bg-glass: rgba(245, 244, 240, 0.96)` — glassmorphic surfaces (FloatingNav, date panel)
+- [ ] `--radius-surface: 20px` — container-level cards (profile card, action cards) per design system spec
 
 ## 2. Replace hardcoded values across ALL pages and components
 
@@ -81,7 +82,7 @@ For each file: replace bare px/rem font sizes with `--text-*`, bare spacing with
 
 - [ ] Document new tokens (opacity, content-width, --bg-glass)
 - [ ] Document dual breakpoint system: 430px (phone layout) + 768px (sidebar visible)
-- [ ] Document border-radius rationale: three values only, round to nearest
+- [ ] Document border-radius rationale: four values (input 6px, card 12px, surface 20px, pill 999px), round to nearest
 
 ## 5. Post-implementation: visual check
 
@@ -92,7 +93,7 @@ After all changes, open every page at desktop and mobile and verify it feels lik
 - [ ] No bare px/rem font-size values — all use `--text-*` tokens
 - [ ] No bare px/rem margin/padding/gap values (above 2px) — all use `--space-*` tokens
 - [ ] No hardcoded hex/rgba colour values — all use CSS variables
-- [ ] No hardcoded border-radius — all use one of three tokens
+- [ ] No hardcoded border-radius — all use one of four tokens (input/card/surface/pill)
 - [ ] No CSS variable fallback values (stripped from all `var()` calls)
 - [ ] All shared patterns extracted (prompt-row, reveal card, buttons)
 - [ ] New tokens documented in design-system.md

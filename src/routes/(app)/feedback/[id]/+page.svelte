@@ -199,21 +199,21 @@
 </div>
 
 <style>
-	.content { width: 100%; max-width: 560px; }
-	.sign-out-section { padding: var(--space-8) 0; text-align: center; }
-	.sign-out-section a { font-size: var(--text-sm); color: var(--text-muted); }
+	.content { width: 100%; max-width: var(--content-narrow); }
+	/* .sign-out-section — shared.css (local override: different padding-bottom) */
+	.sign-out-section { padding: var(--space-8) 0; }
 
 	.meeting-context { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin: 0 0 var(--space-4); }
 	.page-title { font-size: var(--text-2xl); font-weight: normal; margin: 0 0 var(--space-2); }
-	.desc { font-size: 0.9rem; color: var(--text-muted, #666); margin: 0 0 28px; }
+	.desc { font-size: var(--text-base); color: var(--text-muted); margin: 0 0 var(--space-6); }
 
 	/* Met choices */
-	.met-choices { display: flex; gap: 12px; }
+	.met-choices { display: flex; gap: var(--space-3); }
 	.met-btn {
-		font-size: 14px;
-		padding: 16px 32px;
-		border: 1px solid var(--border-link, rgba(0,0,0,0.12));
-		border-radius: 8px;
+		font-size: var(--text-base);
+		padding: var(--space-4) var(--space-8);
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-input);
 		background: none;
 		color: var(--text-primary);
 		cursor: pointer;
@@ -224,12 +224,12 @@
 	.met-btn.selected { background: var(--text-primary); color: var(--bg-canvas); border-color: var(--text-primary); }
 
 	/* Tags */
-	.tag-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+	.tag-grid { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-6); }
 	.tag {
-		font-size: 13px;
-		padding: 6px 14px;
-		border: 1px solid var(--border-link, rgba(0,0,0,0.12));
-		border-radius: 16px;
+		font-size: var(--text-sm);
+		padding: var(--space-1) var(--space-3);
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-card);
 		background: none;
 		color: var(--text-primary);
 		cursor: pointer;
@@ -239,31 +239,28 @@
 	.tag.selected { background: var(--text-primary); color: var(--bg-canvas); border-color: var(--text-primary); }
 
 	/* Form fields */
-	.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
-	.field label { font-size: 13px; color: var(--text-muted, #666); }
-	.field textarea { font-size: 14px; padding: 10px 14px; border: 1px solid var(--border-link, rgba(0,0,0,0.12)); border-radius: 6px; background: transparent; color: var(--text-primary); resize: vertical; line-height: 1.6; width: 100%; box-sizing: border-box; }
+	.field { display: flex; flex-direction: column; gap: var(--space-1); margin-bottom: var(--space-4); }
+	.field label { font-size: var(--text-sm); color: var(--text-muted); }
+	.field textarea { font-size: var(--text-base); padding: var(--space-3) var(--space-3); border: 1px solid var(--border-link); border-radius: var(--radius-input); background: transparent; color: var(--text-primary); resize: vertical; line-height: 1.6; width: 100%; box-sizing: border-box; }
 	.field textarea:focus { outline: none; border-color: var(--text-muted); }
-	.field textarea::placeholder { color: var(--text-muted, #999); }
-	.field-error { font-size: 13px; color: #c00; margin: 0 0 12px; }
+	.field textarea::placeholder { color: var(--text-muted); }
+	.field-error { font-size: var(--text-sm); color: var(--color-danger); margin: 0 0 var(--space-3); }
 
 	/* Actions */
-	.actions { display: flex; gap: 12px; margin-top: 8px; }
-	.back-btn { font-size: 13px; padding: 10px 20px; border: 1px solid var(--border-link); border-radius: 6px; background: none; color: var(--text-muted); cursor: pointer; }
-	.submit-btn { font-size: 14px; padding: 10px 24px; background: var(--text-primary); color: var(--bg-canvas); border: 1px solid var(--text-primary); border-radius: 6px; cursor: pointer; }
-	.submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+	.actions { display: flex; gap: var(--space-3); margin-top: var(--space-2); }
+	.back-btn { font-size: var(--text-sm); padding: var(--space-3) var(--space-5); border: 1px solid var(--border-link); border-radius: var(--radius-input); background: none; color: var(--text-muted); cursor: pointer; }
+	.submit-btn { font-size: var(--text-base); padding: var(--space-3) var(--space-6); background: var(--text-primary); color: var(--bg-canvas); border: 1px solid var(--text-primary); border-radius: var(--radius-input); cursor: pointer; }
+	.submit-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 
 	/* Waiting state */
-	.waiting-state { text-align: center; padding: 40px 0; }
+	.waiting-state { text-align: center; padding: var(--space-10) 0; }
 	.waiting-hint { font-size: var(--text-sm); color: var(--text-muted); margin: var(--space-4) 0 var(--space-8); }
 
 	/* Reveal state */
-	.reveal-state { padding: 20px 0; }
-	.reveal-card { margin: var(--space-6) 0; padding: var(--space-5); border: 1px solid var(--border-link); border-radius: var(--radius-card); }
-	.reveal-noshow { font-size: var(--text-sm); color: var(--text-muted); font-style: italic; margin: 0 0 var(--space-3); }
-	.reveal-quote { font-size: var(--text-md); line-height: var(--leading-relaxed); margin: 0 0 var(--space-4); padding-left: var(--space-4); border-left: 2px solid var(--text-muted); color: var(--text-primary); }
-	.reveal-tags { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px; }
-	.reveal-tag { font-size: 12px; padding: 4px 12px; background: rgba(0,0,0,0.05); border-radius: 12px; color: var(--text-primary); }
+	.reveal-state { padding: var(--space-5) 0; }
+	/* .reveal-noshow, .reveal-quote, .reveal-tags, .reveal-tag — shared.css */
+	.reveal-card { margin: var(--space-6) 0; }
 
 	/* Shared */
-	.continue-link { font-size: 14px; color: var(--text-primary); text-decoration: underline; }
+	.continue-link { font-size: var(--text-base); color: var(--text-primary); text-decoration: underline; }
 </style>
