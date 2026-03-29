@@ -39,7 +39,8 @@ export default defineConfig({
 				]
 			},
 			workbox: {
-				globPatterns: ['client/**/*.{js,css,html,svg,png,woff2,json}']
+				globPatterns: ['client/**/*.{js,css,html,svg,woff2,json}'],
+				globIgnores: ['client/uploads/**']
 			},
 			devOptions: {
 				enabled: false

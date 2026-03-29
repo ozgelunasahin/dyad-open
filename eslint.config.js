@@ -26,6 +26,11 @@ export default ts.config(
 			'@typescript-eslint/no-explicit-any': 'warn',
 			'@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
 			'no-undef': 'off', // TypeScript handles this
+			// Svelte plugin rules that flag standard SvelteKit patterns
+			'svelte/no-at-html-tags': 'warn', // @html is used intentionally for TipTap content
+			'svelte/require-each-key': 'off', // Not all lists need keys (static or short lists)
+			'svelte/no-unused-svelte-ignore': 'off', // svelte-ignore comments from earlier Svelte versions
+			'svelte/no-navigation-without-resolve': 'off', // goto() and <a href> are standard in SvelteKit
 		}
 	},
 	{
