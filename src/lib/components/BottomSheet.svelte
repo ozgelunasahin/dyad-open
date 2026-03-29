@@ -5,9 +5,10 @@
 	interface Props {
 		prompts: PromptSummary[];
 		onCardClick?: (promptId: string) => void;
+		hideAuthor?: boolean;
 	}
 
-	let { prompts, onCardClick }: Props = $props();
+	let { prompts, onCardClick, hideAuthor = false }: Props = $props();
 
 	function formatDate(iso: string): string {
 		return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -33,7 +34,9 @@
 							{#if prompt.soonest_slot}
 								<span class="meta-date">{formatDate(prompt.soonest_slot)}</span>
 							{/if}
-							<span class="meta-author">@{prompt.author_username}</span>
+							<span class="meta-author" class:anonymised={hideAuthor}>
+								@{hideAuthor ? prompt.author_username.replace(/./g, '•') : prompt.author_username}
+							</span>
 						</div>
 					</div>
 				{/snippet}
@@ -134,6 +137,11 @@
 	.meta-date {
 		font-family: var(--font-mono);
 		letter-spacing: 0.04em;
+	}
+
+	.meta-author.anonymised {
+		filter: blur(4px);
+		user-select: none;
 	}
 
 	@media (min-width: 769px) {

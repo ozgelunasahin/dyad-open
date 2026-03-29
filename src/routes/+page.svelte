@@ -103,7 +103,7 @@
 
 				{#if selectedPinPrompts.length > 0}
 					<div class="bottom-sheet-wrap">
-						<BottomSheet prompts={selectedPinPrompts} onCardClick={() => openAuth('waitlist')} />
+						<BottomSheet prompts={selectedPinPrompts} onCardClick={() => openAuth('waitlist')} hideAuthor />
 					</div>
 				{/if}
 			</div>

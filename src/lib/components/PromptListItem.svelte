@@ -44,9 +44,9 @@
 			{/if}
 			<div class="row-meta">
 				<span class="area">{uniqueAreas(prompt.available_slots)}</span>
-				{#if !hideAuthor}
-					<span class="author">@{prompt.author_username}</span>
-				{/if}
+				<span class="author" class:anonymised={hideAuthor}>
+					@{hideAuthor ? prompt.author_username.replace(/./g, '•') : prompt.author_username}
+				</span>
 			</div>
 		</div>
 	</div>
@@ -162,6 +162,7 @@
 	}
 
 	.author { font-family: var(--font-mono); font-size: var(--text-sm); }
+	.author.anonymised { filter: blur(4px); user-select: none; }
 	.area { font-size: var(--text-sm); text-transform: uppercase; letter-spacing: 0.03em; }
 
 	@media (max-width: 430px) {
