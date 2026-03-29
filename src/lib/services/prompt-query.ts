@@ -39,13 +39,12 @@ export class SupabasePromptQueryService implements PromptQueryService {
 	}): Promise<PromptSummary[]> {
 		const limit = params.limit ?? 20;
 
-		// Fetch published prompts excluding the user's own
+		// Fetch published prompts (including own — per discover visibility policy)
 		let query = this.supabase
 			.from('prompts')
 			.select('id, author_id, title, body, cover_image_url, published_at, region')
 			.eq('state', 'published')
 			.eq('region', params.region)
-			.neq('author_id', params.userId)
 			.order('published_at', { ascending: false })
 			.limit(limit);
 
@@ -102,13 +101,7 @@ export class SupabasePromptQueryService implements PromptQueryService {
 			});
 		}
 
-		// Sort by soonest slot
-		summaries.sort((a, b) => {
-			if (!a.soonest_slot) return 1;
-			if (!b.soonest_slot) return -1;
-			return a.soonest_slot.localeCompare(b.soonest_slot);
-		});
-
+		// Stable sort: keep published_at order from DB (no soonest_slot re-sort)
 		return summaries;
 	}
 
@@ -172,12 +165,7 @@ export class SupabasePromptQueryService implements PromptQueryService {
 			});
 		}
 
-		summaries.sort((a, b) => {
-			if (!a.soonest_slot) return 1;
-			if (!b.soonest_slot) return -1;
-			return a.soonest_slot.localeCompare(b.soonest_slot);
-		});
-
+		// Stable sort: keep published_at order from DB (no soonest_slot re-sort)
 		return summaries;
 	}
 
@@ -217,6 +205,7 @@ export class SupabasePromptQueryService implements PromptQueryService {
 
 		return {
 			id: prompt.id,
+			state: prompt.state,
 			author_id: prompt.author_id,
 			author_username: usernameMap.get(prompt.author_id) ?? 'anonymous',
 			title: prompt.title,

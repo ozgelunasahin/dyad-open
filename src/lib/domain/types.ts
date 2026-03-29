@@ -67,6 +67,7 @@ export interface PromptSummary {
 }
 
 export interface PromptDetail extends PromptSummary {
+	state: 'draft' | 'published' | 'archived';
 	body: JSONContent;
 	body_html: string; // server-rendered TipTap HTML (sanitized)
 }

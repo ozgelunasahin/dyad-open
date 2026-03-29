@@ -1,6 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { sendEmail } from '$lib/server/email.js';
 import { escapeHtml } from '$lib/utils/escape-html.js';
+import { copy } from '$lib/copy';
 import type { RequestHandler } from './$types';
 
 // Simple in-memory rate limiter (per-process; sufficient for single-instance deploys)
@@ -113,7 +114,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 	const displayName = escapeHtml((typeof name === 'string' && name.trim()) || 'there');
 	sendEmail({
 		to: email.trim(),
-		subject: "What's in a conversation?",
+		subject: copy.email.waitlistSubject,
 		html: `
 			<div style="font-family: Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 40px 20px; color: #1a1a1a; line-height: 1.7;">
 				<p>Hi ${displayName},</p>
@@ -124,7 +125,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 				<p>We are looking forward to meeting you for a conversation.</p>
 				<p style="margin-top: 32px;">With care,<br/>Luna</p>
 				<hr style="border: none; border-top: 1px solid #e0ddd8; margin: 32px 0 16px;" />
-				<a href="https://dyad.berlin" style="display: inline-block;"><img src="/images/logo-dark.png" alt="dyad" style="height: 32px; width: auto; margin-bottom: 8px;" /></a>
+				<a href="https://dyad.berlin" style="display: inline-block;"><img src="https://dyad.berlin/images/logo-dark.png" alt="dyad" style="height: 32px; width: auto; margin-bottom: 8px;" /></a>
 				<p style="font-size: 12px; color: #999; margin: 0;">cultivating a culture of conversation</p>
 			</div>
 		`

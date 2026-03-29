@@ -2,14 +2,17 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import type { PageData } from './$types';
+	import { copy } from '$lib/copy';
 
 	let { data }: { data: PageData } = $props();
 	let cancelling = $state(false);
+	let cancelDialog: ConfirmDialog;
 
 	let from = $derived($page.url.searchParams.get('from'));
 	let backHref = $derived(from === 'profile' ? '/profile' : '/discover');
-	let backLabel = $derived(from === 'profile' ? '← back to profile' : '← back to discover');
+	let backLabel = $derived(from === 'profile' ? copy.nav.backToProfile : copy.nav.backToDiscover);
 
 	function formatDate(iso: string): string {
 		return new Date(iso).toLocaleDateString('en-US', {
@@ -18,7 +21,6 @@
 	}
 
 	async function handleCancel() {
-		if (!confirm('Are you sure you want to cancel this meeting?')) return;
 		cancelling = true;
 		try {
 			const res = await fetch(`/api/meetings/${data.meeting.id}/cancel`, { method: 'POST' });
@@ -37,22 +39,22 @@
 	<a href={backHref} class="back-link">{backLabel}</a>
 
 	<div class="meeting-header">
-		<span class="meeting-with">Meeting with @{data.otherUsername}</span>
+		<span class="meeting-with">{copy.profile.meetingWith(data.otherUsername)}</span>
 		<span class="meeting-when">{formatDate(data.meeting.scheduled_time)}</span>
 	</div>
 
 	<div class="detail-grid">
 		<div class="detail-row">
-			<span class="label">Duration</span>
-			<span class="value">{data.meeting.duration_minutes} minutes</span>
+			<span class="label">{copy.meeting.duration}</span>
+			<span class="value">{data.meeting.duration_minutes} {copy.meeting.minutes}</span>
 		</div>
 		<div class="detail-row">
-			<span class="label">Area</span>
-			<span class="value">{data.meeting.general_area ?? 'TBD'}</span>
+			<span class="label">{copy.meeting.area}</span>
+			<span class="value">{data.meeting.general_area}</span>
 		</div>
 		{#if 'exact_location' in data.meeting && data.meeting.exact_location}
 			<div class="detail-row">
-				<span class="label">Location</span>
+				<span class="label">{copy.meeting.location}</span>
 				<span class="value location">{data.meeting.exact_location.name}<br /><span class="addr">{data.meeting.exact_location.address}</span></span>
 			</div>
 		{/if}
@@ -60,7 +62,7 @@
 
 	{#if data.invitationMessage}
 		<div class="invitation-note">
-			<span class="note-label">Invitation note</span>
+			<span class="note-label">{copy.meeting.invitationNote}</span>
 			<p class="note-body">{data.invitationMessage}</p>
 		</div>
 	{/if}
@@ -76,7 +78,7 @@
 					{/if}
 				</div>
 				<div class="row-body">
-					<h3 class="row-title">{data.prompt.title || 'Untitled'}</h3>
+					<h3 class="row-title">{data.prompt.title || copy.common.untitled}</h3>
 					<span class="row-status">{data.prompt.published_at ? formatDate(data.prompt.published_at) : ''}</span>
 				</div>
 			</div>
@@ -84,9 +86,16 @@
 	{/if}
 
 	{#if data.meeting.state === 'scheduled' || data.meeting.state === 'active'}
-		<button class="cancel-btn" onclick={handleCancel} disabled={cancelling}>
-			{cancelling ? 'Cancelling...' : 'Cancel meeting'}
+		<button class="cancel-btn" onclick={() => cancelDialog.open()} disabled={cancelling}>
+			{cancelling ? copy.meeting.cancelling : copy.meeting.cancelMeeting}
 		</button>
+		<ConfirmDialog
+			bind:this={cancelDialog}
+			title={copy.meeting.cancelMeeting}
+			message={copy.meeting.cancelConfirm}
+			confirmLabel={copy.meeting.cancelMeeting}
+			onConfirm={handleCancel}
+		/>
 	{/if}
 </div>
 

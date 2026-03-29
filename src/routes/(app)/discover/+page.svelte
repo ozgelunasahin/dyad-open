@@ -8,6 +8,7 @@
 	import SearchOverlay from '$lib/components/SearchOverlay.svelte';
 	import { getWeekDates } from '$lib/utils/dates';
 	import type { Snapshot } from './$types';
+	import { copy } from '$lib/copy';
 
 	let { data }: { data: PageData } = $props();
 	let viewMode = $state<'list' | 'map'>('list');
@@ -48,14 +49,6 @@
 	// Filter state
 	let selectedDates = $state<Set<string>>(new Set());
 	let selectedAreas = $state<Set<string>>(new Set());
-	let areaQuery = $state('');
-	let areaDropdownOpen = $state(false);
-
-	let areaSuggestions = $derived.by(() => {
-		if (!areaQuery.trim()) return availableAreas;
-		const q = areaQuery.toLowerCase();
-		return availableAreas.filter((a) => a.toLowerCase().includes(q));
-	});
 
 	let hasFilters = $derived(selectedDates.size > 0 || selectedAreas.size > 0);
 
@@ -86,21 +79,6 @@
 		if (next.has(date)) next.delete(date);
 		else next.add(date);
 		selectedDates = next;
-	}
-
-	function toggleArea(area: string) {
-		const next = new Set(selectedAreas);
-		if (next.has(area)) next.delete(area);
-		else next.add(area);
-		selectedAreas = next;
-		areaQuery = '';
-		areaDropdownOpen = false;
-	}
-
-	function removeArea(area: string) {
-		const next = new Set(selectedAreas);
-		next.delete(area);
-		selectedAreas = next;
 	}
 
 	function clearFilters() {
@@ -141,26 +119,27 @@
 		<MapView
 			prompts={filteredPrompts}
 			onSelectPin={handlePinSelect}
+			onMapClick={closeSheet}
 			initialCenter={mapCenter}
 			initialZoom={mapZoom}
 			onMoveEnd={(c, z) => { mapCenter = c; mapZoom = z; }}
 		/>
 	</div>
 	{#if selectedPinPrompts.length > 0}
-		<BottomSheet prompts={selectedPinPrompts} area={selectedPinArea} onClose={closeSheet} />
+		<BottomSheet prompts={selectedPinPrompts} />
 	{/if}
 {:else}
 <div class="content">
 			{#if data.prompts.length === 0}
 				<div class="empty-state">
-					<p>No conversations available right now.</p>
-					<p class="empty-hint">Check back soon, or start your own.</p>
-					<a href="/conversations/new" class="start-prompt-btn" style="margin-top: 16px; display: inline-block;">Start a conversation</a>
+					<p>{copy.discover.noConversations}</p>
+					<p class="empty-hint">{copy.discover.checkBackSoon}</p>
+					<a href="/conversations/new" class="start-prompt-btn" style="margin-top: 16px; display: inline-block;">{copy.discover.startConversation}</a>
 				</div>
 			{:else if filteredPrompts.length === 0}
 					<div class="empty-state">
-						<p>No conversations match your filters.</p>
-						<button class="clear-filters-link" onclick={clearFilters}>Clear filters</button>
+						<p>{copy.discover.noMatchingFilters}</p>
+						<button class="clear-filters-link" onclick={clearFilters}>{copy.common.clearFilters}</button>
 					</div>
 				{:else}
 					<div class="prompt-list">
@@ -176,7 +155,7 @@
 									</div>
 									<div class="row-body">
 										<div class="row-top">
-											<h3 class="row-title">{prompt.title ?? 'Untitled'}</h3>
+											<h3 class="row-title">{prompt.title ?? copy.common.untitled}</h3>
 											<span class="date">{formatSlotDates(prompt.available_slots)}</span>
 										</div>
 										{#if prompt.body_snippet}
@@ -221,13 +200,23 @@
 <style>
 	.floating-nav-wrapper { display: block; }
 	.map-pane {
-		width: 100%;
-		height: calc(100vh - 64px);
+		position: fixed;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		left: 0;
+	}
+
+	@media (min-width: 769px) {
+		.map-pane {
+			left: 180px; /* sidebar width */
+		}
 	}
 
 	.content {
 		width: 100%;
 		max-width: 800px;
+		padding-top: 64px; /* Space for top-anchored FloatingNav */
 	}
 
 	.empty-state {
@@ -244,200 +233,6 @@
 		font-size: 0.9rem;
 	}
 
-	/* === Filter bar === */
-	.filter-bar {
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
-		margin-bottom: 1.5rem;
-		padding: 0.75rem 1rem;
-		border: 1px solid var(--border-link);
-		border-radius: 8px;
-		background: var(--bg-canvas);
-	}
-
-	.filter-group {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
-
-	.filter-label {
-		font-size: 0.8rem;
-		color: var(--text-muted);
-		flex-shrink: 0;
-		width: 40px;
-	}
-
-	.week-calendar {
-		display: flex;
-		gap: 0.25rem;
-		flex: 1;
-	}
-
-	.day-cell {
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 0.05rem;
-		padding: 0.35rem 0.15rem;
-		background: none;
-		border: 1px solid var(--border-link);
-		border-radius: 6px;
-		cursor: pointer;
-		font-family: inherit;
-		transition: border-color 0.15s, background 0.15s, color 0.15s;
-		color: var(--text-primary);
-	}
-
-	.day-cell:hover {
-		border-color: var(--border-link-hover, var(--text-muted));
-	}
-
-	.day-cell.selected {
-		background: var(--text-primary);
-		border-color: var(--text-primary);
-		color: var(--bg-canvas);
-	}
-
-	.day-name {
-		font-size: 0.6rem;
-		text-transform: uppercase;
-		letter-spacing: 0.03em;
-	}
-
-	.day-num {
-		font-size: 0.85rem;
-		font-weight: 500;
-	}
-
-	.location-filter {
-		display: flex;
-		align-items: center;
-		gap: 0.3rem;
-		flex: 1;
-		flex-wrap: wrap;
-	}
-
-	.location-chip {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.2rem;
-		padding: 0.2rem 0.5rem;
-		background: var(--text-primary);
-		color: var(--bg-canvas);
-		border-radius: 12px;
-		font-size: 0.8rem;
-		white-space: nowrap;
-	}
-
-	.chip-remove {
-		background: none;
-		border: none;
-		color: var(--bg-canvas);
-		font-size: 0.9rem;
-		cursor: pointer;
-		padding: 0;
-		line-height: 1;
-		opacity: 0.7;
-	}
-
-	.chip-remove:hover { opacity: 1; }
-
-	.location-search {
-		position: relative;
-		min-width: 140px;
-		flex: 1;
-	}
-
-	.location-input {
-		width: 100%;
-		padding: 0.4rem 0.65rem;
-		border: 1px solid var(--border-link);
-		border-radius: 6px;
-		font-size: 0.85rem;
-		font-family: inherit;
-		background: var(--bg-canvas);
-		color: var(--text-primary);
-		box-sizing: border-box;
-	}
-
-	.location-input:focus {
-		outline: none;
-		border-color: var(--text-link-hover, var(--text-muted));
-	}
-
-	.location-input::placeholder { color: var(--text-muted); }
-
-	.location-dropdown {
-		position: absolute;
-		top: 100%;
-		left: 0;
-		right: 0;
-		background: var(--bg-canvas);
-		border: 1px solid var(--border-link);
-		border-top: none;
-		border-radius: 0 0 6px 6px;
-		max-height: 200px;
-		overflow-y: auto;
-		z-index: 10;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-	}
-
-	.location-option {
-		display: block;
-		width: 100%;
-		text-align: left;
-		padding: 0.45rem 0.65rem;
-		background: none;
-		border: none;
-		border-bottom: 1px solid var(--border-link);
-		font-size: 0.85rem;
-		font-family: inherit;
-		color: var(--text-primary);
-		cursor: pointer;
-	}
-
-	.location-option:last-child { border-bottom: none; }
-	.location-option:hover { background: var(--bg-control, rgba(0, 0, 0, 0.03)); }
-	.location-option.active { background: var(--bg-control, rgba(0, 0, 0, 0.03)); font-weight: 500; }
-
-	.clear-filters {
-		align-self: flex-end;
-		background: none;
-		border: none;
-		color: var(--text-muted);
-		font-size: 0.8rem;
-		font-family: inherit;
-		cursor: pointer;
-		text-decoration: underline;
-	}
-
-	.clear-filters:hover { color: var(--text-primary); }
-
-	.view-toggle {
-		display: flex;
-		gap: 2px;
-		margin-left: auto;
-	}
-
-	.toggle-btn {
-		padding: 6px 8px;
-		border: 1px solid var(--border-link, rgba(0, 0, 0, 0.12));
-		background: none;
-		color: var(--text-muted, #999);
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		transition: all 0.15s;
-	}
-
-	.toggle-btn:first-child { border-radius: 4px 0 0 4px; }
-	.toggle-btn:last-child { border-radius: 0 4px 4px 0; }
-	.toggle-btn.active { background: var(--text-primary); color: var(--bg-canvas); border-color: var(--text-primary); }
-	.toggle-btn:hover:not(.active) { border-color: var(--text-primary); color: var(--text-primary); }
-
 	.clear-filters-link {
 		background: none;
 		border: none;
@@ -449,12 +244,6 @@
 	}
 
 	.clear-filters-link:hover { color: var(--text-primary); }
-
-	.where-group {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
 
 	/* === Prompt list === */
 	.prompt-list {

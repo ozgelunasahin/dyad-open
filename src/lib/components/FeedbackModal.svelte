@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { copy } from '$lib/copy';
+
 	let dialog: HTMLDialogElement | undefined = $state();
 	let description = $state('');
 	let type = $state<'bug' | 'feature' | 'other'>('bug');
@@ -16,7 +18,7 @@
 
 	async function submit() {
 		if (description.length < 10) {
-			error = 'Please write at least 10 characters';
+			error = copy.appFeedback.minLength;
 			return;
 		}
 		submitting = true;
@@ -51,24 +53,24 @@
 <dialog bind:this={dialog}>
 	{#if submitted}
 		<div class="feedback-success">
-			<p>Thanks for your feedback!</p>
+			<p>{copy.appFeedback.thankYou}</p>
 		</div>
 	{:else}
 		<div class="feedback-form">
 			<div class="feedback-header">
-				<h3>Send feedback</h3>
+				<h3>{copy.appFeedback.sendFeedback}</h3>
 				<button class="close-btn" onclick={() => dialog?.close()}>×</button>
 			</div>
 
 			<div class="type-selector">
-				<button class="type-btn" class:active={type === 'bug'} onclick={() => type = 'bug'}>Bug</button>
-				<button class="type-btn" class:active={type === 'feature'} onclick={() => type = 'feature'}>Feature</button>
-				<button class="type-btn" class:active={type === 'other'} onclick={() => type = 'other'}>Other</button>
+				<button class="type-btn" class:active={type === 'bug'} onclick={() => type = 'bug'}>{copy.appFeedback.typeBug}</button>
+				<button class="type-btn" class:active={type === 'feature'} onclick={() => type = 'feature'}>{copy.appFeedback.typeFeature}</button>
+				<button class="type-btn" class:active={type === 'other'} onclick={() => type = 'other'}>{copy.appFeedback.typeOther}</button>
 			</div>
 
 			<textarea
 				bind:value={description}
-				placeholder="What happened? What did you expect?"
+				placeholder={copy.appFeedback.placeholder}
 				rows={4}
 				disabled={submitting}
 			></textarea>
@@ -76,7 +78,7 @@
 			{#if error}<p class="error">{error}</p>{/if}
 
 			<button class="btn-primary" onclick={submit} disabled={submitting || description.length < 10}>
-				{submitting ? 'Sending...' : 'Send'}
+				{submitting ? copy.conversation.sending : copy.common.send}
 			</button>
 		</div>
 	{/if}

@@ -4,32 +4,20 @@
 
 	interface Props {
 		prompts: PromptSummary[];
-		area: string;
-		onClose: () => void;
 	}
 
-	let { prompts, area, onClose }: Props = $props();
+	let { prompts }: Props = $props();
 
 	function formatDate(iso: string): string {
 		return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 	}
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<!-- svelte-ignore a11y_click_events_have_key_events -->
-<div class="backdrop" onclick={onClose}>
-	<div
-		class="sheet"
-		onclick={(e) => e.stopPropagation()}
-		transition:fly={{ y: 120, duration: 240 }}
-	>
-		<div class="sheet-header">
-			<h3 class="sheet-title">{area}</h3>
-			<span class="sheet-count">{prompts.length} conversation{prompts.length !== 1 ? 's' : ''}</span>
-			<button class="sheet-close" onclick={onClose} aria-label="Close">&times;</button>
-		</div>
-
-		<div class="sheet-body">
+<div
+	class="sheet"
+	transition:fly={{ y: 120, duration: 240 }}
+>
+	<div class="sheet-body">
 			{#each prompts as prompt}
 				<a href="/conversations/{prompt.id}" class="sheet-card">
 					{#if prompt.cover_image_url}
@@ -50,20 +38,14 @@
 				</a>
 			{/each}
 		</div>
-	</div>
 </div>
 
 <style>
-	.backdrop {
-		position: fixed;
-		inset: 0;
-		z-index: 600;
-		display: flex;
-		align-items: flex-end;
-		justify-content: center;
-	}
-
 	.sheet {
+		position: fixed;
+		bottom: 0;
+		left: 50%;
+		transform: translateX(-50%);
 		background: var(--bg-canvas, #f5f3f0);
 		border-radius: 16px 16px 0 0;
 		box-shadow: 0 -4px 32px rgba(0, 0, 0, 0.18);
@@ -73,39 +55,8 @@
 		overflow-y: auto;
 		padding: 20px;
 		box-sizing: border-box;
+		z-index: 600;
 	}
-
-	.sheet-header {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		margin-bottom: 16px;
-	}
-
-	.sheet-title {
-		font-size: 1.1rem;
-		font-weight: 500;
-		color: var(--text-primary);
-		margin: 0;
-	}
-
-	.sheet-count {
-		font-family: var(--font-mono);
-		font-size: 11px;
-		color: var(--text-muted, #999);
-	}
-
-	.sheet-close {
-		margin-left: auto;
-		font-size: 20px;
-		background: none;
-		border: none;
-		color: var(--text-muted, #999);
-		cursor: pointer;
-		padding: 4px;
-	}
-
-	.sheet-close:hover { color: var(--text-primary); }
 
 	.sheet-body {
 		display: flex;
@@ -167,16 +118,12 @@
 		letter-spacing: 0.04em;
 	}
 
-	@media (min-width: 768px) {
-		.backdrop {
-			align-items: flex-end;
-			justify-content: flex-end;
-			padding: 24px;
-		}
-
+	@media (min-width: 769px) {
 		.sheet {
+			left: calc(50% + 90px);
+			bottom: 24px;
 			border-radius: 12px;
-			max-width: 400px;
+			max-width: 680px;
 			max-height: 60vh;
 		}
 	}

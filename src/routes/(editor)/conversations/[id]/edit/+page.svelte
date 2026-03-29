@@ -6,6 +6,7 @@
 	import type { TimeSlotInput } from '$lib/domain/types';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
 	import PublishSheet from '$lib/components/PublishSheet.svelte';
+	import { copy } from '$lib/copy';
 
 	let { data }: { data: PageData } = $props();
 
@@ -204,10 +205,11 @@
 	}
 
 	function handleBack() {
+		const dest = `/conversations/${data.prompt.id}`;
 		if (saveTimer) {
-			saveNow().then(() => history.back());
+			saveNow().then(() => goto(dest));
 		} else {
-			history.back();
+			goto(dest);
 		}
 	}
 
@@ -278,11 +280,11 @@
 
 	<!-- TipTap Editor (no toolbar) -->
 	{#await import('$lib/components/PromptEditor.svelte')}
-		<div class="editor-loading">Loading editor...</div>
+		<div class="editor-loading">{copy.editor.loadingEditor}</div>
 	{:then { default: PromptEditor }}
 		<PromptEditor content={body} onUpdate={handleEditorUpdate} showToolbar={false} />
 	{:catch}
-		<p class="error-text">Failed to load editor.</p>
+		<p class="error-text">{copy.editor.failedToLoad}</p>
 	{/await}
 
 	{#if publishError}
@@ -292,8 +294,8 @@
 	<!-- Published state management -->
 	{#if isPublished}
 		<section class="published-info">
-			<h2 class="section-title">Published</h2>
-			<p class="section-desc">Your conversation is live on the discover feed.</p>
+			<h2 class="section-title">{copy.editor.published}</h2>
+			<p class="section-desc">{copy.editor.publishedDesc}</p>
 			{#if data.slots.length > 0}
 				<div class="slot-list">
 					{#each data.slots as slot}
@@ -306,7 +308,7 @@
 					{/each}
 				</div>
 			{/if}
-			<button class="unpublish-btn" onclick={handleUnpublish}>Unpublish</button>
+			<button class="unpublish-btn" onclick={handleUnpublish}>{copy.editor.unpublish}</button>
 		</section>
 	{/if}
 </div>
@@ -368,7 +370,7 @@
 
 	/* Title — large serif matching design ref */
 	.title-input {
-		font-size: 2.4rem;
+		font-size: 1.8rem;
 		font-weight: 300;
 		color: var(--text-primary);
 		border: none;
@@ -377,7 +379,11 @@
 		padding: 0;
 		margin-bottom: 12px;
 		outline: none;
-		line-height: 1.15;
+		line-height: 1.2;
+	}
+
+	@media (min-width: 480px) {
+		.title-input { font-size: 2.2rem; }
 	}
 
 	.title-input::placeholder { color: var(--text-muted, #ccc); opacity: 0.5; }
