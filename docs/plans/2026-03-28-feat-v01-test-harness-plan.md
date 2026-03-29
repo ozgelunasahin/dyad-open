@@ -1,7 +1,7 @@
 ---
 title: "feat: v0.1 Test Harness — E2E coverage + CI/CD"
 type: feat
-status: active
+status: completed
 date: 2026-03-28
 origin: docs/brainstorms/2026-03-28-v01-implementation-sequencing-brainstorm.md
 deepened: 2026-03-28

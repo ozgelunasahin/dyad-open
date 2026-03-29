@@ -1,20 +1,24 @@
 import { defineConfig, devices } from '@playwright/test';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { config } from 'dotenv';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// Load env vars for test helpers (Supabase keys, etc.)
+config({ path: '.env.local' });
+
+const isCI = !!process.env.CI;
+const baseURL = isCI ? 'http://localhost:4173' : 'http://localhost:5173';
 
 export default defineConfig({
 	testDir: './tests',
-	fullyParallel: false, // E2E tests may share state
-	forbidOnly: !!process.env.CI,
-	retries: process.env.CI ? 2 : 0,
-	workers: 1, // Sequential for multi-user flows
+	fullyParallel: false,
+	forbidOnly: isCI,
+	retries: isCI ? 2 : 0,
+	workers: 1,
 	reporter: 'html',
 	use: {
-		baseURL: 'http://localhost:5173',
-		trace: 'on-first-retry',
+		baseURL,
+		// SECURITY: Traces capture Authorization headers containing Bearer tokens.
+		// Never enable traces in CI where artifacts are retained.
+		trace: isCI ? 'off' : 'on-first-retry',
 		screenshot: 'only-on-failure'
 	},
 	projects: [
@@ -23,17 +27,19 @@ export default defineConfig({
 			testMatch: /auth\.setup\.ts/
 		},
 		{
-			name: 'e2e',
+			name: 'desktop',
 			testMatch: /e2e\/.*\.test\.ts/,
-			use: {
-				...devices['Desktop Chrome'],
-			},
+			use: { viewport: { width: 1280, height: 720 } },
+			dependencies: ['setup']
+		},
+		{
+			name: 'mobile',
+			testMatch: /e2e\/.*\.responsive\.test\.ts/,
+			use: { ...devices['Pixel 7'] },
 			dependencies: ['setup']
 		}
 	],
-	webServer: {
-		command: 'npm run dev',
-		url: 'http://localhost:5173',
-		reuseExistingServer: !process.env.CI
-	}
+	webServer: isCI
+		? { command: 'npm run build && npm run preview', url: baseURL, reuseExistingServer: false, stdout: 'pipe', stderr: 'pipe' }
+		: { command: 'npm run dev', url: baseURL, reuseExistingServer: !process.env.PW_FRESH_SERVER, stdout: 'pipe', stderr: 'pipe' }
 });

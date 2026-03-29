@@ -35,9 +35,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			.eq('prompt_id', meeting.prompt_id)
 			.eq('state', 'accepted')
 			.limit(1)
-			.single()
-			.then(r => r.data)
-			.catch(() => null),
+			.maybeSingle()
+			.then(r => r.data ?? null),
 		// Load revealed feedback for completed meetings
 		meeting.state === 'completed'
 			? feedbackService.getRevealedFeedback(params.id, userId)

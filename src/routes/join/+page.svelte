@@ -4,6 +4,8 @@
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	let loading = $state(false);
+	let username = $state((form as any)?.username ?? '');
+	let password = $state('');
 </script>
 
 <svelte:head>
@@ -73,7 +75,7 @@
 						type="text"
 						id="username"
 						name="username"
-						value={form?.username ?? ''}
+						bind:value={username}
 						required
 						autocomplete="username"
 						disabled={loading}
@@ -91,6 +93,7 @@
 						type="password"
 						id="password"
 						name="password"
+						bind:value={password}
 						required
 						autocomplete="new-password"
 						disabled={loading}

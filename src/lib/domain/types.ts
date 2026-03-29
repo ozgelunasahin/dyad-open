@@ -80,6 +80,7 @@ export interface Comment {
 	id: string;
 	prompt_id: string;
 	author_id: string;
+	author_username?: string;
 	body: string;
 	created_at: string;
 	updated_at: string;

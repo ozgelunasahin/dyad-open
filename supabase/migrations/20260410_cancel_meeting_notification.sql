@@ -73,7 +73,7 @@ BEGIN
     FROM cancellation_records cr
     WHERE cr.cancelled_by = v_caller
       AND cr.tier = 'late'
-      AND cr.created_at > NOW() - INTERVAL '90 days';
+      AND cr.cancelled_at > NOW() - INTERVAL '90 days';
 
     IF v_late_count = 0 THEN
       v_free_pass := TRUE;

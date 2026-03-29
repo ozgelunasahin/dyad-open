@@ -1,0 +1,101 @@
+# WARNING: Never store production keys as repo secrets.
+# This workflow uses only the local Supabase demo keys from `supabase start`.
+
+name: CI
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev]
+
+jobs:
+  check:
+    name: Type check + unit tests
+    runs-on: ubuntu-latest
+    env:
+      # svelte-check needs these to resolve $env/static/public imports
+      PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      PUBLIC_SUPABASE_ANON_KEY: placeholder
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npx svelte-check --threshold error
+
+  test:
+    name: Integration + E2E tests
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.84.2
+
+      # Cache Supabase Docker images
+      - name: Cache Supabase Docker images
+        uses: actions/cache@v4
+        with:
+          path: /tmp/supabase-docker-cache
+          key: supabase-docker-${{ hashFiles('supabase/config.toml') }}
+
+      - name: Load cached Docker images
+        run: |
+          if [ -f /tmp/supabase-docker-cache/images.tar ]; then
+            docker load -i /tmp/supabase-docker-cache/images.tar || true
+          fi
+
+      # Start Supabase (exclude Studio — not needed for tests)
+      - run: supabase start --exclude studio
+
+      - name: Save Docker images to cache
+        run: |
+          mkdir -p /tmp/supabase-docker-cache
+          docker save $(docker images --format '{{.Repository}}:{{.Tag}}' | grep -E 'supabase|postgres|gotrue|realtime|postgrest|storage') \
+            -o /tmp/supabase-docker-cache/images.tar 2>/dev/null || true
+
+      # Parse keys from running instance (not hardcoded)
+      - name: Export Supabase env vars
+        run: |
+          eval "$(supabase status -o env)"
+          echo "::add-mask::$SERVICE_ROLE_KEY"
+          echo "::add-mask::$ANON_KEY"
+          echo "PUBLIC_SUPABASE_URL=$API_URL" >> $GITHUB_ENV
+          echo "PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY" >> $GITHUB_ENV
+          echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY" >> $GITHUB_ENV
+
+      - run: npm ci
+
+      # Integration tests (Vitest, against Supabase)
+      - run: npm run test:integration
+
+      # Playwright browser cache
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      # E2E tests (all viewport projects, sequential)
+      - run: npx playwright test
+
+      # Upload report on failure
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

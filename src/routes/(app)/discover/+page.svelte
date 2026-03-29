@@ -84,7 +84,6 @@
 	function clearFilters() {
 		selectedDates = new Set();
 		selectedAreas = new Set();
-		areaQuery = '';
 	}
 
 	/** Format slot dates for display, e.g. "Fri 28 · Sat 29" */
