@@ -44,7 +44,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 		return json({ error: 'Invalid JSON body' }, { status: 400 });
 	}
 
-	const { email, name, based_in, freewrite, expression_url, expression_file_url, referred_by_username } = body as Record<string, unknown>;
+	const { email, name, based_in, freewrite, expression_url, referred_by_username } = body as Record<string, unknown>;
 
 	if (!email || typeof email !== 'string') {
 		error(400, 'Email is required');
@@ -73,6 +73,19 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 
 	if (freewrite.length > 2000) {
 		return json({ error: 'Freewrite is too long' }, { status: 400 });
+	}
+
+	if (typeof based_in === 'string' && based_in.length > 200) {
+		error(400, 'City is too long');
+	}
+
+	if (typeof expression_url === 'string' && expression_url.trim()) {
+		if (expression_url.length > 2048) error(400, 'Expression URL is too long');
+		if (!/^https:\/\//.test(expression_url.trim())) error(400, 'Expression URL must start with https://');
+	}
+
+	if (typeof referred_by_username === 'string' && referred_by_username.length > 100) {
+		error(400, 'Referred by username is too long');
 	}
 
 	const insertRow: Record<string, string | null> = {

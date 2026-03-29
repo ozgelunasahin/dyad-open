@@ -19,7 +19,7 @@
 		onPublish,
 		onDiscard,
 	}: {
-		variant?: 'discover' | 'default';
+		variant?: 'discover' | 'default' | 'landing';
 		position?: 'top' | 'bottom';
 		active?: string;
 		attentionCount?: number;
@@ -217,6 +217,25 @@
 			</svg>
 			{#if attentionCount > 0}<span class="badge-dot"><span class="sr-only">{attentionCount} notifications</span></span>{/if}
 		</a>
+	{:else if variant === 'landing'}
+		<!-- Landing variant: just the map/list toggle -->
+		<button
+			class="nav-btn"
+			class:active-icon={active === 'map'}
+			onclick={onMapClick}
+			aria-label={active === 'map' ? 'List view' : 'Map view'}
+		>
+			{#if active === 'map'}
+				<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+					<path d="M4 6h12M4 10h12M4 14h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+				</svg>
+			{:else}
+				<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+					<path d="M1 4l5 2 6-2 6 2v12l-6-2-6 2-5-2V4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+					<path d="M6 6v12M12 4v12" stroke="currentColor" stroke-width="1.6"/>
+				</svg>
+			{/if}
+		</button>
 	{/if}
 	</nav>
 </div>
