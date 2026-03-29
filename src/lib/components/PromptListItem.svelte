@@ -161,6 +161,8 @@
 		font-size: var(--text-sm);
 	}
 
+	.thumb-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
 	.author { font-family: var(--font-mono); font-size: var(--text-sm); }
 	.author.anonymised { filter: blur(4px); user-select: none; }
 	.area { font-size: var(--text-sm); text-transform: uppercase; letter-spacing: 0.03em; }

@@ -82,13 +82,15 @@
 	function handleLoginEnhance() {
 		loading = true;
 		error = '';
-		return async ({ result }: { result: any }) => {
+		return async ({ result }: { result: { type: string; location?: string; data?: Record<string, unknown>; error?: Error } }) => {
 			loading = false;
 			if (result.type === 'redirect') {
 				hide();
-				await goto(result.location, { invalidateAll: true });
+				await goto(result.location!, { invalidateAll: true });
 			} else if (result.type === 'failure') {
-				error = result.data?.error ?? 'Login failed';
+				error = (result.data?.error as string) ?? 'Login failed';
+			} else if (result.type === 'error') {
+				error = result.error?.message ?? 'Something went wrong. Please try again.';
 			}
 		};
 	}

@@ -16,10 +16,8 @@
 	let selectedPinPrompts = $state<PromptSummary[]>([]);
 
 	let authDialog = $state<AuthDialog | undefined>();
-	let authMode = $state<'waitlist' | 'login'>('waitlist');
 
 	function openAuth(mode: 'waitlist' | 'login') {
-		authMode = mode;
 		authDialog?.show(mode);
 	}
 
@@ -72,7 +70,9 @@
 	<div class="right-col">
 		{#if viewMode === 'map'}
 			<div class="map-container">
-				{#await import('$lib/components/MapView.svelte') then { default: MapView }}
+				{#await import('$lib/components/MapView.svelte')}
+					<p class="map-loading">Loading map...</p>
+				{:then { default: MapView }}
 					<MapView
 						prompts={data.prompts}
 						initialCenter={mapCenter}
@@ -80,6 +80,8 @@
 						onSelectPin={handlePinSelect}
 						onMoveEnd={handleMapMove}
 					/>
+				{:catch}
+					<p class="map-loading">Map failed to load.</p>
 				{/await}
 
 				{#if selectedPinPrompts.length > 0}
@@ -133,7 +135,7 @@
 	</div>
 </footer>
 
-<AuthDialog bind:this={authDialog} mode={authMode} />
+<AuthDialog bind:this={authDialog} />
 
 <style>
 	/* ── Split layout ─────────────────────────────────────────── */
@@ -338,6 +340,8 @@
 	}
 
 	.empty-state p { margin: 0 0 var(--space-4); }
+
+	.map-loading { text-align: center; color: var(--text-muted); padding: var(--space-10); }
 
 	/* ── Mobile ───────────────────────────────────────────────── */
 	@media (max-width: 768px) {
