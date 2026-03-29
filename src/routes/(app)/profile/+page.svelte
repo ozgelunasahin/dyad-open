@@ -124,9 +124,6 @@
 		<div class="action-cards">
 			<button class="action-card" onclick={() => expandedSection = 'conversations'}>
 				<div class="card-covers">
-					{#if allConversations.length > 0}
-						<span class="action-card-badge"></span>
-					{/if}
 					{#if conversationCovers.length >= 2}
 						<img src={conversationCovers[0].cover_image_url} alt="" class="card-cover back" />
 						<img src={conversationCovers[1].cover_image_url} alt="" class="card-cover front" />
@@ -386,12 +383,12 @@
 	}
 
 	.action-card-badge.pulse {
-		animation: badge-pulse 2s ease-in-out infinite;
+		animation: badge-pulse 2.5s ease-in-out infinite;
 	}
 
 	@keyframes badge-pulse {
-		0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5); }
-		50% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+		0%, 100% { opacity: 1; }
+		50% { opacity: 0.4; }
 	}
 
 	.action-card-label {
@@ -442,6 +439,8 @@
 	/* Mobile: top padding for FloatingNav */
 	@media (max-width: 768px) { .content { padding-top: 64px; } }
 
-	/* .sign-out-section — shared.css */
+	/* Sign-out: hidden on desktop (sidebar has it), visible on mobile */
+	.sign-out-section { display: none; }
+	@media (max-width: 768px) { .sign-out-section { display: block; } }
 	.sign-out-link { min-height: 44px; display: inline-flex; align-items: center; }
 </style>
