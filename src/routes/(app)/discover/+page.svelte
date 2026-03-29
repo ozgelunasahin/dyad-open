@@ -6,6 +6,7 @@
 	import BottomSheet from '$lib/components/BottomSheet.svelte';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
 	import SearchOverlay from '$lib/components/SearchOverlay.svelte';
+	import PromptListItem from '$lib/components/PromptListItem.svelte';
 	import { getWeekDates } from '$lib/utils/dates';
 	import type { Snapshot } from './$types';
 	import { copy } from '$lib/copy';
@@ -87,17 +88,6 @@
 	}
 
 	/** Format slot dates for display, e.g. "Fri 28 · Sat 29" */
-	function formatSlotDates(slots: TimeSlot[]): string {
-		const dates = new Set<string>();
-		for (const s of slots) {
-			const d = new Date(s.start_time);
-			dates.add(
-				d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' })
-			);
-		}
-		return [...dates].join(' · ');
-	}
-
 	/** Format a single slot's time, e.g. "7:30 PM" */
 	function formatSlotTime(slot: TimeSlot): string {
 		return new Date(slot.start_time).toLocaleTimeString('en-US', {
@@ -143,30 +133,7 @@
 				{:else}
 					<div class="prompt-list">
 						{#each filteredPrompts as prompt}
-							<a href="/conversations/{prompt.id}" class="prompt-item">
-								<div class="prompt-row">
-									<div class="row-thumb">
-										{#if prompt.cover_image_url}
-											<img src={prompt.cover_image_url} alt="" class="thumb-img" />
-										{:else}
-											<div class="thumb-placeholder"></div>
-										{/if}
-									</div>
-									<div class="row-body">
-										<div class="row-top">
-											<h3 class="row-title">{prompt.title ?? copy.common.untitled}</h3>
-											<span class="date">{formatSlotDates(prompt.available_slots)}</span>
-										</div>
-										{#if prompt.body_snippet}
-											<p class="row-snippet">{prompt.body_snippet}</p>
-										{/if}
-										<div class="row-meta">
-											<span class="area">{prompt.available_slots.map((s) => s.general_area).filter((v, i, a) => a.indexOf(v) === i).join(', ')}</span>
-											<span class="author">@{prompt.author_username}</span>
-										</div>
-									</div>
-								</div>
-							</a>
+							<PromptListItem {prompt} href="/conversations/{prompt.id}" />
 						{/each}
 					</div>
 				{/if}
@@ -259,136 +226,5 @@
 
 	.start-prompt-btn:hover { opacity: var(--opacity-hover-btn); }
 
-	.prompt-item {
-		border-bottom: 1px solid var(--border-link);
-		text-decoration: none;
-		color: inherit;
-		display: block;
-		transition: opacity 0.15s;
-	}
-
-	.prompt-item:hover { opacity: var(--opacity-hover-card); }
-
-	.prompt-item:last-child {
-		border-bottom: none;
-	}
-
-	.prompt-row {
-		display: flex;
-		gap: var(--space-5);
-		padding: var(--space-6) 0;
-		text-decoration: none;
-		transition: background 0.15s;
-		align-items: stretch;
-	}
-
-	.prompt-row:hover {
-		background: var(--bg-control);
-		margin: 0 calc(-1 * var(--space-3));
-		padding-left: var(--space-3);
-		padding-right: var(--space-3);
-		border-radius: var(--radius-input);
-	}
-
-	.row-thumb {
-		position: relative;
-		flex-shrink: 0;
-		width: 88px;
-		min-height: 96px;
-		border-radius: var(--radius-input);
-		overflow: hidden;
-		align-self: stretch;
-	}
-
-	/* .thumb-img — shared.css */
-
-	.thumb-placeholder {
-		position: absolute;
-		inset: 0;
-		background: var(--bg-control);
-		border: 1px solid var(--border-link);
-		border-radius: inherit;
-	}
-
-	.row-body {
-		flex: 1;
-		min-width: 0;
-	}
-
-	.row-top {
-		display: flex;
-		justify-content: space-between;
-		align-items: baseline;
-		gap: var(--space-3);
-	}
-
-	.row-title {
-		margin: 0;
-		font-size: var(--text-lg);
-		font-weight: 500;
-		color: var(--text-primary);
-		line-height: 1.3;
-		min-width: 0;
-	}
-
-	.date {
-		flex-shrink: 0;
-		color: var(--text-muted);
-		font-size: var(--text-sm);
-		white-space: nowrap;
-	}
-
-	.row-snippet {
-		margin: var(--space-1) 0 0;
-		color: var(--text-secondary);
-		font-size: var(--text-base);
-		line-height: 1.55;
-		display: -webkit-box;
-		-webkit-line-clamp: 2;
-		line-clamp: 2;
-		-webkit-box-orient: vertical;
-		overflow: hidden;
-	}
-
-	.row-meta {
-		display: flex;
-		gap: var(--space-3);
-		align-items: center;
-		margin-top: var(--space-1);
-		color: var(--text-muted);
-		font-size: var(--text-sm);
-	}
-
-	.author {
-		font-family: var(--font-mono);
-		font-size: var(--text-sm);
-	}
-
-	.area {
-		font-size: var(--text-sm);
-		text-transform: uppercase;
-		letter-spacing: 0.03em;
-	}
-
-	@media (max-width: 430px) {
-		.prompt-row {
-			align-items: stretch;
-		}
-
-		.row-thumb {
-			width: 88px;
-			align-self: stretch;
-		}
-
-		.row-top {
-			flex-direction: column;
-			align-items: flex-start;
-			gap: var(--space-1);
-		}
-
-		.date {
-			font-size: var(--text-xs);
-			color: var(--text-muted);
-		}
-	}
+	/* Prompt list item styles are in PromptListItem.svelte */
 </style>
