@@ -98,13 +98,24 @@
 <style>
 	.trigger-group {
 		position: fixed;
-		bottom: var(--space-5); /* aligned with FloatingNav bottom */
+		bottom: var(--space-5);
 		right: var(--space-4);
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-2);
 		align-items: center;
 		z-index: 900;
+	}
+
+	/* Mobile: move to top-left to avoid FloatingNav overlap */
+	@media (max-width: 430px) {
+		.trigger-group {
+			bottom: auto;
+			top: var(--space-4);
+			right: auto;
+			left: var(--space-4);
+			flex-direction: row;
+		}
 	}
 
 	.admin-trigger {
