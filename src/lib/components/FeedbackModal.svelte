@@ -52,11 +52,11 @@
 
 <div class="trigger-group">
 	{#if isAdmin}
-		<a href="/admin" class="admin-trigger" aria-label="Admin panel">
-			<svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-				<path d="M10 2L2 7v6l8 5 8-5V7L10 2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
-			</svg>
-		</a>
+	<a href="/admin" class="admin-trigger" aria-label="Admin panel">
+		<svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+			<path d="M10 2L2 7v6l8 5 8-5V7L10 2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+		</svg>
+	</a>
 	{/if}
 	<button class="feedback-trigger" onclick={open} aria-label="Send feedback">?</button>
 </div>
@@ -101,20 +101,19 @@
 		bottom: var(--space-5);
 		right: var(--space-4);
 		display: flex;
-		flex-direction: column;
+		flex-direction: row;
 		gap: var(--space-2);
 		align-items: center;
 		z-index: 900;
 	}
 
-	/* Mobile: move to top-left to avoid FloatingNav overlap */
+	/* Mobile: move to top-right to avoid FloatingNav overlap */
 	@media (max-width: 430px) {
 		.trigger-group {
 			bottom: auto;
 			top: var(--space-4);
-			right: auto;
-			left: var(--space-4);
-			flex-direction: row;
+			left: auto;
+			right: var(--space-4);
 		}
 	}
 
