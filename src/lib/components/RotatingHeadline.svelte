@@ -43,6 +43,10 @@
 
 	.rotating-wrapper {
 		display: inline-block;
+		/* Reserve height for two-line entries like "people with questions"
+		   to prevent page reflow when text wraps */
+		min-height: 2.1em;
+		vertical-align: top;
 	}
 
 	.rotating-word {
