@@ -1,7 +1,7 @@
 ---
 title: "fix: v0.1 Session 4a — Feedback Reveal"
 type: fix
-status: active
+status: completed
 date: 2026-03-28
 origin: docs/brainstorms/2026-03-28-v01-implementation-sequencing-brainstorm.md
 deepened: 2026-03-28
