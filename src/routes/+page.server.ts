@@ -12,5 +12,12 @@ export const load: PageServerLoad = async ({ locals, setHeaders }) => {
 	const prompts = await new SupabasePromptQueryService(locals.supabase)
 		.getPublishedPromptsPublic({ region: 'berlin', limit: 8 });
 
-	return { prompts };
+	// Anonymise author data for public landing page — real usernames must not reach the client
+	const anonymisedPrompts = prompts.map(p => ({
+		...p,
+		author_username: '•'.repeat(p.author_username.length),
+		author_id: ''
+	}));
+
+	return { prompts: anonymisedPrompts };
 };
