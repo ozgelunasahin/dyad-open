@@ -8,6 +8,7 @@
 	import SearchOverlay from '$lib/components/SearchOverlay.svelte';
 	import { getWeekDates } from '$lib/utils/dates';
 	import type { Snapshot } from './$types';
+	import { copy } from '$lib/copy';
 
 	let { data }: { data: PageData } = $props();
 	let viewMode = $state<'list' | 'map'>('list');
@@ -48,14 +49,6 @@
 	// Filter state
 	let selectedDates = $state<Set<string>>(new Set());
 	let selectedAreas = $state<Set<string>>(new Set());
-	let areaQuery = $state('');
-	let areaDropdownOpen = $state(false);
-
-	let areaSuggestions = $derived.by(() => {
-		if (!areaQuery.trim()) return availableAreas;
-		const q = areaQuery.toLowerCase();
-		return availableAreas.filter((a) => a.toLowerCase().includes(q));
-	});
 
 	let hasFilters = $derived(selectedDates.size > 0 || selectedAreas.size > 0);
 
@@ -88,25 +81,9 @@
 		selectedDates = next;
 	}
 
-	function toggleArea(area: string) {
-		const next = new Set(selectedAreas);
-		if (next.has(area)) next.delete(area);
-		else next.add(area);
-		selectedAreas = next;
-		areaQuery = '';
-		areaDropdownOpen = false;
-	}
-
-	function removeArea(area: string) {
-		const next = new Set(selectedAreas);
-		next.delete(area);
-		selectedAreas = next;
-	}
-
 	function clearFilters() {
 		selectedDates = new Set();
 		selectedAreas = new Set();
-		areaQuery = '';
 	}
 
 	/** Format slot dates for display, e.g. "Fri 28 · Sat 29" */
@@ -141,26 +118,27 @@
 		<MapView
 			prompts={filteredPrompts}
 			onSelectPin={handlePinSelect}
+			onMapClick={closeSheet}
 			initialCenter={mapCenter}
 			initialZoom={mapZoom}
 			onMoveEnd={(c, z) => { mapCenter = c; mapZoom = z; }}
 		/>
 	</div>
 	{#if selectedPinPrompts.length > 0}
-		<BottomSheet prompts={selectedPinPrompts} area={selectedPinArea} onClose={closeSheet} />
+		<BottomSheet prompts={selectedPinPrompts} />
 	{/if}
 {:else}
 <div class="content">
 			{#if data.prompts.length === 0}
 				<div class="empty-state">
-					<p>No conversations available right now.</p>
-					<p class="empty-hint">Check back soon, or start your own.</p>
-					<a href="/conversations/new" class="start-prompt-btn" style="margin-top: 16px; display: inline-block;">Start a conversation</a>
+					<p>{copy.discover.noConversations}</p>
+					<p class="empty-hint">{copy.discover.checkBackSoon}</p>
+					<a href="/conversations/new" class="start-prompt-btn" style="margin-top: var(--space-4); display: inline-block;">{copy.discover.startConversation}</a>
 				</div>
 			{:else if filteredPrompts.length === 0}
 					<div class="empty-state">
-						<p>No conversations match your filters.</p>
-						<button class="clear-filters-link" onclick={clearFilters}>Clear filters</button>
+						<p>{copy.discover.noMatchingFilters}</p>
+						<button class="clear-filters-link" onclick={clearFilters}>{copy.common.clearFilters}</button>
 					</div>
 				{:else}
 					<div class="prompt-list">
@@ -176,7 +154,7 @@
 									</div>
 									<div class="row-body">
 										<div class="row-top">
-											<h3 class="row-title">{prompt.title ?? 'Untitled'}</h3>
+											<h3 class="row-title">{prompt.title ?? copy.common.untitled}</h3>
 											<span class="date">{formatSlotDates(prompt.available_slots)}</span>
 										</div>
 										{#if prompt.body_snippet}
@@ -197,8 +175,9 @@
 
 <div class="floating-nav-wrapper">
 	<FloatingNav
-		position="top"
+		variant="discover"
 		active={viewMode === 'map' ? 'map' : ''}
+		attentionCount={data.attentionCount ?? 0}
 		onMapClick={() => viewMode = viewMode === 'map' ? 'list' : 'map'}
 		{weekDates}
 		selectedDays={selectedDates}
@@ -219,13 +198,17 @@
 <style>
 	.floating-nav-wrapper { display: block; }
 	.map-pane {
-		width: 100%;
-		height: calc(100vh - 64px);
+		position: fixed;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		left: 0;
 	}
 
 	.content {
 		width: 100%;
-		max-width: 800px;
+		max-width: var(--content-wide);
+		padding-bottom: var(--nav-clearance);
 	}
 
 	.empty-state {
@@ -239,220 +222,20 @@
 	}
 
 	.empty-hint {
-		font-size: 0.9rem;
+		font-size: var(--text-base);
 	}
-
-	/* === Filter bar === */
-	.filter-bar {
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
-		margin-bottom: 1.5rem;
-		padding: 0.75rem 1rem;
-		border: 1px solid var(--border-link);
-		border-radius: 8px;
-		background: var(--bg-canvas);
-	}
-
-	.filter-group {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
-
-	.filter-label {
-		font-size: 0.8rem;
-		color: var(--text-muted);
-		flex-shrink: 0;
-		width: 40px;
-	}
-
-	.week-calendar {
-		display: flex;
-		gap: 0.25rem;
-		flex: 1;
-	}
-
-	.day-cell {
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 0.05rem;
-		padding: 0.35rem 0.15rem;
-		background: none;
-		border: 1px solid var(--border-link);
-		border-radius: 6px;
-		cursor: pointer;
-		font-family: inherit;
-		transition: border-color 0.15s, background 0.15s, color 0.15s;
-		color: var(--text-primary);
-	}
-
-	.day-cell:hover {
-		border-color: var(--border-link-hover, var(--text-muted));
-	}
-
-	.day-cell.selected {
-		background: var(--text-primary);
-		border-color: var(--text-primary);
-		color: var(--bg-canvas);
-	}
-
-	.day-name {
-		font-size: 0.6rem;
-		text-transform: uppercase;
-		letter-spacing: 0.03em;
-	}
-
-	.day-num {
-		font-size: 0.85rem;
-		font-weight: 500;
-	}
-
-	.location-filter {
-		display: flex;
-		align-items: center;
-		gap: 0.3rem;
-		flex: 1;
-		flex-wrap: wrap;
-	}
-
-	.location-chip {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.2rem;
-		padding: 0.2rem 0.5rem;
-		background: var(--text-primary);
-		color: var(--bg-canvas);
-		border-radius: 12px;
-		font-size: 0.8rem;
-		white-space: nowrap;
-	}
-
-	.chip-remove {
-		background: none;
-		border: none;
-		color: var(--bg-canvas);
-		font-size: 0.9rem;
-		cursor: pointer;
-		padding: 0;
-		line-height: 1;
-		opacity: 0.7;
-	}
-
-	.chip-remove:hover { opacity: 1; }
-
-	.location-search {
-		position: relative;
-		min-width: 140px;
-		flex: 1;
-	}
-
-	.location-input {
-		width: 100%;
-		padding: 0.4rem 0.65rem;
-		border: 1px solid var(--border-link);
-		border-radius: 6px;
-		font-size: 0.85rem;
-		font-family: inherit;
-		background: var(--bg-canvas);
-		color: var(--text-primary);
-		box-sizing: border-box;
-	}
-
-	.location-input:focus {
-		outline: none;
-		border-color: var(--text-link-hover, var(--text-muted));
-	}
-
-	.location-input::placeholder { color: var(--text-muted); }
-
-	.location-dropdown {
-		position: absolute;
-		top: 100%;
-		left: 0;
-		right: 0;
-		background: var(--bg-canvas);
-		border: 1px solid var(--border-link);
-		border-top: none;
-		border-radius: 0 0 6px 6px;
-		max-height: 200px;
-		overflow-y: auto;
-		z-index: 10;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-	}
-
-	.location-option {
-		display: block;
-		width: 100%;
-		text-align: left;
-		padding: 0.45rem 0.65rem;
-		background: none;
-		border: none;
-		border-bottom: 1px solid var(--border-link);
-		font-size: 0.85rem;
-		font-family: inherit;
-		color: var(--text-primary);
-		cursor: pointer;
-	}
-
-	.location-option:last-child { border-bottom: none; }
-	.location-option:hover { background: var(--bg-control, rgba(0, 0, 0, 0.03)); }
-	.location-option.active { background: var(--bg-control, rgba(0, 0, 0, 0.03)); font-weight: 500; }
-
-	.clear-filters {
-		align-self: flex-end;
-		background: none;
-		border: none;
-		color: var(--text-muted);
-		font-size: 0.8rem;
-		font-family: inherit;
-		cursor: pointer;
-		text-decoration: underline;
-	}
-
-	.clear-filters:hover { color: var(--text-primary); }
-
-	.view-toggle {
-		display: flex;
-		gap: 2px;
-		margin-left: auto;
-	}
-
-	.toggle-btn {
-		padding: 6px 8px;
-		border: 1px solid var(--border-link, rgba(0, 0, 0, 0.12));
-		background: none;
-		color: var(--text-muted, #999);
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		transition: all 0.15s;
-	}
-
-	.toggle-btn:first-child { border-radius: 4px 0 0 4px; }
-	.toggle-btn:last-child { border-radius: 0 4px 4px 0; }
-	.toggle-btn.active { background: var(--text-primary); color: var(--bg-canvas); border-color: var(--text-primary); }
-	.toggle-btn:hover:not(.active) { border-color: var(--text-primary); color: var(--text-primary); }
 
 	.clear-filters-link {
 		background: none;
 		border: none;
 		color: var(--text-muted);
-		font-size: 0.9rem;
+		font-size: var(--text-base);
 		font-family: inherit;
 		cursor: pointer;
 		text-decoration: underline;
 	}
 
 	.clear-filters-link:hover { color: var(--text-primary); }
-
-	.where-group {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
 
 	/* === Prompt list === */
 	.prompt-list {
@@ -463,22 +246,18 @@
 		margin-bottom: 3rem;
 	}
 
-	.prompt-actions {
-		margin-bottom: 16px;
-	}
-
 	.start-prompt-btn {
-				font-size: 13px;
-		padding: 8px 20px;
-		border: 1px solid var(--text-primary, #1a1a1a);
-		border-radius: 6px;
-		background: var(--text-primary, #1a1a1a);
-		color: var(--bg-canvas, #f5f3f0);
+				font-size: var(--text-sm);
+		padding: var(--space-2) var(--space-5);
+		border: 1px solid var(--text-primary);
+		border-radius: var(--radius-input);
+		background: var(--text-primary);
+		color: var(--bg-canvas);
 		text-decoration: none;
 		transition: opacity 0.15s;
 	}
 
-	.start-prompt-btn:hover { opacity: 0.8; }
+	.start-prompt-btn:hover { opacity: var(--opacity-hover-btn); }
 
 	.prompt-item {
 		border-bottom: 1px solid var(--border-link);
@@ -488,7 +267,7 @@
 		transition: opacity 0.15s;
 	}
 
-	.prompt-item:hover { opacity: 0.72; }
+	.prompt-item:hover { opacity: var(--opacity-hover-card); }
 
 	.prompt-item:last-child {
 		border-bottom: none;
@@ -496,19 +275,19 @@
 
 	.prompt-row {
 		display: flex;
-		gap: 1.25rem;
-		padding: 1.5rem 0;
+		gap: var(--space-5);
+		padding: var(--space-6) 0;
 		text-decoration: none;
 		transition: background 0.15s;
 		align-items: stretch;
 	}
 
 	.prompt-row:hover {
-		background: var(--bg-control, rgba(0, 0, 0, 0.02));
-		margin: 0 -0.75rem;
-		padding-left: 0.75rem;
-		padding-right: 0.75rem;
-		border-radius: 4px;
+		background: var(--bg-control);
+		margin: 0 calc(-1 * var(--space-3));
+		padding-left: var(--space-3);
+		padding-right: var(--space-3);
+		border-radius: var(--radius-input);
 	}
 
 	.row-thumb {
@@ -516,23 +295,17 @@
 		flex-shrink: 0;
 		width: 88px;
 		min-height: 96px;
-		border-radius: 6px;
+		border-radius: var(--radius-input);
 		overflow: hidden;
 		align-self: stretch;
 	}
 
-	.thumb-img {
-		position: absolute;
-		inset: 0;
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-	}
+	/* .thumb-img — shared.css */
 
 	.thumb-placeholder {
 		position: absolute;
 		inset: 0;
-		background: var(--bg-control, rgba(0, 0, 0, 0.05));
+		background: var(--bg-control);
 		border: 1px solid var(--border-link);
 		border-radius: inherit;
 	}
@@ -546,12 +319,12 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: baseline;
-		gap: 0.75rem;
+		gap: var(--space-3);
 	}
 
 	.row-title {
 		margin: 0;
-		font-size: 1.05rem;
+		font-size: var(--text-lg);
 		font-weight: 500;
 		color: var(--text-primary);
 		line-height: 1.3;
@@ -561,37 +334,38 @@
 	.date {
 		flex-shrink: 0;
 		color: var(--text-muted);
-		font-size: 0.8rem;
+		font-size: var(--text-sm);
 		white-space: nowrap;
 	}
 
 	.row-snippet {
-		margin: 0.4rem 0 0;
+		margin: var(--space-1) 0 0;
 		color: var(--text-secondary);
-		font-size: 0.9rem;
+		font-size: var(--text-base);
 		line-height: 1.55;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
+		line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 	}
 
 	.row-meta {
 		display: flex;
-		gap: 0.75rem;
+		gap: var(--space-3);
 		align-items: center;
-		margin-top: 0.35rem;
+		margin-top: var(--space-1);
 		color: var(--text-muted);
-		font-size: 0.8rem;
+		font-size: var(--text-sm);
 	}
 
 	.author {
 		font-family: var(--font-mono);
-		font-size: 0.78rem;
+		font-size: var(--text-sm);
 	}
 
 	.area {
-		font-size: 0.78rem;
+		font-size: var(--text-sm);
 		text-transform: uppercase;
 		letter-spacing: 0.03em;
 	}
@@ -609,11 +383,11 @@
 		.row-top {
 			flex-direction: column;
 			align-items: flex-start;
-			gap: 0.2rem;
+			gap: var(--space-1);
 		}
 
 		.date {
-			font-size: 0.75rem;
+			font-size: var(--text-xs);
 			color: var(--text-muted);
 		}
 	}

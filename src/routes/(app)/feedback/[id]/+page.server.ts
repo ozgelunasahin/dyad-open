@@ -1,12 +1,14 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { SupabaseFeedbackService } from '$lib/services/feedback.js';
+import type { RevealedFeedback } from '$lib/domain/types.js';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
+	const userId = locals.user!.id;
 	const service = new SupabaseFeedbackService(locals.supabase);
 
 	const [form, vocabulary] = await Promise.all([
-		service.getFormById(params.id, locals.user!.id).catch(() => null),
+		service.getFormById(params.id, userId).catch(() => null),
 		service.getVocabulary()
 	]);
 
@@ -14,28 +16,35 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		redirect(302, '/discover');
 	}
 
-	// Load meeting context (other participant + conversation title)
-	let meetingContext: { otherUsername: string; promptTitle: string; meetingDate: string } | null = null;
+	// not_due → redirect to meeting detail (bookmarked URL guard)
+	if (form.state === 'not_due') {
+		redirect(302, `/meetings/${form.meeting_id}`);
+	}
+
+	// Load revealed feedback for locked/released forms
+	let revealedFeedback: RevealedFeedback[] = [];
+	if (form.state === 'locked' || form.state === 'released') {
+		revealedFeedback = await service.getRevealedFeedback(form.meeting_id, userId);
+	}
+
+	// Load meeting context (other participant + meeting date)
+	let meetingContext: { otherUsername: string; meetingDate: string } | null = null;
 	if (form.meeting_id) {
 		const { data: meeting } = await locals.supabase
 			.from('meetings')
-			.select('scheduled_time, user_a, user_b, prompt_id')
+			.select('scheduled_time, participant_a, participant_b, prompt_id')
 			.eq('id', form.meeting_id)
 			.single();
 
 		if (meeting) {
-			const otherId = meeting.user_a === locals.user!.id ? meeting.user_b : meeting.user_a;
-			const [{ data: otherProfile }, { data: prompt }] = await Promise.all([
-				locals.supabase.from('profiles').select('username').eq('id', otherId).single(),
-				locals.supabase.from('prompts').select('title').eq('id', meeting.prompt_id).single()
-			]);
+			const otherId = meeting.participant_a === userId ? meeting.participant_b : meeting.participant_a;
+			const { data: otherProfile } = await locals.supabase.from('profiles').select('username').eq('id', otherId).single();
 			meetingContext = {
 				otherUsername: otherProfile?.username ?? 'someone',
-				promptTitle: prompt?.title ?? 'a conversation',
 				meetingDate: new Date(meeting.scheduled_time).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 			};
 		}
 	}
 
-	return { form, vocabulary, meetingContext };
+	return { form, vocabulary, meetingContext, revealedFeedback };
 };

@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createAuthenticatedClient, SEED_USERS } from '../helpers/auth.js';
 import { createServices } from '../helpers/db.js';
+import { cleanTestData } from '../helpers/cleanup.js';
 
 describe('Auto-archival', () => {
 	let digitClient: SupabaseClient;
@@ -79,4 +80,6 @@ describe('Auto-archival', () => {
 		expect(prompt?.state).toBe('archived');
 		expect(prompt?.archived_at).toBeTruthy();
 	});
+
+	afterAll(() => cleanTestData());
 });

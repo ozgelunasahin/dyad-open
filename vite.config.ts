@@ -1,6 +1,6 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import { SvelteKitPWA } from '@vite-pwa/sveltekit';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
 	test: {
@@ -39,7 +39,8 @@ export default defineConfig({
 				]
 			},
 			workbox: {
-				globPatterns: ['client/**/*.{js,css,html,svg,png,woff2,json}']
+				globPatterns: ['client/**/*.{js,css,html,svg,woff2,json}'],
+				globIgnores: ['client/uploads/**']
 			},
 			devOptions: {
 				enabled: false

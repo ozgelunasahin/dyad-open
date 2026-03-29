@@ -67,6 +67,7 @@ export interface PromptSummary {
 }
 
 export interface PromptDetail extends PromptSummary {
+	state: 'draft' | 'published' | 'archived';
 	body: JSONContent;
 	body_html: string; // server-rendered TipTap HTML (sanitized)
 }
@@ -79,6 +80,7 @@ export interface Comment {
 	id: string;
 	prompt_id: string;
 	author_id: string;
+	author_username?: string;
 	body: string;
 	created_at: string;
 	updated_at: string;

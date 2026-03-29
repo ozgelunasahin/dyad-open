@@ -39,7 +39,7 @@ export const actions: Actions = {
 		const berlinBased = formData.get('berlin_based') === 'on';
 
 		if (typeof token !== 'string' || !token) {
-			return fail(400, { error: 'Invalid invitation token' });
+			return fail(400, { username: username?.toString(), error: 'Invalid invitation token' });
 		}
 
 		if (typeof username !== 'string' || username.length < 3) {
@@ -101,11 +101,16 @@ export const actions: Actions = {
 			return fail(400, { username, error: signUpError.message });
 		}
 
-		// Mark the invitation as used and auto-confirm email (invite-only, already validated)
-		await Promise.all([
-			locals.supabase.rpc('use_invitation', { invite_token: token }),
-			locals.supabase.rpc('confirm_user_email', { user_email: email })
-		]);
+		// Mark the invitation as used, then confirm the email.
+		// Sequential: confirm_user_email checks that a recently consumed invitation exists.
+		const { error: useError } = await locals.supabase.rpc('use_invitation', { invite_token: token });
+		if (useError) {
+			return fail(400, { username, error: 'This invitation could not be processed. Please try again.' });
+		}
+		const { error: confirmError } = await locals.supabase.rpc('confirm_user_email', { user_email: email });
+		if (confirmError) {
+			console.error('[join] Failed to confirm email after invitation:', confirmError);
+		}
 
 		// Resolve referred_by: check invitation's invited_by first, then dyad_ref cookie
 		let referredById: string | null = null;

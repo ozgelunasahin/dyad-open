@@ -60,7 +60,7 @@
 		transition: opacity 0.15s;
 	}
 
-	.card:hover { opacity: 0.72; }
+	.card:hover { opacity: var(--opacity-hover-card); }
 
 	.thumb {
 		width: 88px;
@@ -122,6 +122,7 @@
 		line-height: var(--leading-normal);
 		display: -webkit-box;
 		-webkit-line-clamp: 3;
+		line-clamp: 3;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 	}

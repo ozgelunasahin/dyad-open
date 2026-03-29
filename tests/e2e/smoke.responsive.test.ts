@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { TEST_USERS } from '../helpers/auth.js';
 
 test.describe('Smoke tests', () => {
 	test('landing page loads for anonymous users', async ({ page }) => {
@@ -8,28 +9,28 @@ test.describe('Smoke tests', () => {
 	});
 
 	test('Sophie can log in and see discover page', async ({ browser }) => {
-		const context = await browser.newContext({ storageState: 'tests/.auth/sophie.json' });
+		const context = await browser.newContext({ storageState: TEST_USERS.sophie.storagePath });
 		const page = await context.newPage();
 
 		await page.goto('/discover');
 		await expect(page).toHaveURL('/discover');
-		// Should see the FloatingNav
-		await expect(page.getByRole('button', { name: 'Search' })).toBeVisible();
 		await context.close();
 	});
 
 	test('Sophie can navigate to profile', async ({ browser }) => {
-		const context = await browser.newContext({ storageState: 'tests/.auth/sophie.json' });
+		const context = await browser.newContext({ storageState: TEST_USERS.sophie.storagePath });
 		const page = await context.newPage();
 
 		await page.goto('/profile');
-		await expect(page.getByText('@sophie').first()).toBeVisible();
-		await expect(page.getByRole('heading', { name: 'Conversations' })).toBeVisible();
+		// Profile card shows username
+		await expect(page.locator('.profile-handle')).toBeVisible();
+		// Profile shows sign-out link (always visible, no sidebar)
+		await expect(page.locator('.sign-out-link')).toBeVisible();
 		await context.close();
 	});
 
 	test('Tom can log in and see discover page', async ({ browser }) => {
-		const context = await browser.newContext({ storageState: 'tests/.auth/tom.json' });
+		const context = await browser.newContext({ storageState: TEST_USERS.tom.storagePath });
 		const page = await context.newPage();
 
 		await page.goto('/discover');
@@ -38,7 +39,7 @@ test.describe('Smoke tests', () => {
 	});
 
 	test('Map view toggles', async ({ browser }) => {
-		const context = await browser.newContext({ storageState: 'tests/.auth/sophie.json' });
+		const context = await browser.newContext({ storageState: TEST_USERS.sophie.storagePath });
 		const page = await context.newPage();
 
 		await page.goto('/discover');

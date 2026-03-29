@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
 	createAuthenticatedClient,
@@ -6,6 +6,7 @@ import {
 	SEED_USERS
 } from '../helpers/auth.js';
 import { createServices, type Services } from '../helpers/db.js';
+import { cleanTestData } from '../helpers/cleanup.js';
 
 describe('Feedback lifecycle', () => {
 	let digitClient: SupabaseClient;
@@ -19,11 +20,12 @@ describe('Feedback lifecycle', () => {
 	let otherFormId: string;
 
 	beforeAll(async () => {
+		adminClient = createAdminClient();
+		await cleanTestData(adminClient);
 		digitClient = await createAuthenticatedClient(SEED_USERS.digit.email, SEED_USERS.digit.password);
 		digitServices = createServices(digitClient);
 		otherClient = await createAuthenticatedClient(SEED_USERS.other.email, SEED_USERS.other.password);
 		otherServices = createServices(otherClient);
-		adminClient = createAdminClient();
 	});
 
 	describe('setup: create a meeting and advance it', () => {
@@ -224,4 +226,6 @@ describe('Feedback lifecycle', () => {
 			).rejects.toThrow('Invalid rating tag');
 		});
 	});
+
+	afterAll(() => cleanTestData(adminClient));
 });
