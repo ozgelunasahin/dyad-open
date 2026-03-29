@@ -55,14 +55,17 @@ Reviewed by: architecture-strategist, code-simplicity-reviewer.
 - [ ] Editor: remove `padding-top: 72px`, add `padding-bottom: 80px`
 - [ ] Audit all other (app) pages
 
-## 5. Admin link on profile page
+## 5. Admin button next to feedback button
 
-- [ ] Add conditional admin link for admin users (uses existing `isAdmin` from layout data)
+- [ ] `src/lib/components/FeedbackModal.svelte` (or wherever the "?" trigger is) — add an admin icon/link to `/admin` next to the feedback button, conditional on `isAdmin`. Same fixed bottom-right positioning. Admin users see two buttons: [?] [admin]. This keeps the admin tool one tap away for the co-founder who uses it daily.
+- [ ] Thread `isAdmin` prop through to whatever component renders the admin button. The layout data already has it from `loadLayoutData`.
 
-## 6. Update design system docs
+## 6. Update design system docs + archive sidebar
 
-- [ ] Rewrite Layout section: remove sidebar, document FloatingNav as sole nav (bottom)
-- [ ] Update FloatingNav component spec
+- [ ] Rewrite Layout section in design-system.md: remove sidebar, document FloatingNav as sole nav (bottom)
+- [ ] Update FloatingNav component spec: position bottom, visible on all viewports
+- [ ] Archive sidebar styling: `docs/design/archive/sidebar-desktop-nav-reference.md` (already created)
+- [ ] Add to ROADMAP.md: "v0.2 — revisit desktop navigation (top bar, horizontal nav, or sidebar revival)"
 
 ## Acceptance Criteria
 
@@ -71,6 +74,7 @@ Reviewed by: architecture-strategist, code-simplicity-reviewer.
 - [ ] No padding-top for nav clearance
 - [ ] Map fills full viewport width
 - [ ] Editor dropdown opens upward
-- [ ] Admin users can reach /admin from profile
-- [ ] Design system docs updated
+- [ ] Admin users can reach /admin via button next to feedback "?" button
+- [ ] Design system docs updated, sidebar archived
+- [ ] ROADMAP notes desktop nav revisit for v0.2
 - [ ] No new svelte-check errors
