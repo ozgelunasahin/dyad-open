@@ -47,7 +47,7 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
 		.eq('read', false);
 
 	if (!all) {
-		query = query.in('id', ids);
+		query = query.in('id', ids as string[]);
 	}
 
 	const { error: dbError } = await query;

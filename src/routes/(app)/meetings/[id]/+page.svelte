@@ -121,7 +121,7 @@
 		</section>
 	{/if}
 
-	{#if data.meeting.state === 'scheduled' || data.meeting.state === 'active'}
+	{#if data.meeting.state === 'scheduled'}
 		<button class="cancel-btn" onclick={() => cancelDialog.open()} disabled={cancelling}>
 			{cancelling ? copy.meeting.cancelling : copy.meeting.cancelMeeting}
 		</button>

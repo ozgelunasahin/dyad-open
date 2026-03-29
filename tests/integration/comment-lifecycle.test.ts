@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { createAuthenticatedClient, SEED_USERS, SEED_PROMPTS } from '../helpers/auth.js';
+import { createAuthenticatedClient, createAdminClient, SEED_USERS, SEED_PROMPTS } from '../helpers/auth.js';
 import { createServices, type Services } from '../helpers/db.js';
+import { cleanTestData } from '../helpers/cleanup.js';
 
 describe('Comment lifecycle', () => {
 	let digitClient: SupabaseClient;
@@ -10,6 +11,7 @@ describe('Comment lifecycle', () => {
 	let otherServices: Services;
 
 	beforeAll(async () => {
+		await cleanTestData();
 		digitClient = await createAuthenticatedClient(SEED_USERS.digit.email, SEED_USERS.digit.password);
 		digitServices = createServices(digitClient);
 		otherClient = await createAuthenticatedClient(SEED_USERS.other.email, SEED_USERS.other.password);
@@ -69,7 +71,7 @@ describe('Comment lifecycle', () => {
 			// Actually, other IS the commenter on digit's prompt, so let's test
 			// that digit can't see other people's comments on OTHER's prompt
 			const comments = await digitServices.comment.getCommentsForPrompt(
-				SEED_PROMPTS.other
+				SEED_PROMPTS.marco
 			);
 			// digit is NOT the author of seed-prompt-other, so RLS limits visibility
 			// digit should only see their own comment on this prompt
@@ -89,4 +91,6 @@ describe('Comment lifecycle', () => {
 			).rejects.toThrow();
 		});
 	});
+
+	afterAll(() => cleanTestData());
 });

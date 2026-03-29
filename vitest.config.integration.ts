@@ -16,6 +16,7 @@ export default defineConfig({
 		testTimeout: 15000,
 		hookTimeout: 30000,
 		// Sequential execution: tests share a database and depend on ordered state
+		fileParallelism: false,
 		pool: 'forks',
 		poolOptions: { forks: { singleFork: true } }
 	}

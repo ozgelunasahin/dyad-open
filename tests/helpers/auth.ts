@@ -4,6 +4,16 @@ const SUPABASE_URL = process.env.PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:54321'
 const ANON_KEY = process.env.PUBLIC_SUPABASE_ANON_KEY ?? '';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
 
+// ── Localhost guard ─────────────────────────────────────────────────────
+// Prevents tests from accidentally running against production/staging.
+if (!SUPABASE_URL.startsWith('http://127.0.0.1') && !SUPABASE_URL.startsWith('http://localhost')) {
+	throw new Error(
+		`SAFETY: Tests must run against a local Supabase instance.\n` +
+		`PUBLIC_SUPABASE_URL is "${SUPABASE_URL}" which is not localhost.\n` +
+		`Set PUBLIC_SUPABASE_URL=http://127.0.0.1:54321 or run 'supabase start'.`
+	);
+}
+
 /** Admin client — bypasses RLS. Used for test setup/teardown only. */
 export function createAdminClient(): SupabaseClient {
 	if (!SERVICE_ROLE_KEY) {
@@ -34,26 +44,72 @@ export async function createAuthenticatedClient(
 	return client;
 }
 
-// Deterministic seed user IDs (must match supabase/seed.sql)
-export const SEED_USERS = {
-	digit: {
+// ── Test users — must match supabase/seed.sql ───────────────────────────
+// All emails use @test.invalid (RFC 2606 — guaranteed undeliverable).
+// Integration tests use lisa + marco. E2E tests use sophie + tom.
+export const TEST_USERS = {
+	lisa: {
 		id: '11111111-1111-1111-1111-111111111111',
-		email: 'digit@test.local',
+		email: 'lisa@test.invalid',
 		password: 'local-fixture-not-a-secret',
-		username: 'digit'
+		username: 'lisa',
+		isAdmin: true,
+		storagePath: 'tests/.auth/lisa.json',
 	},
-	other: {
+	marco: {
 		id: '22222222-2222-2222-2222-222222222222',
-		email: 'other@test.local',
+		email: 'marco@test.invalid',
 		password: 'local-fixture-not-a-secret',
-		username: 'otherperson'
-	}
+		username: 'marco',
+		isAdmin: false,
+		storagePath: 'tests/.auth/marco.json',
+	},
+	sophie: {
+		id: '33333333-3333-3333-3333-333333333333',
+		email: 'sophie@test.invalid',
+		password: 'local-fixture-not-a-secret',
+		username: 'sophie',
+		isAdmin: false,
+		storagePath: 'tests/.auth/sophie.json',
+	},
+	tom: {
+		id: '44444444-4444-4444-4444-444444444444',
+		email: 'tom@test.invalid',
+		password: 'local-fixture-not-a-secret',
+		username: 'tom',
+		isAdmin: false,
+		storagePath: 'tests/.auth/tom.json',
+	},
+	ava: {
+		id: '55555555-5555-5555-5555-555555555555',
+		email: 'ava@test.invalid',
+		password: 'local-fixture-not-a-secret',
+		username: 'ava',
+		isAdmin: false,
+		storagePath: 'tests/.auth/ava.json',
+	},
+	ben: {
+		id: '66666666-6666-6666-6666-666666666666',
+		email: 'ben@test.invalid',
+		password: 'local-fixture-not-a-secret',
+		username: 'ben',
+		isAdmin: false,
+		storagePath: 'tests/.auth/ben.json',
+	},
 } as const;
 
-// Deterministic seed prompt IDs (must match supabase/seed.sql)
-export const SEED_PROMPTS = {
+// ── Seed prompt IDs — must match supabase/seed.sql ──────────────────────
+export const TEST_PROMPTS = {
 	published: 'seed-prompt-published',
 	draft: 'seed-prompt-draft',
 	archived: 'seed-prompt-archived',
-	other: 'seed-prompt-other'
+	marco: 'seed-prompt-marco',
 } as const;
+
+// Backwards-compat aliases — integration tests use these names
+export const SEED_USERS = {
+	digit: TEST_USERS.lisa,
+	other: TEST_USERS.marco,
+} as const;
+
+export const SEED_PROMPTS = TEST_PROMPTS;

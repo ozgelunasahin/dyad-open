@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createAuthenticatedClient, SEED_USERS, SEED_PROMPTS } from '../helpers/auth.js';
 import { createServices, type Services } from '../helpers/db.js';
+import { cleanTestData } from '../helpers/cleanup.js';
 import type { TimeSlotInput } from '../../src/lib/domain/types.js';
 
 describe('Prompt lifecycle', () => {
@@ -100,14 +101,14 @@ describe('Prompt lifecycle', () => {
 			expect(found?.available_slots.length).toBe(1);
 		});
 
-		it('does not appear in discover feed for the author', async () => {
+		it('appears in discover feed for the author (own conversations visible)', async () => {
 			const feed = await digitServices.promptQuery.getPublishedPrompts({
 				region: 'berlin',
 				userId: SEED_USERS.digit.id
 			});
 
 			const found = feed.find((p) => p.id === createdPromptId);
-			expect(found).toBeUndefined();
+			expect(found).toBeTruthy();
 		});
 
 		it('unpublishes to archived', async () => {
@@ -183,8 +184,10 @@ describe('Prompt lifecycle', () => {
 			expect(detail).toBeTruthy();
 			// Available slots should not contain exact_location
 			for (const slot of detail!.available_slots) {
-				expect((slot as Record<string, unknown>).exact_location).toBeUndefined();
+				expect((slot as unknown as Record<string, unknown>).exact_location).toBeUndefined();
 			}
 		});
 	});
+
+	afterAll(() => cleanTestData());
 });

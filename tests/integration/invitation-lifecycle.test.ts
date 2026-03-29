@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
 	createAuthenticatedClient,
@@ -7,6 +7,7 @@ import {
 	SEED_PROMPTS
 } from '../helpers/auth.js';
 import { createServices, type Services } from '../helpers/db.js';
+import { cleanTestData } from '../helpers/cleanup.js';
 
 describe('Invitation lifecycle', () => {
 	let digitClient: SupabaseClient;
@@ -16,6 +17,8 @@ describe('Invitation lifecycle', () => {
 	let adminClient: SupabaseClient;
 
 	beforeAll(async () => {
+		adminClient = createAdminClient();
+		await cleanTestData(adminClient);
 		digitClient = await createAuthenticatedClient(
 			SEED_USERS.digit.email,
 			SEED_USERS.digit.password
@@ -26,7 +29,6 @@ describe('Invitation lifecycle', () => {
 			SEED_USERS.other.password
 		);
 		otherServices = createServices(otherClient);
-		adminClient = createAdminClient();
 	});
 
 	describe('create and cancel', () => {
@@ -205,11 +207,12 @@ describe('Invitation lifecycle', () => {
 		});
 
 		it('expires invitations via function (called by admin client)', async () => {
-			// Move the slot to within 12h by updating start_time
-			await otherClient
+			// Move the slot to the past — expire_stale_invitations expires at start_time <= NOW()
+			await adminClient
 				.from('time_slots')
-				.update({ start_time: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString() })
-				.eq('id', slotId);
+				.update({ start_time: new Date(Date.now() - 60 * 60 * 1000).toISOString() })
+				.eq('id', slotId)
+				.throwOnError();
 
 			// Call expiry function via admin client (restricted to service_role)
 			const { data: expiredCount, error } = await adminClient.rpc(
@@ -278,4 +281,6 @@ describe('Invitation lifecycle', () => {
 			expect(pending.length).toBe(0);
 		});
 	});
+
+	afterAll(() => cleanTestData(adminClient));
 });
