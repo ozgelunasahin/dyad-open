@@ -1,10 +1,35 @@
 <script lang="ts">
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import type { PageData } from './$types';
-	import RotatingHeadline from '$lib/components/RotatingHeadline.svelte';
-	import ConversationCard from '$lib/components/ConversationCard.svelte';
+	import type { PromptSummary } from '$lib/domain/types';
+	import PromptListItem from '$lib/components/PromptListItem.svelte';
+	import BottomSheet from '$lib/components/BottomSheet.svelte';
+	import AuthDialog from '$lib/components/AuthDialog.svelte';
+	import { copy } from '$lib/copy';
 
 	let { data }: { data: PageData } = $props();
+
+	let viewMode = $state<'list' | 'map'>('list');
+	let mapCenter = $state<[number, number] | null>(null);
+	let mapZoom = $state<number | null>(null);
+	let selectedPinPrompts = $state<PromptSummary[]>([]);
+
+	let authDialog = $state<AuthDialog | undefined>();
+	let authMode = $state<'waitlist' | 'login'>('waitlist');
+
+	function openAuth(mode: 'waitlist' | 'login') {
+		authMode = mode;
+		authDialog?.show(mode);
+	}
+
+	function handlePinSelect(prompts: PromptSummary[], _area: string) {
+		selectedPinPrompts = prompts;
+	}
+
+	function handleMapMove(center: [number, number], zoom: number) {
+		mapCenter = center;
+		mapZoom = zoom;
+	}
 </script>
 
 <svelte:head>
@@ -17,12 +42,10 @@
 	<div class="left-col">
 		<div class="left-top">
 			<img src="/images/logo.png" alt="dyad." class="logo" />
-			<a href="/login" class="login-link">log in</a>
+			<span class="beta-label">private beta</span>
 		</div>
 
 		<div class="hero-content">
-			<RotatingHeadline />
-
 			<p class="tagline">cultivating a culture<br />of conversation</p>
 
 			<div class="city-row">
@@ -30,9 +53,14 @@
 				<span class="city-name">BERLIN</span>
 			</div>
 
-			<a href="/waitlist" class="join-btn">
-				join waitlist <span class="arrow" aria-hidden="true">→</span>
-			</a>
+			<div class="hero-actions">
+				<button class="join-btn" onclick={() => openAuth('waitlist')}>
+					join waitlist <span class="arrow" aria-hidden="true">→</span>
+				</button>
+				<button class="login-btn" onclick={() => openAuth('login')}>
+					log in
+				</button>
+			</div>
 		</div>
 
 		<div class="left-footer">
@@ -56,19 +84,61 @@
 		</div>
 	</div>
 
-	<!-- Right: scrollable conversation cards -->
+	<!-- Right: discover view (list/map toggle) -->
 	<div class="right-col">
-		<div class="cards-scroll">
-			{#if data.prompts && data.prompts.length > 0}
-				{#each data.prompts as prompt}
-					<ConversationCard {prompt} onclick={() => window.location.href = '/waitlist'} />
-				{/each}
-			{:else}
-				<p class="empty-state">No conversations yet. Check back soon.</p>
-			{/if}
+		<div class="view-toggle" role="radiogroup" aria-label="View mode">
+			<button
+				class="toggle-option"
+				class:active={viewMode === 'list'}
+				role="radio"
+				aria-checked={viewMode === 'list'}
+				onclick={() => viewMode = 'list'}
+			>List</button>
+			<button
+				class="toggle-option"
+				class:active={viewMode === 'map'}
+				role="radio"
+				aria-checked={viewMode === 'map'}
+				onclick={() => viewMode = 'map'}
+			>Map</button>
 		</div>
+
+		{#if viewMode === 'map'}
+			<div class="map-container">
+				{#await import('$lib/components/MapView.svelte') then { default: MapView }}
+					<MapView
+						prompts={data.prompts}
+						initialCenter={mapCenter}
+						initialZoom={mapZoom}
+						onSelectPin={handlePinSelect}
+						onMoveEnd={handleMapMove}
+					/>
+				{/await}
+
+				{#if selectedPinPrompts.length > 0}
+					<BottomSheet prompts={selectedPinPrompts} onCardClick={() => openAuth('waitlist')} />
+				{/if}
+			</div>
+		{:else}
+			<div class="prompt-list">
+				{#if data.prompts && data.prompts.length > 0}
+					{#each data.prompts as prompt}
+						<PromptListItem {prompt} onclick={() => openAuth('waitlist')} />
+					{/each}
+				{:else}
+					<div class="empty-state">
+						<p>Conversations are starting soon.</p>
+						<button class="join-btn" onclick={() => openAuth('waitlist')}>
+							Join the waitlist <span class="arrow" aria-hidden="true">→</span>
+						</button>
+					</div>
+				{/if}
+			</div>
+		{/if}
 	</div>
 </div>
+
+<AuthDialog bind:this={authDialog} mode={authMode} />
 
 <style>
 	/* ── Split layout ─────────────────────────────────────────── */
@@ -105,14 +175,12 @@
 	}
 	:global([data-theme='dark']) .logo { filter: none; }
 
-	.login-link {
+	.beta-label {
 		font-family: var(--font-mono);
 		font-size: var(--text-xs);
 		letter-spacing: 0.06em;
-		text-transform: lowercase;
 		color: var(--text-muted);
 	}
-	.login-link:hover { color: var(--text-primary); }
 
 	.hero-content {
 		margin-top: auto;
@@ -156,6 +224,12 @@
 		color: var(--text-muted);
 	}
 
+	.hero-actions {
+		display: flex;
+		align-items: center;
+		gap: var(--space-4);
+	}
+
 	.join-btn {
 		display: inline-flex;
 		align-items: center;
@@ -166,10 +240,23 @@
 		border: 1px solid var(--text-primary);
 		border-radius: var(--radius-input);
 		padding: var(--space-3) var(--space-5);
+		cursor: pointer;
 		transition: opacity 0.15s;
 	}
 	.join-btn:hover { opacity: var(--opacity-hover-btn); }
 	.arrow { font-size: var(--text-sm); }
+
+	.login-btn {
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		letter-spacing: 0.06em;
+		color: var(--text-muted);
+		background: none;
+		border: none;
+		cursor: pointer;
+		padding: var(--space-2);
+	}
+	.login-btn:hover { color: var(--text-primary); }
 
 	/* ── Left footer ──────────────────────────────────────────── */
 	.left-footer {
@@ -208,11 +295,49 @@
 	.right-col {
 		height: 100vh;
 		overflow-y: auto;
-	}
-
-	.cards-scroll {
 		display: flex;
 		flex-direction: column;
+	}
+
+	/* ── View toggle (segmented control) ──────────────────────── */
+	.view-toggle {
+		display: flex;
+		border-bottom: 1px solid var(--border-link);
+		flex-shrink: 0;
+		padding: var(--space-3) var(--space-4);
+		gap: var(--space-1);
+	}
+
+	.toggle-option {
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		letter-spacing: 0.04em;
+		color: var(--text-muted);
+		background: none;
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-input);
+		padding: var(--space-1) var(--space-4);
+		cursor: pointer;
+		transition: background 0.15s, color 0.15s;
+	}
+	.toggle-option:hover { color: var(--text-primary); }
+	.toggle-option.active {
+		color: var(--text-primary);
+		background: var(--bg-control);
+		border-color: var(--text-primary);
+	}
+
+	/* ── Map ──────────────────────────────────────────────────── */
+	.map-container {
+		flex: 1;
+		position: relative;
+		min-height: 300px;
+	}
+
+	/* ── List ─────────────────────────────────────────────────── */
+	.prompt-list {
+		flex: 1;
+		padding: 0 var(--space-4);
 	}
 
 	.empty-state {
@@ -220,6 +345,8 @@
 		text-align: center;
 		color: var(--text-muted);
 	}
+
+	.empty-state p { margin: 0 0 var(--space-4); }
 
 	/* ── Mobile ───────────────────────────────────────────────── */
 	@media (max-width: 430px) {
@@ -242,6 +369,11 @@
 		.right-col {
 			height: auto;
 			overflow: visible;
+		}
+
+		.map-container {
+			height: min(40vh, 320px);
+			min-height: auto;
 		}
 	}
 </style>

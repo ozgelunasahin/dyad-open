@@ -4,9 +4,10 @@
 
 	interface Props {
 		prompts: PromptSummary[];
+		onCardClick?: (promptId: string) => void;
 	}
 
-	let { prompts }: Props = $props();
+	let { prompts, onCardClick }: Props = $props();
 
 	function formatDate(iso: string): string {
 		return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -19,7 +20,7 @@
 >
 	<div class="sheet-body">
 			{#each prompts as prompt}
-				<a href="/conversations/{prompt.id}" class="sheet-card">
+				{#snippet cardContent()}
 					{#if prompt.cover_image_url}
 						<img src={prompt.cover_image_url} alt="" class="card-thumb" loading="lazy" />
 					{/if}
@@ -35,7 +36,17 @@
 							<span class="meta-author">@{prompt.author_username}</span>
 						</div>
 					</div>
-				</a>
+				{/snippet}
+
+				{#if onCardClick}
+					<button class="sheet-card" onclick={() => onCardClick(prompt.id)}>
+						{@render cardContent()}
+					</button>
+				{:else}
+					<a href="/conversations/{prompt.id}" class="sheet-card">
+						{@render cardContent()}
+					</a>
+				{/if}
 			{/each}
 		</div>
 </div>
@@ -69,9 +80,14 @@
 		display: flex;
 		gap: var(--space-3);
 		padding: var(--space-3) 0;
+		border: none;
 		border-bottom: 1px solid var(--border-link);
+		background: none;
 		text-decoration: none;
+		text-align: left;
 		color: inherit;
+		width: 100%;
+		cursor: pointer;
 		transition: opacity 0.15s;
 	}
 
