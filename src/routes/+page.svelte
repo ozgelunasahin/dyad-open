@@ -319,6 +319,13 @@
 		min-height: 300px;
 	}
 
+	/* Force Leaflet container to fill the map-container via absolute positioning,
+	   since height:100% doesn't resolve against flex-computed heights */
+	.map-container :global(.map-container) {
+		position: absolute;
+		inset: 0;
+	}
+
 	.bottom-sheet-wrap {
 		position: absolute;
 		bottom: 0;
