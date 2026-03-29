@@ -121,7 +121,7 @@
 	{/if}
 
 	<h1 class="title">{data.prompt.title}</h1>
-	<p class="meta">@{data.prompt.author_username} · published {formatDate(data.prompt.published_at)}</p>
+	<p class="meta">{copy.conversation.publishedBy(data.prompt.author_username, formatDate(data.prompt.published_at))}</p>
 
 	<div class="body">
 		{#if data.prompt.body_html}
@@ -151,8 +151,8 @@
 		<section class="response-section">
 			{#if hasResponse}
 				<div class="my-response">
+					<p class="meta">{copy.conversation.youResponded(data.myComment ? formatDate(data.myComment.updated_at) : 'just now')}</p>
 					<p class="my-response-text">{responseStatus === 'sent' ? responseText : data.myComment?.body}</p>
-					<button class="btn-text" onclick={() => responseStatus = 'idle'}>Edit</button>
 				</div>
 			{:else}
 				<textarea
@@ -170,50 +170,80 @@
 		</section>
 	{/if}
 
-	<!-- Available times + invitation flow (always below response, non-authors only) -->
-	{#if !isOwnPrompt && data.prompt.available_slots.length > 0}
-		<section class="slots-section">
-			{#if hasResponse && inviteStatus !== 'sent'}
-				<p class="invite-question">{copy.conversation.inviteQuestion(data.prompt.author_username)}</p>
-			{/if}
-
-			{#each data.prompt.available_slots as slot}
-				<SlotCard
-					startTime={slot.start_time}
-					durationMinutes={slot.duration_minutes}
-					area={slot.general_area}
-					selected={selectedSlotId === slot.id}
-					invited={invitedSlotIds.has(slot.id)}
-					onclick={hasResponse && inviteStatus !== 'sent' ? () => { selectedSlotId = selectedSlotId === slot.id ? null : slot.id; } : undefined}
-				/>
-			{/each}
-
-			{#if selectedSlotId && inviteStatus !== 'sent'}
-				{#if inviteError}<p class="field-error">{inviteError}</p>{/if}
-				<textarea
-					class="invite-message-textarea"
-					placeholder={copy.conversation.inviteNotePlaceholder}
-					bind:value={inviteMessage}
-					rows={2}
-					disabled={inviteStatus === 'sending'}
-				></textarea>
-				<button class="btn-primary" onclick={sendInvite} disabled={inviteStatus === 'sending'}>
-					{inviteStatus === 'sending' ? copy.conversation.sending : copy.conversation.sendInvitation}
-				</button>
-			{/if}
-
-			{#if inviteStatus === 'sent' && selectedSlot}
-				<div class="invite-sent-card">
-					<p class="invite-sent-text">{copy.conversation.invitationSent(data.prompt.author_username)}</p>
+	<!-- Available times + invitation flow (non-authors only) -->
+	{#if !isOwnPrompt}
+		{#if data.myMeeting}
+			<!-- Confirmed: meeting scheduled -->
+			<section class="slots-section">
+				<div class="confirmed-card">
+					<span class="confirmed-label">{copy.conversation.confirmed}</span>
+					<p class="confirmed-title">{copy.conversation.youAreMeeting(data.prompt.author_username)}</p>
 					<SlotCard
-						startTime={selectedSlot.start_time}
-						durationMinutes={selectedSlot.duration_minutes}
-						area={selectedSlot.general_area}
+						startTime={data.myMeeting.scheduled_time}
+						durationMinutes={data.myMeeting.duration_minutes}
+						area={data.myMeeting.general_area}
+						exactLocation={data.myMeeting.exact_location}
 					/>
-					<p class="invite-sent-hint">{copy.conversation.waitingForResponse}</p>
+					<a href="/meetings/{data.myMeeting.id}" class="view-meeting-link">{copy.conversation.viewMeeting}</a>
 				</div>
-			{/if}
-		</section>
+			</section>
+		{:else if data.prompt.available_slots.length > 0}
+			<section class="slots-section">
+				{#if inviteStatus === 'sent'}
+					<!-- Just sent this session -->
+					{#if selectedSlot}
+						<SlotCard
+							startTime={selectedSlot.start_time}
+							durationMinutes={selectedSlot.duration_minutes}
+							area={selectedSlot.general_area}
+							invited={true}
+							invitedNote={copy.conversation.invitationPending(data.prompt.author_username)}
+						/>
+					{/if}
+				{:else if invitedSlotIds.size > 0}
+					<!-- Server-loaded: invitation already pending -->
+					{#each data.prompt.available_slots.filter(s => invitedSlotIds.has(s.id)) as slot}
+						<SlotCard
+							startTime={slot.start_time}
+							durationMinutes={slot.duration_minutes}
+							area={slot.general_area}
+							invited={true}
+							invitedNote={copy.conversation.invitationPending(data.prompt.author_username)}
+						/>
+					{/each}
+				{:else}
+					<!-- Normal invite flow -->
+					{#if hasResponse}
+						<p class="invite-question">{copy.conversation.inviteQuestion(data.prompt.author_username)}</p>
+					{/if}
+
+					{#each data.prompt.available_slots as slot}
+						<SlotCard
+							startTime={slot.start_time}
+							durationMinutes={slot.duration_minutes}
+							area={slot.general_area}
+							selected={selectedSlotId === slot.id}
+							invited={invitedSlotIds.has(slot.id)}
+							onclick={hasResponse ? () => { selectedSlotId = selectedSlotId === slot.id ? null : slot.id; } : undefined}
+						/>
+					{/each}
+
+					{#if selectedSlotId}
+						{#if inviteError}<p class="field-error">{inviteError}</p>{/if}
+						<textarea
+							class="invite-message-textarea"
+							placeholder={copy.conversation.inviteNotePlaceholder}
+							bind:value={inviteMessage}
+							rows={2}
+							disabled={inviteStatus === 'sending'}
+						></textarea>
+						<button class="btn-primary" onclick={sendInvite} disabled={inviteStatus === 'sending'}>
+							{inviteStatus === 'sending' ? copy.conversation.sending : copy.conversation.sendInvitation}
+						</button>
+					{/if}
+				{/if}
+			</section>
+		{/if}
 	{/if}
 
 	<!-- Author view: responses + their invitations together -->
@@ -299,6 +329,42 @@
 	.my-response { margin-bottom: var(--space-6); }
 	.my-response-text { font-size: var(--text-md); line-height: var(--leading-relaxed); margin: 0 0 var(--space-2); }
 
+	/* Confirmed meeting card */
+	.confirmed-card {
+		padding: var(--space-5);
+		background: var(--bg-meeting-tint);
+		border: 1px solid color-mix(in srgb, var(--color-success) 20%, transparent);
+		border-radius: var(--radius-card);
+	}
+
+	.confirmed-label {
+		display: block;
+		font-size: var(--text-xs);
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--color-success);
+		margin-bottom: var(--space-2);
+	}
+
+	.confirmed-title {
+		font-size: var(--text-md);
+		font-weight: 500;
+		margin: 0 0 var(--space-3);
+		color: var(--text-primary);
+	}
+
+	.view-meeting-link {
+		display: inline-block;
+		font-size: var(--text-sm);
+		font-weight: 500;
+		color: var(--color-success);
+		text-decoration: none;
+		margin-top: var(--space-1);
+	}
+
+	.view-meeting-link:hover { opacity: var(--opacity-hover-btn); }
+
 	/* Invitation flow */
 	.invite-question { font-size: var(--text-md); color: var(--text-muted); margin: 0 0 var(--space-4); }
 
@@ -310,23 +376,13 @@
 		border-radius: var(--radius-input);
 		background: transparent;
 		resize: vertical;
-		line-height: 1.6;
+		line-height: var(--leading-relaxed);
 		box-sizing: border-box;
 		margin-top: var(--space-3);
 		margin-bottom: var(--space-3);
 	}
 	.invite-message-textarea:focus { outline: none; border-color: var(--text-muted); }
 	.invite-message-textarea::placeholder { color: var(--text-muted); }
-
-	/* Sent state */
-	.invite-sent-card {
-		margin-top: var(--space-2);
-		padding: var(--space-4);
-		border: 1px solid var(--border-link);
-		border-radius: var(--radius-card);
-	}
-	.invite-sent-text { font-size: var(--text-md); font-weight: 500; margin: 0 0 var(--space-3); }
-	.invite-sent-hint { font-size: var(--text-sm); color: var(--text-muted); margin: 0; }
 
 	/* Response form */
 	.response-input {
@@ -337,7 +393,7 @@
 		border-radius: var(--radius-input);
 		background: transparent;
 		resize: vertical;
-		line-height: 1.6;
+		line-height: var(--leading-relaxed);
 		box-sizing: border-box;
 		margin-bottom: var(--space-3);
 	}

@@ -52,7 +52,7 @@ test('Full flow: respond → invite → accept', async ({ browser }) => {
 		await tomPage.getByRole('button', { name: /Tomorrow|Today|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|\d+ \w+/ }).first().click();
 		await tomPage.getByPlaceholder('Add a note (optional)').fill('See you there!');
 		await tomPage.getByRole('button', { name: 'Send invitation' }).click();
-		await expect(tomPage.getByText('Invitation sent')).toBeVisible({ timeout: 5000 });
+		await expect(tomPage.getByText('You have invited @sophie, waiting for them to confirm.')).toBeVisible({ timeout: 5000 });
 
 		await tomContext.close();
 
@@ -64,7 +64,7 @@ test('Full flow: respond → invite → accept', async ({ browser }) => {
 		await expect(sophiePage.getByText('@tom wants to meet')).toBeVisible({ timeout: 5000 });
 
 		// === Sophie accepts ===
-		await sophiePage.getByRole('button', { name: 'Accept' }).click();
+		await sophiePage.getByRole('button', { name: 'Accept' }).first().click();
 		await sophiePage.waitForURL(/\/meetings\//, { timeout: 10000 });
 		await expect(sophiePage.getByText('Meeting with @tom').first()).toBeVisible();
 

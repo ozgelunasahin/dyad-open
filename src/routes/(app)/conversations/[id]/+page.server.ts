@@ -111,6 +111,43 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		promptMeetings = (meetings ?? []) as any[];
 	}
 
+	// For non-authors: check if they have a confirmed meeting for this prompt
+	let myMeeting: {
+		id: string;
+		scheduled_time: string;
+		duration_minutes: number;
+		general_area: string;
+		exact_location: { place_id: string; name: string; address: string; lat: number; lng: number } | null;
+	} | null = null;
+
+	if (!isAuthor) {
+		// Step 1: find the meeting ID (RLS restricts to participant rows)
+		const { data: meetingRow } = await locals.supabase
+			.from('meetings')
+			.select('id')
+			.eq('prompt_id', params.id)
+			.or(`participant_a.eq.${userId},participant_b.eq.${userId}`)
+			.in('state', ['scheduled', 'awaiting_feedback', 'completed'])
+			.maybeSingle();
+
+		// Step 2: use the SECURITY DEFINER RPC to safely retrieve exact_location
+		if (meetingRow) {
+			const { data: meetingDetail } = await locals.supabase.rpc('get_meeting_with_location', {
+				p_meeting_id: meetingRow.id
+			});
+			const meetingData = Array.isArray(meetingDetail) ? meetingDetail[0] : meetingDetail;
+			if (meetingData) {
+				myMeeting = {
+					id: meetingData.id,
+					scheduled_time: meetingData.scheduled_time,
+					duration_minutes: meetingData.duration_minutes,
+					general_area: meetingData.general_area ?? '',
+					exact_location: meetingData.exact_location ?? null
+				};
+			}
+		}
+	}
+
 	return {
 		prompt: detail,
 		comments: enrichedComments,
@@ -118,6 +155,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		invitedSlotIds: [...invitedSlotIds],
 		receivedInvitations,
 		promptMeetings,
+		myMeeting,
 		user: { id: userId }
 	};
 };

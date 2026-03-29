@@ -5,6 +5,7 @@
 	import type { JSONContent } from '@tiptap/core';
 	import type { TimeSlotInput } from '$lib/domain/types';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import PublishSheet from '$lib/components/PublishSheet.svelte';
 	import { copy } from '$lib/copy';
 
@@ -155,6 +156,15 @@
 		goto('/profile');
 	}
 
+	let discardDialog = $state<ConfirmDialog | undefined>();
+
+	async function handleDiscard() {
+		if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+		const res = await fetch(`/api/prompts/${data.prompt.id}`, { method: 'DELETE' });
+		if (res.ok) goto('/profile');
+		else publishError = 'Failed to discard draft.';
+	}
+
 	function handleOpenPublish() {
 		publishError = '';
 		if (uploading) { publishError = 'Please wait for the cover image to finish uploading.'; return; }
@@ -219,9 +229,10 @@
 <div class="floating-nav-wrapper">
 	<FloatingNav
 		variant="default"
-saveStatus={saveStatus}
+		saveStatus={saveStatus}
 		onSaveDraft={handleSaveDraft}
 		onPublish={isDraft ? handleOpenPublish : undefined}
+		onDiscard={isDraft ? () => discardDialog?.open() : undefined}
 	/>
 </div>
 
@@ -304,6 +315,14 @@ saveStatus={saveStatus}
 		</section>
 	{/if}
 </div>
+
+<ConfirmDialog
+	bind:this={discardDialog}
+	title="Discard draft"
+	message="This will permanently delete this draft. This cannot be undone."
+	confirmLabel="Discard"
+	onConfirm={handleDiscard}
+/>
 
 <!-- Publish bottom sheet -->
 {#if showPublishSheet}
