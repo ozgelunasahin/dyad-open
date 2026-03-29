@@ -1,7 +1,7 @@
 ---
 title: "fix: PR2 — Profile page visual fixes"
 type: fix
-status: active
+status: completed
 date: 2026-03-29
 origin: docs/plans/2026-03-29-fix-design-system-enforcement-plan.md
 reviewed: 2026-03-29
