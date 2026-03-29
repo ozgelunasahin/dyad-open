@@ -335,6 +335,15 @@
 		inset: 0;
 	}
 
+	/* Push Leaflet attribution below the FloatingNav */
+	.map-container :global(.leaflet-control-attribution) {
+		position: fixed;
+		bottom: 0;
+		right: 0;
+		z-index: 400;
+		font-size: var(--text-xs);
+	}
+
 	.bottom-sheet-wrap {
 		position: absolute;
 		bottom: 0;
@@ -380,14 +389,17 @@
 		.city-row { display: none; }
 
 		.right-col {
-			height: auto;
+			flex: 1;
 			overflow: visible;
 			min-height: 50vh;
+			display: flex;
+			flex-direction: column;
 		}
 
 		.map-container {
-			height: min(50vh, 400px);
-			min-height: 300px;
+			/* Fill remaining viewport below hero */
+			flex: 1;
+			min-height: 50vh;
 		}
 
 		.page-footer {
