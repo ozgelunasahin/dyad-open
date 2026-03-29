@@ -235,7 +235,7 @@
 <FloatingNav variant="default" attentionCount={data.attentionCount ?? 0} />
 
 <style>
-	.content { width: 100%; max-width: var(--content-standard); padding-bottom: 80px; }
+	.content { width: 100%; max-width: var(--content-standard); padding-bottom: var(--nav-clearance); }
 
 	/* Profile card — clean identity */
 	.profile-card {

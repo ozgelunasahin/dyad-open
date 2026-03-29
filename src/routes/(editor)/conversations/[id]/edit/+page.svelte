@@ -317,7 +317,7 @@ saveStatus={saveStatus}
 
 <style>
 	.floating-nav-wrapper { display: block; }
-	.content { width: 100%; max-width: var(--content-standard); padding-top: var(--space-4); padding-bottom: 80px; }
+	.content { width: 100%; max-width: var(--content-standard); padding-top: var(--space-4); padding-bottom: var(--nav-clearance); }
 
 	/* Cover image placeholder */
 	.cover-placeholder {

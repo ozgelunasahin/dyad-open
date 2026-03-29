@@ -72,6 +72,9 @@
 	--color-danger: #c00;
 	--color-saving: #f59e0b;
 
+	/* Layout clearance */
+	--nav-clearance: 80px;            /* bottom padding to clear FloatingNav */
+
 	/* Tinted backgrounds */
 	--bg-meeting-tint: rgba(61, 158, 90, 0.06); /* inline meeting sub-card */
 

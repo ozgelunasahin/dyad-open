@@ -54,7 +54,7 @@
 		max-height: 50vh;
 		overflow-y: auto;
 		padding: var(--space-5);
-		padding-bottom: 80px; /* clear FloatingNav */
+		padding-bottom: var(--nav-clearance);
 		box-sizing: border-box;
 		z-index: 600;
 	}

@@ -208,7 +208,7 @@
 	.content {
 		width: 100%;
 		max-width: var(--content-wide);
-		padding-bottom: 80px; /* Space for bottom-anchored FloatingNav */
+		padding-bottom: var(--nav-clearance);
 	}
 
 	.empty-state {
