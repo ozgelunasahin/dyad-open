@@ -108,18 +108,44 @@ The onboarding gate — if signup breaks, no new testers can join.
 - [ ] Submit → verify redirect to `/discover` (or `/feedback/[id]` if gated — both are valid "auth worked")
 - [ ] Verify username displays correctly on discover page
 - [ ] Cleanup in `finally`: delete auth user via `admin.auth.admin.deleteUser(userId)`, delete profile, delete invitation
-- [ ] Add inline mobile viewport test: create a mobile-sized browser context and verify the split-layout collapses correctly
+- [ ] File named `signup.responsive.test.ts` so it runs at both desktop and mobile viewports
 
 ### 4. CI/CD pipeline
 
 2 CI jobs. Desktop viewport for all E2E tests + inline mobile check in smoke/signup.
 
-#### Playwright config updates
+#### Multi-viewport Playwright config
 
 **File:** `playwright.config.ts`
 
-Single `e2e` project (desktop). Mobile coverage via inline `browser.newContext({ viewport })` in individual tests that need it.
+3 projects using a file naming convention:
+- `*.responsive.test.ts` → runs at all 3 viewports (layout-sensitive tests)
+- `*.test.ts` → runs at desktop only (logic-heavy tests)
 
+```
+projects: [
+  { name: 'setup', testMatch: /auth\.setup\.ts/ },
+  { name: 'desktop',
+    testMatch: /e2e\/.*\.test\.ts/,
+    use: { viewport: { width: 1280, height: 720 } },
+    dependencies: ['setup'] },
+  { name: 'mobile',
+    testMatch: /e2e\/.*\.responsive\.test\.ts/,
+    use: { ...devices['Pixel 7'] },
+    dependencies: ['setup'] },
+]
+```
+
+| Test file | desktop | mobile | Rationale |
+|-----------|:---:|:---:|-----------|
+| `smoke.responsive.test.ts` | yes | yes | FloatingNav, sidebar, map — layout-sensitive |
+| `signup.responsive.test.ts` | yes | yes | Split-layout collapses on mobile |
+| `core-flow.test.ts` | yes | — | Logic-heavy, selectors not viewport-dependent |
+
+- [ ] Rename `smoke.test.ts` → `smoke.responsive.test.ts`
+- [ ] Name signup test `signup.responsive.test.ts`
+- [ ] Add 3 projects to `playwright.config.ts` as above
+- [ ] Use `devices['Pixel 7']` for mobile (includes `hasTouch`, `isMobile`, `deviceScaleFactor`)
 - [ ] Update `playwright.config.ts` webServer to CI-conditional (build+preview on 4173 vs dev on 5173)
 - [ ] Update `baseURL` to match (4173 in CI, 5173 locally)
 - [ ] Set `trace: process.env.CI ? 'off' : 'on-first-retry'` with comment: `// SECURITY: Traces capture Authorization headers. Never enable in CI.`
@@ -177,7 +203,7 @@ Item 3 (signup E2E) ── do THIRD (first new E2E test, validates CI works)
 - [ ] `TEST_USERS` constant matches current seed.sql (sophie, tom, lisa, marco, ava, ben)
 - [ ] Localhost guard prevents non-local Supabase connections
 - [ ] GitHub Actions runs check + test on every PR to dev
-- [ ] Signup E2E test passes (including mobile viewport inline check)
+- [ ] Responsive tests (smoke, signup) pass at both desktop and mobile viewports
 - [ ] `.throwOnError()` on all cleanup delete chains
 
 ## What This Plan Does NOT Include
@@ -186,7 +212,7 @@ Item 3 (signup E2E) ── do THIRD (first new E2E test, validates CI works)
 - **E2E feedback-flow test** — write as a separate item when prioritized
 - **Admin panel E2E** — low value for <10 testers, removed
 - **`SupabaseClient<Database>` parameterization** — premature, fails loudly anyway
-- **Multi-viewport Playwright projects** — inline mobile context is sufficient for alpha
+- **3rd viewport (desktop-small)** — 2 viewports (desktop + mobile) sufficient for alpha
 - **Visual regression / screenshot comparison**
 - **Cross-browser testing**
 - **Performance/load testing**
