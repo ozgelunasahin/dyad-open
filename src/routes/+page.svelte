@@ -5,7 +5,6 @@
 	import PromptListItem from '$lib/components/PromptListItem.svelte';
 	import BottomSheet from '$lib/components/BottomSheet.svelte';
 	import AuthDialog from '$lib/components/AuthDialog.svelte';
-	import { copy } from '$lib/copy';
 
 	let { data }: { data: PageData } = $props();
 

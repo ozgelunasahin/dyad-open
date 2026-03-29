@@ -92,8 +92,8 @@ Use `{#if viewMode === 'map'}` (same pattern as discover page line 139). Leaflet
 
 ### 1. Pre-session: profiles anon grant restriction + contact API validation
 
-- [ ] `supabase/migrations/YYYYMMDD_restrict_profiles_anon.sql` — `REVOKE ALL ON profiles FROM anon; GRANT SELECT (id, username) ON profiles TO anon;`
-- [ ] `src/routes/api/contact/+server.ts` — add length limits: `expression_url` (2048, validate `https://`), `referred_by_username` (100), `based_in` (200)
+- [x] `supabase/migrations/20260412_restrict_profiles_anon_grant.sql` — `REVOKE ALL ON profiles FROM anon; GRANT SELECT (id, username) ON profiles TO anon;`
+- [x] `src/routes/api/contact/+server.ts` — add length limits: `expression_url` (2048, validate `https://`), `referred_by_username` (100), `based_in` (200)
 
 ### 2. Landing page layout — embed discover view
 
@@ -147,6 +147,26 @@ Use `{#if viewMode === 'map'}` (same pattern as discover page line 139). Leaflet
 
 5. **Snapshot state:** The discover page uses SvelteKit snapshots for map state. The landing page modals don't navigate away (they're `<dialog>` overlays), so map state is preserved automatically while the dialog is open. Snapshots only needed if users navigate to `/waitlist` or `/login` routes directly and come back.
 
+## Review Findings (2026-03-29)
+
+**Corrections to plan:**
+- ConversationCard is button-only (not dual `href`/`onclick`). PromptListItem needs its own conditional `<a>`/`<button>` pattern, not "like ConversationCard."
+- Discover page inline list markup is at lines 145-171 (not 168-194 as originally referenced).
+
+**Gaps to address during implementation:**
+- **Referral cookie:** AuthDialog waitlist mode must read `dyad_ref` cookie (same as `/waitlist` page lines 21-23) and send `referred_by_username` to `/api/contact`. Without this, referral tracking breaks silently.
+- **409 duplicate email:** `/api/contact` returns 409 for duplicate emails. AuthDialog should show "You're already on our list" (friendly message, not error styling).
+- **Empty state:** When zero published prompts exist, show an anon-friendly message with "Join waitlist" CTA — NOT the discover page's auth-gated "Start a conversation" button.
+- **Segmented control position (mobile):** Inline at top of discover section (not sticky, not floating).
+- **BottomSheet behind dialog:** Keep visible behind `<dialog>` backdrop — dimming provides sufficient separation.
+- **`Vary: Cookie`:** SvelteKit likely sets this automatically when `locals.user` is accessed. Verify before adding manually to avoid duplicate headers.
+
+## v0.2 Consideration: Public Discoverability Flag
+
+Currently all published prompts appear on the anonymous landing page via `getPublishedPromptsPublic`. In v0.2, authors should control whether their conversation is visible to anonymous visitors. Architecture should not block this.
+
+**Approach (deferred to v0.2):** Add `public_discoverable BOOLEAN DEFAULT true` to `prompts` table. Landing page query filters by `public_discoverable = true`. Authors toggle via editor. Default `true` preserves v0.1 behavior. The anon RLS policy (`20260402_anon_published_prompts.sql`) would add this condition to its `USING` clause.
+
 ## Acceptance Criteria
 
 - [ ] Profiles anon grant restricted to `(id, username)` columns only
@@ -164,6 +184,9 @@ Use `{#if viewMode === 'map'}` (same pattern as discover page line 139). Leaflet
 - [ ] Mobile: hero above discover, map at `min(40vh, 320px)`
 - [ ] No SSR errors from Leaflet
 - [ ] `PromptListItem` shared between discover and landing pages
+- [ ] AuthDialog reads `dyad_ref` referral cookie for waitlist submissions
+- [ ] 409 duplicate email shows friendly "already on our list" message
+- [ ] Empty state for zero prompts shows anon-friendly message with waitlist CTA
 
 ## Sources
 

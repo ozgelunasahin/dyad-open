@@ -4,8 +4,8 @@ import { TEST_USERS } from '../helpers/auth.js';
 test.describe('Smoke tests', () => {
 	test('landing page loads for anonymous users', async ({ page }) => {
 		await page.goto('/');
-		await expect(page.getByText('in conversation')).toBeVisible();
-		await expect(page.getByText('join waitlist')).toBeVisible();
+		await expect(page.getByText('cultivating a culture')).toBeVisible();
+		await expect(page.getByRole('button', { name: /join waitlist/i })).toBeVisible();
 	});
 
 	test('Sophie can log in and see discover page', async ({ browser }) => {
