@@ -41,6 +41,10 @@
 	<div class="left-col">
 		<div class="left-top">
 			<img src="/images/logo.png" alt="dyad." class="logo" />
+			<div class="top-city-row">
+				<span class="city-dot" aria-hidden="true"></span>
+				<span class="city-name">BERLIN</span>
+			</div>
 			<span class="beta-label">private beta</span>
 		</div>
 
@@ -115,7 +119,7 @@
 	</div>
 </div>
 
-<footer class="page-footer">
+<footer class="page-footer" class:hidden={viewMode === 'map'}>
 	<button class="theme-toggle" onclick={() => themeStore.toggle()} aria-label="Toggle theme">
 		{#if themeStore.current === 'light'}
 			<svg width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -164,6 +168,9 @@
 		justify-content: space-between;
 		flex-shrink: 0;
 	}
+
+	/* City indicator in top bar — hidden on desktop, shown on mobile */
+	.top-city-row { display: none; }
 
 	.logo {
 		height: 28px;
@@ -269,6 +276,8 @@
 		z-index: 100;
 	}
 
+	.page-footer.hidden { display: none; }
+
 	.theme-toggle {
 		background: none;
 		border: none;
@@ -367,6 +376,8 @@
 		}
 
 		.hero-content { margin-top: var(--space-10); }
+		.top-city-row { display: flex; align-items: center; gap: var(--space-2); }
+		.city-row { display: none; }
 
 		.right-col {
 			height: auto;
