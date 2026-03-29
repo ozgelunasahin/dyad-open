@@ -1,11 +1,12 @@
 import { redirect } from '@sveltejs/kit';
+import { loadLayoutData } from '$lib/server/load-layout-data';
 import type { LayoutServerLoad } from './$types';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
-	if (!locals.user) redirect(302, '/login');
+	// loadLayoutData handles the auth check + redirect
+	const layoutData = await loadLayoutData(locals);
 
-	const isAdmin = locals.user?.app_metadata?.role === 'admin';
-	if (!isAdmin) redirect(302, '/discover');
+	if (!layoutData.isAdmin) redirect(302, '/discover');
 
-	return { isAdmin: true };
+	return layoutData;
 };

@@ -4,7 +4,7 @@
 
 	let {
 		variant = 'discover',
-		position = 'bottom',
+		position = 'top',
 		active = '',
 		attentionCount = 0,
 		onMapClick,
@@ -76,7 +76,7 @@
 	}
 </script>
 
-<nav class="floating-nav" class:top={position === 'top'} class:bottom={position === 'bottom'} aria-label="Navigation">
+<nav class="floating-nav" class:top={position === 'top'} class:bottom={position === 'bottom'} class:default-variant={variant === 'default'} aria-label="Navigation">
 	{#if variant === 'editor'}
 		<!-- Editor variant: Back, Saved indicator, Continue dropdown -->
 		<button class="back-text-btn" onclick={onBack} aria-label="Back">← Back</button>
@@ -247,6 +247,11 @@
 
 	.floating-nav.top { top: 16px; }
 	.floating-nav.bottom { bottom: 20px; }
+
+	/* Default variant hidden on desktop (sidebar handles nav) */
+	@media (min-width: 769px) {
+		.floating-nav.default-variant { display: none; }
+	}
 
 	.nav-btn {
 		position: relative;
@@ -447,4 +452,13 @@
 
 	.clear-dates-top { top: 140px; }
 	.clear-dates-bottom { bottom: 148px; }
+
+	/* Desktop: offset all fixed-center elements by sidebar width */
+	@media (min-width: 769px) {
+		.floating-nav,
+		.date-panel,
+		.clear-dates {
+			left: calc(50% + 90px);
+		}
+	}
 </style>

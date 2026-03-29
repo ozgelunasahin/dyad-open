@@ -4,13 +4,14 @@
 	import { page } from '$app/stores';
 	import SlotCard from '$lib/components/SlotCard.svelte';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
-	import { formatHybridDate, formatSlotTime, formatSlotDetails } from '$lib/utils/dates.js';
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+	import { copy } from '$lib/copy';
 
 	let { data }: { data: PageData } = $props();
 
 	let from = $derived($page.url.searchParams.get('from'));
 	let backHref = $derived(from === 'profile' ? '/profile' : '/discover');
-	let backLabel = $derived(from === 'profile' ? '← back to profile' : '← back to discover');
+	let backLabel = $derived(from === 'profile' ? copy.nav.backToProfile : copy.nav.backToDiscover);
 	let responseText = $state(data.myComment?.body ?? '');
 	let responseStatus = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
 	let responseError = $state('');
@@ -102,6 +103,14 @@
 	}
 
 	let isOwnPrompt = $derived(data.prompt.author_id === data.user?.id);
+	let archiveDialog: ConfirmDialog;
+
+	async function archivePrompt() {
+		try {
+			const res = await fetch(`/api/prompts/${data.prompt.id}/unpublish`, { method: 'POST' });
+			if (res.ok) goto('/profile');
+		} catch { /* ignore */ }
+	}
 </script>
 
 <svelte:head>
@@ -116,7 +125,7 @@
 	{/if}
 
 	<h1 class="title">{data.prompt.title}</h1>
-	<p class="meta">@{data.prompt.author_username} · {formatDate(data.prompt.published_at)}</p>
+	<p class="meta">@{data.prompt.author_username} · published {formatDate(data.prompt.published_at)}</p>
 
 	<div class="body">
 		{#if data.prompt.body_html}
@@ -125,6 +134,21 @@
 			<p>{data.prompt.body_snippet}</p>
 		{/if}
 	</div>
+
+	<!-- Author actions -->
+	{#if isOwnPrompt && data.prompt.state === 'published'}
+		<div class="author-actions">
+			<a href="/conversations/{data.prompt.id}/edit" class="btn-text">{copy.conversation.edit}</a>
+			<button class="btn-text" onclick={() => archiveDialog.open()}>{copy.conversation.archive}</button>
+		</div>
+		<ConfirmDialog
+			bind:this={archiveDialog}
+			title={copy.conversation.archive}
+			message={copy.conversation.archiveConfirm}
+			confirmLabel={copy.conversation.archive}
+			onConfirm={archivePrompt}
+		/>
+	{/if}
 
 	<!-- Response section (non-authors only) -->
 	{#if !isOwnPrompt}
@@ -137,14 +161,14 @@
 			{:else}
 				<textarea
 					class="response-input"
-					placeholder="Write a response..."
+					placeholder={data.prompt.available_slots.length > 0 ? copy.conversation.responsePlaceholderWithSlots : copy.conversation.responsePlaceholder}
 					bind:value={responseText}
 					rows={3}
 					disabled={responseStatus === 'sending'}
 				></textarea>
 				{#if responseError}<p class="field-error">{responseError}</p>{/if}
 				<button class="btn-secondary" onclick={submitResponse} disabled={responseStatus === 'sending' || !responseText.trim()}>
-					{responseStatus === 'sending' ? 'Sending...' : 'Send'}
+					{responseStatus === 'sending' ? copy.conversation.sending : copy.common.send}
 				</button>
 			{/if}
 		</section>
@@ -154,7 +178,7 @@
 	{#if !isOwnPrompt && data.prompt.available_slots.length > 0}
 		<section class="slots-section">
 			{#if hasResponse && inviteStatus !== 'sent'}
-				<p class="invite-question">Would you like to meet @{data.prompt.author_username} in person?</p>
+				<p class="invite-question">{copy.conversation.inviteQuestion(data.prompt.author_username)}</p>
 			{/if}
 
 			{#each data.prompt.available_slots as slot}
@@ -170,29 +194,27 @@
 
 			{#if selectedSlotId && inviteStatus !== 'sent'}
 				{#if inviteError}<p class="field-error">{inviteError}</p>{/if}
-				<div class="invite-action-row">
-					<button class="btn-primary" onclick={sendInvite} disabled={inviteStatus === 'sending'}>
-						{inviteStatus === 'sending' ? 'Sending...' : 'Send invitation'}
-					</button>
-					<input
-						type="text"
-						class="invite-message-inline"
-						placeholder="Add a message (optional)"
-						bind:value={inviteMessage}
-						disabled={inviteStatus === 'sending'}
-					/>
-				</div>
+				<textarea
+					class="invite-message-textarea"
+					placeholder={copy.conversation.inviteNotePlaceholder}
+					bind:value={inviteMessage}
+					rows={2}
+					disabled={inviteStatus === 'sending'}
+				></textarea>
+				<button class="btn-primary" onclick={sendInvite} disabled={inviteStatus === 'sending'}>
+					{inviteStatus === 'sending' ? copy.conversation.sending : copy.conversation.sendInvitation}
+				</button>
 			{/if}
 
 			{#if inviteStatus === 'sent' && selectedSlot}
 				<div class="invite-sent-card">
-					<p class="invite-sent-text">Invitation sent to @{data.prompt.author_username}</p>
+					<p class="invite-sent-text">{copy.conversation.invitationSent(data.prompt.author_username)}</p>
 					<SlotCard
 						startTime={selectedSlot.start_time}
 						durationMinutes={selectedSlot.duration_minutes}
 						area={selectedSlot.general_area}
 					/>
-					<p class="invite-sent-hint">Waiting for a response.</p>
+					<p class="invite-sent-hint">{copy.conversation.waitingForResponse}</p>
 				</div>
 			{/if}
 		</section>
@@ -212,7 +234,7 @@
 						<div class="response-invitation">
 							{#if invitation.state === 'accepted' && meeting}
 								<a href="/meetings/{meeting.id}?from={from ?? 'discover'}" class="meeting-link">
-									Meeting scheduled
+									{copy.conversation.meetingScheduled}
 								</a>
 								<SlotCard startTime={invitation.slot_start_time} durationMinutes={invitation.slot_duration_minutes ?? 60} area={invitation.slot_general_area} />
 							{:else}
@@ -221,7 +243,7 @@
 									<p class="inv-message">{invitation.message}</p>
 								{/if}
 								<button class="btn-primary" onclick={() => acceptInvitation(invitation.id)} disabled={acceptingId === invitation.id}>
-									{acceptingId === invitation.id ? 'Accepting...' : 'Accept'}
+									{acceptingId === invitation.id ? copy.common.accepting : copy.common.accept}
 								</button>
 							{/if}
 						</div>
@@ -242,7 +264,7 @@
 							<p class="inv-message">{inv.message}</p>
 						{/if}
 						<button class="btn-primary" onclick={() => acceptInvitation(inv.id)} disabled={acceptingId === inv.id}>
-							{acceptingId === inv.id ? 'Accepting...' : 'Accept'}
+							{acceptingId === inv.id ? copy.common.accepting : copy.common.accept}
 						</button>
 					</div>
 				</div>
@@ -270,8 +292,11 @@
 	.body :global(a) { color: var(--text-link); text-decoration: underline; }
 	.body :global(img) { max-width: 100%; border-radius: 4px; }
 
+	/* Author actions */
+	.author-actions { display: flex; gap: var(--space-4); margin-bottom: var(--space-6); }
+
 	/* Sections */
-	.slots-section { margin-bottom: var(--space-6); }
+	.slots-section { margin-top: var(--space-4); margin-bottom: var(--space-6); }
 	.response-section, .responses-received { margin-top: var(--space-6); padding-top: var(--space-6); border-top: 1px solid var(--border-link); }
 
 	/* My response */
@@ -279,28 +304,23 @@
 	.my-response-text { font-size: var(--text-md); line-height: var(--leading-relaxed); margin: 0 0 var(--space-2); }
 
 	/* Invitation flow */
-	.invite-section { margin-top: var(--space-2); }
 	.invite-question { font-size: var(--text-md); color: var(--text-muted); margin: 0 0 var(--space-4); }
 
-	.invite-action-row {
-		display: flex;
-		align-items: center;
-		gap: var(--space-3);
-		margin-top: var(--space-2);
-	}
-
-	.invite-message-inline {
-		flex: 1;
+	.invite-message-textarea {
+		width: 100%;
 		font-size: var(--text-sm);
-		padding: var(--space-2) var(--space-3);
+		padding: var(--space-3);
 		border: 1px solid var(--border-link);
 		border-radius: var(--radius-input);
 		background: transparent;
+		resize: vertical;
+		line-height: 1.6;
 		box-sizing: border-box;
-		min-width: 0;
+		margin-top: var(--space-3);
+		margin-bottom: var(--space-3);
 	}
-	.invite-message-inline:focus { outline: none; border-color: var(--text-muted); }
-	.invite-message-inline::placeholder { color: var(--text-muted); }
+	.invite-message-textarea:focus { outline: none; border-color: var(--text-muted); }
+	.invite-message-textarea::placeholder { color: var(--text-muted); }
 
 	/* Sent state */
 	.invite-sent-card {

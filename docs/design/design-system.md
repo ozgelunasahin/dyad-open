@@ -94,8 +94,9 @@ Derived from what the design reference actually uses. 8 levels.
 - **Main content**: padding: 1rem
 
 ### Editor
-- **No sidebar**: `(editor)` layout group, just centered content with padding
+- **Sidebar**: present on desktop (shared `Sidebar.svelte` component), hidden on mobile
 - **FloatingNav at top**: editor variant with ← Back, • Saved, Continue
+- **Content**: centered, max-width 700px, padding-top for FloatingNav clearance
 
 ## Components
 
@@ -120,12 +121,12 @@ Pill-shaped, fixed, glassmorphic. Two variants.
 
 ### Cards
 
-**Profile action cards** (2x2 grid):
-- `--radius-card` corners, 1px `--border-link` border
-- Stacked photo thumbnails (52x60px, rotated ±3-5deg, 2px white border, subtle shadow)
+**Profile action cards** (2-column grid):
+- Warm cream background `rgba(245, 244, 240, 0.7)`, 20px border-radius, no border
+- Stacked photo thumbnails (56x56px square, rotated ±4-6deg, shadow)
 - Label below thumbnails
-- Active dot (green, 8px, top-right) for active conversations
-- Count badge (monospace, dark bg, white text, top-right) for invitations
+- Green dot badge on top-right corner of the image stack (not the card)
+- Click expands to full section list with ← back button
 
 **Conversation list rows** (discover feed):
 - 88x96px thumbnail, `--radius-input` corners
@@ -146,12 +147,13 @@ Pill-shaped, fixed, glassmorphic. Two variants.
 
 ### Bottom Sheets
 
-- Fixed backdrop with semi-transparent black (`rgba(0,0,0,0.3)`)
-- Sheet slides up from bottom (`fly` transition, y: 200, 280ms)
-- `--radius-card` top corners (mobile), full `--radius-card` (desktop centered)
-- Max-width: 480px, max-height: 85vh, scrollable
-- Close button top-right (×)
-- Desktop (>= 768px): centered modal instead of bottom-anchored
+- No backdrop — map clicks pass through to allow pin switching
+- Sheet slides up from bottom (`fly` transition, y: 120, 240ms)
+- Fixed positioned: `bottom: 0; left: 50%; transform: translateX(-50%)`
+- `16px` top corners (mobile), `12px` all corners (desktop)
+- Max-width: 480px (mobile), 680px (desktop), max-height: 50-60vh, scrollable
+- Dismissed by clicking the map or tapping another pin
+- Desktop (>= 768px): centered at bottom with 24px inset
 
 ### Buttons
 
@@ -171,17 +173,21 @@ Pill-shaped, fixed, glassmorphic. Two variants.
 
 ### Back Navigation
 
-Always a text link: "← Back". Explicit destination, never `history.back()`.
+**PWA requirement:** In `display: standalone` mode, iOS provides no system back button or swipe gesture. The app MUST provide its own back affordance on detail/inner pages. Android provides a system back gesture, but in-app back navigation is still expected (serves as "up in hierarchy" rather than "back in history").
 
-| Page | Destination |
-|------|------------|
-| Conversation detail | /discover |
-| Meeting detail | /profile |
-| Editor | /conversations/[id] (or history) |
-| Profile sub-views | Profile overview (onclick) |
-| Legal pages | / |
+Always a deterministic link — explicit destination, never `history.back()` (which can navigate outside the app or do nothing on direct entry/deep links). Use `<a href>` or `goto()` with a known fallback.
+
+| Page | Destination | Notes |
+|------|------------|-------|
+| Conversation detail | /discover (default) or /profile (if `?from=profile`) | Deterministic via `?from=` param |
+| Meeting detail | /profile | Always returns to profile |
+| Editor | /conversations/[id] | Deterministic, not history-based |
+| Profile sub-views | Profile overview (onclick) | |
+| Legal pages | / | |
 
 Style: `--text-md`, `--text-muted`, no decoration, `--space-4` bottom margin.
+
+**Pattern:** The back link is contextual navigation ("where I came from"), distinct from FloatingNav which is global section switching. Both serve different purposes and should coexist.
 
 ### Cover Images
 

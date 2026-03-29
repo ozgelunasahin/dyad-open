@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import type { PageData } from './$types';
+	import { copy } from '$lib/copy';
 
 	let { data }: { data: PageData } = $props();
 
@@ -56,29 +57,29 @@
 <div class="content">
 	{#if step === 'done'}
 		<div class="done-state">
-			<h1 class="page-title">Thank you</h1>
-			<p class="desc">Your feedback has been submitted.</p>
-			<a href="/discover" class="continue-link">Continue to discover</a>
+			<h1 class="page-title">{copy.feedback.thankYou}</h1>
+			<p class="desc">{copy.feedback.submitted}</p>
+			<a href="/discover" class="continue-link">{copy.feedback.continueToDiscover}</a>
 		</div>
 	{:else if step === 'met'}
 		{#if data.meetingContext}
 			<p class="meeting-context">You met @{data.meetingContext.otherUsername} on {data.meetingContext.meetingDate}</p>
 		{/if}
-		<h1 class="page-title">How did it go?</h1>
+		<h1 class="page-title">{copy.feedback.howDidItGo}</h1>
 
 		<div class="met-choices">
 			<button class="met-btn" class:selected={didMeet} onclick={() => { didMeet = true; step = 'rating'; }}>
-				We met
+				{copy.feedback.weMet}
 			</button>
 			<button class="met-btn" class:selected={!didMeet} onclick={() => { didMeet = false; step = 'rating'; }}>
-				We didn't meet
+				{copy.feedback.weDidntMeet}
 			</button>
 		</div>
 	{:else if step === 'rating'}
-		<h1 class="page-title">{didMeet ? 'How was it?' : 'What happened?'}</h1>
+		<h1 class="page-title">{didMeet ? copy.feedback.howDidItGo : copy.feedback.whatHappened}</h1>
 
 		{#if didMeet && data.vocabulary.length > 0}
-			<p class="desc">Select any that apply:</p>
+			<p class="desc">{copy.feedback.selectTags}</p>
 			<div class="tag-grid">
 				{#each data.vocabulary as tag}
 					<button
@@ -91,27 +92,27 @@
 		{/if}
 
 		<div class="field">
-			<label for="share-person">{didMeet ? 'What would you like to share with the other person?' : 'What happened?'}</label>
-			<textarea id="share-person" bind:value={shareWithPerson} rows={3} placeholder="This will be shared with them after they also submit feedback" required></textarea>
+			<label for="share-person">{didMeet ? copy.feedback.shareWithPerson : copy.feedback.whatHappened}</label>
+			<textarea id="share-person" bind:value={shareWithPerson} rows={3} placeholder={copy.feedback.shareWithPersonHint} required></textarea>
 		</div>
 
 		<div class="field">
-			<label for="share-platform">Anything for dyad? (optional)</label>
-			<textarea id="share-platform" bind:value={shareWithPlatform} rows={2} placeholder="Helps us improve the experience"></textarea>
+			<label for="share-platform">{copy.feedback.shareWithPlatform}</label>
+			<textarea id="share-platform" bind:value={shareWithPlatform} rows={2}></textarea>
 		</div>
 
 		{#if submitError}<p class="field-error">{submitError}</p>{/if}
 
 		<div class="actions">
-			<button class="back-btn" onclick={() => step = 'met'}>Back</button>
+			<button class="back-btn" onclick={() => step = 'met'}>{copy.common.back}</button>
 			<button class="submit-btn" onclick={handleSubmit} disabled={submitting || !shareWithPerson.trim()}>
-				{submitting ? 'Submitting...' : 'Submit feedback'}
+				{submitting ? copy.feedback.submitting : copy.feedback.submitFeedback}
 			</button>
 		</div>
 	{/if}
 
 	<div class="sign-out-section">
-		<a href="/logout">sign out</a>
+		<a href="/logout">{copy.nav.signOut}</a>
 	</div>
 </div>
 

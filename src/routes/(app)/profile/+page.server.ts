@@ -5,17 +5,9 @@ import { SupabaseMeetingService } from '$lib/services/meeting.js';
 export const load: PageServerLoad = async ({ locals }) => {
 	const userId = locals.user!.id;
 
-	const [prompts, meetings, sentInvitations, receivedInvitations, respondedPrompts, feedbackDue] = await Promise.all([
+	const [prompts, meetings, receivedInvitations, respondedPrompts, feedbackDue, cancelledNotifications] = await Promise.all([
 		new SupabasePromptQueryService(locals.supabase).getMyPrompts(userId),
 		new SupabaseMeetingService(locals.supabase).getMyMeetings(userId),
-
-		// Invitations I sent
-		locals.supabase
-			.from('prompt_invitations')
-			.select('id, prompt_id, slot_id, state, created_at, message, prompts:prompt_id(title)')
-			.eq('inviter_id', userId)
-			.order('created_at', { ascending: false })
-			.then(({ data }) => data ?? []),
 
 		// Invitations I received (as prompt author) — pending only
 		locals.supabase
@@ -69,8 +61,31 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.select('id, meeting_id, state')
 			.eq('reviewer_id', userId)
 			.eq('state', 'due')
-			.then(({ data }) => data ?? [])
+			.then(({ data }) => data ?? []),
+
+		// Cancelled meeting notifications (unread)
+		locals.supabase
+			.from('notifications')
+			.select('id, data, created_at')
+			.eq('user_id', userId)
+			.eq('type', 'meeting_cancelled')
+			.eq('read', false)
+			.order('created_at', { ascending: false })
+			.then(async ({ data }) => {
+				if (!data || data.length === 0) return [];
+				const cancellerIds = [...new Set(data.map((n: any) => n.data?.cancelled_by).filter(Boolean))];
+				const { data: profiles } = cancellerIds.length > 0
+					? await locals.supabase.from('profiles').select('id, username').in('id', cancellerIds)
+					: { data: [] };
+				const usernameMap = new Map((profiles ?? []).map((p: any) => [p.id, p.username]));
+				return data.map((n: any) => ({
+					id: n.id,
+					cancelled_by_username: usernameMap.get(n.data?.cancelled_by) ?? 'someone',
+					scheduled_time: n.data?.scheduled_time,
+					created_at: n.created_at
+				}));
+			})
 	]);
 
-	return { prompts, meetings, sentInvitations, receivedInvitations, respondedPrompts, feedbackDue };
+	return { prompts, meetings, receivedInvitations, respondedPrompts, feedbackDue, cancelledNotifications };
 };

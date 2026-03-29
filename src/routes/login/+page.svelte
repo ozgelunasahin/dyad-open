@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import type { ActionData, PageData } from './$types';
+	import { copy } from '$lib/copy';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	let loading = $state(false);
@@ -26,10 +27,10 @@
 	<div class="form-half">
 		<div class="auth-card">
 			<h1>
-				{#if mode === 'login'}Welcome back{:else if mode === 'reset'}Reset password{:else}Set new password{/if}
+				{#if mode === 'login'}{copy.auth.welcomeBack}{:else if mode === 'reset'}Reset password{:else}Set new password{/if}
 			</h1>
 			<p class="subtitle">
-				{#if mode === 'login'}Sign in to create and join conversations{:else if mode === 'reset'}Enter your email to receive a reset link{:else}Choose a new password for your account{/if}
+				{#if mode === 'login'}{copy.auth.signInSubtitle}{:else if mode === 'reset'}Enter your email to receive a reset link{:else}Choose a new password for your account{/if}
 			</p>
 
 			{#if form?.error}
@@ -80,7 +81,7 @@
 							minlength={mode === 'update' ? 8 : undefined}
 						/>
 						{#if mode === 'update'}
-							<p class="hint">At least 8 characters</p>
+							<p class="hint">{copy.auth.passwordHint}</p>
 						{/if}
 					</div>
 				{/if}
@@ -89,14 +90,14 @@
 					{#if loading}
 						{#if mode === 'login'}Signing in...{:else if mode === 'reset'}Sending...{:else}Updating...{/if}
 					{:else}
-						{#if mode === 'login'}Sign in{:else if mode === 'reset'}Send reset link{:else}Update password{/if}
+						{#if mode === 'login'}{copy.auth.signIn}{:else if mode === 'reset'}Send reset link{:else}Update password{/if}
 					{/if}
 				</button>
 			</form>
 
 			<div class="switch-auth">
 				{#if mode === 'login'}
-					<button type="button" class="link-btn" onclick={() => (mode = 'reset')}>Forgot password?</button>
+					<button type="button" class="link-btn" onclick={() => (mode = 'reset')}>{copy.auth.forgotPassword}</button>
 					<a href="/waitlist" class="link-btn">Join</a>
 				{:else if mode === 'reset'}
 					<button type="button" class="link-btn" onclick={() => (mode = 'login')}>Sign in</button>

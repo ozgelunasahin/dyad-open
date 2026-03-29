@@ -1,48 +1,49 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	let { children } = $props();
+	import type { LayoutData } from './$types';
+	import Sidebar from '$lib/components/Sidebar.svelte';
+	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
+
+	let { data, children }: { data: LayoutData; children: any } = $props();
 </script>
 
-<div class="admin-shell">
-	<nav class="admin-nav">
-		<a href="/discover" class="admin-logo">dyad</a>
-		<div class="admin-tabs">
+<div class="admin-layout">
+	<Sidebar username={data.username} attentionCount={data.attentionCount} isAdmin={data.isAdmin} />
+
+	<main class="admin-main">
+		<nav class="admin-tabs">
 			<a href="/admin/waitlist" class="admin-tab" class:active={$page.url.pathname === '/admin/waitlist'}>Waitlist</a>
 			<a href="/admin/feedback" class="admin-tab" class:active={$page.url.pathname === '/admin/feedback'}>Feedback</a>
-		</div>
-		<a href="/discover" class="admin-back">← back to app</a>
-	</nav>
+		</nav>
 
-	<main class="admin-content">
-		{@render children()}
+		<div class="admin-content">
+			{@render children()}
+		</div>
 	</main>
 </div>
 
+<FeedbackModal />
+
 <style>
-	.admin-shell {
-		max-width: 960px;
-		margin: 0 auto;
-		padding: var(--space-6);
-	}
-
-	.admin-nav {
+	.admin-layout {
 		display: flex;
-		align-items: center;
-		gap: var(--space-6);
-		margin-bottom: var(--space-8);
-		padding-bottom: var(--space-4);
-		border-bottom: 1px solid var(--border-link);
+		min-height: 100vh;
+		background: var(--bg-canvas);
 	}
 
-	.admin-logo {
-		font-family: var(--font-serif);
-		font-size: var(--text-lg);
-		font-weight: 500;
+	.admin-main {
+		flex: 1;
+		min-width: 0;
+		max-width: 960px;
+		padding: var(--space-6);
 	}
 
 	.admin-tabs {
 		display: flex;
 		gap: var(--space-4);
+		margin-bottom: var(--space-8);
+		padding-bottom: var(--space-4);
+		border-bottom: 1px solid var(--border-link);
 	}
 
 	.admin-tab {
@@ -58,14 +59,9 @@
 		font-weight: 500;
 	}
 
-	.admin-back {
-		margin-left: auto;
-		font-size: var(--text-sm);
-		color: var(--text-muted);
-	}
-	.admin-back:hover { color: var(--text-primary); }
+	.admin-content { width: 100%; }
 
-	.admin-content {
-		width: 100%;
+	@media (max-width: 768px) {
+		.admin-main { padding: 1rem; }
 	}
 </style>

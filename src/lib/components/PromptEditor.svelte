@@ -194,7 +194,7 @@
 	}
 
 	.editor :global(.tiptap p.is-editor-empty:first-child::before) {
-		content: 'Start writing...';
+		content: 'Start writing your conversation...';
 		color: var(--text-muted, #c0bdb8);
 		pointer-events: none;
 		float: left;

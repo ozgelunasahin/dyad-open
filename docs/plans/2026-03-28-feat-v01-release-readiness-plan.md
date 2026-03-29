@@ -316,6 +316,18 @@ The sidebar is being removed. FloatingNav becomes the primary navigation on ALL 
 - [ ] Invitation accepted
 - [ ] Meeting cancelled by other party
 
+## Reinstated (incorrectly cut by simplicity reviewer — explicit user requirements)
+
+These were deferred by the simplicity reviewer but are explicit product requirements:
+
+- **S8: Centralized copy (`copy.ts`)** — user explicitly required centrally manageable copy for co-founder independence. Create `src/lib/copy.ts` with all user-facing strings. Components import from it. This becomes the key schema for v0.2 DB-backed i18n.
+- **S9: Waitlist modal on landing page** — user and co-founder both requested. Non-members clicking a conversation see a modal overlay with the waitlist form. Keep them in context, don't navigate away.
+- **S12 subset: Landing page discover embed with map** — user explicitly confirmed: "I think she wants the map view there too. I also think that it's an important thing to make visible to prospective users." Replace right-side cards with full discover view (map + list toggle), gated clicks open waitlist modal.
+- **S7: Progressive slot disclosure** — user requested teaser before response ("Available to meet in Neukölln · 1 slot this week"), full slots revealed after writing a response.
+- **Mobile Playwright tests** — user explicitly said: "we need to have a full playwright playbook to test the flows in mobile view." See `docs/plans/2026-03-28-feat-v01-test-harness-plan.md`.
+- **In-app confirmation modals** — NEVER use browser `confirm()`. All confirmations (archive, cancel meeting) must be in-app UI using native `<dialog>` or equivalent. Browser dialogs violate the design language.
+- **Stack of cards profile** — user explicitly requested: "having a 'stack of cards' view for meetings/conversations in the profile page, and being able to click through to the list of either." Summary view, not flat list dump.
+
 ## Deferred to v0.2
 
 - Public profiles
@@ -329,14 +341,9 @@ The sidebar is being removed. FloatingNav becomes the primary navigation on ALL 
 - Republish archived conversations (API exists, no UI)
 - Delete draft conversations
 - Query parallelization (discover waterfall S4, detail waterfall S5) — invisible at alpha scale
-- Centralized copy / string management (S8) — go straight to DB-backed i18n in v0.2
-- Mobile Playwright tests (S10) — manual phone testing for alpha
 - BottomSheet non-blocking interaction (S11) — workaround exists
 - Decline invitation button (S13) — ignoring works at alpha scale
 - Email notifications for events (S14) — opted-in testers will check the app
-- Landing page discover embed with map (S12 subset) — current layout works for invite-link arrivals
-- Waitlist modal on landing page (S9) — redirect to /waitlist works
-- Progressive slot disclosure (S7 partial) — showing all slots is fine for alpha
 - Feedback editing after submission (Story 4 requirement — defer, document explicitly)
 - Add-to-calendar (Story 2/4 open question — defer explicitly)
 - Feedback reveal notification (how users discover the reveal is available)

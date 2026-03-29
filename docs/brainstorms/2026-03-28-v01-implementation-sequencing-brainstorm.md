@@ -3,148 +3,102 @@ topic: v0.1 implementation sequencing — blockers, should-fix, and work session
 date: 2026-03-28
 status: active
 participants: digit, claude
+updated: 2026-03-28T22:00:00
 ---
 
 # v0.1 Implementation Sequencing
 
 How to sequence the readiness plan work into implementation sessions, respecting dependencies and maximising unblocking.
 
-## The Work
+**Source of truth for requirements:** `docs/plans/2026-03-28-feat-v01-release-readiness-plan.md`
 
-**Source:** `docs/plans/2026-03-28-feat-v01-release-readiness-plan.md`
+## Session Status
 
-8 blockers (B1-B8), 2 promoted security fixes (S1-S2), and ~10 should-fix items. Plus documentation updates identified in the plan.
+| Session | Status | PR | Key deliverables |
+|---------|--------|-----|-----------------|
+| 1: Infrastructure + DB | **DONE** | #63 (merged) | Column fixes, signup RPC, accept_invitation, security SQL, migrations pushed to remote |
+| 2: Admin Panel + Feedback | **DONE** | #64 (merged) | Admin panel (waitlist + feedback), app feedback button, gate bypass, app_metadata admin |
+| 3a: Security + Navigation | **DONE** | #65 (merged) | time_slots RLS safeguarding, sidebar hidden, FloatingNav everywhere, sign-out moved |
+| 3b: Core Pages + Polish | **IN PROGRESS** | #66 | Discover visibility, conversation detail UX, map distance, copy.ts, email fixes |
+| 4: Feedback Reveal | **PLANNED** | — | Revealed feedback UI, RevealCard component, E2E feedback test |
+| 5: Landing Page Redesign | **PLANNED** | — | Discover embed with map for anon visitors, waitlist + login modals |
+| Test Harness | **PLANNED** | — | Mobile Playwright tests, full lifecycle E2E. See `docs/plans/2026-03-28-feat-v01-test-harness-plan.md` |
 
-## Dependency Graph
+## Corrections from Earlier Version
 
-```
-B5 (apply migrations) ─── gates everything on remote
-  │
-  ├── B1 (fix confirm_user_email RPC) ─── gates signup
-  │     └── needs new migration applied to remote
-  │
-  ├── B2 (pg_cron + accept_invitation fixes) ─── gates meeting lifecycle
-  │     ├── fix accept_invitation: remove 12h guard, add general_area copy
-  │     ├── enable pg_cron on remote Supabase
-  │     └── needs migration + remote config
-  │
-  ├── B3 (fix column names) ─── gates feedback display + badge
-  │     └── code-only fix, no migration needed
-  │
-  ├── S1 + S2 (security SQL) ─── ship with migration push
-  │     └── one-line SQL fixes, bundle with B5
-  │
-  └── B4 (production email) ─── gates invite delivery
-        ├── pick EU provider (Mailjet)
-        ├── write adapter in email.ts
-        └── set env vars on Cloudflare Pages
+The original brainstorm was modified by a simplicity reviewer that cut explicit user requirements. These have been reinstated (see readiness plan "Reinstated" section):
 
-B6 (revealed feedback UI) ─── independent of above, but needs B2 working to test
-B7 (app feedback button + table) ─── fully independent
-B8 (admin panel) ─── depends on B7 (feedback table), otherwise independent
-```
+1. **copy.ts is v0.1 scope** — created, needs wiring into components. Co-founder needs centrally manageable copy.
+2. **Landing page discover embed with map + waitlist modal is v0.1** — needs its own session/PR (Session 5).
+3. **Progressive slot disclosure is v0.1** — teaser before response, full slots after.
+4. **Mobile Playwright tests are v0.1** — see test harness plan.
+5. **NEVER use browser `confirm()`** — all confirmations must be in-app `<dialog>`. The simplicity reviewer recommended `confirm()` for alpha — this was rejected.
+6. **Session 1 corrections:** `accept_invitation` does NOT copy location columns (meetings table doesn't have them — location accessed via JOIN). Combined signup RPC was overengineered — used guarded `confirm_user_email` instead.
+7. **Session 2 corrections:** Admin identity uses `app_metadata` (not `can_publish_sites`). Config table dropped (hardcode for alpha). Reused legacy `feedback` table instead of new `app_feedback` table.
 
-## Proposed Sessions
+## Remaining Work
 
-### Session 1: Infrastructure + Database Fixes
+### Session 3b (in progress — PR #66)
 
-All the migration/SQL work in one batch. This is the foundation — nothing works on remote without it.
+Remaining items not yet committed:
+- [ ] Wire copy.ts into components (replace hardcoded strings)
+- [ ] Replace `confirm()` in archive button with `<dialog>` component
+- [ ] Cancel meeting notification migration + RPC modification
+- [ ] Profile: cancelled meetings in attention section
+- [ ] Editor placeholder text
+- [ ] Progressive slot disclosure (teaser before response)
+- [ ] Responsive audit
 
-**Items:**
-- B5: Apply all existing migrations to remote Supabase
-- B1: Create combined `consume_invitation_and_confirm` RPC (new migration)
-- B2: Fix `accept_invitation` RPC — remove 12h acceptance guard, add `exact_location` + `general_area` to INSERT
-- B2: Enable pg_cron, create cron schedules for all 3 functions
-- S1: Fix notifications INSERT policy (one-line SQL)
-- S2: Restrict `archive_stale_prompts` to service_role (one-line SQL)
-- B3: Fix column names (`participant_a/b`, `reviewer_id`) — code fix, no migration
-- B4: Pick email provider, write adapter, set env vars
-- Fix seed script (upsert for slots, don't create duplicates)
-- Seed feedback-state test data (two users in "met but no feedback" state)
+### Session 4: Feedback Reveal
 
-**Output:** Remote Supabase fully operational. Signup works. Meetings transition. Email delivers. Feedback gate activates.
+Plan: `docs/plans/2026-03-28-fix-v01-session4-feedback-reveal-plan.md`
+- Feedback page: fix step initialization for locked/submitted states
+- Inline reveal after both submit
+- Meeting detail: revealed feedback section
+- RevealCard component
+- Remove defensive fallbacks
+- E2E test for feedback flow
 
-**Can be parallelised:** B3 (code fix) can happen at the same time as the migration/SQL work.
+### Session 5: Landing Page Redesign (NEW)
 
-### Session 2: Admin Panel + Feedback
+Not yet planned. Scope:
+- Embed discover view (map + list toggle) on right side of landing page for anonymous visitors
+- All pin/card clicks open waitlist modal (not navigate)
+- Waitlist form as modal (reuse fields from /waitlist)
+- Login as modal with "Already have an account?" toggle
+- "Private beta" label
+- Reuse existing MapView, BottomSheet, getPublishedPromptsPublic()
 
-The admin needs to be able to operate without the developer. This session builds the minimum viable admin.
+### Test Harness
 
-**Items:**
-- B7: Create `app_feedback` table + `POST /api/feedback/app` endpoint + feedback button in UI
-- B8: `/admin` route group with auth guard + gate exemption
-- B8: `/admin/waitlist` — list contacts, show invited/not-invited status, invite button
-- B8: `/admin/feedback` — list app feedback + share-with-platform entries
-- B8: `/admin/settings` — config flags (starting with `show_fully_booked_conversations`)
+Plan: `docs/plans/2026-03-28-feat-v01-test-harness-plan.md`
+- Mobile viewport Playwright tests (375px)
+- Desktop Playwright tests (1280px)
+- Full lifecycle E2E (respond → invite → accept → meeting → feedback → reveal)
+- Seed data covers all states (6 users, see supabase/seed.sql)
 
-**Output:** Admin can approve waitlist, view feedback, toggle settings. All in-app.
+### Infrastructure (not yet done)
 
-### Session 3: Navigation + Frontend Polish
-
-The navigation overhaul and the should-fix UX items from Ozge's feedback.
-
-**Items:**
-- Remove sidebar, FloatingNav everywhere (mobile + desktop)
-- Profile button + notification badge on FloatingNav
-- Sign out moved to profile page
-- S3: Password min alignment (trivial)
-- S12 copy changes: "Write a comment...", explainer text, invite email inclusive language, date labels, editor placeholder
-- S12 conversation detail: spacing fix, invitation note as textarea, hide other slots after inviting, past-slot message
-- S12 profile: meeting cancellation UI (in-app, not browser confirm), cancellation notification
-- S12 editor: edit link on published conversation, archive button
-- S12 discover: visibility policy (show own conversations, show with pending invitations, configurable fully-booked flag)
-- S12 map: pin click by fuzz region not Bezirk, cover image consistency
-- S12 responsive: mobile + large desktop audit
-
-**Output:** Representative UX for alpha testers. Navigation works on all viewports.
-
-### Session 4: Feedback Reveal + Final Polish
-
-The core promise — simultaneous reveal — and remaining items.
-
-**Items:**
-- B6: Revealed feedback UI on meeting detail page (when meeting state is `completed`)
-- B6: Inline reveal on feedback page when state is `locked`
-- Remove `?? 'TBD'` and similar defensive fallbacks — show actual nulls during alpha
-- S6: Verify new conversation button visible on all viewports
-- Final E2E test run (manual, on phones)
-
-**Output:** The full journey works end-to-end. Testers can give and see feedback.
-
-## What Order Within Each Session?
-
-Each session has its own internal dependency order noted in the items list. The sessions themselves are mostly sequential:
-
-- **Session 1 first** — unblocks everything on remote
-- **Session 2 next** — admin must work before inviting testers
-- **Sessions 3 and 4 can overlap** — frontend polish and feedback reveal are independent
-
-## What Needs Ozge's Input Before Implementation?
-
-- **Navigation design:** FloatingNav layout on desktop — does she have a preference? Currently the discover variant is `[Map] [Calendar] [Search] [+]`. Adding profile + notification badge changes the layout.
-- **Landing page:** The discover embed with map for anonymous visitors — is this v0.1 or can we ship with current cards + waitlist modal?
-- **Copy:** All the placeholder text and guidance copy. Ideally she writes first drafts and we implement. Or we write, she reviews.
+- [ ] pg_cron or Cloudflare cron for `advance_scheduled_meetings`, `expire_stale_invitations`, `archive_stale_prompts`
+- [ ] Production email wiring (Mailjet, deferred from Session 1)
+- [ ] PostHog EU project created (infra ready, not wired)
+- [ ] RBAC on production Supabase (restrict migration push before real user data)
+- [ ] Set admin app_metadata on remote
 
 ## What Can a Co-Founder Do With Claude Code?
 
-During Sessions 1-2 (while developer builds infrastructure), the co-founder could work on:
-- Writing all the copy (placeholder text, guidance, email templates) in a shared document
-- Testing the admin panel once it's built (filing bugs via the feedback button)
-- Manual mobile testing and noting layout issues
+- **Copy changes** via `src/lib/copy.ts` — single file, all user-facing strings
+- **CSS fixes** — spacing, colours, using design tokens from `src/app.css`
+- **Admin operations** — `/admin/waitlist` (invite users), `/admin/feedback` (view reports)
+- **Bug reports** — use the "?" feedback button in the app
+- **CLAUDE.md** has ways of working section specifically for this
 
-After Session 2, with Claude Code:
-- Copy changes (once copy.ts exists or even directly in components)
-- CSS spacing fixes
-- Email template wording
+## Key Principles
 
-## Open Questions
-
-*None — sequencing is clear from the dependency graph. The question is how many sessions happen in one day vs spread across multiple.*
-
-## Key Decisions
-
-1. **Infrastructure first.** Nothing works without B5 + B1 + B2 + B4 on remote.
-2. **Admin before testers.** B8 must be functional before inviting anyone.
-3. **Frontend polish is the stretch.** Sessions 3-4 are important for representative UX but not blocking — testers can use a rougher UI if needed.
-4. **Sessions 3 and 4 can interleave** — they're independent workstreams.
-5. **Copy is a parallel workstream** — Ozge can write copy while developer builds infrastructure.
+1. **Infrastructure first.** Nothing works without migrations on remote.
+2. **Admin before testers.** Admin must be able to operate unattended.
+3. **Never use browser `confirm()`.** All confirmations in-app with `<dialog>`.
+4. **No defensive fallbacks.** Show actual nulls during alpha — bugs must surface.
+5. **Simplify HOW, never cut WHAT.** If the user stated a requirement, it ships.
+6. **Copy in copy.ts.** All user-facing strings centralized for co-founder access.
+7. **One plan per PR.** Split large sessions into separate plans.
