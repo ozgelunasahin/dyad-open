@@ -9,6 +9,7 @@
 
 	let { value, onChange, placeholder = 'Search location...' }: Props = $props();
 
+	// svelte-ignore state_referenced_locally — intentional initial-value capture for search input
 	let query = $state(value?.name ?? '');
 	let results = $state<Array<{ place_id: string; name: string; address: string; lat: number; lng: number }>>([]);
 	let searchTimer: ReturnType<typeof setTimeout> | undefined;
@@ -48,15 +49,16 @@
 		value={query}
 		oninput={handleInput}
 		role="combobox"
+		aria-controls="location-results"
 		aria-expanded={results.length > 0}
 	/>
 	{#if value && !results.length}
 		<span class="location-badge">{value.name}</span>
 	{/if}
 	{#if results.length > 0}
-		<div class="location-dropdown">
+		<div class="location-dropdown" id="location-results" role="listbox">
 			{#each results as result}
-				<button type="button" class="location-option" onmousedown={() => selectResult(result)}>
+				<button type="button" class="location-option" role="option" aria-selected="false" onmousedown={() => selectResult(result)}>
 					<span class="loc-name">{result.name}</span>
 					<span class="loc-addr">{result.address}</span>
 				</button>

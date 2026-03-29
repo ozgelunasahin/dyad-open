@@ -56,6 +56,23 @@ Any Svelte 5 component where a UI state (step, tab, mode, panel) has a "default"
 - Progressive disclosure driven by both server data and user choices
 - Optimistic UI where the server response should "correct" the client state
 
+## Simpler Variant: Initial-Value Capture
+
+When a component only needs to copy the server value once into local editable state (e.g., form fields, editor content), the full `$derived base + $state override` pattern is unnecessary. Use a plain `$state` initialized from the prop/data and suppress the warning:
+
+```typescript
+// svelte-ignore state_referenced_locally — intentional initial-value capture
+let title = $state(data.prompt.title ?? '');
+let email = $state(form?.email ?? '');
+```
+
+This pattern is correct when:
+- The data is loaded once via SvelteKit's server loader
+- The component does not call `invalidate()` or `invalidateAll()`
+- Local state becomes the sole source of truth after initialization
+
+**If `invalidate()` is added later**, the suppressed `$state(data.x)` will silently hold stale data. In that case, migrate to the full `$derived base + $state override` pattern above. The `svelte-ignore` comments make these easy to grep and convert.
+
 ## When NOT to Use This
 
 If all transitions are user-driven (no server state component), use a plain `$state`. See `docs/solutions/ux-patterns/staged-disclosure-vs-inline-selection.md` for a case where a 5-value step machine was correctly replaced by a single `$state` variable.

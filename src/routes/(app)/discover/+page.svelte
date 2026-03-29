@@ -253,10 +253,6 @@
 		margin-bottom: 3rem;
 	}
 
-	.prompt-actions {
-		margin-bottom: 16px;
-	}
-
 	.start-prompt-btn {
 				font-size: 13px;
 		padding: 8px 20px;
@@ -362,6 +358,7 @@
 		line-height: 1.55;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
+		line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 	}

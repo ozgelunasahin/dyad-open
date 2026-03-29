@@ -5,7 +5,9 @@
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	let loading = $state(false);
+	// svelte-ignore state_referenced_locally — intentional initial-value capture for form fields
 	let mode = $state<'login' | 'reset' | 'update'>(data.mode === 'update' ? 'update' : 'login');
+	// svelte-ignore state_referenced_locally
 	let email = $state(form?.email ?? '');
 	let password = $state('');
 </script>
