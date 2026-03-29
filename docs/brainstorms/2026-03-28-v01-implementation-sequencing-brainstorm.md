@@ -49,15 +49,17 @@ Remaining items not yet committed:
 - [ ] Progressive slot disclosure (teaser before response)
 - [ ] Responsive audit
 
-### Session 4: Feedback Reveal
+### Session 4a: Feedback Reveal
 
 Plan: `docs/plans/2026-03-28-fix-v01-session4-feedback-reveal-plan.md`
 - Feedback page: fix step initialization for locked/submitted states
-- Inline reveal after both submit
-- Meeting detail: revealed feedback section
-- RevealCard component
-- Remove defensive fallbacks
-- E2E test for feedback flow
+- Inline reveal after both submit (PATCH returns revealed data)
+- Meeting detail: revealed feedback section + awaiting_feedback status
+
+Items moved out of Session 4:
+- Sidebar "New conversation" link → UI polish pass
+- E2E feedback test → test harness plan
+- Security hardening (error sanitization, RLS UPDATE policy) → standalone security PR
 
 ### Session 5: Landing Page Redesign (NEW)
 

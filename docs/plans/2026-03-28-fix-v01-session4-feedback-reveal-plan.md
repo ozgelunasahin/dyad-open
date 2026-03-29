@@ -1,5 +1,5 @@
 ---
-title: "fix: v0.1 Session 4 — Feedback Reveal + Final Polish"
+title: "fix: v0.1 Session 4a — Feedback Reveal"
 type: fix
 status: active
 date: 2026-03-28
@@ -7,9 +7,14 @@ origin: docs/brainstorms/2026-03-28-v01-implementation-sequencing-brainstorm.md
 deepened: 2026-03-28
 ---
 
-# v0.1 Session 4: Feedback Reveal + Final Polish
+# v0.1 Session 4a: Feedback Reveal
 
-The core promise — simultaneous reveal — and remaining polish items. Backend is complete (`getRevealedFeedback`, `GET /api/meetings/[id]/feedback`, `submit_feedback` RPC with atomic lock). This session builds the frontend.
+The core promise — simultaneous reveal. Backend is complete (`getRevealedFeedback`, `GET /api/meetings/[id]/feedback`, `submit_feedback` RPC with atomic lock). This session builds the frontend.
+
+**Scope:** Items 1-3 only (feedback page + meeting detail reveal). Other items moved out:
+- Item 4 (sidebar link) → UI polish pass
+- Item 5 (E2E test) → consolidated into test harness plan (`2026-03-28-feat-v01-test-harness-plan.md`)
+- Item 6 (security hardening) → standalone security review PR
 
 (see brainstorm: `docs/brainstorms/2026-03-28-v01-implementation-sequencing-brainstorm.md` — Session 4)
 
@@ -196,12 +201,14 @@ Items identified by the security sentinel that should ship with this session:
 - [ ] Catch-up check on `waiting` step detects post-hydration lock
 - [ ] Meeting detail page shows revealed feedback section for `completed` meetings
 - [ ] Meeting detail page shows feedback status + link for `awaiting_feedback` state
-- [ ] "New conversation" link visible on desktop sidebar with active state
-- [ ] E2E test covers: gate redirect → submit → lock → inline reveal → meeting detail reveal → revisit reveal
-- [ ] Error responses on both API endpoints sanitized (no raw Postgres errors)
-- [ ] RLS UPDATE policy on `feedback_forms` restricts to `due`/`submitted` states
 - [ ] `released` state does not break UI (handled by `||` in step initialization)
 - [ ] No new `svelte-check` errors
+
+### Out of scope (moved to other tracks)
+- E2E test → test harness plan
+- Error response sanitization → security hardening PR
+- RLS UPDATE policy hardening → security hardening PR
+- Sidebar "New conversation" link → UI polish pass
 
 ## Scope Reduction (from simplicity review)
 
