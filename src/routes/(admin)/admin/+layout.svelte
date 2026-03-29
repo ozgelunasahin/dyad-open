@@ -7,6 +7,7 @@
 </script>
 
 <main class="admin-main">
+	<a href="/discover" class="back-to-app">&larr; Back to app</a>
 	<nav class="admin-tabs">
 		<a href="/admin/waitlist" class="admin-tab" class:active={$page.url.pathname === '/admin/waitlist'}>Waitlist</a>
 		<a href="/admin/feedback" class="admin-tab" class:active={$page.url.pathname === '/admin/feedback'}>Feedback</a>
@@ -27,6 +28,16 @@
 		margin: 0 auto;
 		padding: var(--space-6);
 	}
+
+	.back-to-app {
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+		text-decoration: none;
+		display: block;
+		margin-bottom: var(--space-4);
+	}
+	.back-to-app:hover { color: var(--text-primary); }
 
 	.admin-tabs {
 		display: flex;

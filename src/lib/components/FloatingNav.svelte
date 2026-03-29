@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { afterNavigate } from '$app/navigation';
 	import type { WeekDate } from '$lib/utils/dates';
 
 	let {
@@ -18,6 +17,7 @@
 		saveStatus,
 		onSaveDraft,
 		onPublish,
+		onDiscard,
 	}: {
 		variant?: 'discover' | 'default';
 		position?: 'top' | 'bottom';
@@ -33,14 +33,8 @@
 		saveStatus?: 'idle' | 'saving' | 'saved' | 'error';
 		onSaveDraft?: () => void;
 		onPublish?: () => void;
+		onDiscard?: () => void;
 	} = $props();
-
-	// Track the previous in-app URL for deterministic back navigation (PWA-safe)
-	let previousUrl = $state<string | null>(null);
-
-	afterNavigate(({ from }) => {
-		previousUrl = from?.url?.pathname ?? null;
-	});
 
 	let dateFilterOpen = $state(false);
 	let continueDropdownOpen = $state(false);
@@ -83,15 +77,6 @@
 </script>
 
 <div class="floating-nav-anchor" class:top={position === 'top'} class:bottom={position === 'bottom'}>
-	<!-- Back tab: opaque pill behind the nav, peeks out to the left -->
-	{#if previousUrl}
-		<a href={previousUrl} class="back-tab" aria-label="Back">
-			<svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-				<path d="M12 4l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-			</svg>
-		</a>
-	{/if}
-
 	<nav class="floating-nav" class:default-variant={variant === 'default'} aria-label="Navigation">
 	{#if variant === 'discover'}
 		<button
@@ -207,6 +192,17 @@
 								Publish as Conversation
 							</button>
 						{/if}
+						{#if onDiscard}
+							<button
+								class="dropdown-item dropdown-item--danger"
+								role="menuitem"
+								tabindex="-1"
+								onkeydown={handleMenuItemKeydown}
+								onclick={() => { continueDropdownOpen = false; onDiscard?.(); }}
+							>
+								Discard
+							</button>
+						{/if}
 					</div>
 				{/if}
 			</div>
@@ -260,30 +256,7 @@
 	.floating-nav-anchor.top { top: var(--space-4); }
 	.floating-nav-anchor.bottom { bottom: var(--space-5); }
 
-	/* Back tab — soft pill behind nav, peeks out left */
-	.back-tab {
-		position: absolute;
-		top: 0;
-		left: -32px;
-		width: 100%;
-		height: 100%;
-		display: flex;
-		align-items: center;
-		padding-left: var(--space-3);
-		background: var(--bg-control);
-		border-radius: var(--radius-pill);
-		color: var(--text-muted);
-		pointer-events: auto;
-		transition: left 120ms ease-out;
-	}
-	.back-tab:hover { left: -40px; }
-
-	/* Hide back tab on mobile — interaction broken on small viewports */
-	@media (max-width: 430px) {
-		.back-tab { display: none; }
-	}
-
-	/* Nav pill — sits on top of the back tab */
+	/* Nav pill */
 	.floating-nav {
 		position: relative;
 		display: flex;
@@ -409,7 +382,7 @@
 		background: var(--bg-canvas);
 		border-radius: var(--radius-card);
 		box-shadow: 0 4px 24px rgba(0, 0, 0, 0.18);
-		min-width: 200px;
+		min-width: 260px;
 		overflow: hidden;
 		z-index: 810;
 	}
@@ -424,11 +397,14 @@
 		border-bottom: 1px solid var(--border-link);
 		font-size: var(--text-md);
 		cursor: pointer;
+		white-space: nowrap;
 		transition: background 0.1s;
 	}
 
 	.dropdown-item:last-child { border-bottom: none; }
 	.dropdown-item:hover, .dropdown-item:focus { background: rgba(0, 0, 0, 0.04); outline: none; }
+	.dropdown-item--danger { color: var(--color-danger); }
+	.dropdown-item--danger:hover { background: rgba(220, 38, 38, 0.06); }
 
 	/* === Date filter panel === */
 	.date-panel {

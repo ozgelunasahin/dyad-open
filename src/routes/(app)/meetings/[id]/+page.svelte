@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+	import { generateICS, downloadICS } from '$lib/utils/calendar.js';
 	import type { PageData } from './$types';
 	import { copy } from '$lib/copy';
 
@@ -13,6 +14,21 @@
 		return new Date(iso).toLocaleDateString('en-US', {
 			weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit'
 		});
+	}
+
+	function handleAddToCalendar() {
+		const loc = 'exact_location' in data.meeting && data.meeting.exact_location
+			? `${data.meeting.exact_location.name}, ${data.meeting.exact_location.address}`
+			: data.meeting.general_area;
+		const title = `dyad: ${data.prompt?.title ?? `Meeting with @${data.otherUsername}`}`;
+		const ics = generateICS({
+			title,
+			start: data.meeting.scheduled_time,
+			durationMinutes: data.meeting.duration_minutes,
+			uid: data.meeting.id,
+			location: loc
+		});
+		downloadICS(ics, 'dyad-meeting.ics');
 	}
 
 	async function handleCancel() {
@@ -34,6 +50,9 @@
 	<div class="meeting-header">
 		<span class="meeting-with">{copy.profile.meetingWith(data.otherUsername)}</span>
 		<span class="meeting-when">{formatDate(data.meeting.scheduled_time)}</span>
+		{#if data.meeting.state === 'scheduled'}
+			<button class="calendar-link" onclick={handleAddToCalendar}>{copy.meeting.addToCalendar}</button>
+		{/if}
 	</div>
 
 	<div class="detail-grid">
@@ -48,7 +67,14 @@
 		{#if 'exact_location' in data.meeting && data.meeting.exact_location}
 			<div class="detail-row">
 				<span class="label">{copy.meeting.location}</span>
-				<span class="value location">{data.meeting.exact_location.name}<br /><span class="addr">{data.meeting.exact_location.address}</span></span>
+				<a
+					class="value location"
+					href="https://www.openstreetmap.org/?mlat={data.meeting.exact_location.lat}&mlon={data.meeting.exact_location.lng}&zoom=17"
+					target="_blank"
+					rel="noopener"
+				>
+					{data.meeting.exact_location.name}<br /><span class="addr">{data.meeting.exact_location.address}</span>
+				</a>
 			</div>
 		{/if}
 	</div>
@@ -136,12 +162,15 @@
 	.meeting-header { margin-bottom: var(--space-6); }
 	.meeting-with { font-size: var(--text-2xl); font-weight: normal; display: block; line-height: var(--leading-tight); }
 	.meeting-when { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); display: block; margin-top: var(--space-2); }
+	.calendar-link { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-link); background: none; border: none; padding: 0; cursor: pointer; display: block; margin-top: var(--space-1); }
+	.calendar-link:hover { text-decoration: underline; }
 
 	.detail-grid { display: flex; flex-direction: column; margin-bottom: var(--space-6); }
 	.detail-row { display: flex; gap: var(--space-4); padding: var(--space-3) 0; border-bottom: 1px solid var(--border-link); }
 	.label { font-size: var(--text-sm); color: var(--text-muted); width: 80px; flex-shrink: 0; }
 	.value { font-size: var(--text-base); }
-	.location { font-weight: 500; }
+	.location { font-weight: 500; color: inherit; text-decoration: none; }
+	.location:hover { text-decoration: underline; }
 	.addr { font-size: var(--text-xs); color: var(--text-muted); font-weight: normal; }
 
 	.invitation-note { margin-bottom: var(--space-6); }

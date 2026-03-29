@@ -122,9 +122,8 @@
 
 	@media (min-width: 769px) {
 		.sheet {
-			/* No sidebar offset — centered */
-			bottom: var(--space-6);
-			border-radius: var(--radius-card);
+			bottom: 0;
+			border-radius: var(--radius-card) var(--radius-card) 0 0;
 			max-width: 680px;
 			max-height: 60vh;
 		}
