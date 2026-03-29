@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { formatHybridDate, formatSlotTime, formatSlotDetails } from '$lib/utils/dates.js';
+	import { formatHybridDate, formatSlotTimeRange } from '$lib/utils/dates.js';
 
 	interface Props {
 		startTime: string;
@@ -7,13 +7,25 @@
 		area: string;
 		selected?: boolean;
 		invited?: boolean;
+		invitedNote?: string;
+		exactLocation?: { name: string; address: string; lat?: number; lng?: number } | null;
 		past?: boolean;
 		onclick?: () => void;
 	}
 
-	let { startTime, durationMinutes, area, selected = false, invited = false, past = false, onclick }: Props = $props();
+	let { startTime, durationMinutes, area, selected = false, invited = false, invitedNote, exactLocation, past = false, onclick }: Props = $props();
 
 	let interactive = $derived(!!onclick && !invited);
+
+	/** formatHybridDate returns "Today", "Tomorrow", "Friday", or "28 Mar".
+	 *  For weekday-only results (2–6 days out), append the day number. */
+	function formatSlotDateFull(iso: string): string {
+		const date = new Date(iso);
+		const hybrid = formatHybridDate(iso);
+		if (hybrid === 'Today' || hybrid === 'Tomorrow') return hybrid;
+		if (/^\d/.test(hybrid)) return hybrid; // already "28 Mar"
+		return `${hybrid} ${date.getDate()}`; // "Friday 28"
+	}
 </script>
 
 {#if interactive}
@@ -22,18 +34,35 @@
 		class:selected
 		class:past
 		onclick={onclick}
-		role="button"
 		aria-pressed={selected}
 	>
-		<span class="slot-date">{formatHybridDate(startTime)} at {formatSlotTime(startTime)}</span>
-		<span class="slot-details">{formatSlotDetails(durationMinutes, area)}</span>
-		{#if invited}<span class="slot-badge">Invited</span>{/if}
+		<div class="slot-row">
+			<span class="slot-date">{formatSlotDateFull(startTime)} · {formatSlotTimeRange(startTime, durationMinutes)}</span>
+			<span class="slot-details">{area}</span>
+		</div>
 	</button>
 {:else}
 	<div class="slot-card" class:selected class:invited class:past>
-		<span class="slot-date">{formatHybridDate(startTime)} at {formatSlotTime(startTime)}</span>
-		<span class="slot-details">{formatSlotDetails(durationMinutes, area)}</span>
-		{#if invited}<span class="slot-badge">Invited</span>{/if}
+		<div class="slot-row">
+			<span class="slot-date">{formatSlotDateFull(startTime)} · {formatSlotTimeRange(startTime, durationMinutes)}</span>
+			<span class="slot-details">{area}</span>
+		</div>
+		{#if exactLocation}
+			{#if exactLocation.lat}
+				<a class="slot-location" href="https://www.openstreetmap.org/?mlat={exactLocation.lat}&mlon={exactLocation.lng}&zoom=17" target="_blank" rel="noopener">
+					<span class="slot-location-name">{exactLocation.name}</span>
+					<span class="slot-location-address">{exactLocation.address}</span>
+				</a>
+			{:else}
+				<div class="slot-location">
+					<span class="slot-location-name">{exactLocation.name}</span>
+					<span class="slot-location-address">{exactLocation.address}</span>
+				</div>
+			{/if}
+		{/if}
+		{#if invited}
+			<span class="slot-status">{invitedNote ?? 'Invited'}</span>
+		{/if}
 	</div>
 {/if}
 
@@ -41,7 +70,7 @@
 	.slot-card {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-1);
+		gap: var(--space-2);
 		padding: var(--space-4);
 		border: 1px solid var(--border-link);
 		border-radius: var(--radius-card);
@@ -65,11 +94,18 @@
 	}
 
 	.slot-card.invited {
-		opacity: 0.5;
+		opacity: var(--opacity-disabled);
 	}
 
 	.slot-card.past {
-		opacity: 0.5;
+		opacity: var(--opacity-disabled);
+	}
+
+	.slot-row {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: var(--space-3);
 	}
 
 	.slot-date {
@@ -83,14 +119,42 @@
 		font-size: var(--text-xs);
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
-		opacity: 0.6;
+		color: var(--text-muted);
+		text-align: right;
+		flex-shrink: 0;
 	}
 
-	.slot-badge {
+	a.slot-location {
+		text-decoration: none;
+		color: inherit;
+	}
+	a.slot-location:hover .slot-location-name { text-decoration: underline; }
+
+	.slot-location {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+		padding-top: var(--space-3);
+		margin-top: var(--space-1);
+		border-top: 1px solid var(--border-link);
+	}
+
+	.slot-location-name {
+		font-size: var(--text-sm);
+		font-weight: 500;
+		color: var(--text-primary);
+	}
+
+	.slot-location-address {
 		font-family: var(--font-mono);
 		font-size: var(--text-xs);
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		margin-top: var(--space-1);
+		color: var(--text-muted);
+	}
+
+	.slot-status {
+		display: block;
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+		line-height: var(--leading-normal);
 	}
 </style>

@@ -38,18 +38,10 @@ export function formatHybridDate(iso: string): string {
 	return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
-/** Format time: "15:00" */
-export function formatSlotTime(iso: string): string {
-	return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-}
-
-/** Format details line: "1 hour · Kreuzberg" */
-export function formatSlotDetails(durationMinutes: number, area: string): string {
-	const hours = Math.floor(durationMinutes / 60);
-	const mins = durationMinutes % 60;
-	let duration: string;
-	if (hours > 0 && mins > 0) duration = `${hours}h ${mins}m`;
-	else if (hours > 0) duration = hours === 1 ? '1 hour' : `${hours} hours`;
-	else duration = `${mins} min`;
-	return `${duration} · ${area}`;
+/** Format time range: "15:00–16:00" */
+export function formatSlotTimeRange(iso: string, durationMinutes: number): string {
+	const start = new Date(iso);
+	const end = new Date(start.getTime() + durationMinutes * 60_000);
+	const fmt = (d: Date) => d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+	return `${fmt(start)}–${fmt(end)}`;
 }

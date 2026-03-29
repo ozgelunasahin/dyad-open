@@ -6,9 +6,13 @@
 	interface Props {
 		prompts: PromptSummary[];
 		onSelectPin: (prompts: PromptSummary[], area: string) => void;
-		}
+		onMapClick?: () => void;
+		initialCenter?: [number, number] | null;
+		initialZoom?: number | null;
+		onMoveEnd?: (center: [number, number], zoom: number) => void;
+	}
 
-	let { prompts, onSelectPin, initialCenter, initialZoom, onMoveEnd }: Props = $props();
+	let { prompts, onSelectPin, onMapClick, initialCenter, initialZoom, onMoveEnd }: Props = $props();
 
 	let mapContainer: HTMLElement | undefined = $state();
 	let map: LeafletMap | undefined;
@@ -19,6 +23,15 @@
 	const DEFAULT_ZOOM = 12;
 	const FUZZ_MIN_METERS = 150;
 	const FUZZ_MAX_METERS = 400;
+	const DEG_TO_METERS = 111_320;
+	const LON_SCALE = Math.cos(52.52 * Math.PI / 180); // ~0.609 for Berlin
+
+	/** Approximate distance in meters between two lat/lng points in Berlin. Zero trig per call. */
+	function berlinDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+		const dy = (lat2 - lat1) * DEG_TO_METERS;
+		const dx = (lon2 - lon1) * DEG_TO_METERS * LON_SCALE;
+		return Math.sqrt(dx * dx + dy * dy);
+	}
 
 	// ── Deterministic fuzz from slot ID ──────────────────────────────────────
 	// Simple hash: converts a string to a number between 0 and 1
@@ -87,14 +100,17 @@
 			marker.on('click', () => {
 				const clickedPos = pin.position;
 				const nearby = pins
-					.filter(p => p.area === pin.area)
+					.filter(p => berlinDistance(p.position[0], p.position[1], clickedPos[0], clickedPos[1]) < FUZZ_MAX_METERS)
 					.sort((a, b) => {
 						const distA = (a.position[0] - clickedPos[0]) ** 2 + (a.position[1] - clickedPos[1]) ** 2;
 						const distB = (b.position[0] - clickedPos[0]) ** 2 + (b.position[1] - clickedPos[1]) ** 2;
 						return distA - distB;
 					})
 					.map(p => p.prompt);
-				onSelectPin(nearby.length > 0 ? nearby : [pin.prompt], pin.area);
+				// Deduplicate by prompt ID (a prompt with multiple slots may have multiple pins)
+				const seen = new Set<string>();
+				const unique = nearby.filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true; });
+				onSelectPin(unique.length > 0 ? unique : [pin.prompt], `${unique.length} nearby`);
 			});
 			marker.addTo(markerLayer);
 		}
@@ -121,6 +137,11 @@
 			attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
 			maxZoom: 18
 		}).addTo(map);
+
+		// Close bottom sheet when clicking the map (not a marker)
+		map.on('click', () => {
+			onMapClick?.();
+		});
 
 		// Report map position changes (debounced)
 		let moveEndTimer: ReturnType<typeof setTimeout>;
@@ -173,7 +194,6 @@
 	.map-container {
 		width: 100%;
 		height: 100%;
-		min-height: 400px;
 	}
 
 	:global(.marker-pin) {
@@ -186,25 +206,31 @@
 		height: 44px !important;
 		border-radius: 50%;
 		object-fit: cover;
-		border: 2px solid #f5f3f0;
+		border: 2px solid var(--bg-canvas);
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 		box-sizing: border-box;
 		display: block;
 		aspect-ratio: 1;
 	}
 
+	:global(.leaflet-control-attribution) {
+		font-size: 9px !important;
+		background: rgba(255, 255, 255, 0.6) !important;
+		padding: 2px 5px !important;
+	}
+
 	:global(.marker-placeholder) {
 		width: 44px;
 		height: 44px;
 		border-radius: 50%;
-		background: #1a1a1a;
-		color: #f5f3f0;
+		background: var(--text-primary);
+		color: var(--bg-canvas);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 18px;
+		font-size: var(--text-xl);
 		font-weight: 500;
-		border: 2px solid #f5f3f0;
+		border: 2px solid var(--bg-canvas);
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 		box-sizing: border-box;
 	}

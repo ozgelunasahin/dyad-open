@@ -47,17 +47,17 @@
 	}
 
 	.message {
-		font-size: 1.25rem;
+		font-size: var(--text-xl);
 		color: var(--text-secondary);
-		margin: 1rem 0 2rem;
+		margin: var(--space-4) 0 var(--space-8);
 	}
 
 	.home-link {
 		display: inline-block;
-		padding: 0.75rem 1.5rem;
+		padding: var(--space-3) var(--space-6);
 		color: var(--text-link);
 		border: 1px solid var(--border-link);
-		border-radius: 4px;
+		border-radius: var(--radius-input);
 		text-decoration: none;
 		transition: border-color 0.2s, color 0.2s;
 	}

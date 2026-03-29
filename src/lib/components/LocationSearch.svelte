@@ -9,6 +9,7 @@
 
 	let { value, onChange, placeholder = 'Search location...' }: Props = $props();
 
+	// svelte-ignore state_referenced_locally — intentional initial-value capture for search input
 	let query = $state(value?.name ?? '');
 	let results = $state<Array<{ place_id: string; name: string; address: string; lat: number; lng: number }>>([]);
 	let searchTimer: ReturnType<typeof setTimeout> | undefined;
@@ -48,15 +49,16 @@
 		value={query}
 		oninput={handleInput}
 		role="combobox"
+		aria-controls="location-results"
 		aria-expanded={results.length > 0}
 	/>
 	{#if value && !results.length}
 		<span class="location-badge">{value.name}</span>
 	{/if}
 	{#if results.length > 0}
-		<div class="location-dropdown">
+		<div class="location-dropdown" id="location-results" role="listbox">
 			{#each results as result}
-				<button type="button" class="location-option" onmousedown={() => selectResult(result)}>
+				<button type="button" class="location-option" role="option" aria-selected="false" onmousedown={() => selectResult(result)}>
 					<span class="loc-name">{result.name}</span>
 					<span class="loc-addr">{result.address}</span>
 				</button>
@@ -69,10 +71,10 @@
 	.location-search { position: relative; flex: 1; min-width: 180px; }
 
 	.location-search input {
-		font-size: 13px;
-		padding: 8px 10px;
-		border: 1px solid var(--border-link, rgba(0, 0, 0, 0.12));
-		border-radius: 4px;
+		font-size: var(--text-sm);
+		padding: var(--space-2) var(--space-3);
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-input);
 		background: transparent;
 		color: var(--text-primary);
 		width: 100%;
@@ -80,8 +82,8 @@
 	}
 
 	.location-badge {
-		font-size: 11px;
-		color: var(--text-muted, #666);
+		font-size: var(--text-xs);
+		color: var(--text-muted);
 		display: block;
 		margin-top: 2px;
 	}
@@ -91,10 +93,10 @@
 		top: 100%;
 		left: 0;
 		right: 0;
-		background: var(--bg-canvas, #f5f3f0);
+		background: var(--bg-canvas);
 		border: 1px solid var(--border-link);
 		border-top: none;
-		border-radius: 0 0 4px 4px;
+		border-radius: 0 0 var(--radius-input) var(--radius-input);
 		max-height: 200px;
 		overflow-y: auto;
 		z-index: 10;
@@ -104,17 +106,17 @@
 		display: block;
 		width: 100%;
 		text-align: left;
-		padding: 8px 10px;
+		padding: var(--space-2) var(--space-3);
 		background: none;
 		border: none;
-		border-bottom: 1px solid var(--border-link, rgba(0, 0, 0, 0.06));
+		border-bottom: 1px solid var(--border-link);
 		cursor: pointer;
-		font-size: 13px;
+		font-size: var(--text-sm);
 	}
 
-	.location-option:hover { background: var(--bg-control, rgba(0, 0, 0, 0.03)); }
+	.location-option:hover { background: var(--bg-control); }
 	.loc-name { color: var(--text-primary); display: block; }
-	.loc-addr { color: var(--text-muted, #999); font-size: 11px; display: block; }
+	.loc-addr { color: var(--text-muted); font-size: var(--text-xs); display: block; }
 
 	@media (max-width: 430px) {
 		.location-search { min-width: 100%; }

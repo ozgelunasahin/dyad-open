@@ -78,24 +78,54 @@ Derived from what the design reference actually uses. 8 levels.
 | Token | Value | Usage |
 |-------|-------|-------|
 | `--radius-pill` | 999px | FloatingNav, search pill, username badge, Continue button |
-| `--radius-card` | 12px | Profile card, action cards, cover preview, bottom sheet, dropdown |
+| `--radius-surface` | 20px | Container-level cards: profile card, action cards |
+| `--radius-card` | 12px | Content-level cards: cover preview, bottom sheet, dropdown, attention cards, meeting rows |
 | `--radius-input` | 6px | Inputs, buttons, selects, thumbnails, location dropdown |
+
+## Interaction Opacity
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--opacity-hover-card` | 0.72 | List items, cards, links on hover |
+| `--opacity-hover-btn` | 0.85 | Buttons, primary actions on hover |
+| `--opacity-disabled` | 0.5 | All disabled states |
+
+## Content Widths
+
+| Token | Value | Pages |
+|-------|-------|-------|
+| `--content-narrow` | 560px | Meetings detail, feedback form |
+| `--content-standard` | 700px | Conversation detail, profile, editor |
+| `--content-wide` | 800px | Discover feed |
+
+## Glassmorphic Surfaces
+
+`--bg-glass: rgba(245, 244, 240, 0.96)` — used for FloatingNav, date filter panel, and other floating UI. Dark mode: `rgba(10, 10, 10, 0.96)`.
 
 ## Layout
 
-### Desktop (> 430px)
-- **Sidebar**: 180px wide, sticky, full height. Logo top, nav links, @username + sign out at bottom.
-- **Main content**: flex: 1, padding: 2rem, centered column, max-width varies by page (700px for content pages, 800px for discover).
-- **Sidebar divider**: 1px solid `--border-link`
+### Breakpoints
 
-### Mobile (<= 430px)
+- **430px** — phone layout threshold (content stacking, column collapse)
+
+### All Viewports
+
+- **No sidebar.** FloatingNav is the sole navigation on all viewports (desktop + mobile).
+- **FloatingNav**: fixed pill at bottom, glassmorphic. Visible everywhere.
+- **Main content**: full-width, padding: `--space-4`, centered column, max-width varies by page.
+- **Admin access**: icon button next to the feedback "?" button (bottom-right, admin users only).
+- **Sign-out**: on profile page only (standard PWA pattern).
+- **Desktop nav revisit planned for v0.2** — see `docs/design/archive/sidebar-desktop-nav-reference.md` for archived sidebar styling.
+
+### Phone (≤ 430px)
 - **Sidebar**: hidden entirely
-- **FloatingNav**: fixed pill at top or bottom, replaces sidebar navigation
+- **FloatingNav**: fixed pill at top, replaces sidebar navigation
 - **Main content**: padding: 1rem
 
 ### Editor
-- **No sidebar**: `(editor)` layout group, just centered content with padding
+- **Sidebar**: present on desktop (shared `Sidebar.svelte` component), hidden on mobile
 - **FloatingNav at top**: editor variant with ← Back, • Saved, Continue
+- **Content**: centered, max-width 700px, padding-top for FloatingNav clearance
 
 ## Components
 
@@ -120,26 +150,41 @@ Pill-shaped, fixed, glassmorphic. Two variants.
 
 ### Cards
 
-**Profile action cards** (2x2 grid):
-- `--radius-card` corners, 1px `--border-link` border
-- Stacked photo thumbnails (52x60px, rotated ±3-5deg, 2px white border, subtle shadow)
-- Label below thumbnails
-- Active dot (green, 8px, top-right) for active conversations
-- Count badge (monospace, dark bg, white text, top-right) for invitations
+**Profile conversation list** (unified):
+- Single list combining authored (published, draft, archived) + responded, sorted by recency
+- First 3 items visible, "See all N conversations →" to expand with staggered fade-in (200ms, 50ms delay per item)
+- Published-with-meeting: inline sub-card with warm green tint (`rgba(61, 158, 90, 0.06)`), shows partner @username, date/time, area
+- Drafts: dimmed (`--opacity-hover-card`), "continue editing →" status text
+- Responded: status shows "you responded to @author"
+- Archived: dimmed (`--opacity-disabled`)
+- Empty state: large dashed-border CTA with + icon and "Start your first conversation"
 
 **Conversation list rows** (discover feed):
 - 88x96px thumbnail, `--radius-input` corners
 - Title (--text-lg, weight 500), date (--text-sm, muted), snippet (--text-md, 2-line clamp), area (uppercase monospace), @author
 - Divider: 1px `--border-link`
 
+**SlotCard** (`SlotCard.svelte`):
+- Full-width card: `--radius-card` corners, 1px `--border-link` border, `--space-4` padding
+- Two-line layout:
+  - Line 1: Hybrid date + time — "Today at 15:00" / "Tomorrow at 10:00" / "Saturday at 15:00" / "29 Mar at 15:00"
+  - Line 2: Duration + area — monospace, `--text-xs`, muted, uppercase — "1 hour · Kreuzberg"
+- States:
+  - Default: standard border
+  - Selected: `border-width: 2px; border-color: var(--text-primary)`
+  - Invited: `opacity: 0.5` + "Invited" badge
+  - Tappable when `onclick` provided (cursor: pointer, hover: border darkens)
+- Used in: conversation detail (slot selection + invitation display), author received invitations
+
 ### Bottom Sheets
 
-- Fixed backdrop with semi-transparent black (`rgba(0,0,0,0.3)`)
-- Sheet slides up from bottom (`fly` transition, y: 200, 280ms)
-- `--radius-card` top corners (mobile), full `--radius-card` (desktop centered)
-- Max-width: 480px, max-height: 85vh, scrollable
-- Close button top-right (×)
-- Desktop (>= 768px): centered modal instead of bottom-anchored
+- No backdrop — map clicks pass through to allow pin switching
+- Sheet slides up from bottom (`fly` transition, y: 120, 240ms)
+- Fixed positioned: `bottom: 0; left: 50%; transform: translateX(-50%)`
+- `16px` top corners (mobile), `12px` all corners (desktop)
+- Max-width: 480px (mobile), 680px (desktop), max-height: 50-60vh, scrollable
+- Dismissed by clicking the map or tapping another pin
+- Desktop (>= 768px): centered at bottom with 24px inset
 
 ### Buttons
 
@@ -157,19 +202,18 @@ Pill-shaped, fixed, glassmorphic. Two variants.
 - `--text-muted` color, underline
 - `:hover` `--text-primary`
 
-### Back Navigation
+### Navigation
 
-Always a text link: "← Back". Explicit destination, never `history.back()`.
+FloatingNav is the sole navigation mechanism on all viewports. Back links were removed from conversation and meeting detail pages — FloatingNav provides persistent Discover + Profile access. The `?from=` query param pattern is no longer used.
 
-| Page | Destination |
-|------|------------|
-| Conversation detail | /discover |
-| Meeting detail | /profile |
-| Editor | /prompts/[id] (or history) |
-| Profile sub-views | Profile overview (onclick) |
-| Legal pages | / |
+| Page | Navigation | Notes |
+|------|-----------|-------|
+| Conversation detail | FloatingNav (Discover + Profile) | No back link |
+| Meeting detail | FloatingNav (Discover + Profile) | No back link |
+| Editor | FloatingNav editor variant (← Back, Saved, Continue) | Back goes to conversation detail |
+| Legal pages | Own back link to `/` | Outside (app) layout |
 
-Style: `--text-md`, `--text-muted`, no decoration, `--space-4` bottom margin.
+See `docs/design/archive/back-link-navigation-reference.md` for the archived back link pattern.
 
 ### Cover Images
 
@@ -199,12 +243,13 @@ The app uses placeholder text as its primary guidance mechanism — no tutorial 
 **Examples:**
 - Editor title: "Title" (large, light serif)
 - Editor body: "Start writing..."
-- Response textarea: "Write a response..."
-- Invitation message: "Add a message..."
+- Response textarea: "Write your response — once sent, you'll see available times to meet"
+- Invitation message: "Add a note (optional)"
 - Search input: "Search" (large, centered)
 
 **Rules:**
-- Placeholder text is short — a verb phrase, not a question or sentence
+- Default: placeholder text is short — a verb phrase, not a question or sentence
+- **Flow-guiding placeholders:** At key transition points in the user journey (e.g., responding to a conversation, sending an invitation), the placeholder can describe what happens next. Keep it to one line. This replaces explainer text or instructional copy — the placeholder IS the guidance.
 - No labels above inputs that duplicate the placeholder meaning
 - No persistent hint text below inputs (exception: privacy notes like "Only visible to you and the author")
 - Section titles are minimal or absent — the placeholder IS the affordance

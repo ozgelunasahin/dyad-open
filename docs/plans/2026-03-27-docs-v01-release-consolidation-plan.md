@@ -1,0 +1,180 @@
+---
+title: "docs: v0.1 Release Consolidation — compound learnings, archive state, review decisions"
+type: docs
+status: active
+date: 2026-03-27
+---
+
+# v0.1 Release Consolidation
+
+Before deploying to testers, consolidate what was built and learned across 30 PRs. Create solution documents from each PR's discoveries, review and consolidate architectural decisions, clean up stale documentation, and establish a clear v0.1 baseline.
+
+## Motivation
+
+We built the entire v0.1 in ~3 days across 30 PRs. The code works but the institutional knowledge is scattered across PR descriptions, commit messages, plan files, brainstorm notes, and conversation transcripts. Before testers arrive, we need to:
+
+1. **Compound learnings** — extract solution documents from every PR so future sessions don't repeat mistakes
+2. **Consolidate decisions** — architectural and design decisions are spread across docs/design/, docs/plans/, CLAUDE.md, and brainstorms. Consolidate into a coherent state.
+3. **Clean house** — archive completed plans, triage remaining todos, remove stale docs
+4. **Tag the release** — git tag v0.1.0 with a clear changelog
+
+## Phase 1: Compound Learnings from Every PR
+
+Run `/workflows:compound` retroactively on each merged PR to create solution documents in `docs/solutions/`.
+
+### PRs to Compound (30 total, grouped by theme)
+
+**Infrastructure & Backend (PRs #32-38)**
+| PR | Title | Key Learnings to Extract |
+|----|-------|--------------------------|
+| #32 | Discover feed for prompt domain model | Supabase query patterns, post-fetch filtering limitation |
+| #33 | Auto-archive stale prompts | Postgres function + cron pattern, integration test approach |
+| #34 | Comments and meeting invitations | RLS policy design, one-comment-per-user constraint |
+| #35 | Meetings backend | SECURITY DEFINER pattern, cascading state transitions |
+| #36 | Feedback forms + gate | Simultaneous reveal, gate middleware in hooks.server.ts |
+| #37 | Sovereignty remediation | Self-hosted assets, Nominatim proxy, Mailpit for dev |
+| #38 | Remove canvas code (~28k lines) | Large deletion strategy, keeping migration history |
+
+**Frontend Foundation (PRs #39-46)**
+| PR | Title | Key Learnings to Extract |
+|----|-------|--------------------------|
+| #39 | Landing page + shared layout | (app) layout group, auth redirect pattern |
+| #40 | Author experience — editor, scheduling | TipTap + Svelte 5 integration, PublishSheet pattern |
+| #41 | Reader experience — detail, meetings, feedback | Response-first flow, feedback gate UX |
+| #42 | Terminology + CSS tokens | Domain language anti-corruption layer, design token system |
+| #43 | Map view with list/map toggle | Leaflet dynamic import, fuzz centroid algorithm |
+| #44 | Scrolling, response-first, copy fixes | Svelte 5 reactive gotchas, inclusive language |
+| #45 | Deployment blockers | Error display patterns, feedback form simplification |
+| #46 | FloatingNav integration | Design branch reference checking, component variants |
+
+**Design & Navigation (PRs #47-54)**
+| PR | Title | Key Learnings to Extract |
+|----|-------|--------------------------|
+| #47-49 | Sidebar/FloatingNav iterations | Sidebar stays on desktop (hard lesson), mobile-only FloatingNav |
+| #50 | Profile redesign | 2x2 action grid (later replaced — document why) |
+| #51 | Circular map pins + full-width cover | Map marker patterns, cover image edge cases |
+| #52 | Editor redesign | Clean writing view, guidance through placeholders |
+| #53 | Landing page redesign | RotatingHeadline, split-screen layout |
+| #54 | Search overlay | Client-side text matching, stop word filtering |
+
+**Core Flow Fixes (PRs #55-61)**
+| PR | Title | Key Learnings to Extract |
+|----|-------|--------------------------|
+| #55 | Author sees invitations | Missing FK workaround, enriched joins |
+| #56 | P0 prompt detail fixes | Show response text, invitation guidance copy |
+| #57 | Profile restructure | Attention → Meetings → Conversations (replaced 2x2 grid) |
+| #58 | Map preview interaction | BottomSheet for all pins, SvelteKit snapshots, E2E tests |
+| #59 | Deploy readiness — security + rename | escapeHtml, timeslot validation, route rename with redirect |
+| #60 | Invitation flow — SlotCard | Staged disclosure → simplified to inline selection |
+| #61 | UX hotfixes consolidated | Iteration speed vs code quality, direct-to-main lesson |
+
+### Execution
+
+- [x] For each PR group, launch a parallel agent running `/workflows:compound` with PR number and context
+- [x] Each agent reads the PR diff, identifies non-obvious learnings, and creates a solution doc
+- [x] Skip PRs where the learning is trivial or already documented
+- [x] Target: 10-15 new solution documents (not 30 — many PRs share learnings) → 18 created
+
+### Solution Document Categories
+
+Extend the existing categories:
+```
+docs/solutions/
+  architecture/        — service layer, domain model, state machines
+  integration-issues/  — Svelte 5 + libraries, Supabase gotchas
+  security-issues/     — RLS, auth, input validation
+  ui-bugs/             — rendering, CSS, responsive
+  ux-patterns/         — NEW: invitation flow, progressive disclosure, map interaction
+  deployment/          — NEW: sovereignty, self-hosting, Cloudflare Pages
+  process/             — NEW: PR workflow, direct-to-main lesson, review patterns
+```
+
+## Phase 2: Consolidate Architectural Decisions
+
+### Review and Update CLAUDE.md
+
+- [x] Verify all route paths are current (after /prompts/ → /conversations/ rename)
+- [x] Update key files section with new components (SlotCard, dates.ts, escape-html.ts)
+- [x] Verify design references section is current
+- [x] Add any new patterns discovered during v0.1 (e.g., SlotCard, staged disclosure)
+
+### Review and Update Design Docs
+
+- [x] `docs/design/design-system.md` — add SlotCard spec, hybrid timestamp rules
+- [x] `docs/design/design-principles.md` — reviewed: "Comments" heading → "Responses", "Following profiles" annotated as deferred with anti-sorting guardrails, slot visibility updated for safeguarding, "No Tutorial Modals" → "No Interrupting Modals"
+- [x] `docs/design/domain-language.md` — verified: URL conflict updated for /conversations/ rename, all term mappings accurate
+
+### Consolidate Brainstorm → Plan → Implementation Chain
+
+For each brainstorm, verify the chain is complete:
+- [x] `2026-03-24-backend-implementation-sequence-brainstorm.md` → archived
+- [x] `2026-03-25-frontend-v01-core-journey-brainstorm.md` → archived
+- [x] `2026-03-27-user-testing-feedback-brainstorm.md` → kept active (partially implemented)
+
+## Phase 3: Clean House
+
+### Archive Completed Plans
+
+- [x] Review 8 active plans — mark completed ones, archive them (7 archived)
+- [x] Verify all checkboxes checked in completed plans before archiving
+
+### Triage Remaining Todos
+
+Current: 40 pending todos. Many may be stale or superseded.
+
+- [x] Read each todo, check if the referenced files/code still exist
+- [x] Archive stale/superseded todos (#044 superseded by B1, #083 deferred to v0.2)
+- [x] Re-prioritise remaining todos for v0.2 (29 remain, all v0.2)
+- [x] Group into themes: security (9), architecture (12), performance (5), UX (8), testing (11) — overlapping tags
+
+### Remove Dead Documentation
+
+- [x] Check for docs referencing deleted files — crosslink audit done by agent, fixes applied: style-guide canvas refs updated, domain-language URL conflict updated, design-principles Sophie persona replaced, interoperability doc link fixed
+- [x] Verify all internal links in docs/ resolve to existing files — checked during crosslink audit
+
+## Phase 4: Tag the Release
+
+- [x] Create `CHANGELOG.md` summarising v0.1 features
+- [ ] Git tag `v0.1.0` on main
+- [x] Update CLAUDE.md with v0.1 completion note
+- [x] Create v0.2 roadmap summary — `docs/ROADMAP.md` exists with v0.1 DONE/PENDING status table, v0.1.x alpha fixes scope, v0.2 features + infrastructure + business, v0.3+ future
+
+## Acceptance Criteria
+
+**This plan is a documentation consolidation — NOT a code implementation plan.** The deliverable is up-to-date documentation that serves as the basis for subsequent brainstorm and planning sessions to enact the v0.1 release work.
+
+- [x] Solution documents created for significant learnings across 30 PRs (18 created)
+- [x] CLAUDE.md reflects current codebase state, including ways of working for co-founder
+- [x] Design docs updated: user archetypes, sustainability model, "Why This Exists", design principles, crosslink fixes
+- [x] Completed plans archived (7 archived)
+- [x] Stale todos archived (11 total: 9 completed + #044 superseded + #083 deferred), 29 remaining triaged for v0.2
+- [x] CHANGELOG.md exists
+- [x] ROADMAP.md exists with v0.1 → v0.2 → v0.3 scope and DONE/PENDING feature status
+- [x] Release readiness plan exists (`2026-03-28-feat-v01-release-readiness-plan.md`) with gap analysis from 7 agents, 8 blockers, 14+ should-fix items, Ozge's feedback triaged
+- [x] Stale design PRs closed, branches consolidated to `archive/v01-design-reference`
+- [ ] Git tag v0.1.0 on main (after code work is done — NOT part of this PR)
+
+**What this PR does NOT do:**
+- No code changes
+- No blocker fixes (B1-B8)
+- No feature implementation
+- No branch cleanup (41 merged branches identified but not deleted — needs confirmation)
+
+## Execution Strategy
+
+**Phase 1 is the big one** — compounding 30 PRs. Use parallel agents aggressively:
+- Group PRs by theme (7 groups above)
+- Launch one agent per group
+- Each agent processes 4-5 PRs and creates solution docs
+- Merge results, deduplicate, review
+
+**Phases 2-4 are sequential** — require human review and judgment.
+
+## Sources
+
+- All 30 merged PRs: #32-#61
+- Existing solutions: `docs/solutions/` (6 files)
+- Active plans: `docs/plans/` (8 files)
+- Archived plans: `docs/plans/archive/` (25 files)
+- Brainstorms: `docs/brainstorms/` (3 files)
+- Pending todos: `todos/` (40 files)

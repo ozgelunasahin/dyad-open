@@ -139,28 +139,27 @@
 
 	.city-search input[type='text'] {
 		width: 100%;
-		
-		font-size: 14px;
-		padding: 10px 14px;
-		border: 1px solid var(--border-link, rgba(0, 0, 0, 0.12));
-		border-radius: 6px;
+		font-size: var(--text-base);
+		padding: var(--space-3);
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-input);
 		background: transparent;
-		color: var(--text-primary, #1a1a1a);
+		color: var(--text-primary);
 		transition: border-color 0.15s;
 		box-sizing: border-box;
 	}
 
 	.city-search input[type='text']::placeholder {
-		color: var(--text-muted, #999);
+		color: var(--text-muted);
 	}
 
 	.city-search input[type='text']:focus {
 		outline: none;
-		border-color: var(--text-muted, #666);
+		border-color: var(--text-muted);
 	}
 
 	.city-search input[type='text']:disabled {
-		opacity: 0.6;
+		opacity: var(--opacity-disabled);
 	}
 
 	.city-dropdown {
@@ -168,10 +167,10 @@
 		top: 100%;
 		left: 0;
 		right: 0;
-		background: var(--bg-canvas, #f5f3f0);
-		border: 1px solid var(--border-link, rgba(0, 0, 0, 0.12));
+		background: var(--bg-canvas);
+		border: 1px solid var(--border-link);
 		border-top: none;
-		border-radius: 0 0 6px 6px;
+		border-radius: 0 0 var(--radius-input) var(--radius-input);
 		max-height: 200px;
 		overflow-y: auto;
 		z-index: 10;
@@ -182,13 +181,12 @@
 		display: block;
 		width: 100%;
 		text-align: left;
-		padding: 8px 14px;
+		padding: var(--space-2) var(--space-3);
 		background: none;
 		border: none;
-		border-bottom: 1px solid var(--border-link, rgba(0, 0, 0, 0.06));
-		
-		font-size: 13px;
-		color: var(--text-primary, #1a1a1a);
+		border-bottom: 1px solid var(--border-link);
+		font-size: var(--text-sm);
+		color: var(--text-primary);
 		cursor: pointer;
 	}
 
@@ -198,6 +196,6 @@
 
 	.city-option:hover,
 	.city-option.active {
-		background: var(--bg-control, rgba(0, 0, 0, 0.04));
+		background: var(--bg-control);
 	}
 </style>

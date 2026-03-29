@@ -62,16 +62,36 @@
 
 	--dimmed-opacity: 0.35;
 
+	/* Interaction opacity */
+	--opacity-hover-card: 0.72;   /* list items, cards, links */
+	--opacity-hover-btn: 0.85;    /* buttons, primary actions */
+	--opacity-disabled: 0.5;      /* all disabled states */
+
 	/* Status colours */
 	--color-success: #3d9e5a;
 	--color-danger: #c00;
 	--color-saving: #f59e0b;
 
-	/* Border radii */
-	--radius-pill: 999px;
-	--radius-card: 12px;
-	--radius-input: 6px;
-	--radius-thumb: 6px;
+	/* Layout clearance */
+	--nav-clearance: 80px;            /* bottom padding to clear FloatingNav */
+
+	/* Tinted backgrounds */
+	--bg-meeting-tint: rgba(61, 158, 90, 0.06); /* inline meeting sub-card */
+
+	/* Glassmorphic surfaces */
+	--bg-glass: rgba(245, 244, 240, 0.96);
+
+	/* Border radii — 4 tiers */
+	--radius-pill: 999px;         /* pills, tags, search bar */
+	--radius-surface: 20px;       /* container cards (profile, action cards) */
+	--radius-card: 12px;          /* content cards, sheets, panels */
+	--radius-input: 6px;          /* inputs, buttons, small elements */
+	--radius-thumb: 6px;          /* thumbnails (same as input) */
+
+	/* Content widths */
+	--content-narrow: 560px;      /* meetings, feedback */
+	--content-standard: 700px;    /* conversation detail, profile, editor */
+	--content-wide: 800px;        /* discover feed */
 
 	/* Spacing — 4px base */
 	--space-1: 4px;
@@ -105,6 +125,7 @@
 
 [data-theme='dark'] {
 	--bg-canvas: #000000;
+	--bg-glass: rgba(10, 10, 10, 0.96);
 	--bg-code: rgba(255, 255, 255, 0.08);
 	--bg-code-block: rgba(255, 255, 255, 0.05);
 	--bg-control: rgba(255, 255, 255, 0.05);

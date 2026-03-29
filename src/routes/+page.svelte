@@ -168,7 +168,7 @@
 		padding: var(--space-3) var(--space-5);
 		transition: opacity 0.15s;
 	}
-	.join-btn:hover { opacity: 0.82; }
+	.join-btn:hover { opacity: var(--opacity-hover-btn); }
 	.arrow { font-size: var(--text-sm); }
 
 	/* ── Left footer ──────────────────────────────────────────── */
@@ -197,12 +197,12 @@
 
 	.legal-link {
 		font-family: var(--font-mono);
-		font-size: 10px;
+		font-size: var(--text-xs);
 		color: var(--text-muted);
 		letter-spacing: 0.02em;
 	}
 	.legal-link:hover { color: var(--text-primary); }
-	.legal-sep { color: var(--text-muted); font-size: 10px; }
+	.legal-sep { color: var(--text-muted); font-size: var(--text-xs); }
 
 	/* ── Right column ─────────────────────────────────────────── */
 	.right-col {

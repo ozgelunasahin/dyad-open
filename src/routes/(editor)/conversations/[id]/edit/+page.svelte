@@ -5,13 +5,18 @@
 	import type { JSONContent } from '@tiptap/core';
 	import type { TimeSlotInput } from '$lib/domain/types';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import PublishSheet from '$lib/components/PublishSheet.svelte';
+	import { copy } from '$lib/copy';
 
 	let { data }: { data: PageData } = $props();
 
 	// ── Editable state ─────────────────────────────────────────────────────────
+	// svelte-ignore state_referenced_locally — intentional initial-value capture for editor fields
 	let title = $state(data.prompt.title ?? '');
+	// svelte-ignore state_referenced_locally
 	let body = $state<JSONContent>(data.prompt.body ?? { type: 'doc', content: [{ type: 'paragraph' }] });
+	// svelte-ignore state_referenced_locally
 	let coverImageUrl = $state(data.prompt.cover_image_url || '');
 	let coverPreview = $state<string | null>(null);
 
@@ -151,6 +156,15 @@
 		goto('/profile');
 	}
 
+	let discardDialog = $state<ConfirmDialog | undefined>();
+
+	async function handleDiscard() {
+		if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+		const res = await fetch(`/api/prompts/${data.prompt.id}`, { method: 'DELETE' });
+		if (res.ok) goto('/profile');
+		else publishError = 'Failed to discard draft.';
+	}
+
 	function handleOpenPublish() {
 		publishError = '';
 		if (uploading) { publishError = 'Please wait for the cover image to finish uploading.'; return; }
@@ -203,14 +217,6 @@
 		if (res.ok) goto(`/conversations/${data.prompt.id}/edit`, { invalidateAll: true });
 	}
 
-	function handleBack() {
-		if (saveTimer) {
-			saveNow().then(() => history.back());
-		} else {
-			history.back();
-		}
-	}
-
 	let isDraft = $derived(data.prompt.state === 'draft');
 	let isPublished = $derived(data.prompt.state === 'published');
 </script>
@@ -219,15 +225,14 @@
 	<title>{title || 'Edit'} - dyad.berlin</title>
 </svelte:head>
 
-<!-- FloatingNav editor variant -->
+<!-- FloatingNav default variant with editor controls -->
 <div class="floating-nav-wrapper">
 	<FloatingNav
-		variant="editor"
-		position="top"
+		variant="default"
 		saveStatus={saveStatus}
-		onBack={handleBack}
 		onSaveDraft={handleSaveDraft}
 		onPublish={isDraft ? handleOpenPublish : undefined}
+		onDiscard={isDraft ? () => discardDialog?.open() : undefined}
 	/>
 </div>
 
@@ -278,11 +283,11 @@
 
 	<!-- TipTap Editor (no toolbar) -->
 	{#await import('$lib/components/PromptEditor.svelte')}
-		<div class="editor-loading">Loading editor...</div>
+		<div class="editor-loading">{copy.editor.loadingEditor}</div>
 	{:then { default: PromptEditor }}
 		<PromptEditor content={body} onUpdate={handleEditorUpdate} showToolbar={false} />
 	{:catch}
-		<p class="error-text">Failed to load editor.</p>
+		<p class="error-text">{copy.editor.failedToLoad}</p>
 	{/await}
 
 	{#if publishError}
@@ -292,8 +297,8 @@
 	<!-- Published state management -->
 	{#if isPublished}
 		<section class="published-info">
-			<h2 class="section-title">Published</h2>
-			<p class="section-desc">Your conversation is live on the discover feed.</p>
+			<h2 class="section-title">{copy.editor.published}</h2>
+			<p class="section-desc">{copy.editor.publishedDesc}</p>
 			{#if data.slots.length > 0}
 				<div class="slot-list">
 					{#each data.slots as slot}
@@ -306,10 +311,18 @@
 					{/each}
 				</div>
 			{/if}
-			<button class="unpublish-btn" onclick={handleUnpublish}>Unpublish</button>
+			<button class="unpublish-btn" onclick={handleUnpublish}>{copy.editor.unpublish}</button>
 		</section>
 	{/if}
 </div>
+
+<ConfirmDialog
+	bind:this={discardDialog}
+	title="Discard draft"
+	message="This will permanently delete this draft. This cannot be undone."
+	confirmLabel="Discard"
+	onConfirm={handleDiscard}
+/>
 
 <!-- Publish bottom sheet -->
 {#if showPublishSheet}
@@ -323,7 +336,7 @@
 
 <style>
 	.floating-nav-wrapper { display: block; }
-	.content { width: 100%; max-width: 700px; padding-top: 72px; }
+	.content { width: 100%; max-width: var(--content-standard); padding-top: var(--space-4); padding-bottom: var(--nav-clearance); }
 
 	/* Cover image placeholder */
 	.cover-placeholder {
@@ -331,36 +344,36 @@
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		gap: 8px;
-		padding: 40px 32px;
-		margin-bottom: 28px;
+		gap: var(--space-2);
+		padding: var(--space-10) var(--space-8);
+		margin-bottom: var(--space-6);
 		border: 1.5px dashed rgba(0, 0, 0, 0.12);
-		border-radius: 12px;
+		border-radius: var(--radius-card);
 		background: rgba(0, 0, 0, 0.025);
 		cursor: pointer;
 		transition: border-color 0.15s, background 0.15s;
 	}
 
-	.cover-placeholder:hover { border-color: var(--text-muted, #999); background: rgba(0, 0, 0, 0.04); }
+	.cover-placeholder:hover { border-color: var(--text-muted); background: rgba(0, 0, 0, 0.04); }
 	.cover-placeholder.drag-over { border-color: var(--text-primary); background: rgba(0, 0, 0, 0.05); border-style: solid; }
-	.cover-placeholder.cover-error { border-color: #c00; }
+	.cover-placeholder.cover-error { border-color: var(--color-danger); }
 
-	.cover-icon { color: var(--text-muted, #ccc); }
-	.cover-text { font-size: 1rem; color: var(--text-muted, #aaa); font-weight: 500; }
-	.cover-hint { font-size: 0.82rem; color: var(--text-muted, #c0bdb8); }
+	.cover-icon { color: var(--text-muted); }
+	.cover-text { font-size: var(--text-lg); color: var(--text-muted); font-weight: 500; }
+	.cover-hint { font-size: var(--text-sm); color: var(--text-muted); }
 
 	/* Cover preview */
-	.cover-preview-wrap { position: relative; margin-bottom: 28px; }
-	.cover-preview { width: 100%; max-height: 280px; object-fit: cover; border-radius: 12px; display: block; }
+	.cover-preview-wrap { position: relative; margin-bottom: var(--space-6); }
+	.cover-preview { width: 100%; max-height: 280px; object-fit: cover; border-radius: var(--radius-card); display: block; }
 	.cover-change {
 		position: absolute;
-		bottom: 12px;
-		right: 12px;
-		font-size: 12px;
+		bottom: var(--space-3);
+		right: var(--space-3);
+		font-size: var(--text-xs);
 		color: #fff;
 		background: rgba(0, 0, 0, 0.6);
-		padding: 6px 12px;
-		border-radius: 6px;
+		padding: var(--space-1) var(--space-3);
+		border-radius: var(--radius-input);
 		cursor: pointer;
 	}
 
@@ -368,64 +381,68 @@
 
 	/* Title — large serif matching design ref */
 	.title-input {
-		font-size: 2.4rem;
+		font-size: var(--text-3xl);
 		font-weight: 300;
 		color: var(--text-primary);
 		border: none;
 		background: transparent;
 		width: 100%;
 		padding: 0;
-		margin-bottom: 12px;
+		margin-bottom: var(--space-3);
 		outline: none;
-		line-height: 1.15;
+		line-height: var(--leading-tight);
 	}
 
-	.title-input::placeholder { color: var(--text-muted, #ccc); opacity: 0.5; }
+	@media (min-width: 480px) {
+		.title-input { font-size: 2.2rem; }
+	}
+
+	.title-input::placeholder { color: var(--text-muted); opacity: var(--opacity-disabled); }
 
 	/* Username badge */
 	.username-badge {
 		display: inline-block;
 		font-family: var(--font-mono);
-		font-size: 0.8rem;
-		color: var(--text-muted, #999);
+		font-size: var(--text-sm);
+		color: var(--text-muted);
 		background: rgba(0, 0, 0, 0.04);
-		padding: 4px 12px;
-		border-radius: 999px;
-		margin-bottom: 20px;
+		padding: var(--space-1) var(--space-3);
+		border-radius: var(--radius-pill);
+		margin-bottom: var(--space-5);
 	}
 
 	.editor-loading {
-		padding: 40px;
+		padding: var(--space-10);
 		text-align: center;
-		color: var(--text-muted, #999);
+		color: var(--text-muted);
 	}
 
-	.error-text { color: #c00; font-size: 13px; }
-	.publish-error { font-size: 13px; color: #c00; margin: 12px 0; }
+	.error-text { color: var(--color-danger); font-size: var(--text-sm); }
+	.publish-error { font-size: var(--text-sm); color: var(--color-danger); margin: var(--space-3) 0; }
 
 	/* Published state */
-	.published-info { margin-top: 40px; padding-top: 32px; border-top: 1px solid var(--border-link, rgba(0,0,0,0.08)); }
-	.section-title { font-size: 1.1rem; font-weight: normal; margin: 0 0 4px; color: var(--text-primary); }
-	.section-desc { font-size: 0.85rem; color: var(--text-muted, #666); margin: 0 0 20px; }
+	.published-info { margin-top: var(--space-10); padding-top: var(--space-8); border-top: 1px solid var(--border-link); }
+	.section-title { font-size: var(--text-lg); font-weight: normal; margin: 0 0 var(--space-1); color: var(--text-primary); }
+	.section-desc { font-size: var(--text-sm); color: var(--text-muted); margin: 0 0 var(--space-5); }
 
-	.slot-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+	.slot-list { display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-4); }
 	.existing-slot {
 		display: flex;
-		gap: 12px;
-		font-size: 13px;
+		gap: var(--space-3);
+		font-size: var(--text-sm);
 		color: var(--text-primary);
-		padding: 8px 0;
-		border-bottom: 1px solid var(--border-link, rgba(0,0,0,0.06));
+		padding: var(--space-2) 0;
+		border-bottom: 1px solid var(--border-link);
 	}
-	.slot-area { color: var(--text-muted, #666); text-transform: uppercase; font-size: 11px; letter-spacing: 0.04em; }
+	.slot-area { color: var(--text-muted); text-transform: uppercase; font-size: var(--text-xs); letter-spacing: 0.04em; }
 
 	.unpublish-btn {
-		font-size: 13px;
-		color: var(--text-muted, #666);
+		font-size: var(--text-sm);
+		color: var(--text-muted);
 		background: none;
-		border: 1px solid var(--border-link, rgba(0,0,0,0.15));
-		border-radius: 6px;
-		padding: 8px 16px;
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-input);
+		padding: var(--space-2) var(--space-4);
 		cursor: pointer;
 	}
 	.unpublish-btn:hover { border-color: var(--text-primary); color: var(--text-primary); }
