@@ -4,7 +4,12 @@
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	let loading = $state(false);
+<<<<<<< Updated upstream
 	let username = $state((form as any)?.username ?? '');
+=======
+	// svelte-ignore state_referenced_locally — intentional initial-value capture for form field
+	let username = $state(form?.username ?? '');
+>>>>>>> Stashed changes
 	let password = $state('');
 </script>
 
