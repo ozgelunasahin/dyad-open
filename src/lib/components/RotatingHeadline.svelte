@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { copy } from '$lib/copy';
 
-	const words = ['writers', 'artists', 'researchers', 'people with questions', 'you'];
+	const words = copy.landing.rotatingWords;
 	const INTERVAL = 2800;
 	const DURATION = 420;
 
