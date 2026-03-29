@@ -2,8 +2,10 @@
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import type { PageData } from './$types';
 	import type { PromptSummary } from '$lib/domain/types';
+	import RotatingHeadline from '$lib/components/RotatingHeadline.svelte';
 	import PromptListItem from '$lib/components/PromptListItem.svelte';
 	import BottomSheet from '$lib/components/BottomSheet.svelte';
+	import FloatingNav from '$lib/components/FloatingNav.svelte';
 	import AuthDialog from '$lib/components/AuthDialog.svelte';
 
 	let { data }: { data: PageData } = $props();
@@ -45,6 +47,8 @@
 		</div>
 
 		<div class="hero-content">
+			<RotatingHeadline />
+
 			<p class="tagline">cultivating a culture<br />of conversation</p>
 
 			<div class="city-row">
@@ -85,23 +89,6 @@
 
 	<!-- Right: discover view (list/map toggle) -->
 	<div class="right-col">
-		<div class="view-toggle" role="radiogroup" aria-label="View mode">
-			<button
-				class="toggle-option"
-				class:active={viewMode === 'list'}
-				role="radio"
-				aria-checked={viewMode === 'list'}
-				onclick={() => viewMode = 'list'}
-			>List</button>
-			<button
-				class="toggle-option"
-				class:active={viewMode === 'map'}
-				role="radio"
-				aria-checked={viewMode === 'map'}
-				onclick={() => viewMode = 'map'}
-			>Map</button>
-		</div>
-
 		{#if viewMode === 'map'}
 			<div class="map-container">
 				{#await import('$lib/components/MapView.svelte') then { default: MapView }}
@@ -115,14 +102,16 @@
 				{/await}
 
 				{#if selectedPinPrompts.length > 0}
-					<BottomSheet prompts={selectedPinPrompts} onCardClick={() => openAuth('waitlist')} />
+					<div class="bottom-sheet-wrap">
+						<BottomSheet prompts={selectedPinPrompts} onCardClick={() => openAuth('waitlist')} />
+					</div>
 				{/if}
 			</div>
 		{:else}
 			<div class="prompt-list">
 				{#if data.prompts && data.prompts.length > 0}
 					{#each data.prompts as prompt}
-						<PromptListItem {prompt} onclick={() => openAuth('waitlist')} />
+						<PromptListItem {prompt} onclick={() => openAuth('waitlist')} hideAuthor />
 					{/each}
 				{:else}
 					<div class="empty-state">
@@ -134,6 +123,12 @@
 				{/if}
 			</div>
 		{/if}
+
+		<FloatingNav
+			variant="landing"
+			active={viewMode === 'map' ? 'map' : ''}
+			onMapClick={() => viewMode = viewMode === 'map' ? 'list' : 'map'}
+		/>
 	</div>
 </div>
 
@@ -298,39 +293,19 @@
 		flex-direction: column;
 	}
 
-	/* ── View toggle (segmented control) ──────────────────────── */
-	.view-toggle {
-		display: flex;
-		border-bottom: 1px solid var(--border-link);
-		flex-shrink: 0;
-		padding: var(--space-3) var(--space-4);
-		gap: var(--space-1);
-	}
-
-	.toggle-option {
-		font-family: var(--font-mono);
-		font-size: var(--text-xs);
-		letter-spacing: 0.04em;
-		color: var(--text-muted);
-		background: none;
-		border: 1px solid var(--border-link);
-		border-radius: var(--radius-input);
-		padding: var(--space-1) var(--space-4);
-		cursor: pointer;
-		transition: background 0.15s, color 0.15s;
-	}
-	.toggle-option:hover { color: var(--text-primary); }
-	.toggle-option.active {
-		color: var(--text-primary);
-		background: var(--bg-control);
-		border-color: var(--text-primary);
-	}
-
 	/* ── Map ──────────────────────────────────────────────────── */
 	.map-container {
 		flex: 1;
 		position: relative;
 		min-height: 300px;
+	}
+
+	.bottom-sheet-wrap {
+		position: absolute;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		z-index: 600;
 	}
 
 	/* ── List ─────────────────────────────────────────────────── */

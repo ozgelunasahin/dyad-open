@@ -6,9 +6,10 @@
 		prompt: PromptSummary;
 		href?: string;
 		onclick?: () => void;
+		hideAuthor?: boolean;
 	}
 
-	let { prompt, href, onclick }: Props = $props();
+	let { prompt, href, onclick, hideAuthor = false }: Props = $props();
 
 	function formatSlotDates(slots: { start_time: string }[]): string {
 		const dates = new Set<string>();
@@ -43,7 +44,9 @@
 			{/if}
 			<div class="row-meta">
 				<span class="area">{uniqueAreas(prompt.available_slots)}</span>
-				<span class="author">@{prompt.author_username}</span>
+				{#if !hideAuthor}
+					<span class="author">@{prompt.author_username}</span>
+				{/if}
 			</div>
 		</div>
 	</div>
