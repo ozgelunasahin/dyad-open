@@ -4,6 +4,9 @@ import { TEST_USERS } from './helpers/auth.js';
 const users = [
 	{ ...TEST_USERS.sophie, file: TEST_USERS.sophie.storagePath },
 	{ ...TEST_USERS.tom, file: TEST_USERS.tom.storagePath },
+	{ ...TEST_USERS.lisa, file: TEST_USERS.lisa.storagePath },
+	{ ...TEST_USERS.nina, file: TEST_USERS.nina.storagePath },
+	{ ...TEST_USERS.kai, file: TEST_USERS.kai.storagePath },
 ];
 
 for (const user of users) {

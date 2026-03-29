@@ -96,6 +96,22 @@ export const TEST_USERS = {
 		isAdmin: false,
 		storagePath: 'tests/.auth/ben.json',
 	},
+	nina: {
+		id: '77777777-7777-7777-7777-777777777777',
+		email: 'nina@test.invalid',
+		password: 'local-fixture-not-a-secret',
+		username: 'nina',
+		isAdmin: false,
+		storagePath: 'tests/.auth/nina.json',
+	},
+	kai: {
+		id: '88888888-8888-8888-8888-888888888888',
+		email: 'kai@test.invalid',
+		password: 'local-fixture-not-a-secret',
+		username: 'kai',
+		isAdmin: false,
+		storagePath: 'tests/.auth/kai.json',
+	},
 } as const;
 
 // ── Seed prompt IDs — must match supabase/seed.sql ──────────────────────
