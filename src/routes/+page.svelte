@@ -291,6 +291,17 @@
 		overflow-y: auto;
 		display: flex;
 		flex-direction: column;
+		position: relative;
+	}
+
+	/* Override fixed positioning of FloatingNav and BottomSheet to scope to right column */
+	.right-col :global(.floating-nav-anchor) {
+		position: absolute;
+		left: 50%;
+	}
+	.right-col :global(.sheet) {
+		position: absolute;
+		left: 50%;
 	}
 
 	/* ── Map ──────────────────────────────────────────────────── */
