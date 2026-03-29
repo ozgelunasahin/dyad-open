@@ -150,12 +150,14 @@ Pill-shaped, fixed, glassmorphic. Two variants.
 
 ### Cards
 
-**Profile action cards** (2-column grid):
-- Warm cream background `rgba(245, 244, 240, 0.7)`, 20px border-radius, no border
-- Stacked photo thumbnails (56x56px square, rotated ±4-6deg, shadow)
-- Label below thumbnails
-- Green dot badge on top-right corner of the image stack (not the card)
-- Click expands to full section list with ← back button
+**Profile conversation list** (unified):
+- Single list combining authored (published, draft, archived) + responded, sorted by recency
+- First 3 items visible, "See all N conversations →" to expand with staggered fade-in (200ms, 50ms delay per item)
+- Published-with-meeting: inline sub-card with warm green tint (`rgba(61, 158, 90, 0.06)`), shows partner @username, date/time, area
+- Drafts: dimmed (`--opacity-hover-card`), "continue editing →" status text
+- Responded: status shows "you responded to @author"
+- Archived: dimmed (`--opacity-disabled`)
+- Empty state: large dashed-border CTA with + icon and "Start your first conversation"
 
 **Conversation list rows** (discover feed):
 - 88x96px thumbnail, `--radius-input` corners
@@ -200,23 +202,18 @@ Pill-shaped, fixed, glassmorphic. Two variants.
 - `--text-muted` color, underline
 - `:hover` `--text-primary`
 
-### Back Navigation
+### Navigation
 
-**PWA requirement:** In `display: standalone` mode, iOS provides no system back button or swipe gesture. The app MUST provide its own back affordance on detail/inner pages. Android provides a system back gesture, but in-app back navigation is still expected (serves as "up in hierarchy" rather than "back in history").
+FloatingNav is the sole navigation mechanism on all viewports. Back links were removed from conversation and meeting detail pages — FloatingNav provides persistent Discover + Profile access. The `?from=` query param pattern is no longer used.
 
-Always a deterministic link — explicit destination, never `history.back()` (which can navigate outside the app or do nothing on direct entry/deep links). Use `<a href>` or `goto()` with a known fallback.
+| Page | Navigation | Notes |
+|------|-----------|-------|
+| Conversation detail | FloatingNav (Discover + Profile) | No back link |
+| Meeting detail | FloatingNav (Discover + Profile) | No back link |
+| Editor | FloatingNav editor variant (← Back, Saved, Continue) | Back goes to conversation detail |
+| Legal pages | Own back link to `/` | Outside (app) layout |
 
-| Page | Destination | Notes |
-|------|------------|-------|
-| Conversation detail | /discover (default) or /profile (if `?from=profile`) | Deterministic via `?from=` param |
-| Meeting detail | /profile | Always returns to profile |
-| Editor | /conversations/[id] | Deterministic, not history-based |
-| Profile sub-views | Profile overview (onclick) | |
-| Legal pages | / | |
-
-Style: `--text-md`, `--text-muted`, no decoration, `--space-4` bottom margin.
-
-**Pattern:** The back link is contextual navigation ("where I came from"), distinct from FloatingNav which is global section switching. Both serve different purposes and should coexist.
+See `docs/design/archive/back-link-navigation-reference.md` for the archived back link pattern.
 
 ### Cover Images
 

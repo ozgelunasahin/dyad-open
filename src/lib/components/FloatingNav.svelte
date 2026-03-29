@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { afterNavigate } from '$app/navigation';
 	import type { WeekDate } from '$lib/utils/dates';
 
 	let {
@@ -13,13 +14,12 @@
 		onToggleDay,
 		showDateFilter = false,
 		onSearchClick,
-		// Editor variant props
-		saveStatus = 'idle',
-		onBack,
+		// Editor controls (used in default variant)
+		saveStatus,
 		onSaveDraft,
 		onPublish,
 	}: {
-		variant?: 'discover' | 'editor' | 'default';
+		variant?: 'discover' | 'default';
 		position?: 'top' | 'bottom';
 		active?: string;
 		attentionCount?: number;
@@ -29,12 +29,18 @@
 		onToggleDay?: (date: string) => void;
 		showDateFilter?: boolean;
 		onSearchClick?: () => void;
-		// Editor variant
+		// Editor controls
 		saveStatus?: 'idle' | 'saving' | 'saved' | 'error';
-		onBack?: () => void;
 		onSaveDraft?: () => void;
 		onPublish?: () => void;
 	} = $props();
+
+	// Track the previous in-app URL for deterministic back navigation (PWA-safe)
+	let previousUrl = $state<string | null>(null);
+
+	afterNavigate(({ from }) => {
+		previousUrl = from?.url?.pathname ?? null;
+	});
 
 	let dateFilterOpen = $state(false);
 	let continueDropdownOpen = $state(false);
@@ -76,60 +82,18 @@
 	}
 </script>
 
-<nav class="floating-nav" class:top={position === 'top'} class:bottom={position === 'bottom'} class:default-variant={variant === 'default'} aria-label="Navigation">
-	{#if variant === 'editor'}
-		<!-- Editor variant: Back, Saved indicator, Continue dropdown -->
-		<button class="back-text-btn" onclick={onBack} aria-label="Back">← Back</button>
+<div class="floating-nav-anchor" class:top={position === 'top'} class:bottom={position === 'bottom'}>
+	<!-- Back tab: opaque pill behind the nav, peeks out to the left -->
+	{#if previousUrl}
+		<a href={previousUrl} class="back-tab" aria-label="Back">
+			<svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+				<path d="M12 4l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+			</svg>
+		</a>
+	{/if}
 
-		<span class="save-indicator">
-			{#if saveStatus === 'saving'}
-				<span class="save-dot saving"></span> Saving...
-			{:else if saveStatus === 'saved'}
-				<span class="save-dot saved"></span> Saved
-			{:else if saveStatus === 'error'}
-				<span class="save-dot error"></span> Error
-			{:else}
-				<span class="save-dot saved"></span> Saved
-			{/if}
-		</span>
-
-		<span class="nav-spacer"></span>
-
-		<div class="continue-wrapper" bind:this={dropdownRef}>
-			<button
-				class="continue-btn"
-				onclick={() => continueDropdownOpen = !continueDropdownOpen}
-				onkeydown={handleContinueKeydown}
-				aria-haspopup="true"
-				aria-expanded={continueDropdownOpen}
-			>
-				Continue
-			</button>
-
-			{#if continueDropdownOpen}
-				<div class="continue-dropdown" role="menu">
-					<button
-						class="dropdown-item"
-						role="menuitem"
-						tabindex="-1"
-						onkeydown={handleMenuItemKeydown}
-						onclick={() => { continueDropdownOpen = false; onSaveDraft?.(); }}
-					>
-						Save as Draft
-					</button>
-					<button
-						class="dropdown-item"
-						role="menuitem"
-						tabindex="-1"
-						onkeydown={handleMenuItemKeydown}
-						onclick={() => { continueDropdownOpen = false; onPublish?.(); }}
-					>
-						Publish as Conversation
-					</button>
-				</div>
-			{/if}
-		</div>
-	{:else if variant === 'discover'}
+	<nav class="floating-nav" class:default-variant={variant === 'default'} aria-label="Navigation">
+	{#if variant === 'discover'}
 		<button
 			class="nav-btn"
 			class:active-icon={active === 'map'}
@@ -186,7 +150,7 @@
 			{#if attentionCount > 0}<span class="badge-dot"><span class="sr-only">{attentionCount} notifications</span></span>{/if}
 		</a>
 	{:else if variant === 'default'}
-		<!-- Default variant: Discover (left) + Profile (right) -->
+		<!-- Default variant: Discover [editor controls?] Profile -->
 		<a href="/discover" class="nav-btn" aria-label="Discover">
 			<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
 				<circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.6"/>
@@ -194,7 +158,61 @@
 			</svg>
 		</a>
 
-		<span class="nav-spacer"></span>
+		{#if saveStatus !== undefined}
+			<!-- Editor controls: save indicator + continue -->
+			<span class="save-indicator">
+				{#if saveStatus === 'saving'}
+					<span class="save-dot saving"></span> Saving...
+				{:else if saveStatus === 'saved'}
+					<span class="save-dot saved"></span> Saved
+				{:else if saveStatus === 'error'}
+					<span class="save-dot error"></span> Error
+				{:else}
+					<span class="save-dot saved"></span> Saved
+				{/if}
+			</span>
+
+			<span class="nav-spacer"></span>
+
+			<div class="continue-wrapper" bind:this={dropdownRef}>
+				<button
+					class="continue-btn"
+					onclick={() => continueDropdownOpen = !continueDropdownOpen}
+					onkeydown={handleContinueKeydown}
+					aria-haspopup="true"
+					aria-expanded={continueDropdownOpen}
+				>
+					Continue
+				</button>
+
+				{#if continueDropdownOpen}
+					<div class="continue-dropdown" role="menu">
+						<button
+							class="dropdown-item"
+							role="menuitem"
+							tabindex="-1"
+							onkeydown={handleMenuItemKeydown}
+							onclick={() => { continueDropdownOpen = false; onSaveDraft?.(); }}
+						>
+							Save as Draft
+						</button>
+						{#if onPublish}
+							<button
+								class="dropdown-item"
+								role="menuitem"
+								tabindex="-1"
+								onkeydown={handleMenuItemKeydown}
+								onclick={() => { continueDropdownOpen = false; onPublish?.(); }}
+							>
+								Publish as Conversation
+							</button>
+						{/if}
+					</div>
+				{/if}
+			</div>
+		{:else}
+			<span class="nav-spacer"></span>
+		{/if}
 
 		<a href="/profile" class="nav-btn" aria-label="Profile">
 			<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -204,7 +222,8 @@
 			{#if attentionCount > 0}<span class="badge-dot"><span class="sr-only">{attentionCount} notifications</span></span>{/if}
 		</a>
 	{/if}
-</nav>
+	</nav>
+</div>
 
 <!-- Date filter panel (discover variant only) -->
 {#if variant === 'discover' && showDateFilter && dateFilterOpen}
@@ -228,27 +247,52 @@
 {/if}
 
 <style>
-	.floating-nav {
-		display: flex;
-		align-items: center;
+	/* Wrapper — positions both the nav and back tab */
+	.floating-nav-anchor {
 		position: fixed;
 		left: 50%;
 		transform: translateX(-50%);
 		width: calc(100% - 40px);
 		max-width: 360px;
+		z-index: 800;
+		pointer-events: none;
+	}
+	.floating-nav-anchor.top { top: var(--space-4); }
+	.floating-nav-anchor.bottom { bottom: var(--space-5); }
+
+	/* Back tab — soft pill behind nav, peeks out left */
+	.back-tab {
+		position: absolute;
+		top: 0;
+		left: -32px;
+		width: 100%;
+		height: 100%;
+		display: flex;
+		align-items: center;
+		padding-left: var(--space-3);
+		background: var(--bg-control);
+		border-radius: var(--radius-pill);
+		color: var(--text-muted);
+		pointer-events: auto;
+		transition: left 120ms ease-out;
+	}
+	.back-tab:hover { left: -40px; }
+
+	/* Nav pill — sits on top of the back tab */
+	.floating-nav {
+		position: relative;
+		display: flex;
+		align-items: center;
+		width: 100%;
 		background: var(--bg-glass);
 		backdrop-filter: blur(12px);
 		-webkit-backdrop-filter: blur(12px);
 		border-radius: var(--radius-pill);
 		box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
 		padding: var(--space-2) var(--space-3);
-		z-index: 800;
 		gap: var(--space-2);
 		pointer-events: auto;
 	}
-
-	.floating-nav.top { top: var(--space-4); }
-	.floating-nav.bottom { bottom: var(--space-5); }
 
 	/* FloatingNav visible on all viewports — no sidebar */
 
@@ -310,19 +354,9 @@
 		transition: background 0.15s;
 	}
 
-	.search-pill:hover { background: rgba(0, 0, 0, 0.1); }
+	.search-pill:hover { background: var(--bg-control-hover); }
 
-	/* === Editor variant === */
-	.back-text-btn {
-		font-size: var(--text-sm);
-		color: var(--text-muted);
-		background: none;
-		border: none;
-		cursor: pointer;
-		padding: var(--space-1) var(--space-2);
-		flex-shrink: 0;
-	}
-	.back-text-btn:hover { color: var(--text-primary); }
+	/* === Editor controls (embedded in default variant) === */
 
 	.save-indicator {
 		font-size: var(--text-sm);

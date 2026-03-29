@@ -7,28 +7,86 @@
 
 	let { data }: { data: PageData } = $props();
 
+	const INITIAL_VISIBLE = 5;
+
 	let published = $derived(data.prompts.filter((p: Prompt) => p.state === 'published'));
 	let drafts = $derived(data.prompts.filter((p: Prompt) => p.state === 'draft'));
 	let archived = $derived(data.prompts.filter((p: Prompt) => p.state === 'archived'));
 
-	let upcomingMeetings = $derived(
-		data.meetings.filter(m => new Date(m.scheduled_time) > new Date())
-			.sort((a, b) => new Date(a.scheduled_time).getTime() - new Date(b.scheduled_time).getTime())
-	);
-	let pastMeetings = $derived(
-		data.meetings.filter(m => new Date(m.scheduled_time) <= new Date())
-			.sort((a, b) => new Date(b.scheduled_time).getTime() - new Date(a.scheduled_time).getTime())
-	);
+	// Build unified conversation list sorted by recency
+	type ConversationItem = {
+		type: 'published' | 'draft' | 'responded' | 'archived';
+		id: string;
+		title: string;
+		coverUrl: string | null;
+		href: string;
+		sortDate: string;
+		meeting?: { id: string; scheduled_time: string; duration_minutes: number; general_area: string | null; partner_username: string };
+		authorUsername?: string; // for responded items
+	};
 
-	// Cover images for the stacked card previews
-	let conversationCovers = $derived(
-		[...published, ...drafts].filter(p => p.cover_image_url).slice(0, 2)
-	);
-	let allConversations = $derived([...published, ...drafts, ...data.respondedPrompts, ...archived]);
-	let allMeetings = $derived([...upcomingMeetings, ...pastMeetings]);
+	let conversations = $derived.by(() => {
+		const items: ConversationItem[] = [];
+		const meetingMap = data.meetingsByPromptId ?? {};
 
-	// Expanded section state (null = show card grid)
-	let expandedSection = $state<'conversations' | 'meetings' | null>(null);
+		for (const p of published) {
+			const m = meetingMap[p.id];
+			items.push({
+				type: 'published',
+				id: p.id,
+				title: p.title || copy.common.untitled,
+				coverUrl: p.cover_image_url ?? null,
+				href: `/conversations/${p.id}`,
+				sortDate: p.published_at ?? p.created_at,
+				meeting: m ? { id: m.id, scheduled_time: m.scheduled_time, duration_minutes: m.duration_minutes, general_area: m.general_area, partner_username: m.partner_username } : undefined
+			});
+		}
+
+		for (const p of drafts) {
+			items.push({
+				type: 'draft',
+				id: p.id,
+				title: p.title || copy.common.untitled,
+				coverUrl: p.cover_image_url ?? null,
+				href: `/conversations/${p.id}/edit`,
+				sortDate: p.updated_at ?? p.created_at
+			});
+		}
+
+		for (const rp of data.respondedPrompts) {
+			items.push({
+				type: 'responded',
+				id: rp.prompt_id,
+				title: rp.prompt_title,
+				coverUrl: rp.prompt_cover_image_url ?? null,
+				href: `/conversations/${rp.prompt_id}`,
+				sortDate: rp.created_at,
+				authorUsername: rp.author_username
+			});
+		}
+
+		for (const p of archived) {
+			items.push({
+				type: 'archived',
+				id: p.id,
+				title: p.title || copy.common.untitled,
+				coverUrl: p.cover_image_url ?? null,
+				href: `/conversations/${p.id}`,
+				sortDate: p.created_at
+			});
+		}
+
+		// Sort: conversations with meetings first, then by recency
+		return items.sort((a, b) => {
+			const aHasMeeting = a.meeting ? 0 : 1;
+			const bHasMeeting = b.meeting ? 0 : 1;
+			if (aHasMeeting !== bHasMeeting) return aHasMeeting - bHasMeeting;
+			return new Date(b.sortDate).getTime() - new Date(a.sortDate).getTime();
+		});
+	});
+
+	let expanded = $state(false);
+	let visibleConversations = $derived(expanded ? conversations : conversations.slice(0, INITIAL_VISIBLE));
 
 	let acceptingId = $state<string | null>(null);
 	let acceptError = $state('');
@@ -66,22 +124,11 @@
 </svelte:head>
 
 <div class="content">
-	<!-- Profile card -->
+	<!-- Profile card — clean identity -->
 	<div class="profile-card">
-		<div class="profile-card-left">
-			<div class="profile-name">{data.username}</div>
-			<div class="profile-handle">@{data.username}</div>
-		</div>
-		<div class="profile-card-right">
-			<div class="stat">
-				<span class="stat-num">{published.length}</span>
-				<span class="stat-label">Active</span>
-			</div>
-			<div class="stat">
-				<span class="stat-num">{upcomingMeetings.length}</span>
-				<span class="stat-label">Meetings</span>
-			</div>
-		</div>
+		<div class="profile-name">{data.username}</div>
+		<div class="profile-handle">@{data.username}</div>
+		<a href="/logout" class="sign-out-link">{copy.nav.signOut}</a>
 	</div>
 
 	<!-- 1. Needs your attention -->
@@ -105,7 +152,7 @@
 						<button class="btn-accept" onclick={() => acceptInvitation(inv.id)} disabled={acceptingId === inv.id}>
 							{acceptingId === inv.id ? copy.common.accepting : copy.common.accept}
 						</button>
-						<a href="/conversations/{inv.prompt_id}?from=profile" class="btn-view">View conversation</a>
+						<a href="/conversations/{inv.prompt_id}" class="btn-view">{copy.profile.viewConversation}</a>
 					</div>
 				</div>
 			{/each}
@@ -119,146 +166,70 @@
 		</section>
 	{/if}
 
-	<!-- 2. Action card grid OR expanded section -->
-	{#if expandedSection === null}
-		<div class="action-cards">
-			<button class="action-card" onclick={() => expandedSection = 'conversations'}>
-				<div class="card-covers">
-					{#if conversationCovers.length >= 2}
-						<img src={conversationCovers[0].cover_image_url} alt="" class="card-cover back" />
-						<img src={conversationCovers[1].cover_image_url} alt="" class="card-cover front" />
-					{:else if conversationCovers.length === 1}
-						<img src={conversationCovers[0].cover_image_url} alt="" class="card-cover single" />
-					{:else}
-						<div class="card-cover-empty"></div>
-					{/if}
-				</div>
-				<span class="action-card-label">{copy.profile.conversations}</span>
-			</button>
+	<!-- 2. Unified conversation list with inline meeting context -->
+	{#if conversations.length === 0}
+		<div class="empty-state">
+			<a href="/conversations/new" class="empty-cta">
+				<svg width="32" height="32" viewBox="0 0 20 20" fill="none">
+					<path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+				</svg>
+				<span class="empty-cta-text">{copy.profile.startConversation}</span>
+			</a>
+		</div>
+	{:else}
+		<div class="conversation-list">
+			{#each visibleConversations as item, i}
+				<a
+					href={item.href}
+					class="conv-item"
+					class:draft={item.type === 'draft'}
+					class:past={item.type === 'archived'}
+					style={expanded && i >= INITIAL_VISIBLE ? `animation-delay: ${(i - INITIAL_VISIBLE) * 50}ms` : ''}
+					class:fade-in={expanded && i >= INITIAL_VISIBLE}
+				>
+					<div class="prompt-row">
+						<div class="row-thumb">
+							{#if item.coverUrl}
+								<img src={item.coverUrl} alt="" class="thumb-img" />
+							{:else}
+								<div class="thumb-placeholder"></div>
+							{/if}
+						</div>
+						<div class="row-body">
+							<h3 class="row-title">{item.title}</h3>
+							{#if item.type === 'responded' && item.authorUsername}
+								<span class="row-status">{copy.profile.respondedTo(item.authorUsername)}</span>
+							{:else if item.type === 'draft'}
+								<span class="row-status">{copy.status.draft} · {copy.profile.continueEditing}</span>
+							{:else if item.type === 'archived'}
+								<span class="row-status">{copy.status.archived}</span>
+							{:else}
+								<span class="row-status">{copy.status.published}</span>
+							{/if}
+						</div>
+					</div>
 
-			<button class="action-card" onclick={() => expandedSection = 'meetings'}>
-				<div class="card-covers">
-					{#if upcomingMeetings.length > 0}
-						<span class="action-card-badge pulse"></span>
+					<!-- Inline meeting context for published conversations -->
+					{#if item.meeting}
+						<div class="meeting-inline">
+							<span class="meeting-inline-label">{copy.profile.meetingWith(item.meeting.partner_username)}</span>
+							<span class="meeting-inline-detail">{formatDate(item.meeting.scheduled_time)} · {formatTime(item.meeting.scheduled_time)} · {item.meeting.duration_minutes} min</span>
+							{#if item.meeting.general_area}
+								<span class="meeting-inline-area">{item.meeting.general_area}</span>
+							{/if}
+						</div>
 					{/if}
-					<div class="card-cover-empty"></div>
-				</div>
-				<span class="action-card-label">{copy.profile.meetings}</span>
-				{#if allMeetings.length > 0}
-					<span class="action-card-count">{allMeetings.length}</span>
-				{/if}
-			</button>
+				</a>
+			{/each}
 		</div>
 
-	{:else if expandedSection === 'conversations'}
-		<section class="expanded-section">
-			<button class="back-section-btn" onclick={() => expandedSection = null}>
-				← {copy.profile.conversations}
+		{#if conversations.length > INITIAL_VISIBLE && !expanded}
+			<button class="see-all-btn" onclick={() => expanded = true}>
+				{copy.profile.seeAll(conversations.length)}
 			</button>
-
-			{#if allConversations.length === 0}
-				<p class="empty">{copy.profile.noConversations} <a href="/conversations/new">{copy.profile.startOne}</a></p>
-			{:else}
-				<div class="prompt-list">
-					{#each published as prompt}
-						<a href="/conversations/{prompt.id}?from=profile" class="prompt-item">
-							<div class="prompt-row">
-								<div class="row-thumb">
-									{#if prompt.cover_image_url}
-										<img src={prompt.cover_image_url} alt="" class="thumb-img" />
-									{:else}
-										<div class="thumb-placeholder"></div>
-									{/if}
-								</div>
-								<div class="row-body">
-									<h3 class="row-title">{prompt.title || copy.common.untitled}</h3>
-									<span class="row-status">{copy.status.published}</span>
-								</div>
-							</div>
-						</a>
-					{/each}
-
-					{#each drafts as prompt}
-						<a href="/conversations/{prompt.id}/edit" class="prompt-item draft">
-							<div class="prompt-row">
-								<div class="row-thumb">
-									{#if prompt.cover_image_url}
-										<img src={prompt.cover_image_url} alt="" class="thumb-img" />
-									{:else}
-										<div class="thumb-placeholder"></div>
-									{/if}
-								</div>
-								<div class="row-body">
-									<h3 class="row-title">{prompt.title || copy.common.untitled}</h3>
-									<span class="row-status">{copy.status.draft}</span>
-								</div>
-							</div>
-						</a>
-					{/each}
-
-					{#each data.respondedPrompts as rp}
-						<a href="/conversations/{rp.prompt_id}?from=profile" class="prompt-item">
-							<div class="prompt-row">
-								<div class="row-thumb">
-									<div class="thumb-placeholder"></div>
-								</div>
-								<div class="row-body">
-									<h3 class="row-title">{rp.prompt_title}</h3>
-									<span class="row-status">{copy.status.responded}</span>
-								</div>
-							</div>
-						</a>
-					{/each}
-
-					{#each archived as prompt}
-						<a href="/conversations/{prompt.id}" class="prompt-item past">
-							<div class="prompt-row">
-								<div class="row-thumb">
-									{#if prompt.cover_image_url}
-										<img src={prompt.cover_image_url} alt="" class="thumb-img" />
-									{:else}
-										<div class="thumb-placeholder"></div>
-									{/if}
-								</div>
-								<div class="row-body">
-									<h3 class="row-title">{prompt.title || copy.common.untitled}</h3>
-									<span class="row-status">{copy.status.archived}</span>
-								</div>
-							</div>
-						</a>
-					{/each}
-				</div>
-			{/if}
-		</section>
-
-	{:else if expandedSection === 'meetings'}
-		<section class="expanded-section">
-			<button class="back-section-btn" onclick={() => expandedSection = null}>
-				← {copy.profile.meetings}
-			</button>
-
-			{#if allMeetings.length === 0}
-				<p class="empty">{copy.profile.noMeetings}</p>
-			{:else}
-				{#each upcomingMeetings as meeting}
-					<a href="/meetings/{meeting.id}?from=profile" class="meeting-row">
-						<div class="meeting-when">{formatDate(meeting.scheduled_time)} · {formatTime(meeting.scheduled_time)}</div>
-						<div class="meeting-details">{meeting.duration_minutes} min · {meeting.general_area}</div>
-					</a>
-				{/each}
-				{#each pastMeetings as meeting}
-					<a href="/meetings/{meeting.id}?from=profile" class="meeting-row past">
-						<div class="meeting-when">{formatDate(meeting.scheduled_time)}</div>
-						<div class="meeting-details">Past</div>
-					</a>
-				{/each}
-			{/if}
-		</section>
+		{/if}
 	{/if}
 
-	<div class="sign-out-section">
-		<a href="/logout" class="sign-out-link">{copy.nav.signOut}</a>
-	</div>
 </div>
 
 <FloatingNav variant="default" attentionCount={data.attentionCount ?? 0} />
@@ -266,32 +237,16 @@
 <style>
 	.content { width: 100%; max-width: var(--content-standard); padding-bottom: 80px; }
 
-	/* Profile card */
+	/* Profile card — clean identity */
 	.profile-card {
-		display: flex;
-		justify-content: space-between;
-		align-items: flex-start;
 		padding: var(--space-6);
-		background: rgba(245, 244, 240, 0.7);
-		border-radius: var(--radius-surface);
 		margin-bottom: var(--space-5);
 	}
 
-	.profile-card-left { display: flex; flex-direction: column; }
-
-	.profile-name { font-size: var(--text-xl); font-weight: 600; }
+	.profile-name { font-size: var(--text-xl); font-weight: 500; }
 	.profile-handle { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-muted); }
-
-	.profile-card-right {
-		display: flex;
-		flex-direction: column;
-		align-items: flex-end;
-		gap: var(--space-2);
-	}
-
-	.stat { text-align: right; }
-	.stat-num { font-size: var(--text-2xl); font-weight: 600; display: block; line-height: 1.1; }
-	.stat-label { font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+	.sign-out-link { font-size: var(--text-sm); color: var(--text-muted); margin-top: var(--space-2); display: inline-block; }
+	.sign-out-link:hover { color: var(--text-primary); }
 
 	/* Sections */
 	.profile-section { margin-bottom: var(--space-8); }
@@ -309,137 +264,69 @@
 	.btn-view { font-size: var(--text-sm); color: var(--text-muted); }
 	.btn-view:hover { color: var(--text-primary); }
 
-	/* === Action card grid (Airbnb-style stacked covers) === */
-	.action-cards {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: var(--space-3);
-		padding: var(--space-1) 0 var(--space-4);
+	/* Empty state — large inviting CTA */
+	.empty-state {
+		display: flex;
+		justify-content: center;
+		padding: var(--space-10) 0;
 	}
 
-	.action-card {
-		position: relative;
+	.empty-cta {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		justify-content: center;
-		gap: var(--space-2);
-		padding: var(--space-6) var(--space-3) var(--space-4);
-		background: rgba(245, 244, 240, 0.7);
-		border: none;
+		gap: var(--space-3);
+		padding: var(--space-8) var(--space-10);
+		border: 1.5px dashed var(--border-link);
 		border-radius: var(--radius-surface);
-		cursor: pointer;
-		font-family: inherit;
-		transition: background 0.2s, transform 0.15s;
-	}
-
-	.action-card:hover {
-		background: rgba(240, 238, 232, 0.9);
-		transform: translateY(-1px);
-	}
-
-	.action-card-count {
-		font-family: var(--font-mono);
-		font-size: var(--text-xs);
 		color: var(--text-muted);
+		transition: border-color 0.15s, color 0.15s;
+	}
+	.empty-cta:hover { border-color: var(--text-primary); color: var(--text-primary); }
+	.empty-cta-text { font-size: var(--text-lg); font-weight: 500; }
+
+	/* Conversation list */
+	.conversation-list { display: flex; flex-direction: column; }
+
+	.conv-item { border-bottom: 1px solid var(--border-link); display: block; transition: opacity 0.15s; }
+	.conv-item:hover { opacity: var(--opacity-hover-card); }
+	.conv-item:last-child { border-bottom: none; }
+	.conv-item.draft { opacity: var(--opacity-hover-card); }
+	.conv-item.past { opacity: var(--opacity-disabled); }
+
+	/* Staggered fade-in for expanded items */
+	.conv-item.fade-in {
+		animation: fadeIn 200ms ease-out both;
 	}
 
-	.card-covers {
-		position: relative;
-		width: 80px;
-		height: 72px;
+	@keyframes fadeIn {
+		from { opacity: 0; }
+		to { opacity: 1; }
 	}
-
-	.card-cover {
-		position: absolute;
-		width: 56px;
-		height: 56px;
-		object-fit: cover;
-		border-radius: var(--radius-input);
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-	}
-
-	.card-cover.back { left: 0; top: 6px; transform: rotate(-6deg); z-index: 1; }
-	.card-cover.front { right: 0; top: 0; transform: rotate(4deg); z-index: 2; }
-	.card-cover.single { left: 50%; top: 0; transform: translateX(-50%); }
-
-	.card-cover-empty {
-		width: 56px;
-		height: 56px;
-		border-radius: var(--radius-input);
-		background: var(--bg-control);
-		margin: 0 auto;
-	}
-
-	.action-card-badge {
-		position: absolute;
-		top: -4px;
-		right: -4px;
-		z-index: 3;
-		width: 10px;
-		height: 10px;
-		border-radius: 50%;
-		background: var(--color-success);
-	}
-
-	.action-card-badge.pulse {
-		animation: badge-pulse 2.5s ease-in-out infinite;
-	}
-
-	@keyframes badge-pulse {
-		0%, 100% { opacity: 1; }
-		50% { opacity: 0.4; }
-	}
-
-	.action-card-label {
-		font-size: var(--text-sm);
-		color: var(--text-primary);
-		font-weight: 500;
-	}
-
-	/* === Expanded section === */
-	.expanded-section { margin-bottom: var(--space-8); }
-
-	.back-section-btn {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		font-size: var(--text-md);
-		font-weight: 500;
-		color: var(--text-primary);
-		background: none;
-		border: none;
-		cursor: pointer;
-		padding: 0;
-		margin-bottom: var(--space-6);
-	}
-	.back-section-btn:hover { opacity: var(--opacity-hover-card); }
-
-	/* Meeting rows */
-	.meeting-row { display: block; padding: var(--space-4); border: 1px solid var(--border-link); border-radius: var(--radius-card); margin-bottom: var(--space-3); transition: opacity 0.15s; }
-	.meeting-row:hover { opacity: var(--opacity-hover-btn); }
-	.meeting-row.past { opacity: var(--opacity-disabled); }
-	.meeting-when { font-size: var(--text-md); font-weight: 500; }
-	.meeting-details { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin-top: var(--space-1); }
-
-	/* Conversation list (expanded view) */
-	.prompt-list { display: flex; flex-direction: column; }
-
-	.prompt-item { border-bottom: 1px solid var(--border-link); display: block; transition: opacity 0.15s; }
-	.prompt-item:hover { opacity: var(--opacity-hover-card); }
-	.prompt-item:last-child { border-bottom: none; }
-	.prompt-item.draft { opacity: var(--opacity-hover-card); }
-	.prompt-item.past { opacity: var(--opacity-disabled); }
 
 	/* .prompt-row, .row-thumb, .thumb-img, .thumb-placeholder, .row-body, .row-title, .row-status — shared.css */
 
-	.empty { color: var(--text-muted); padding: var(--space-6) 0; }
-	.empty a { text-decoration: underline; }
+	/* Inline meeting context sub-card */
+	.meeting-inline {
+		margin: 0 0 var(--space-3);
+		margin-left: calc(72px + var(--space-4)); /* align with row-body (thumb width + gap) */
+		padding: var(--space-3);
+		background: var(--bg-meeting-tint);
+		border-radius: var(--radius-input);
+	}
 
-	/* No top padding needed — FloatingNav is at bottom */
+	.meeting-inline-label { font-size: var(--text-sm); font-weight: 500; display: block; }
+	.meeting-inline-detail { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); display: block; margin-top: var(--space-1); }
+	.meeting-inline-area { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
 
-	/* Sign-out: hidden on desktop (sidebar has it), visible on mobile */
-	.sign-out-section { display: none; }
-	@media (max-width: 768px) { .sign-out-section { display: block; } }
-	.sign-out-link { min-height: 44px; display: inline-flex; align-items: center; }
+	/* See all button */
+	.see-all-btn {
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+		padding: var(--space-3) 0;
+		cursor: pointer;
+		transition: color 0.15s;
+	}
+	.see-all-btn:hover { color: var(--text-primary); }
+
 </style>

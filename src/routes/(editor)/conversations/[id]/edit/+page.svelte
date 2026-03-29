@@ -207,15 +207,6 @@
 		if (res.ok) goto(`/conversations/${data.prompt.id}/edit`, { invalidateAll: true });
 	}
 
-	function handleBack() {
-		const dest = `/conversations/${data.prompt.id}`;
-		if (saveTimer) {
-			saveNow().then(() => goto(dest));
-		} else {
-			goto(dest);
-		}
-	}
-
 	let isDraft = $derived(data.prompt.state === 'draft');
 	let isPublished = $derived(data.prompt.state === 'published');
 </script>
@@ -224,12 +215,11 @@
 	<title>{title || 'Edit'} - dyad.berlin</title>
 </svelte:head>
 
-<!-- FloatingNav editor variant -->
+<!-- FloatingNav default variant with editor controls -->
 <div class="floating-nav-wrapper">
 	<FloatingNav
-		variant="editor"
-		saveStatus={saveStatus}
-		onBack={handleBack}
+		variant="default"
+saveStatus={saveStatus}
 		onSaveDraft={handleSaveDraft}
 		onPublish={isDraft ? handleOpenPublish : undefined}
 	/>
@@ -327,7 +317,7 @@
 
 <style>
 	.floating-nav-wrapper { display: block; }
-	.content { width: 100%; max-width: var(--content-standard); padding-bottom: 80px; }
+	.content { width: 100%; max-width: var(--content-standard); padding-top: var(--space-4); padding-bottom: 80px; }
 
 	/* Cover image placeholder */
 	.cover-placeholder {
