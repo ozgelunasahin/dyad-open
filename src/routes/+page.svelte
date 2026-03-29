@@ -66,25 +66,6 @@
 			</div>
 		</div>
 
-		<div class="left-footer">
-			<button class="theme-toggle" onclick={() => themeStore.toggle()} aria-label="Toggle theme">
-				{#if themeStore.current === 'light'}
-					<svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-						<circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5" />
-						<path d="M8 1V2.5M8 13.5V15M1 8H2.5M13.5 8H15M3.05 3.05L4.11 4.11M11.89 11.89L12.95 12.95M3.05 12.95L4.11 11.89M11.89 4.11L12.95 3.05" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-					</svg>
-				{:else}
-					<svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-						<path d="M14 8.5A6 6 0 117.5 2a4.5 4.5 0 006.5 6.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-					</svg>
-				{/if}
-			</button>
-			<div class="legal-links">
-				<a href="/datenschutz" class="legal-link">privacy policy</a>
-				<span class="legal-sep">|</span>
-				<a href="/impressum" class="legal-link">legal notice</a>
-			</div>
-		</div>
 	</div>
 
 	<!-- Right: discover view (list/map toggle) -->
@@ -131,6 +112,26 @@
 		/>
 	</div>
 </div>
+
+<footer class="page-footer">
+	<button class="theme-toggle" onclick={() => themeStore.toggle()} aria-label="Toggle theme">
+		{#if themeStore.current === 'light'}
+			<svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+				<circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5" />
+				<path d="M8 1V2.5M8 13.5V15M1 8H2.5M13.5 8H15M3.05 3.05L4.11 4.11M11.89 11.89L12.95 12.95M3.05 12.95L4.11 11.89M11.89 4.11L12.95 3.05" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+			</svg>
+		{:else}
+			<svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+				<path d="M14 8.5A6 6 0 117.5 2a4.5 4.5 0 006.5 6.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+			</svg>
+		{/if}
+	</button>
+	<div class="legal-links">
+		<a href="/datenschutz" class="legal-link">privacy policy</a>
+		<span class="legal-sep">|</span>
+		<a href="/impressum" class="legal-link">legal notice</a>
+	</div>
+</footer>
 
 <AuthDialog bind:this={authDialog} mode={authMode} />
 
@@ -252,13 +253,18 @@
 	}
 	.login-btn:hover { color: var(--text-primary); }
 
-	/* ── Left footer ──────────────────────────────────────────── */
-	.left-footer {
+	/* ── Page footer (below grid) ─────────────────────────────── */
+	.page-footer {
+		position: fixed;
+		bottom: 0;
+		left: 0;
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		margin-top: var(--space-6);
-		flex-shrink: 0;
+		width: 50%;
+		padding: var(--space-3) var(--space-10);
+		box-sizing: border-box;
+		z-index: 100;
 	}
 
 	.theme-toggle {
@@ -334,7 +340,7 @@
 	.empty-state p { margin: 0 0 var(--space-4); }
 
 	/* ── Mobile ───────────────────────────────────────────────── */
-	@media (max-width: 430px) {
+	@media (max-width: 768px) {
 		.landing {
 			display: flex;
 			flex-direction: column;
@@ -354,11 +360,22 @@
 		.right-col {
 			height: auto;
 			overflow: visible;
+			min-height: 50vh;
 		}
 
 		.map-container {
-			height: min(40vh, 320px);
-			min-height: auto;
+			height: min(50vh, 400px);
+			min-height: 300px;
+		}
+
+		.page-footer {
+			position: relative;
+			width: 100%;
+			padding: var(--space-3) var(--space-4);
+		}
+
+		.right-col :global(.floating-nav-anchor) {
+			position: fixed;
 		}
 	}
 </style>
