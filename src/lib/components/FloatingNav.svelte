@@ -278,6 +278,11 @@
 	}
 	.back-tab:hover { left: -40px; }
 
+	/* Hide back tab on mobile — interaction broken on small viewports */
+	@media (max-width: 430px) {
+		.back-tab { display: none; }
+	}
+
 	/* Nav pill — sits on top of the back tab */
 	.floating-nav {
 		position: relative;
