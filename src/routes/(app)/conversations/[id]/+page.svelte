@@ -263,7 +263,9 @@
 									{copy.conversation.meetingScheduled}
 								</a>
 								<SlotCard startTime={invitation.slot_start_time} durationMinutes={invitation.slot_duration_minutes ?? 60} area={invitation.slot_general_area} />
-							{:else}
+							{:else if invitation.state === 'accepted'}
+								<SlotCard startTime={invitation.slot_start_time} durationMinutes={invitation.slot_duration_minutes ?? 60} area={invitation.slot_general_area} />
+							{:else if invitation.state === 'pending'}
 								<SlotCard startTime={invitation.slot_start_time} durationMinutes={invitation.slot_duration_minutes ?? 60} area={invitation.slot_general_area} />
 								{#if invitation.message}
 									<p class="inv-message">{invitation.message}</p>
@@ -286,12 +288,14 @@
 					{/if}
 					<div class="response-invitation">
 						<SlotCard startTime={inv.slot_start_time} durationMinutes={inv.slot_duration_minutes ?? 60} area={inv.slot_general_area} />
-						{#if inv.message}
-							<p class="inv-message">{inv.message}</p>
+						{#if inv.state === 'pending'}
+							{#if inv.message}
+								<p class="inv-message">{inv.message}</p>
+							{/if}
+							<button class="btn-primary" onclick={() => acceptInvitation(inv.id)} disabled={acceptingId === inv.id}>
+								{acceptingId === inv.id ? copy.common.accepting : copy.common.accept}
+							</button>
 						{/if}
-						<button class="btn-primary" onclick={() => acceptInvitation(inv.id)} disabled={acceptingId === inv.id}>
-							{acceptingId === inv.id ? copy.common.accepting : copy.common.accept}
-						</button>
 					</div>
 				</div>
 			{/each}
