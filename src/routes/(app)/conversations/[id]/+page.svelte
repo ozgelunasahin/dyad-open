@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
 	import SlotCard from '$lib/components/SlotCard.svelte';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
@@ -9,9 +8,6 @@
 
 	let { data }: { data: PageData } = $props();
 
-	let from = $derived($page.url.searchParams.get('from'));
-	let backHref = $derived(from === 'profile' ? '/profile' : '/discover');
-	let backLabel = $derived(from === 'profile' ? copy.nav.backToProfile : copy.nav.backToDiscover);
 	// svelte-ignore state_referenced_locally — intentional initial-value capture for editable field
 	let responseText = $state(data.myComment?.body ?? '');
 	let responseStatus = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
@@ -92,7 +88,7 @@
 			const res = await fetch(`/api/invitations/${invitationId}/accept`, { method: 'POST' });
 			if (res.ok) {
 				const { meetingId } = await res.json();
-				goto(`/meetings/${meetingId}?from=${from ?? 'discover'}`);
+				goto(`/meetings/${meetingId}`);
 			} else {
 				const err = await res.json().catch(() => ({}));
 				acceptError = (err as any).error ?? 'Failed to accept';
@@ -120,8 +116,6 @@
 </svelte:head>
 
 <div class="content">
-	<a href={backHref} class="back-link">{backLabel}</a>
-
 	{#if data.prompt.cover_image_url}
 		<img src={data.prompt.cover_image_url} alt="" class="cover" loading="lazy" />
 	{/if}
@@ -235,7 +229,7 @@
 					{#if invitation}
 						<div class="response-invitation">
 							{#if invitation.state === 'accepted' && meeting}
-								<a href="/meetings/{meeting.id}?from={from ?? 'discover'}" class="meeting-link">
+								<a href="/meetings/{meeting.id}" class="meeting-link">
 									{copy.conversation.meetingScheduled}
 								</a>
 								<SlotCard startTime={invitation.slot_start_time} durationMinutes={invitation.slot_duration_minutes ?? 60} area={invitation.slot_general_area} />

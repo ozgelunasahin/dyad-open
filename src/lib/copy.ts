@@ -40,13 +40,11 @@ export const copy = {
 
 	// ── Navigation ──────────────────────────────────────────────────────
 	nav: {
-		_routes: ['/discover', '/profile', '/conversations/[id]', '/meetings/[id]', '/conversations/[id]/edit', '/admin/*'],
-		_description: 'Sidebar links (desktop, all route groups) and back links on detail pages.',
+		_routes: ['/discover', '/profile', '/conversations/[id]/edit', '/admin/*'],
+		_description: 'FloatingNav labels and profile page sign-out.',
 		discover: 'Discover',
 		profile: 'Profile',
 		admin: 'Admin',
-		backToDiscover: '← back to discover',
-		backToProfile: '← back to profile',
 		signOut: 'sign out',
 		startConversation: 'start a conversation',
 	},
@@ -109,13 +107,18 @@ export const copy = {
 	// ── Profile ────────────────────────────────────────────────────────
 	profile: {
 		_routes: ['/profile'],
-		_description: 'User profile with action card grid (Conversations, Meetings) and attention section for pending invitations, feedback, and cancellations.',
+		_description: 'User profile with unified conversation list (inline meeting context) and attention section for pending invitations, feedback, and cancellations.',
 		conversations: 'Conversations',
 		meetings: 'Meetings',
 		needsAttention: 'Needs your attention',
 		noConversations: 'No conversations yet.',
 		noMeetings: 'No meetings yet.',
 		startOne: 'Start one',
+		startConversation: 'Start your first conversation',
+		continueEditing: 'continue editing →',
+		respondedTo: (username: string) => `you responded to @${username}`,
+		seeAll: (count: number) => `See all ${count} conversations →`,
+		viewConversation: 'View conversation',
 		wantsToMeet: (username: string) => `@${username} wants to meet`,
 		meetingWith: (username: string) => `Meeting with @${username}`,
 		meetingCancelled: 'Meeting cancelled',

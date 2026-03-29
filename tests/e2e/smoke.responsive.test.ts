@@ -22,10 +22,10 @@ test.describe('Smoke tests', () => {
 		const page = await context.newPage();
 
 		await page.goto('/profile');
-		// Profile card shows username — use .profile-handle to avoid matching sidebar
+		// Profile card shows username
 		await expect(page.locator('.profile-handle')).toBeVisible();
-		// Profile has action cards for Conversations and Meetings
-		await expect(page.getByText('Conversations')).toBeVisible();
+		// Profile shows sign-out link (always visible, no sidebar)
+		await expect(page.locator('.sign-out-link')).toBeVisible();
 		await context.close();
 	});
 

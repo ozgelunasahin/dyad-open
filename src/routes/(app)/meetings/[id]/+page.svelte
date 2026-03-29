@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import type { PageData } from './$types';
@@ -9,10 +8,6 @@
 	let { data }: { data: PageData } = $props();
 	let cancelling = $state(false);
 	let cancelDialog = $state<ConfirmDialog | undefined>();
-
-	let from = $derived($page.url.searchParams.get('from'));
-	let backHref = $derived(from === 'profile' ? '/profile' : '/discover');
-	let backLabel = $derived(from === 'profile' ? copy.nav.backToProfile : copy.nav.backToDiscover);
 
 	function formatDate(iso: string): string {
 		return new Date(iso).toLocaleDateString('en-US', {
@@ -36,8 +31,6 @@
 </svelte:head>
 
 <div class="content">
-	<a href={backHref} class="back-link">{backLabel}</a>
-
 	<div class="meeting-header">
 		<span class="meeting-with">{copy.profile.meetingWith(data.otherUsername)}</span>
 		<span class="meeting-when">{formatDate(data.meeting.scheduled_time)}</span>
@@ -138,7 +131,6 @@
 <FloatingNav variant="default" attentionCount={data.attentionCount ?? 0} />
 
 <style>
-	/* .back-link uses global shared class */
 	.content { width: 100%; max-width: var(--content-narrow); }
 
 	.meeting-header { margin-bottom: var(--space-6); }

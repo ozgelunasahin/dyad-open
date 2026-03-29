@@ -98,7 +98,7 @@
 <style>
 	.trigger-group {
 		position: fixed;
-		bottom: 80px; /* above FloatingNav */
+		bottom: var(--space-5); /* aligned with FloatingNav bottom */
 		right: var(--space-4);
 		display: flex;
 		flex-direction: column;
