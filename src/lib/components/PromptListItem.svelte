@@ -154,6 +154,7 @@
 
 	.row-meta {
 		display: flex;
+		justify-content: space-between;
 		gap: var(--space-3);
 		align-items: center;
 		margin-top: var(--space-1);
