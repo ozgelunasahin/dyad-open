@@ -85,6 +85,42 @@
 		</a>
 	{/if}
 
+	<!-- Feedback status for awaiting_feedback meetings -->
+	{#if data.meeting.state === 'awaiting_feedback' && data.myFeedbackForm}
+		<section class="feedback-status">
+			{#if data.myFeedbackForm.state === 'due'}
+				<p class="feedback-prompt">You have feedback to submit</p>
+				<a href="/feedback/{data.myFeedbackForm.id}" class="btn-primary">Give feedback</a>
+			{:else if data.myFeedbackForm.state === 'submitted'}
+				<p class="feedback-waiting">Feedback submitted — waiting for the other person</p>
+			{/if}
+		</section>
+	{/if}
+
+	<!-- Revealed feedback for completed meetings -->
+	{#if data.revealedFeedback && data.revealedFeedback.length > 0}
+		<section class="revealed-section">
+			<h2 class="section-title">What they shared with you</h2>
+			{#each data.revealedFeedback as fb}
+				<div class="reveal-card">
+					{#if fb.did_meet === false}
+						<p class="reveal-noshow">They reported you didn't meet</p>
+					{/if}
+					{#if fb.share_with_person}
+						<blockquote class="reveal-quote">{fb.share_with_person}</blockquote>
+					{/if}
+					{#if fb.rating_tags.length > 0}
+						<ul class="reveal-tags" role="list">
+							{#each fb.rating_tags as tag}
+								<li class="reveal-tag">{tag}</li>
+							{/each}
+						</ul>
+					{/if}
+				</div>
+			{/each}
+		</section>
+	{/if}
+
 	{#if data.meeting.state === 'scheduled' || data.meeting.state === 'active'}
 		<button class="cancel-btn" onclick={() => cancelDialog.open()} disabled={cancelling}>
 			{cancelling ? copy.meeting.cancelling : copy.meeting.cancelMeeting}
@@ -129,6 +165,20 @@
 	.row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
 	.row-title { margin: 0 0 var(--space-1); font-size: var(--text-md); font-weight: 500; line-height: var(--leading-tight); }
 	.row-status { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+	/* Feedback status */
+	.feedback-status { margin-bottom: var(--space-6); padding: var(--space-4); border: 1px solid var(--border-link); border-radius: var(--radius-card); }
+	.feedback-prompt { font-size: var(--text-md); font-weight: 500; margin: 0 0 var(--space-3); }
+	.feedback-waiting { font-size: var(--text-sm); color: var(--text-muted); margin: 0; }
+
+	/* Revealed feedback */
+	.revealed-section { margin-bottom: var(--space-6); }
+	.section-title { font-size: var(--text-lg); font-weight: normal; margin: 0 0 var(--space-4); }
+	.reveal-card { padding: var(--space-5); border: 1px solid var(--border-link); border-radius: var(--radius-card); margin-bottom: var(--space-3); }
+	.reveal-noshow { font-size: var(--text-sm); color: var(--text-muted); font-style: italic; margin: 0 0 var(--space-3); }
+	.reveal-quote { font-size: var(--text-md); line-height: var(--leading-relaxed); margin: 0 0 var(--space-4); padding-left: var(--space-4); border-left: 2px solid var(--text-muted); color: var(--text-primary); }
+	.reveal-tags { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+	.reveal-tag { font-size: 12px; padding: 4px 12px; background: rgba(0,0,0,0.05); border-radius: 12px; color: var(--text-primary); }
 
 	.cancel-btn { font-size: var(--text-sm); padding: var(--space-2) var(--space-5); border: 1px solid var(--border-link); border-radius: var(--radius-input); background: none; color: var(--text-muted); cursor: pointer; }
 	.cancel-btn:hover { border-color: var(--color-danger); color: var(--color-danger); }

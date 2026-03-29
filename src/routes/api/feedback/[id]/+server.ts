@@ -17,7 +17,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		.eq('reviewer_id', user.id)
 		.maybeSingle();
 
-	if (error) return json({ error: error.message }, { status: 400 });
+	if (error) return json({ error: 'Failed to load feedback form' }, { status: 400 });
 	if (!data) return json({ error: 'Form not found' }, { status: 404 });
 
 	return json(data);
@@ -37,8 +37,19 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 	const service = new SupabaseFeedbackService(locals.supabase);
 	try {
 		const newState = await service.submit(params.id, body);
+
+		// If both parties submitted (locked), return revealed feedback directly
+		// to eliminate a second client round trip
+		if (newState === 'locked') {
+			const form = await service.getFormById(params.id, user.id);
+			if (form) {
+				const revealed = await service.getRevealedFeedback(form.meeting_id, user.id);
+				return json({ ok: true, state: newState, revealed });
+			}
+		}
+
 		return json({ ok: true, state: newState });
 	} catch (err) {
-		return json({ error: (err as Error).message }, { status: 400 });
+		return json({ error: 'Failed to submit feedback' }, { status: 400 });
 	}
 };

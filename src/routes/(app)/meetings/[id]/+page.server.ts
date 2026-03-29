@@ -1,13 +1,15 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { SupabaseMeetingService } from '$lib/services/meeting.js';
+import { SupabaseFeedbackService } from '$lib/services/feedback.js';
+import type { RevealedFeedback, FeedbackForm } from '$lib/domain/types.js';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const userId = locals.user!.id;
-	const service = new SupabaseMeetingService(locals.supabase);
+	const meetingService = new SupabaseMeetingService(locals.supabase);
 
-	const meeting = await service.getWithLocation(params.id)
-		?? await service.getDetail(params.id);
+	const meeting = await meetingService.getWithLocation(params.id)
+		?? await meetingService.getDetail(params.id);
 
 	if (!meeting) {
 		redirect(302, '/profile');
@@ -21,8 +23,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		? meeting.participant_b
 		: meeting.participant_a;
 
-	// Load other participant's username and the conversation context
-	const [{ data: otherProfile }, { data: prompt }, { data: invitation }] = await Promise.all([
+	const feedbackService = new SupabaseFeedbackService(locals.supabase);
+
+	// Fan out all secondary queries in parallel
+	const [{ data: otherProfile }, { data: prompt }, invitation, revealedFeedback, myFeedbackForm] = await Promise.all([
 		locals.supabase.from('profiles').select('username').eq('id', otherId).single(),
 		locals.supabase.from('prompts').select('id, title, cover_image_url, state, author_id, published_at').eq('id', meeting.prompt_id).single(),
 		locals.supabase
@@ -33,7 +37,15 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			.limit(1)
 			.single()
 			.then(r => r.data)
-			.catch(() => null)
+			.catch(() => null),
+		// Load revealed feedback for completed meetings
+		meeting.state === 'completed'
+			? feedbackService.getRevealedFeedback(params.id, userId)
+			: [] as RevealedFeedback[],
+		// Load own feedback form state for awaiting_feedback meetings
+		(meeting.state === 'awaiting_feedback' || meeting.state === 'completed')
+			? feedbackService.getMyForm(params.id, userId)
+			: null as FeedbackForm | null
 	]);
 
 	return {
@@ -46,6 +58,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			state: prompt.state,
 			published_at: prompt.published_at
 		} : null,
-		invitationMessage: invitation?.message ?? null
+		invitationMessage: invitation?.message ?? null,
+		revealedFeedback,
+		myFeedbackForm: myFeedbackForm ? { id: myFeedbackForm.id, state: myFeedbackForm.state } : null
 	};
 };
