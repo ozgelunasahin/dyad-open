@@ -22,7 +22,7 @@
 		coverUrl: string | null;
 		href: string;
 		sortDate: string;
-		meeting?: { id: string; scheduled_time: string; duration_minutes: number; general_area: string | null; partner_username: string; state: string };
+		meeting?: { id: string; scheduled_time: string; duration_minutes: number; general_area: string | null; exact_location: { name: string; address: string; lat?: number; lng?: number } | null; partner_username: string; state: string };
 		authorUsername?: string; // for responded items
 	};
 
@@ -39,7 +39,7 @@
 				coverUrl: p.cover_image_url ?? null,
 				href: `/conversations/${p.id}`,
 				sortDate: p.published_at ?? p.created_at,
-				meeting: m ? { id: m.id, scheduled_time: m.scheduled_time, duration_minutes: m.duration_minutes, general_area: m.general_area, partner_username: m.partner_username, state: m.state } : undefined
+				meeting: m ? { id: m.id, scheduled_time: m.scheduled_time, duration_minutes: m.duration_minutes, general_area: m.general_area, exact_location: m.exact_location, partner_username: m.partner_username, state: m.state } : undefined
 			});
 		}
 
@@ -389,6 +389,10 @@
 									<span class="meeting-inline-detail">{formatDate(item.meeting!.scheduled_time)} · {formatTime(item.meeting!.scheduled_time)} · {item.meeting!.duration_minutes} min</span>
 									{#if item.meeting!.general_area}
 										<span class="meeting-inline-area">{item.meeting!.general_area}</span>
+									{/if}
+									{#if item.meeting!.exact_location}
+										<span class="meeting-inline-location">{item.meeting!.exact_location.name}</span>
+										<span class="meeting-inline-address">{item.meeting!.exact_location.address}</span>
 									{/if}
 								</div>
 							</a>
