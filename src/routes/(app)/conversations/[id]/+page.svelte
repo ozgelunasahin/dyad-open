@@ -546,8 +546,17 @@
 	.response-input::placeholder { color: var(--text-muted); }
 
 	/* Author view */
-	.response-card { padding: var(--space-3) 0; border-bottom: 1px solid var(--border-link); }
-	.response-card.has-invitation { border: 1px solid var(--border-link); border-radius: var(--radius-card); padding: var(--space-4); margin-bottom: var(--space-3); border-bottom: none; }
+	.response-card {
+		padding: var(--space-4);
+		background: var(--bg-meeting-tint);
+		border-radius: var(--radius-input);
+		margin-bottom: var(--space-3);
+	}
+	.response-card.has-invitation {
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-card);
+		background: none;
+	}
 	.response-meta { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); display: block; margin-bottom: var(--space-1); }
 	.response-body { font-size: var(--text-base); margin: 0 0 var(--space-1); line-height: var(--leading-normal); }
 	.response-invitation { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--border-link); }
