@@ -107,13 +107,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		slot_id: string;
 		scheduled_time: string;
 		state: string;
+		resolved_at: string | null;
 		exact_location: { name: string; address: string; lat?: number; lng?: number } | null;
 		general_area: string | null;
 	}> = [];
 	if (isAuthor) {
 		const { data: meetings } = await locals.supabase
 			.from('meetings')
-			.select('id, slot_id, scheduled_time, state')
+			.select('id, slot_id, scheduled_time, state, resolved_at')
 			.eq('prompt_id', params.id);
 
 		// Enrich with exact_location via SECURITY DEFINER RPC
@@ -125,6 +126,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				slot_id: m.slot_id,
 				scheduled_time: m.scheduled_time,
 				state: m.state,
+				resolved_at: m.resolved_at ?? null,
 				exact_location: d?.exact_location ?? null,
 				general_area: d?.general_area ?? null
 			});

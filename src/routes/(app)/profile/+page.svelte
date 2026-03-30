@@ -642,17 +642,11 @@
 	/* .prompt-row, .row-thumb, .thumb-img, .thumb-placeholder, .row-body, .row-title, .row-status — shared.css */
 
 	/* Inline meeting context sub-card */
+	/* .meeting-inline, .meeting-inline-label, .meeting-inline-detail, .meeting-inline-area → shared.css */
+	/* Profile-specific: indent under the thumbnail row */
 	.meeting-inline {
-		margin: 0 0 var(--space-3);
-		margin-left: calc(72px + var(--space-4)); /* align with row-body (thumb width + gap) */
-		padding: var(--space-3);
-		background: var(--bg-meeting-tint);
-		border-radius: var(--radius-input);
+		margin-left: calc(72px + var(--space-4));
 	}
-
-	.meeting-inline-label { font-size: var(--text-sm); font-weight: 500; display: block; }
-	.meeting-inline-detail { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); display: block; margin-top: var(--space-1); }
-	.meeting-inline-area { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
 
 	/* Search bar */
 	.search-bar {

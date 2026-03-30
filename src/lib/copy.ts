@@ -104,6 +104,7 @@ export const copy = {
 		failedToArchive: 'Failed to archive.',
 		failedToDelete: 'Failed to delete.',
 		meetingScheduled: 'Meeting scheduled',
+		meetingCancelled: (username: string, date: string) => `@${username} cancelled this meeting on ${date}`,
 	},
 
 	// ── Editor ─────────────────────────────────────────────────────────
