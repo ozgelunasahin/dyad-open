@@ -309,26 +309,27 @@
 					{#if invitation}
 						<div class="response-invitation">
 							{#if meeting && (meeting.state === 'cancelled_early' || meeting.state === 'cancelled_late')}
-								<SlotCard
-									startTime={invitation.slot_start_time}
-									durationMinutes={invitation.slot_duration_minutes ?? 60}
-									area={meeting.general_area ?? invitation.slot_general_area}
-									exactLocation={meeting.exact_location}
-									past={true}
-								/>
-								<span class="meeting-cancelled-label">{copy.profile.meetingCancelled}</span>
+								<div class="meeting-inline">
+									<span class="meeting-inline-detail">{formatDate(invitation.slot_start_time)} · {invitation.slot_general_area}</span>
+									{#if meeting.exact_location}
+										<span class="meeting-inline-location">{meeting.exact_location.name}</span>
+										<span class="meeting-inline-address">{meeting.exact_location.address}</span>
+									{/if}
+									<span class="meeting-inline-status cancelled">{copy.conversation.meetingCancelled(comment.author_username ?? 'someone', formatDate(meeting.resolved_at ?? meeting.scheduled_time))}</span>
+								</div>
 							{:else if invitation.state === 'accepted' && meeting}
-								<a href="/meetings/{meeting.id}" class="meeting-link">
-									{copy.conversation.meetingScheduled}
+								<a href="/meetings/{meeting.id}" class="meeting-inline" style="text-decoration: none; color: inherit; display: block;">
+									<span class="meeting-inline-label">{copy.conversation.meetingScheduled}</span>
+									<span class="meeting-inline-detail">{formatDate(meeting.scheduled_time)} · {meeting.general_area ?? invitation.slot_general_area}</span>
+									{#if meeting.exact_location}
+										<span class="meeting-inline-location">{meeting.exact_location.name}</span>
+										<span class="meeting-inline-address">{meeting.exact_location.address}</span>
+									{/if}
 								</a>
-								<SlotCard
-									startTime={invitation.slot_start_time}
-									durationMinutes={invitation.slot_duration_minutes ?? 60}
-									area={meeting.general_area ?? invitation.slot_general_area}
-									exactLocation={meeting.exact_location}
-								/>
 							{:else if invitation.state === 'accepted'}
-								<SlotCard startTime={invitation.slot_start_time} durationMinutes={invitation.slot_duration_minutes ?? 60} area={invitation.slot_general_area} />
+								<div class="meeting-inline">
+									<span class="meeting-inline-detail">{formatDate(invitation.slot_start_time)} · {invitation.slot_general_area}</span>
+								</div>
 							{:else if invitation.state === 'pending'}
 								<SlotCard startTime={invitation.slot_start_time} durationMinutes={invitation.slot_duration_minutes ?? 60} area={invitation.slot_general_area} />
 								{#if invitation.message}
@@ -479,13 +480,7 @@
 	.slots-section { margin-top: var(--space-4); margin-bottom: var(--space-6); }
 	.response-section, .responses-received { margin-top: var(--space-6); padding-top: var(--space-6); border-top: 1px solid var(--border-link); }
 
-	/* My response — matches .meeting-inline on profile for consistency */
-	.my-response {
-		margin-bottom: var(--space-6);
-		padding: var(--space-4);
-		background: var(--bg-meeting-tint);
-		border-radius: var(--radius-input);
-	}
+	.my-response { margin-bottom: var(--space-6); }
 	.my-response-text { font-size: var(--text-md); line-height: var(--leading-relaxed); margin: 0 0 var(--space-2); }
 
 	/* Confirmed meeting card */
@@ -511,16 +506,6 @@
 		font-weight: 500;
 		margin: 0 0 var(--space-3);
 		color: var(--text-primary);
-	}
-
-	.meeting-cancelled-label {
-		display: block;
-		font-size: var(--text-xs);
-		font-weight: 600;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-		color: var(--color-danger);
-		margin-top: var(--space-2);
 	}
 
 	.view-meeting-link {
@@ -572,15 +557,10 @@
 	/* Author view */
 	.response-card {
 		padding: var(--space-4);
-		background: var(--bg-meeting-tint);
-		border-radius: var(--radius-input);
+		border-bottom: 1px solid var(--border-link);
 		margin-bottom: var(--space-3);
 	}
-	.response-card.has-invitation {
-		border: 1px solid var(--border-link);
-		border-radius: var(--radius-card);
-		background: none;
-	}
+	.response-card:last-child { border-bottom: none; }
 	.response-meta { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); display: block; margin-bottom: var(--space-1); }
 	.response-body { font-size: var(--text-base); margin: 0 0 var(--space-1); line-height: var(--leading-normal); }
 	.response-invitation { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--border-link); }
