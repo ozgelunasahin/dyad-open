@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { fade, fly } from 'svelte/transition';
 	import { onMount, onDestroy } from 'svelte';
-	import type { PromptSummary } from '$lib/domain/types';
+	import { searchItems, type SearchableItem } from '$lib/utils/search.js';
+	import { copy } from '$lib/copy';
 
 	interface Props {
-		prompts: PromptSummary[];
+		prompts: SearchableItem[];
 		onClose: () => void;
 		onSelect: (promptId: string) => void;
 	}
@@ -12,49 +13,15 @@
 	let { prompts, onClose, onSelect }: Props = $props();
 
 	let query = $state('');
-	let submitted = $state('');
-
-	const SUGGESTIONS = [
-		'strangers & connection',
-		'philosophy of everyday life',
-		'art and who makes it',
-		'what we owe each other',
-		'living in Berlin',
-	];
-
-	const STOP_WORDS = new Set(['a', 'an', 'the', 'in', 'on', 'at', 'to', 'for', 'of', 'and', 'or', 'is', 'it', 'i', 'my', 'we', 'do', 'so', 'no', 'not', 'but', 'with', 'this', 'that', 'from', 'by', 'as', 'be', 'are', 'was', 'who', 'what', 'how', 'about']);
-
-	function score(prompt: PromptSummary, q: string): number {
-		const words = q.toLowerCase().split(/\s+/).filter(w => w && !STOP_WORDS.has(w));
-		if (!words.length) return 0;
-		const title = (prompt.title ?? '').toLowerCase();
-		const snippet = (prompt.body_snippet ?? '').toLowerCase();
-		let s = 0;
-		for (const w of words) {
-			if (title.includes(w)) s += 3;
-			if (snippet.includes(w)) s += 1;
-		}
-		return s;
-	}
-
-	let results = $derived.by(() => {
-		const q = submitted.trim();
-		if (!q) return [];
-		return prompts
-			.map(p => ({ prompt: p, score: score(p, q) }))
-			.filter(x => x.score > 0)
-			.sort((a, b) => b.score - a.score)
-			.map(x => x.prompt);
-	});
+	let liveQuery = $derived(query.trim());
+	let results = $derived(searchItems(prompts, liveQuery));
 
 	function handleSuggestion(s: string) {
 		query = s;
-		submitted = s;
 	}
 
 	function handleKey(e: KeyboardEvent) {
 		if (e.key === 'Escape') onClose();
-		if (e.key === 'Enter') submitted = query;
 	}
 
 	// Lock body scroll
@@ -78,20 +45,20 @@
 			bind:value={query}
 			autofocus
 			class="search-input"
-			placeholder="Search"
+			placeholder={copy.discover.searchPlaceholder}
 			autocomplete="off"
 			spellcheck="false"
 		/>
 	</div>
 
-	{#if !submitted}
+	{#if liveQuery.length < 2}
 		<div class="suggestions" transition:fly={{ y: 10, duration: 180 }}>
-			{#each SUGGESTIONS as s}
+			{#each copy.discover.searchSuggestions as s}
 				<button class="suggestion-chip" onclick={() => handleSuggestion(s)}>{s}</button>
 			{/each}
 		</div>
 	{:else if results.length === 0}
-		<p class="no-results" transition:fade={{ duration: 120 }}>No conversations found.</p>
+		<p class="no-results" transition:fade={{ duration: 120 }}>{copy.discover.noResults}</p>
 	{:else}
 		<div class="results" transition:fly={{ y: 10, duration: 180 }}>
 			{#each results as prompt}
@@ -105,8 +72,8 @@
 					</div>
 					<div class="result-body">
 						<p class="result-title">{prompt.title}</p>
-						{#if prompt.body_snippet}
-							<p class="result-snippet">{prompt.body_snippet}</p>
+						{#if prompt.body_text}
+							<p class="result-snippet">{prompt.body_text.slice(0, 120)}</p>
 						{/if}
 					</div>
 				</button>
@@ -164,7 +131,8 @@
 	}
 
 	.search-input::placeholder {
-		color: rgba(0, 0, 0, 0.15);
+		color: var(--text-muted);
+		opacity: 0.4;
 	}
 
 	.suggestions {
@@ -176,7 +144,7 @@
 	}
 
 	.suggestion-chip {
-		background: rgba(0, 0, 0, 0.06);
+		background: var(--bg-control);
 		border: none;
 		border-radius: var(--radius-pill);
 		padding: var(--space-2) var(--space-4);
@@ -187,7 +155,7 @@
 	}
 
 	.suggestion-chip:hover {
-		background: rgba(0, 0, 0, 0.1);
+		background: var(--bg-control-hover);
 	}
 
 	.no-results {
@@ -216,7 +184,7 @@
 	}
 
 	.result-row:hover {
-		background: rgba(0, 0, 0, 0.04);
+		background: var(--bg-control);
 	}
 
 	.result-thumb {
@@ -263,7 +231,7 @@
 		margin: 0;
 		font-size: var(--text-sm);
 		color: var(--text-muted);
-		line-height: 1.4;
+		line-height: var(--leading-normal);
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
 		line-clamp: 2;

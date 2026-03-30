@@ -122,6 +122,7 @@
 
 		<h2 class="sheet-title">Publish as a Conversation</h2>
 		<p class="sheet-subtitle">Pick days, then set time and place for each.</p>
+		<p class="sheet-note">We only show the address to those you agree to meet.</p>
 
 		<!-- Day picker -->
 		<p class="label">Select days</p>
@@ -249,7 +250,15 @@
 	.sheet-subtitle {
 		font-size: var(--text-base);
 		color: var(--text-muted);
+		margin: 0 0 var(--space-2);
+	}
+
+	.sheet-note {
+		font-size: var(--text-xs);
+		color: var(--text-muted);
 		margin: 0 0 var(--space-5);
+		font-family: var(--font-mono);
+		letter-spacing: 0.02em;
 	}
 
 	.label {

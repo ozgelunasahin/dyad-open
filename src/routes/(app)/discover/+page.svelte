@@ -12,13 +12,13 @@
 	import { copy } from '$lib/copy';
 
 	let { data }: { data: PageData } = $props();
-	let viewMode = $state<'list' | 'map'>('list');
+	let viewMode = $state<'list' | 'map'>('map');
 	let mapCenter = $state<[number, number] | null>(null);
 	let mapZoom = $state<number | null>(null);
 
-	export const snapshot: Snapshot<{ center: [number, number] | null; zoom: number | null; viewMode: 'list' | 'map' }> = {
-		capture: () => ({ center: mapCenter, zoom: mapZoom, viewMode }),
-		restore: (value) => { mapCenter = value.center; mapZoom = value.zoom; viewMode = value.viewMode; }
+	export const snapshot: Snapshot<{ center: [number, number] | null; zoom: number | null }> = {
+		capture: () => ({ center: mapCenter, zoom: mapZoom }),
+		restore: (value) => { mapCenter = value.center; mapZoom = value.zoom; }
 	};
 	let searchOpen = $state(false);
 	let selectedPinPrompts = $state<PromptSummary[]>([]);
@@ -156,7 +156,7 @@
 
 {#if searchOpen}
 	<SearchOverlay
-		prompts={data.prompts}
+		prompts={data.searchCorpus}
 		onClose={() => searchOpen = false}
 		onSelect={(id) => { searchOpen = false; goto(`/conversations/${id}`); }}
 	/>

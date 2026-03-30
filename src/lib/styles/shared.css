@@ -103,6 +103,21 @@
 .row-title { margin: 0 0 var(--space-1); font-size: var(--text-md); font-weight: 500; line-height: var(--leading-tight); }
 .row-status { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
 
+/* ── Meeting inline card ──────────────────────────────────── */
+.meeting-inline {
+	padding: var(--space-3);
+	background: var(--bg-meeting-tint);
+	border-radius: var(--radius-input);
+	margin-bottom: var(--space-3);
+}
+.meeting-inline-label { font-size: var(--text-sm); font-weight: 500; display: block; }
+.meeting-inline-detail { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); display: block; margin-top: var(--space-1); }
+.meeting-inline-area { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.meeting-inline-location { font-size: var(--text-sm); font-weight: 500; display: block; margin-top: var(--space-2); }
+.meeting-inline-address { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); display: block; }
+.meeting-inline-status { font-size: var(--text-xs); color: var(--text-muted); display: block; margin-top: var(--space-2); }
+.meeting-inline-status.cancelled { color: var(--text-muted); }
+
 /* ── Reveal card (feedback reveal) ─────────────────────────── */
 .reveal-card { padding: var(--space-5); border: 1px solid var(--border-link); border-radius: var(--radius-card); margin-bottom: var(--space-3); }
 .reveal-noshow { font-size: var(--text-sm); color: var(--text-muted); font-style: italic; margin: 0 0 var(--space-3); }

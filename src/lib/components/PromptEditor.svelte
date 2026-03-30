@@ -5,6 +5,7 @@
 	import StarterKit from '@tiptap/starter-kit';
 	import Link from '@tiptap/extension-link';
 	import Image from '@tiptap/extension-image';
+	import Placeholder from '@tiptap/extension-placeholder';
 	import type { JSONContent } from '@tiptap/core';
 
 	interface Props {
@@ -12,9 +13,10 @@
 		onUpdate?: (json: JSONContent) => void;
 		editable?: boolean;
 		showToolbar?: boolean;
+		placeholder?: string;
 	}
 
-	let { content, onUpdate, editable = true, showToolbar = true }: Props = $props();
+	let { content, onUpdate, editable = true, showToolbar = true, placeholder = '' }: Props = $props();
 
 	let element: HTMLElement | undefined = $state();
 	let editor: Editor | undefined = $state();
@@ -52,7 +54,8 @@
 					openOnClick: false,
 					HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' }
 				}),
-				Image.configure({ inline: false })
+				Image.configure({ inline: false }),
+				...(placeholder ? [Placeholder.configure({ placeholder })] : [])
 			],
 			content: content ?? { type: 'doc', content: [{ type: 'paragraph' }] },
 			editable,
@@ -194,7 +197,7 @@
 	}
 
 	.editor :global(.tiptap p.is-editor-empty:first-child::before) {
-		content: 'Start writing your conversation...';
+		content: attr(data-placeholder);
 		color: var(--text-muted);
 		pointer-events: none;
 		float: left;

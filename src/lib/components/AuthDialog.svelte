@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { enhance } from '$app/forms';
+	import { copy } from '$lib/copy';
 
 	interface Props {
 		mode?: 'waitlist' | 'login';
@@ -70,10 +71,10 @@
 				error = 'already';
 			} else {
 				const data = await res.json().catch(() => ({}));
-				error = (data as any).error ?? 'Something went wrong. Please try again.';
+				error = (data as any).error ?? copy.auth.somethingWentWrong;
 			}
 		} catch {
-			error = 'Network error. Please try again.';
+			error = copy.common.networkError;
 		} finally {
 			loading = false;
 		}
@@ -90,7 +91,7 @@
 			} else if (result.type === 'failure') {
 				error = (result.data?.error as string) ?? 'Login failed';
 			} else if (result.type === 'error') {
-				error = result.error?.message ?? 'Something went wrong. Please try again.';
+				error = result.error?.message ?? copy.auth.somethingWentWrong;
 			}
 		};
 	}
@@ -108,42 +109,63 @@
 		<button class="close-btn" onclick={hide} aria-label="Close">&times;</button>
 
 		{#if currentMode === 'waitlist'}
-			<h2 id="auth-dialog-title" class="dialog-title">Join the waitlist</h2>
+			<h2 id="auth-dialog-title" class="dialog-title">{copy.waitlist.joinWaitlist}</h2>
 
 			{#if success}
 				<div class="success-message">
 					{#if error === 'already'}
-						<p>You're already on our list. We'll be in touch soon.</p>
+						<p>{copy.waitlist.alreadyOnWaitlist}</p>
 					{:else}
-						<p>Thanks for joining. We'll be in touch within a week.</p>
+						<p>{copy.waitlist.thanksForJoining}</p>
 					{/if}
 				</div>
 			{:else}
 				<form onsubmit={(e) => { e.preventDefault(); submitWaitlist(); }}>
 					<label class="field">
-						<span class="field-label">What's on your mind? *</span>
+						<span class="field-label">{copy.waitlist.whatsOnYourMind}</span>
 						<textarea
 							bind:value={freewrite}
 							rows={3}
 							required
 							maxlength={2000}
-							placeholder="A question, a thought, something you'd love to talk about..."
+							placeholder={copy.waitlist.thoughtPlaceholder}
 						></textarea>
 					</label>
 
 					<label class="field">
-						<span class="field-label">Email *</span>
+						<span class="field-label">{copy.auth.email} *</span>
 						<input type="email" bind:value={email} required placeholder="you@example.com" />
 					</label>
 
 					<label class="field">
-						<span class="field-label">Name</span>
+						<span class="field-label">{copy.auth.name}</span>
 						<input type="text" bind:value={name} maxlength={200} placeholder="Optional" />
 					</label>
 
 					<label class="field">
-						<span class="field-label">City</span>
-						<input type="text" bind:value={city} maxlength={200} placeholder="Optional" />
+						<span class="field-label">{copy.waitlist.city}</span>
+						<select bind:value={city} class="city-select">
+							<option value="">{copy.waitlist.selectCity}</option>
+							<optgroup label={copy.waitlist.activeNow}>
+								<option value="Berlin">Berlin</option>
+							</optgroup>
+							<optgroup label={copy.waitlist.comingSoon}>
+								<option value="Hamburg">Hamburg</option>
+								<option value="Munich">Munich</option>
+								<option value="Vienna">Vienna</option>
+								<option value="Amsterdam">Amsterdam</option>
+								<option value="London">London</option>
+								<option value="Paris">Paris</option>
+								<option value="Barcelona">Barcelona</option>
+								<option value="Lisbon">Lisbon</option>
+								<option value="Copenhagen">Copenhagen</option>
+								<option value="Stockholm">Stockholm</option>
+								<option value="New York">New York</option>
+								<option value="San Francisco">San Francisco</option>
+								<option value="Other">Other</option>
+							</optgroup>
+						</select>
+						<p class="city-note">{copy.waitlist.cityExpansionNote}</p>
 					</label>
 
 					{#if error && error !== 'already'}
@@ -151,26 +173,26 @@
 					{/if}
 
 					<button class="submit-btn" type="submit" disabled={loading || !freewrite.trim() || !email.trim()}>
-						{loading ? 'Sending...' : 'Join waitlist'}
+						{loading ? copy.waitlist.sendingWaitlist : copy.waitlist.joinWaitlistButton}
 					</button>
 				</form>
 
 				<p class="mode-switch">
-					Already have an account? <button class="link-btn" onclick={() => switchMode('login')}>Log in</button>
+					{copy.auth.alreadyHaveAccount} <button class="link-btn" onclick={() => switchMode('login')}>{copy.auth.logIn}</button>
 				</p>
 			{/if}
 
 		{:else}
-			<h2 id="auth-dialog-title" class="dialog-title">Log in</h2>
+			<h2 id="auth-dialog-title" class="dialog-title">{copy.auth.logIn}</h2>
 
 			<form method="POST" action="/login?/login" use:enhance={handleLoginEnhance}>
 				<label class="field">
-					<span class="field-label">Email</span>
+					<span class="field-label">{copy.auth.email}</span>
 					<input type="email" name="email" bind:value={loginEmail} required />
 				</label>
 
 				<label class="field">
-					<span class="field-label">Password</span>
+					<span class="field-label">{copy.auth.password}</span>
 					<input type="password" name="password" bind:value={loginPassword} required minlength={8} />
 				</label>
 
@@ -179,15 +201,15 @@
 				{/if}
 
 				<button class="submit-btn" type="submit" disabled={loading}>
-					{loading ? 'Logging in...' : 'Log in'}
+					{loading ? copy.auth.loggingIn : copy.auth.logIn}
 				</button>
 			</form>
 
 			<p class="mode-switch">
-				<a href="/login?mode=reset" class="link-btn" onclick={hide}>Forgot password?</a>
+				<a href="/login?mode=reset" class="link-btn" onclick={hide}>{copy.auth.forgotPassword}</a>
 			</p>
 			<p class="mode-switch">
-				Don't have an account? <button class="link-btn" onclick={() => switchMode('waitlist')}>Join</button>
+				{copy.auth.dontHaveAccount} <button class="link-btn" onclick={() => switchMode('waitlist')}>{copy.auth.join}</button>
 			</p>
 		{/if}
 	</div>
@@ -262,6 +284,26 @@
 	}
 
 	.field textarea { resize: vertical; line-height: var(--leading-relaxed); }
+
+	.city-select {
+		width: 100%;
+		font-size: var(--text-base);
+		padding: var(--space-3);
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-input);
+		background: var(--bg-canvas);
+		color: var(--text-primary);
+		box-sizing: border-box;
+		cursor: pointer;
+	}
+	.city-select:focus { outline: none; border-color: var(--text-muted); }
+
+	.city-note {
+		margin: var(--space-2) 0 0;
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+		line-height: 1.5;
+	}
 
 	.error-msg {
 		font-size: var(--text-sm);

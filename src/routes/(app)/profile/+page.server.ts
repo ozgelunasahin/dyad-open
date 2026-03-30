@@ -103,7 +103,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 		scheduled_time: string;
 		duration_minutes: number;
 		general_area: string | null;
+		exact_location: { name: string; address: string; lat?: number; lng?: number } | null;
 		partner_username: string;
+		state: string;
 	}> = {};
 
 	// Sort: active states first, then by most recent scheduled_time
@@ -117,12 +119,18 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	for (const m of sortedMeetings) {
 		if (!(m.prompt_id in meetingsByPromptId)) {
+			// Fetch exact location via SECURITY DEFINER RPC (only participants can see it)
+			const { data: detail } = await locals.supabase.rpc('get_meeting_with_location', { p_meeting_id: m.id });
+			const d = Array.isArray(detail) ? detail[0] : detail;
+
 			meetingsByPromptId[m.prompt_id] = {
 				id: m.id,
 				scheduled_time: m.scheduled_time,
 				duration_minutes: m.duration_minutes,
-				general_area: m.general_area,
-				partner_username: partnerUsernameMap.get(getPartnerId(m, userId)) ?? 'anonymous'
+				general_area: d?.general_area ?? m.general_area,
+				exact_location: d?.exact_location ?? null,
+				partner_username: partnerUsernameMap.get(getPartnerId(m, userId)) ?? 'anonymous',
+				state: m.state
 			};
 		}
 	}
