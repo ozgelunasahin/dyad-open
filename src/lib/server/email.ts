@@ -7,6 +7,11 @@ import { env } from '$env/dynamic/private';
  *   → emails viewable at http://localhost:54324
  * Production: Resend API (https://resend.com)
  *
+ * NOTE: Resend is a US company. For sovereignty compliance (see docs/design/
+ * shared-infrastructure-opportunities.md), plan to migrate to an EU-hosted
+ * provider (Mailjet, Postal, or similar) before v0.2. The provider abstraction
+ * here (EMAIL_PROVIDER switch) makes this a config change + body format swap.
+ *
  * Environment variables:
  *   EMAIL_PROVIDER   — 'mailpit' (default) or 'resend'
  *   RESEND_API_KEY   — Resend API key (required for resend)

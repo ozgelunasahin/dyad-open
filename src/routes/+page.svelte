@@ -93,7 +93,7 @@
 			</button>
 			{#if selectedPinPrompts.length > 0}
 				<div class="hero-sheet-wrap">
-					<BottomSheet prompts={selectedPinPrompts} onCardClick={() => openAuth('waitlist')} hideAuthor navClearance={false} />
+					<BottomSheet prompts={selectedPinPrompts} onClose={() => selectedPinPrompts = []} onCardClick={() => openAuth('waitlist')} hideAuthor navClearance={false} />
 				</div>
 			{/if}
 		</div>
@@ -131,14 +131,11 @@
 		</div>
 
 		<footer class="page-footer">
-			<!-- theme toggle moved to hero-actions row -->
-			<!-- legal links hidden for now
 			<div class="legal-links">
 				<a href="/datenschutz" class="legal-link">privacy policy</a>
 				<span class="legal-sep">|</span>
 				<a href="/impressum" class="legal-link">legal notice</a>
 			</div>
-			-->
 		</footer>
 	</div>
 
@@ -162,7 +159,7 @@
 			{/await}
 			{#if selectedPinPrompts.length > 0}
 				<div class="right-sheet-wrap">
-					<BottomSheet prompts={selectedPinPrompts} onCardClick={() => openAuth('waitlist')} hideAuthor navClearance={false} />
+					<BottomSheet prompts={selectedPinPrompts} onClose={() => selectedPinPrompts = []} onCardClick={() => openAuth('waitlist')} hideAuthor navClearance={false} />
 				</div>
 			{/if}
 		</div>
@@ -200,7 +197,7 @@
 		{/await}
 		{#if fullscreenPinPrompts.length > 0}
 			<div class="overlay-sheet-wrap">
-				<BottomSheet prompts={fullscreenPinPrompts} onCardClick={() => openAuth('waitlist')} hideAuthor navClearance={false} />
+				<BottomSheet prompts={fullscreenPinPrompts} onClose={() => fullscreenPinPrompts = []} onCardClick={() => openAuth('waitlist')} hideAuthor navClearance={false} />
 			</div>
 		{/if}
 		<button class="map-overlay-close" onclick={() => { mapFullscreen = false; fullscreenPinPrompts = []; selectedPinPrompts = []; }} aria-label="Close map">
