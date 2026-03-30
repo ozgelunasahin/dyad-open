@@ -212,7 +212,7 @@
 						<span class="card-dot" aria-hidden="true"></span>
 					{/if}
 				</div>
-				<span class="card-label">Conversations</span>
+				<span class="card-label">{copy.profile.conversations}</span>
 			</button>
 
 			<button class="entry-card" onclick={() => goto('/profile?view=meetings')}>
@@ -224,7 +224,7 @@
 						<div class="stack-placeholder"></div>
 					{/if}
 				</div>
-				<span class="card-label">Meetings</span>
+				<span class="card-label">{copy.profile.meetings}</span>
 			</button>
 		</div>
 
@@ -236,7 +236,7 @@
 				<input
 					class="search-input"
 					type="search"
-					placeholder="Search your conversations..."
+					placeholder={copy.profile.searchPlaceholder}
 					bind:value={searchQuery}
 					autofocus
 					oninput={() => expanded = false}
@@ -253,13 +253,13 @@
 			<!-- Tab bar -->
 			<div class="tab-bar">
 				<button class="tab" class:active={convTab === 'started'} onclick={() => setConvTab('started')}>
-					You started
+					{copy.profile.youStarted}
 				</button>
 				<button class="tab" class:active={convTab === 'responded'} onclick={() => setConvTab('responded')}>
-					You responded
+					{copy.profile.youRespondedTab}
 				</button>
 				<button class="tab" class:active={convTab === 'archived'} onclick={() => setConvTab('archived')}>
-					Archived
+					{copy.profile.archivedTab}
 				</button>
 			</div>
 
@@ -274,7 +274,7 @@
 								<span class="empty-cta-text">{copy.profile.startConversation}</span>
 							</a>
 						{:else}
-							<p style="color: var(--text-muted); font-size: var(--text-sm)">Nothing here yet.</p>
+							<p class="empty-text">{copy.profile.nothingHereYet}</p>
 						{/if}
 					</div>
 				{:else}
