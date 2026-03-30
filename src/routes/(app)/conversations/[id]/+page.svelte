@@ -466,7 +466,12 @@
 	.response-section, .responses-received { margin-top: var(--space-6); padding-top: var(--space-6); border-top: 1px solid var(--border-link); }
 
 	/* My response */
-	.my-response { margin-bottom: var(--space-6); }
+	.my-response {
+		margin-bottom: var(--space-6);
+		padding: var(--space-4);
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-card);
+	}
 	.my-response-text { font-size: var(--text-md); line-height: var(--leading-relaxed); margin: 0 0 var(--space-2); }
 
 	/* Confirmed meeting card */
