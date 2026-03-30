@@ -301,18 +301,32 @@
 		<section class="responses-received">
 			{#each data.comments as comment}
 				{@const invitation = data.receivedInvitations.find(inv => inv.inviter_id === comment.author_id)}
-				{@const meeting = invitation?.state === 'accepted' ? data.promptMeetings?.find(m => m.slot_id === invitation.slot_id) : null}
+				{@const meeting = invitation ? data.promptMeetings?.find(m => m.slot_id === invitation.slot_id) : null}
 				<div class="response-card" class:has-invitation={!!invitation}>
 					<span class="response-meta">@{comment.author_username ?? 'anonymous'} · {formatDate(comment.created_at)}</span>
 					<p class="response-body">{comment.body}</p>
 
 					{#if invitation}
 						<div class="response-invitation">
-							{#if invitation.state === 'accepted' && meeting}
+							{#if meeting && (meeting.state === 'cancelled_early' || meeting.state === 'cancelled_late')}
+								<SlotCard
+									startTime={invitation.slot_start_time}
+									durationMinutes={invitation.slot_duration_minutes ?? 60}
+									area={meeting.general_area ?? invitation.slot_general_area}
+									exactLocation={meeting.exact_location}
+									past={true}
+								/>
+								<span class="meeting-cancelled-label">{copy.profile.meetingCancelled}</span>
+							{:else if invitation.state === 'accepted' && meeting}
 								<a href="/meetings/{meeting.id}" class="meeting-link">
 									{copy.conversation.meetingScheduled}
 								</a>
-								<SlotCard startTime={invitation.slot_start_time} durationMinutes={invitation.slot_duration_minutes ?? 60} area={invitation.slot_general_area} />
+								<SlotCard
+									startTime={invitation.slot_start_time}
+									durationMinutes={invitation.slot_duration_minutes ?? 60}
+									area={meeting.general_area ?? invitation.slot_general_area}
+									exactLocation={meeting.exact_location}
+								/>
 							{:else if invitation.state === 'accepted'}
 								<SlotCard startTime={invitation.slot_start_time} durationMinutes={invitation.slot_duration_minutes ?? 60} area={invitation.slot_general_area} />
 							{:else if invitation.state === 'pending'}
@@ -497,6 +511,16 @@
 		font-weight: 500;
 		margin: 0 0 var(--space-3);
 		color: var(--text-primary);
+	}
+
+	.meeting-cancelled-label {
+		display: block;
+		font-size: var(--text-xs);
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--color-danger);
+		margin-top: var(--space-2);
 	}
 
 	.view-meeting-link {

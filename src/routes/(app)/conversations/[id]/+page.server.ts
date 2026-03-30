@@ -101,14 +101,34 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	}
 
 	// Load meetings for this prompt (to link accepted invitations to meetings)
-	let promptMeetings: Array<{ id: string; slot_id: string; scheduled_time: string }> = [];
+	// Author can see exact_location for their own prompt's meetings
+	let promptMeetings: Array<{
+		id: string;
+		slot_id: string;
+		scheduled_time: string;
+		state: string;
+		exact_location: { name: string; address: string; lat?: number; lng?: number } | null;
+		general_area: string | null;
+	}> = [];
 	if (isAuthor) {
 		const { data: meetings } = await locals.supabase
 			.from('meetings')
-			.select('id, slot_id, scheduled_time')
-			.eq('prompt_id', params.id)
-			.in('state', ['scheduled', 'active', 'awaiting_feedback', 'completed']);
-		promptMeetings = (meetings ?? []) as any[];
+			.select('id, slot_id, scheduled_time, state')
+			.eq('prompt_id', params.id);
+
+		// Enrich with exact_location via SECURITY DEFINER RPC
+		for (const m of meetings ?? []) {
+			const { data: detail } = await locals.supabase.rpc('get_meeting_with_location', { p_meeting_id: m.id });
+			const d = Array.isArray(detail) ? detail[0] : detail;
+			promptMeetings.push({
+				id: m.id,
+				slot_id: m.slot_id,
+				scheduled_time: m.scheduled_time,
+				state: m.state,
+				exact_location: d?.exact_location ?? null,
+				general_area: d?.general_area ?? null
+			});
+		}
 	}
 
 	// For non-authors: check if they have a confirmed meeting for this prompt
