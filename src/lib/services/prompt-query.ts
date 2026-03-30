@@ -238,7 +238,7 @@ export class SupabasePromptQueryService implements PromptQueryService {
 		return (prompts ?? []).map((p) => ({
 			id: p.id,
 			title: p.title,
-			body_text: jsonToPlainText(p.body as JSONContent | null).trim(),
+			body_text: p.body ? jsonToPlainText(p.body as JSONContent).trim() : '',
 			cover_image_url: p.cover_image_url
 		}));
 	}
