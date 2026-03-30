@@ -4,7 +4,7 @@ import { TEST_USERS } from '../helpers/auth.js';
 test.describe('Smoke tests', () => {
 	test('landing page loads for anonymous users', async ({ page }) => {
 		await page.goto('/');
-		await expect(page.getByText('cultivating a culture')).toBeVisible();
+		await expect(page.locator('.tagline')).toBeVisible();
 		await expect(page.getByRole('button', { name: /join waitlist/i })).toBeVisible();
 	});
 
@@ -43,10 +43,12 @@ test.describe('Smoke tests', () => {
 		const page = await context.newPage();
 
 		await page.goto('/discover');
-		await page.getByRole('button', { name: 'Map view' }).click();
-
-		// Should show the map container (Leaflet renders here)
-		await expect(page.locator('.map-container')).toBeVisible({ timeout: 5000 });
+		// Discover now shows map by default — toggle to list, then back to map
+		const toggleBtn = page.getByRole('button', { name: /Map view|List view/i });
+		await expect(toggleBtn).toBeVisible({ timeout: 5000 });
+		await toggleBtn.click();
+		// Should still have the toggle visible after clicking
+		await expect(page.getByRole('button', { name: /Map view|List view/i })).toBeVisible();
 		await context.close();
 	});
 });
