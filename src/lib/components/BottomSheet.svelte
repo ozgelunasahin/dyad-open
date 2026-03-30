@@ -6,9 +6,10 @@
 		prompts: PromptSummary[];
 		onCardClick?: (promptId: string) => void;
 		hideAuthor?: boolean;
+		navClearance?: boolean;
 	}
 
-	let { prompts, onCardClick, hideAuthor = false }: Props = $props();
+	let { prompts, onCardClick, hideAuthor = false, navClearance = true }: Props = $props();
 
 	function formatDate(iso: string): string {
 		return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -17,7 +18,8 @@
 
 <div
 	class="sheet"
-	transition:fly={{ y: 120, duration: 240 }}
+	class:no-nav={!navClearance}
+	transition:fly={{ y: 160, duration: 480, opacity: 0 }}
 >
 	<div class="sheet-body">
 			{#each prompts as prompt}
@@ -65,10 +67,14 @@
 		box-shadow: 0 -4px 32px rgba(0, 0, 0, 0.18);
 		width: 100%;
 		max-width: 480px;
-		max-height: 50vh;
+		max-height: 60vh;
 		overflow-y: auto;
 		padding: var(--space-5);
 		padding-bottom: var(--nav-clearance);
+	}
+
+	.sheet.no-nav {
+		padding-bottom: var(--space-5);
 		box-sizing: border-box;
 		z-index: 600;
 	}

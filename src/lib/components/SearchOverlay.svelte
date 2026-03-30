@@ -1,10 +1,16 @@
 <script lang="ts">
 	import { fade, fly } from 'svelte/transition';
 	import { onMount, onDestroy } from 'svelte';
-	import type { PromptSummary } from '$lib/domain/types';
+
+	interface SearchablePrompt {
+		id: string;
+		title: string | null;
+		body_text: string;
+		cover_image_url: string | null;
+	}
 
 	interface Props {
-		prompts: PromptSummary[];
+		prompts: SearchablePrompt[];
 		onClose: () => void;
 		onSelect: (promptId: string) => void;
 	}
@@ -12,7 +18,6 @@
 	let { prompts, onClose, onSelect }: Props = $props();
 
 	let query = $state('');
-	let submitted = $state('');
 
 	const SUGGESTIONS = [
 		'strangers & connection',
@@ -22,39 +27,119 @@
 		'living in Berlin',
 	];
 
-	const STOP_WORDS = new Set(['a', 'an', 'the', 'in', 'on', 'at', 'to', 'for', 'of', 'and', 'or', 'is', 'it', 'i', 'my', 'we', 'do', 'so', 'no', 'not', 'but', 'with', 'this', 'that', 'from', 'by', 'as', 'be', 'are', 'was', 'who', 'what', 'how', 'about']);
+	const STOP_WORDS = new Set([
+		'a','an','the','in','on','at','to','for','of','and','or','is','it',
+		'i','my','we','do','so','no','not','but','with','this','that','from',
+		'by','as','be','are','was','who','what','how','about','ihre','ich',
+		'ein','eine','der','die','das'
+	]);
 
-	function score(prompt: PromptSummary, q: string): number {
-		const words = q.toLowerCase().split(/\s+/).filter(w => w && !STOP_WORDS.has(w));
-		if (!words.length) return 0;
-		const title = (prompt.title ?? '').toLowerCase();
-		const snippet = (prompt.body_snippet ?? '').toLowerCase();
-		let s = 0;
+	// Simple English stemmer — strip common suffixes
+	function stem(w: string): string {
+		return w
+			.replace(/ies$/, 'y')
+			.replace(/nesses$/, '')
+			.replace(/ness$/, '')
+			.replace(/tions?$/, '')
+			.replace(/ments?$/, '')
+			.replace(/ings?$/, '')
+			.replace(/ers?$/, '')
+			.replace(/ed$/, '')
+			.replace(/ly$/, '')
+			.replace(/s$/, '');
+	}
+
+	// Concept synonyms — expand query terms into related words
+	const SYNONYMS: Record<string, string[]> = {
+		stranger:   ['unknown','encounter','unfamiliar','meet','people','neue'],
+		connect:    ['bond','relate','link','together','community','belong'],
+		alone:      ['lonely','solitude','isolation','disconnect','singular'],
+		lonely:     ['alone','solitude','isolation','disconnect'],
+		friend:     ['friendship','companion','relation','bond'],
+		art:        ['creative','artistic','culture','aesthetic','making'],
+		work:       ['job','career','profession','labor','purpose'],
+		city:       ['urban','berlin','neighborhood','place','street'],
+		time:       ['moment','daily','routine','habit','schedule'],
+		body:       ['physical','health','feeling','sense','movement'],
+		love:       ['intimacy','relationship','affection','care','romantic'],
+		fear:       ['anxiety','worry','nervous','dread','uncertain'],
+		home:       ['belong','place','roots','origin','where'],
+		berlin:     ['city','urban','german','neighborhood'],
+		neighbor:   ['community','nearby','local','district','hood'],
+		money:      ['wealth','finance','poverty','cost','afford'],
+		death:      ['loss','grief','mortality','end','dying'],
+		family:     ['parent','sibling','child','relative','heritage'],
+		language:   ['speak','tongue','translate','communicate','word'],
+		memory:     ['past','remember','nostalgia','history','forget'],
+	};
+
+	function expandTerms(words: string[]): string[] {
+		const expanded = new Set<string>(words);
 		for (const w of words) {
-			if (title.includes(w)) s += 3;
-			if (snippet.includes(w)) s += 1;
+			const s = stem(w);
+			expanded.add(s);
+			// Check synonyms for both original and stemmed
+			for (const key of [w, s]) {
+				const syns = SYNONYMS[key];
+				if (syns) syns.forEach(syn => { expanded.add(syn); expanded.add(stem(syn)); });
+			}
 		}
+		return Array.from(expanded);
+	}
+
+	function scorePrompt(prompt: SearchablePrompt, rawQuery: string): number {
+		const words = rawQuery.toLowerCase().split(/\s+/).filter(w => w.length > 1 && !STOP_WORDS.has(w));
+		if (!words.length) return 0;
+
+		const title = (prompt.title ?? '').toLowerCase();
+		const body = prompt.body_text.toLowerCase();
+		const allTerms = expandTerms(words);
+		const stemmedTitle = stem(title);
+
+		let s = 0;
+
+		// Exact phrase in title — big bonus
+		if (title.includes(rawQuery.toLowerCase())) s += 15;
+
+		for (const w of words) {
+			const sw = stem(w);
+			// Title: exact word match
+			if (title.includes(w)) s += 6;
+			else if (title.includes(sw)) s += 4;
+			// Body: exact word match
+			if (body.includes(w)) s += 3;
+			else if (body.includes(sw)) s += 2;
+		}
+
+		// Synonym / expanded terms (lower weight)
+		const synonymTerms = allTerms.filter(t => !words.includes(t) && !words.map(stem).includes(t));
+		for (const t of synonymTerms) {
+			if (title.includes(t)) s += 1.5;
+			else if (body.includes(t)) s += 0.5;
+		}
+
 		return s;
 	}
 
+	let liveQuery = $derived(query.trim());
+
 	let results = $derived.by(() => {
-		const q = submitted.trim();
-		if (!q) return [];
+		const q = liveQuery;
+		if (q.length < 2) return [];
 		return prompts
-			.map(p => ({ prompt: p, score: score(p, q) }))
+			.map(p => ({ prompt: p, score: scorePrompt(p, q) }))
 			.filter(x => x.score > 0)
 			.sort((a, b) => b.score - a.score)
+			.slice(0, 12)
 			.map(x => x.prompt);
 	});
 
 	function handleSuggestion(s: string) {
 		query = s;
-		submitted = s;
 	}
 
 	function handleKey(e: KeyboardEvent) {
 		if (e.key === 'Escape') onClose();
-		if (e.key === 'Enter') submitted = query;
 	}
 
 	// Lock body scroll
@@ -84,7 +169,7 @@
 		/>
 	</div>
 
-	{#if !submitted}
+	{#if liveQuery.length < 2}
 		<div class="suggestions" transition:fly={{ y: 10, duration: 180 }}>
 			{#each SUGGESTIONS as s}
 				<button class="suggestion-chip" onclick={() => handleSuggestion(s)}>{s}</button>
@@ -105,8 +190,8 @@
 					</div>
 					<div class="result-body">
 						<p class="result-title">{prompt.title}</p>
-						{#if prompt.body_snippet}
-							<p class="result-snippet">{prompt.body_snippet}</p>
+						{#if prompt.body_text}
+							<p class="result-snippet">{prompt.body_text.slice(0, 120)}</p>
 						{/if}
 					</div>
 				</button>

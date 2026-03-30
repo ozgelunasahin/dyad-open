@@ -62,13 +62,13 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 	}
 };
 
-/** DELETE /api/prompts/[id] — delete a draft */
+/** DELETE /api/prompts/[id] — delete a prompt (any state) */
 export const DELETE: RequestHandler = async ({ params, locals }) => {
 	const user = requireAuth(locals.user);
 
 	const service = new SupabasePromptCommandService(locals.supabase);
 	try {
-		await service.deleteDraft(params.id, user.id);
+		await service.deletePrompt(params.id, user.id);
 		return json({ ok: true });
 	} catch (err) {
 		return json({ error: (err as Error).message }, { status: 400 });
