@@ -85,8 +85,18 @@
 		});
 	});
 
+	let searchOpen = $state(false);
+	let searchQuery = $state('');
+	let meetingsOnly = $state(false);
+
+	let filteredConversations = $derived(
+		conversations
+			.filter(c => !meetingsOnly || c.meeting != null)
+			.filter(c => !searchQuery.trim() || c.title.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+	);
+
 	let expanded = $state(false);
-	let visibleConversations = $derived(expanded ? conversations : conversations.slice(0, INITIAL_VISIBLE));
+	let visibleConversations = $derived(expanded ? filteredConversations : filteredConversations.slice(0, INITIAL_VISIBLE));
 
 	let acceptingId = $state<string | null>(null);
 	let acceptError = $state('');
@@ -166,6 +176,22 @@
 		</section>
 	{/if}
 
+	<!-- Search input (shown when search is open) -->
+	{#if searchOpen}
+		<div class="search-bar">
+			<!-- svelte-ignore a11y_autofocus -->
+			<input
+				class="search-input"
+				type="search"
+				placeholder="Search your conversations..."
+				bind:value={searchQuery}
+				autofocus
+				oninput={() => expanded = false}
+				onblur={() => { if (!searchQuery.trim()) searchOpen = false; }}
+			/>
+		</div>
+	{/if}
+
 	<!-- 2. Unified conversation list with inline meeting context -->
 	{#if conversations.length === 0}
 		<div class="empty-state">
@@ -223,16 +249,22 @@
 			{/each}
 		</div>
 
-		{#if conversations.length > INITIAL_VISIBLE && !expanded}
+		{#if filteredConversations.length > INITIAL_VISIBLE && !expanded}
 			<button class="see-all-btn" onclick={() => expanded = true}>
-				{copy.profile.seeAll(conversations.length)}
+				{copy.profile.seeAll(filteredConversations.length)}
 			</button>
 		{/if}
 	{/if}
 
 </div>
 
-<FloatingNav variant="default" attentionCount={data.attentionCount ?? 0} />
+<FloatingNav
+	variant="profile"
+	attentionCount={data.attentionCount}
+	onSearchClick={() => { searchOpen = !searchOpen; if (!searchOpen) searchQuery = ''; expanded = false; }}
+	onCalendarClick={() => { meetingsOnly = !meetingsOnly; expanded = false; }}
+	calendarActive={meetingsOnly}
+/>
 
 <style>
 	.content { width: 100%; max-width: var(--content-standard); padding-bottom: var(--nav-clearance); }
@@ -318,6 +350,27 @@
 	.meeting-inline-label { font-size: var(--text-sm); font-weight: 500; display: block; }
 	.meeting-inline-detail { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); display: block; margin-top: var(--space-1); }
 	.meeting-inline-area { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+	/* Search bar */
+	.search-bar {
+		margin-bottom: var(--space-4);
+	}
+
+	.search-input {
+		width: 100%;
+		padding: var(--space-3) var(--space-4);
+		background: var(--bg-control);
+		border: none;
+		border-radius: var(--radius-pill);
+		font-family: inherit;
+		font-size: var(--text-base);
+		color: var(--text-primary);
+		outline: none;
+	}
+
+	.search-input:focus {
+		background: var(--bg-control-hover);
+	}
 
 	/* See all button */
 	.see-all-btn {

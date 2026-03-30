@@ -7,7 +7,7 @@ on:
   pull_request:
     branches: [dev, main]
   push:
-    branches: [dev]
+    branches: [dev, main]
 
 jobs:
   check:
@@ -30,6 +30,8 @@ jobs:
   test:
     name: Integration + E2E tests
     needs: check
+    # Only run full Playwright suite on PR merges (push to dev/main), not on every PR commit
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -1,82 +1,74 @@
 # dyad.berlin
 
-A reading environment where markdown notes unfold onto a 2D canvas. Click [[wikilinks]] to spawn connected note cards that expand outward, preserving context while exploring non-linear thought.
+A platform for facilitating real, in-person conversations between strangers in Berlin. Users write conversation starters, schedule meeting times with locations, and meet for one-on-one conversations. Both participants give feedback afterward — revealed simultaneously.
 
-## Features
+## Stack
 
-- **Wikilink navigation**: Type `[[` to create links between notes
-- **Spatial layout**: Cards spawn from their source link, creating visual trails of exploration
-- **Reading zone**: New cards appear in an optimal reading position (left third of screen)
-- **Canvas publishing**: Share your canvases with a human-readable URL (`dyad.berlin/username/canvas-name`)
-- **Light/dark mode**: Follows browser preference, with manual toggle
-
-## Tech Stack
-
-- **Frontend**: SvelteKit, Svelte 5 (runes), TypeScript
-- **Editor**: Tiptap with custom wikilink extension
-- **Backend**: Supabase (Auth, Database, Storage)
-- **Styling**: CSS custom properties for theming
+SvelteKit, Svelte 5 (runes), Supabase (auth + Postgres + storage), TipTap (rich text), Leaflet (maps), Cloudflare Pages.
 
 ## Development
 
 ```sh
-# Install dependencies
 npm install
-
-# Start Supabase locally
-npx supabase start
-
-# Start dev server
-npm run dev
+npx supabase start          # local Supabase (Docker required)
+npm run dev                  # Vite at localhost:5173
 ```
 
-## Database Setup
-
-Run `supabase-setup.sql` in your Supabase SQL editor to create the required tables, RLS policies, and triggers.
-
-## Environment Variables
-
-Create a `.env` file for local development:
+Environment variables are in `.env.local` (copy from `.env.example`):
 
 ```
-PUBLIC_SUPABASE_URL=your-supabase-url
-PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+PUBLIC_SUPABASE_ANON_KEY=<from supabase start output>
 ```
 
-## Landing Page
+## Testing
 
-The root URL (`/`) shows a published site to anonymous visitors. Which site is displayed is controlled by two constants in `src/routes/+page.server.ts`:
-
-```typescript
-const LANDING_USERNAME = 'digit';
-const LANDING_SITE_SLUG = 'dyad';
+```sh
+npm test                     # unit tests (Vitest)
+npm run test:integration     # integration tests (needs Supabase running)
+npx playwright test          # E2E tests (needs dev server + Supabase)
+npx svelte-check --threshold error
 ```
-
-To publish your own site to the landing page:
-1. Create and publish a site in the app (set `is_published = true`)
-2. Update `LANDING_USERNAME` to your `profiles.username`
-3. Update `LANDING_SITE_SLUG` to your `sites.slug`
-
-Logged-in users are redirected to their dashboard and never see the landing page.
 
 ## Deployment
 
-The app is deployed to **Cloudflare Pages** using `@sveltejs/adapter-cloudflare`.
+Deployed to **Cloudflare Pages** via `@sveltejs/adapter-cloudflare`.
 
-### Cloudflare Pages Setup
+1. Connect the repo to Cloudflare Pages
+2. Build command: `npm run build`, output: `.svelte-kit/cloudflare`
+3. Set `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY` in Cloudflare dashboard
+4. Add the Pages URL to Supabase Auth > URL Configuration (Site URL + Redirect URLs)
 
-1. Connect your GitHub repository to Cloudflare Pages
-2. Set build command: `npm run build`
-3. Set build output directory: `.svelte-kit/cloudflare`
-4. Add environment variables in Cloudflare dashboard:
-   - `PUBLIC_SUPABASE_URL`
-   - `PUBLIC_SUPABASE_ANON_KEY`
+### Database migrations
 
-### Production Supabase
+```sh
+npx supabase db push         # push pending migrations to remote
+npx supabase migration list  # compare local vs remote
+```
 
-For production, update your Supabase project settings:
-- Add your Cloudflare Pages URL to **Authentication > URL Configuration > Site URL**
-- Add it to **Redirect URLs** for OAuth flows
+## Inviting Testers (Alpha)
+
+Email delivery is not yet configured for production. To invite testers during the alpha:
+
+1. Go to the **Admin panel** (`/admin`) — requires admin privileges
+2. Navigate to **Waitlist**
+3. Click **Invite** next to a user — this generates an invite link
+4. **Copy the invite link** and share it directly with the tester (Signal, Telegram, email, in person)
+5. The tester opens the link, sets a username and password, and joins
+
+The invite link expires after 7 days.
+
+## Documentation
+
+| Document | Purpose |
+|----------|---------|
+| `CLAUDE.md` | Architecture guide, route structure, service layer, key patterns |
+| `CONTRIBUTING.md` | How to contribute (humans and AI agents) |
+| `docs/design/design-principles.md` | Product principles |
+| `docs/design/design-system.md` | CSS tokens, typography, spacing |
+| `docs/design/domain-language.md` | Internal vs user-facing vocabulary |
+| `docs/ROADMAP.md` | v0.1 → v0.2 → v0.3 scope |
+| `docs/solutions/` | 34 documented patterns and gotchas |
 
 ## License
 

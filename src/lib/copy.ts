@@ -74,8 +74,8 @@ export const copy = {
 	conversation: {
 		_routes: ['/conversations/[id]'],
 		_description: 'Viewing a conversation: body, response form, invitation flow, author edit/archive actions.',
-		responsePlaceholder: 'Write a response...',
-		responsePlaceholderWithSlots: 'Respond to unlock invitation...',
+		responsePlaceholder: 'Share your thoughts...',
+		slotsTeaser: (authorUsername: string) => `respond to @${authorUsername} to see the times they've suggested to meet`,
 		inviteQuestion: (authorUsername: string) => `Would you like to meet @${authorUsername} in person?`,
 		inviteNotePlaceholder: 'Add a note (optional)',
 		sendInvitation: 'Send invitation',

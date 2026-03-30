@@ -1,8 +1,8 @@
 # Changelog
 
-## v0.1.0 — 2026-03-27
+## v0.1.0 — 2026-03-30
 
-First release for invited testers. Built in 3 days across 30 PRs.
+Alpha release for invited testers. Built in 6 days across 79 PRs.
 
 ### Core Flow
 

@@ -42,7 +42,7 @@ test('Full flow: respond → invite → accept', async ({ browser }) => {
 		await tomPage.goto(`/conversations/${conversationId}`);
 		await expect(tomPage.getByText('E2E: Conversation about testing')).toBeVisible();
 
-		await tomPage.getByPlaceholder('Respond to unlock invitation').fill('I want to discuss this');
+		await tomPage.locator('.response-input').fill('I want to discuss this');
 		// Use the response section's Send button (not the FeedbackModal's Send)
 		await tomPage.locator('.response-section .btn-secondary').click();
 		await expect(tomPage.getByText('I want to discuss this')).toBeVisible({ timeout: 5000 });

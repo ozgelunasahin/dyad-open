@@ -111,12 +111,13 @@ export class SupabasePromptQueryService implements PromptQueryService {
 	}): Promise<PromptSummary[]> {
 		const limit = params.limit ?? 8;
 
+		// Fetch more than needed — some will be filtered out (no available slots)
 		let query = this.supabase
 			.from('prompts')
 			.select('id, author_id, title, body, cover_image_url, published_at, region')
 			.eq('state', 'published')
 			.order('published_at', { ascending: false })
-			.limit(limit);
+			.limit(limit * 3);
 
 		if (params.region) {
 			query = query.eq('region', params.region);
@@ -126,15 +127,13 @@ export class SupabasePromptQueryService implements PromptQueryService {
 		if (error || !prompts || prompts.length === 0) return [];
 
 		const promptIds = prompts.map((p) => p.id);
-		const [{ data: allSlots }, usernameMap] = await Promise.all([
-			this.supabase
-				.from('time_slots_public')
-				.select('id, prompt_id, start_time, duration_minutes, general_area, general_area_lat, general_area_lng, accepted, created_at')
-				.in('prompt_id', promptIds)
-				.eq('accepted', false)
-				.order('start_time', { ascending: true }),
-			buildUsernameMap(this.supabase, prompts.map((p) => p.author_id))
-		]);
+		// Public method: no username lookup needed (landing page anonymises them anyway)
+		const { data: allSlots } = await this.supabase
+			.from('time_slots_public')
+			.select('id, prompt_id, start_time, duration_minutes, general_area, general_area_lat, general_area_lng, accepted, created_at')
+			.in('prompt_id', promptIds)
+			.eq('accepted', false)
+			.order('start_time', { ascending: true });
 
 		const now = new Date();
 		const slotsByPrompt = new Map<string, TimeSlot[]>();
@@ -148,13 +147,16 @@ export class SupabasePromptQueryService implements PromptQueryService {
 
 		const summaries: PromptSummary[] = [];
 		for (const p of prompts) {
+			if (summaries.length >= limit) break;
 			const slots = slotsByPrompt.get(p.id) ?? [];
 			if (slots.length === 0) continue;
 
+			// Random-length anonymised placeholder (4–8 chars) — real usernames never leave the server
+			const anonLength = 4 + Math.floor(Math.random() * 5);
 			summaries.push({
 				id: p.id,
-				author_id: p.author_id,
-				author_username: usernameMap.get(p.author_id) ?? 'anonymous',
+				author_id: '',
+				author_username: '•'.repeat(anonLength),
 				title: p.title,
 				body_snippet: makeSnippet(p.body as JSONContent | null),
 				cover_image_url: p.cover_image_url,
@@ -165,7 +167,6 @@ export class SupabasePromptQueryService implements PromptQueryService {
 			});
 		}
 
-		// Stable sort: keep published_at order from DB (no soonest_slot re-sort)
 		return summaries;
 	}
 
