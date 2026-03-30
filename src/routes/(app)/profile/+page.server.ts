@@ -104,6 +104,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		duration_minutes: number;
 		general_area: string | null;
 		partner_username: string;
+		state: string;
 	}> = {};
 
 	// Sort: active states first, then by most recent scheduled_time
@@ -122,7 +123,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 				scheduled_time: m.scheduled_time,
 				duration_minutes: m.duration_minutes,
 				general_area: m.general_area,
-				partner_username: partnerUsernameMap.get(getPartnerId(m, userId)) ?? 'anonymous'
+				partner_username: partnerUsernameMap.get(getPartnerId(m, userId)) ?? 'anonymous',
+				state: m.state
 			};
 		}
 	}
