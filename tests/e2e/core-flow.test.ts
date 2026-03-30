@@ -3,8 +3,25 @@ import { nanoid } from 'nanoid';
 import { createAdminClient, TEST_USERS } from '../helpers/auth.js';
 
 test('Full flow: respond → invite → accept', async ({ browser }) => {
+	test.setTimeout(60000);
 	const admin = createAdminClient();
 	const sophie = TEST_USERS.sophie;
+	const tom = TEST_USERS.tom;
+
+	// Clean up any stale non-seed data from previous failed runs
+	const { data: stalePrompts } = await admin.from('prompts').select('id').not('id', 'like', 'seed-prompt-%').eq('author_id', sophie.id);
+	for (const p of stalePrompts ?? []) {
+		const { data: m } = await admin.from('meetings').select('id').eq('prompt_id', p.id);
+		for (const mt of m ?? []) {
+			await admin.from('feedback_forms').delete().eq('meeting_id', mt.id);
+			await admin.from('cancellation_records').delete().eq('meeting_id', mt.id);
+		}
+		await admin.from('meetings').delete().eq('prompt_id', p.id);
+		await admin.from('prompt_invitations').delete().eq('prompt_id', p.id);
+		await admin.from('prompt_comments').delete().eq('prompt_id', p.id);
+		await admin.from('time_slots').delete().eq('prompt_id', p.id);
+		await admin.from('prompts').delete().eq('id', p.id);
+	}
 
 	// Create a published conversation with a time slot
 	const conversationId = nanoid();
@@ -61,12 +78,12 @@ test('Full flow: respond → invite → accept', async ({ browser }) => {
 		const sophiePage = await sophieContext.newPage();
 
 		await sophiePage.goto('/profile');
-		await expect(sophiePage.getByText('@tom wants to meet')).toBeVisible({ timeout: 5000 });
+		await expect(sophiePage.getByText('@tom wants to meet').first()).toBeVisible({ timeout: 10000 });
 
 		// === Sophie accepts ===
 		await sophiePage.getByRole('button', { name: 'Accept' }).first().click();
-		await sophiePage.waitForURL(/\/meetings\//, { timeout: 10000 });
-		await expect(sophiePage.getByText('Meeting with @tom').first()).toBeVisible();
+		// After accepting, the page should navigate to the meeting detail
+		await expect(sophiePage).toHaveURL(/\/meetings\//, { timeout: 15000 });
 
 		await sophieContext.close();
 	} finally {

@@ -161,7 +161,7 @@
 	async function handleDiscard() {
 		if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
 		const res = await fetch(`/api/prompts/${data.prompt.id}`, { method: 'DELETE' });
-		if (res.ok) goto('/profile');
+		if (res.ok) goto('/profile?view=conversations');
 		else publishError = 'Failed to discard draft.';
 	}
 
@@ -211,10 +211,20 @@
 		}
 	}
 
-	// ── Unpublish ──────────────────────────────────────────────────────────────
+	// ── Unpublish / Archive ────────────────────────────────────────────────────
 	async function handleUnpublish() {
 		const res = await fetch(`/api/prompts/${data.prompt.id}/unpublish`, { method: 'POST' });
-		if (res.ok) goto(`/conversations/${data.prompt.id}/edit`, { invalidateAll: true });
+		if (res.ok) goto('/profile?view=conversations');
+		else { const e = await res.json().catch(() => ({})); publishError = (e as any).error ?? 'Failed to archive.'; }
+	}
+
+	// ── Delete (published) ─────────────────────────────────────────────────────
+	let deletePublishedDialog = $state<ConfirmDialog | undefined>();
+
+	async function handleDeletePublished() {
+		const res = await fetch(`/api/prompts/${data.prompt.id}`, { method: 'DELETE' });
+		if (res.ok) goto('/profile?view=conversations');
+		else { const e = await res.json().catch(() => ({})); publishError = (e as any).error ?? 'Failed to delete.'; }
 	}
 
 	let isDraft = $derived(data.prompt.state === 'draft');
@@ -225,18 +235,37 @@
 	<title>{title || 'Edit'} - dyad.berlin</title>
 </svelte:head>
 
-<!-- FloatingNav default variant with editor controls -->
+<!-- Profile-style nav on editor page -->
 <div class="floating-nav-wrapper">
-	<FloatingNav
-		variant="default"
-		saveStatus={saveStatus}
-		onSaveDraft={handleSaveDraft}
-		onPublish={isDraft ? handleOpenPublish : undefined}
-		onDiscard={isDraft ? () => discardDialog?.open() : undefined}
-	/>
+	<FloatingNav variant="profile" />
 </div>
 
 <div class="content">
+	<!-- Action bar: always shown above cover image -->
+	<div class="pub-action-bar">
+		<span class="pub-save-status">
+			<a href="/profile?view=conversations" class="back-arrow" aria-label="Back to profile">
+				<svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+					<path d="M12 4l-6 6 6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+				</svg>
+			</a>
+			{#if saveStatus === 'saving'}
+				<span class="save-dot saving"></span> Saving...
+			{:else}
+				<span class="save-dot saved"></span> Saved
+			{/if}
+		</span>
+		<div class="pub-actions">
+			{#if isDraft}
+				<button class="unpublish-btn" onclick={() => discardDialog?.open()}>Delete</button>
+				<button class="continue-inline-btn" onclick={handleOpenPublish}>Continue</button>
+			{:else}
+				<button class="unpublish-btn" onclick={handleUnpublish}>Archive</button>
+				<button class="delete-btn" onclick={() => deletePublishedDialog?.open()}>Delete</button>
+			{/if}
+		</div>
+	</div>
+
 	<!-- Cover image upload zone -->
 	{#if coverPreview || coverImageUrl}
 		<div class="cover-preview-wrap">
@@ -285,7 +314,7 @@
 	{#await import('$lib/components/PromptEditor.svelte')}
 		<div class="editor-loading">{copy.editor.loadingEditor}</div>
 	{:then { default: PromptEditor }}
-		<PromptEditor content={body} onUpdate={handleEditorUpdate} showToolbar={false} />
+		<PromptEditor content={body} onUpdate={handleEditorUpdate} showToolbar={false} placeholder="you can start writing here" />
 	{:catch}
 		<p class="error-text">{copy.editor.failedToLoad}</p>
 	{/await}
@@ -294,24 +323,17 @@
 		<p class="publish-error">{publishError}</p>
 	{/if}
 
-	<!-- Published state management -->
-	{#if isPublished}
+	<!-- Published: slot list info only -->
+	{#if isPublished && data.slots.length > 0}
 		<section class="published-info">
-			<h2 class="section-title">{copy.editor.published}</h2>
-			<p class="section-desc">{copy.editor.publishedDesc}</p>
-			{#if data.slots.length > 0}
-				<div class="slot-list">
-					{#each data.slots as slot}
-						<div class="existing-slot">
-							<span>{new Date(slot.start_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
-							<span>{new Date(slot.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
-							<span>{slot.duration_minutes} min</span>
-							<span class="slot-area">{slot.general_area}</span>
-						</div>
-					{/each}
+			{#each data.slots as slot}
+				<div class="existing-slot">
+					<span>{new Date(slot.start_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+					<span>{new Date(slot.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+					<span>{slot.duration_minutes} min</span>
+					<span class="slot-area">{slot.general_area}</span>
 				</div>
-			{/if}
-			<button class="unpublish-btn" onclick={handleUnpublish}>{copy.editor.unpublish}</button>
+			{/each}
 		</section>
 	{/if}
 </div>
@@ -322,6 +344,14 @@
 	message="This will permanently delete this draft. This cannot be undone."
 	confirmLabel="Discard"
 	onConfirm={handleDiscard}
+/>
+
+<ConfirmDialog
+	bind:this={deletePublishedDialog}
+	title="Delete conversation"
+	message="This will permanently delete the conversation and all its data. This cannot be undone."
+	confirmLabel="Delete"
+	onConfirm={handleDeletePublished}
 />
 
 <!-- Publish bottom sheet -->
@@ -436,6 +466,19 @@
 	}
 	.slot-area { color: var(--text-muted); text-transform: uppercase; font-size: var(--text-xs); letter-spacing: 0.04em; }
 
+	.published-actions { display: flex; gap: var(--space-4); align-items: center; margin-top: var(--space-4); }
+
+	.delete-btn {
+		font-size: var(--text-sm);
+		color: var(--color-danger);
+		background: none;
+		border: 1px solid var(--color-danger);
+		border-radius: var(--radius-input);
+		padding: var(--space-2) var(--space-4);
+		cursor: pointer;
+	}
+	.delete-btn:hover { opacity: var(--opacity-hover-btn); }
+
 	.unpublish-btn {
 		font-size: var(--text-sm);
 		color: var(--text-muted);
@@ -446,4 +489,55 @@
 		cursor: pointer;
 	}
 	.unpublish-btn:hover { border-color: var(--text-primary); color: var(--text-primary); }
+
+	/* Back arrow */
+	.back-arrow {
+		display: inline-flex;
+		align-items: center;
+		color: var(--text-muted);
+		margin-right: var(--space-3);
+		flex-shrink: 0;
+		transition: color 0.15s;
+	}
+	.back-arrow:hover { color: var(--text-primary); }
+
+	/* Published action bar — top of page */
+	.pub-action-bar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: var(--space-6);
+	}
+
+	.pub-save-status {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+	}
+
+	.save-dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		flex-shrink: 0;
+	}
+	.save-dot.saved { background: var(--color-success); }
+	.save-dot.saving { background: var(--color-saving); }
+
+	.pub-actions { display: flex; gap: var(--space-3); align-items: center; }
+
+	.continue-inline-btn {
+		font-size: var(--text-sm);
+		font-weight: 500;
+		padding: var(--space-2) var(--space-5);
+		background: var(--text-primary);
+		color: var(--bg-canvas);
+		border: none;
+		border-radius: var(--radius-pill);
+		cursor: pointer;
+		transition: opacity 0.15s;
+	}
+	.continue-inline-btn:hover { opacity: var(--opacity-hover-btn); }
 </style>

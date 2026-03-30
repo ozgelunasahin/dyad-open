@@ -102,12 +102,24 @@
 
 	let isOwnPrompt = $derived(data.prompt.author_id === data.user?.id);
 	let archiveDialog = $state<ConfirmDialog | undefined>();
+	let deleteDialog = $state<ConfirmDialog | undefined>();
+	let actionError = $state('');
+	let actionsOpen = $state(false);
 
 	async function archivePrompt() {
 		try {
 			const res = await fetch(`/api/prompts/${data.prompt.id}/unpublish`, { method: 'POST' });
-			if (res.ok) goto('/profile');
-		} catch { /* ignore */ }
+			if (res.ok) goto('/profile?view=conversations');
+			else { const e = await res.json().catch(() => ({})); actionError = (e as any).error ?? copy.conversation.failedToArchive; }
+		} catch { actionError = copy.common.networkError; }
+	}
+
+	async function deletePrompt() {
+		try {
+			const res = await fetch(`/api/prompts/${data.prompt.id}`, { method: 'DELETE' });
+			if (res.ok) goto('/profile?view=conversations');
+			else { const e = await res.json().catch(() => ({})); actionError = (e as any).error ?? copy.conversation.failedToDelete; }
+		} catch { actionError = copy.common.networkError; }
 	}
 </script>
 
@@ -115,13 +127,47 @@
 	<title>{data.prompt.title ?? 'Conversation'} - dyad.berlin</title>
 </svelte:head>
 
+<button class="back-pill" onclick={() => history.back()} aria-label="Go back">
+	<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+		<path d="M12 15l-5-5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+	</svg>
+</button>
+
+{#if isOwnPrompt && data.prompt.state === 'published'}
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div class="action-menu-wrap">
+		<button class="action-pill" onclick={() => actionsOpen = !actionsOpen} aria-label="Actions">
+			<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+				<circle cx="5" cy="10" r="1.5" fill="currentColor"/>
+				<circle cx="10" cy="10" r="1.5" fill="currentColor"/>
+				<circle cx="15" cy="10" r="1.5" fill="currentColor"/>
+			</svg>
+		</button>
+		{#if actionsOpen}
+			<!-- svelte-ignore a11y_click_events_have_key_events -->
+			<div class="action-backdrop" onclick={() => actionsOpen = false}></div>
+			<div class="action-dropdown">
+				<a href="/conversations/{data.prompt.id}/edit" class="action-item" onclick={() => actionsOpen = false}>{copy.conversation.edit}</a>
+				<button class="action-item" onclick={() => { actionsOpen = false; archiveDialog?.open(); }}>{copy.conversation.archive}</button>
+				<button class="action-item action-item--danger" onclick={() => { actionsOpen = false; deleteDialog?.open(); }}>{copy.conversation.delete}</button>
+			</div>
+		{/if}
+	</div>
+{/if}
+
 <div class="content">
 	{#if data.prompt.cover_image_url}
 		<img src={data.prompt.cover_image_url} alt="" class="cover" loading="lazy" />
 	{/if}
 
 	<h1 class="title">{data.prompt.title}</h1>
-	<p class="meta">{copy.conversation.publishedBy(data.prompt.author_username, formatDate(data.prompt.published_at))}</p>
+	<p class="meta">
+		on {formatDate(data.prompt.published_at)},
+		<a href="/users/{data.prompt.author_username}" class="meta-author">
+			{data.prompt.author_display_name ?? '@' + data.prompt.author_username}
+		</a>
+		wrote
+	</p>
 
 	<div class="body">
 		{#if data.prompt.body_html}
@@ -131,12 +177,7 @@
 		{/if}
 	</div>
 
-	<!-- Author actions -->
 	{#if isOwnPrompt && data.prompt.state === 'published'}
-		<div class="author-actions">
-			<a href="/conversations/{data.prompt.id}/edit" class="btn-text">{copy.conversation.edit}</a>
-			<button class="btn-text" onclick={() => archiveDialog?.open()}>{copy.conversation.archive}</button>
-		</div>
 		<ConfirmDialog
 			bind:this={archiveDialog}
 			title={copy.conversation.archive}
@@ -144,6 +185,14 @@
 			confirmLabel={copy.conversation.archive}
 			onConfirm={archivePrompt}
 		/>
+		<ConfirmDialog
+			bind:this={deleteDialog}
+			title={copy.conversation.deleteTitle}
+			message={copy.conversation.deleteConfirm}
+			confirmLabel={copy.conversation.delete}
+			onConfirm={deletePrompt}
+		/>
+		{#if actionError}<p class="field-error" style="margin-top: var(--space-2)">{actionError}</p>{/if}
 	{/if}
 
 	<!-- Response section (non-authors only) -->
@@ -252,20 +301,35 @@
 		<section class="responses-received">
 			{#each data.comments as comment}
 				{@const invitation = data.receivedInvitations.find(inv => inv.inviter_id === comment.author_id)}
-				{@const meeting = invitation?.state === 'accepted' ? data.promptMeetings?.find(m => m.slot_id === invitation.slot_id) : null}
+				{@const meeting = invitation ? data.promptMeetings?.find(m => m.slot_id === invitation.slot_id) : null}
 				<div class="response-card" class:has-invitation={!!invitation}>
 					<span class="response-meta">@{comment.author_username ?? 'anonymous'} · {formatDate(comment.created_at)}</span>
 					<p class="response-body">{comment.body}</p>
 
 					{#if invitation}
 						<div class="response-invitation">
-							{#if invitation.state === 'accepted' && meeting}
-								<a href="/meetings/{meeting.id}" class="meeting-link">
-									{copy.conversation.meetingScheduled}
+							{#if meeting && (meeting.state === 'cancelled_early' || meeting.state === 'cancelled_late')}
+								<div class="meeting-inline">
+									<span class="meeting-inline-detail">{formatDate(invitation.slot_start_time)} · {invitation.slot_general_area}</span>
+									{#if meeting.exact_location}
+										<span class="meeting-inline-location">{meeting.exact_location.name}</span>
+										<span class="meeting-inline-address">{meeting.exact_location.address}</span>
+									{/if}
+									<span class="meeting-inline-status cancelled">{copy.conversation.meetingCancelled(comment.author_username ?? 'someone', formatDate(meeting.resolved_at ?? meeting.scheduled_time))}</span>
+								</div>
+							{:else if invitation.state === 'accepted' && meeting}
+								<a href="/meetings/{meeting.id}" class="meeting-inline" style="text-decoration: none; color: inherit; display: block;">
+									<span class="meeting-inline-label">{copy.conversation.meetingScheduled}</span>
+									<span class="meeting-inline-detail">{formatDate(meeting.scheduled_time)} · {meeting.general_area ?? invitation.slot_general_area}</span>
+									{#if meeting.exact_location}
+										<span class="meeting-inline-location">{meeting.exact_location.name}</span>
+										<span class="meeting-inline-address">{meeting.exact_location.address}</span>
+									{/if}
 								</a>
-								<SlotCard startTime={invitation.slot_start_time} durationMinutes={invitation.slot_duration_minutes ?? 60} area={invitation.slot_general_area} />
 							{:else if invitation.state === 'accepted'}
-								<SlotCard startTime={invitation.slot_start_time} durationMinutes={invitation.slot_duration_minutes ?? 60} area={invitation.slot_general_area} />
+								<div class="meeting-inline">
+									<span class="meeting-inline-detail">{formatDate(invitation.slot_start_time)} · {invitation.slot_general_area}</span>
+								</div>
 							{:else if invitation.state === 'pending'}
 								<SlotCard startTime={invitation.slot_start_time} durationMinutes={invitation.slot_duration_minutes ?? 60} area={invitation.slot_general_area} />
 								{#if invitation.message}
@@ -311,10 +375,96 @@
 <style>
 	.content { width: 100%; max-width: var(--content-standard); }
 
-	.cover { width: 100%; max-height: 400px; object-fit: cover; border-radius: var(--radius-card); margin-bottom: var(--space-6); }
+	.back-pill {
+		position: fixed;
+		top: var(--space-4);
+		left: var(--space-4);
+		z-index: 800;
+		width: 40px;
+		height: 40px;
+		border-radius: var(--radius-pill);
+		background: var(--bg-canvas);
+		backdrop-filter: blur(12px);
+		-webkit-backdrop-filter: blur(12px);
+		box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+		border: none;
+		color: var(--text-primary);
+		font-size: var(--text-lg);
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	.back-pill:hover { opacity: var(--opacity-hover-btn); }
+
+	.action-menu-wrap {
+		position: fixed;
+		top: var(--space-4);
+		right: calc(var(--space-4) + 40px + var(--space-2));
+		z-index: 800;
+	}
+
+	.action-pill {
+		width: 40px;
+		height: 40px;
+		border-radius: var(--radius-pill);
+		background: var(--bg-canvas);
+		backdrop-filter: blur(12px);
+		-webkit-backdrop-filter: blur(12px);
+		box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+		border: none;
+		color: var(--text-primary);
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	.action-pill:hover { opacity: var(--opacity-hover-btn); }
+
+	.action-backdrop {
+		position: fixed;
+		inset: 0;
+		z-index: 799;
+	}
+
+	.action-dropdown {
+		position: absolute;
+		top: calc(100% + var(--space-2));
+		right: 0;
+		background: var(--bg-canvas);
+		border-radius: var(--radius-card);
+		box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+		min-width: 140px;
+		overflow: hidden;
+		z-index: 801;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.action-item {
+		font-size: var(--text-base);
+		font-family: inherit;
+		padding: var(--space-3) var(--space-4);
+		background: none;
+		border: none;
+		text-align: left;
+		color: var(--text-primary);
+		cursor: pointer;
+		text-decoration: none;
+		display: block;
+		transition: background 0.12s;
+	}
+	.action-item:hover { background: var(--bg-control); }
+	.action-item--danger { color: var(--color-danger); }
+
+	.content { width: 100%; max-width: var(--content-standard); padding-top: calc(var(--space-4) + 40px + var(--space-4)); }
+
+	.cover { width: 100%; max-height: 400px; object-fit: cover; border-radius: var(--radius-card); margin-bottom: var(--space-6); display: block; }
 
 	.title { font-size: var(--text-3xl); font-weight: normal; margin: 0 0 var(--space-2); line-height: var(--leading-tight); }
 	.meta { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin: 0 0 var(--space-8); }
+	.meta-author { color: var(--text-muted); text-decoration: none; }
+	.meta-author:hover { color: var(--text-primary); }
 
 	.body { font-size: var(--text-md); line-height: var(--leading-relaxed); margin-bottom: var(--space-10); }
 	.body :global(p) { margin: 0 0 0.75em; }
@@ -323,14 +473,13 @@
 	.body :global(a) { color: var(--text-link); text-decoration: underline; }
 	.body :global(img) { max-width: 100%; border-radius: var(--radius-input); }
 
-	/* Author actions */
-	.author-actions { display: flex; gap: var(--space-4); margin-bottom: var(--space-6); }
+	.btn-text--danger { color: var(--color-danger); }
+	.btn-text--danger:hover { opacity: var(--opacity-hover-btn); }
 
 	/* Sections */
 	.slots-section { margin-top: var(--space-4); margin-bottom: var(--space-6); }
 	.response-section, .responses-received { margin-top: var(--space-6); padding-top: var(--space-6); border-top: 1px solid var(--border-link); }
 
-	/* My response */
 	.my-response { margin-bottom: var(--space-6); }
 	.my-response-text { font-size: var(--text-md); line-height: var(--leading-relaxed); margin: 0 0 var(--space-2); }
 
@@ -406,8 +555,12 @@
 	.response-input::placeholder { color: var(--text-muted); }
 
 	/* Author view */
-	.response-card { padding: var(--space-3) 0; border-bottom: 1px solid var(--border-link); }
-	.response-card.has-invitation { border: 1px solid var(--border-link); border-radius: var(--radius-card); padding: var(--space-4); margin-bottom: var(--space-3); border-bottom: none; }
+	.response-card {
+		padding: var(--space-4);
+		border-bottom: 1px solid var(--border-link);
+		margin-bottom: var(--space-3);
+	}
+	.response-card:last-child { border-bottom: none; }
 	.response-meta { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); display: block; margin-bottom: var(--space-1); }
 	.response-body { font-size: var(--text-base); margin: 0 0 var(--space-1); line-height: var(--leading-normal); }
 	.response-invitation { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--border-link); }

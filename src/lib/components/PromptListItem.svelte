@@ -35,19 +35,14 @@
 			{/if}
 		</div>
 		<div class="row-body">
-			<div class="row-top">
-				<h3 class="row-title">{prompt.title ?? copy.common.untitled}</h3>
+			<h3 class="row-title">{prompt.title ?? copy.common.untitled}</h3>
+			<div class="row-meta">
 				<span class="date">{formatSlotDates(prompt.available_slots)}</span>
+				<span class="area">{uniqueAreas(prompt.available_slots)}</span>
 			</div>
 			{#if prompt.body_snippet}
 				<p class="row-snippet">{prompt.body_snippet}</p>
 			{/if}
-			<div class="row-meta">
-				<span class="area">{uniqueAreas(prompt.available_slots)}</span>
-				<span class="author" class:anonymised={hideAuthor}>
-					@{hideAuthor ? prompt.author_username.replace(/./g, '•') : prompt.author_username}
-				</span>
-			</div>
 		</div>
 	</div>
 {/snippet}
@@ -115,13 +110,11 @@
 		border-radius: inherit;
 	}
 
-	.row-body { flex: 1; min-width: 0; }
-
-	.row-top {
+	.row-body {
+		flex: 1;
+		min-width: 0;
 		display: flex;
-		justify-content: space-between;
-		align-items: baseline;
-		gap: var(--space-3);
+		flex-direction: column;
 	}
 
 	.row-title {
@@ -131,13 +124,6 @@
 		color: var(--text-primary);
 		line-height: 1.3;
 		min-width: 0;
-	}
-
-	.date {
-		flex-shrink: 0;
-		color: var(--text-muted);
-		font-size: var(--text-sm);
-		white-space: nowrap;
 	}
 
 	.row-snippet {
@@ -156,21 +142,25 @@
 		display: flex;
 		justify-content: space-between;
 		gap: var(--space-3);
-		align-items: center;
-		margin-top: var(--space-1);
+		align-items: baseline;
+		margin-top: var(--space-2);
 		color: var(--text-muted);
 		font-size: var(--text-sm);
 	}
 
+	.date {
+		flex-shrink: 0;
+		color: var(--text-muted);
+		font-size: var(--text-sm);
+		white-space: nowrap;
+	}
+
 	.thumb-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 
-	.author { font-family: var(--font-mono); font-size: var(--text-sm); }
-	.author.anonymised { filter: blur(4px); user-select: none; }
-	.area { font-size: var(--text-sm); text-transform: uppercase; letter-spacing: 0.03em; }
+	.area { font-size: var(--text-sm); text-transform: uppercase; letter-spacing: 0.03em; text-align: right; }
 
 	@media (max-width: 430px) {
 		.row-thumb { width: 88px; }
-		.row-top { flex-direction: column; align-items: flex-start; gap: var(--space-1); }
 		.date { font-size: var(--text-xs); }
 	}
 </style>

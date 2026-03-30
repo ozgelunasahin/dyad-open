@@ -30,6 +30,8 @@ export interface PromptCommandService {
 	republish(promptId: string, authorId: string, slots: TimeSlotInput[]): Promise<void>;
 
 	deleteDraft(promptId: string, authorId: string): Promise<void>;
+
+	deletePrompt(promptId: string, authorId: string): Promise<void>;
 }
 
 export class SupabasePromptCommandService implements PromptCommandService {
@@ -190,6 +192,8 @@ export class SupabasePromptCommandService implements PromptCommandService {
 			throw new Error('Can only unpublish a published prompt');
 		}
 
+		await this.guardNoActiveMeetings(promptId);
+
 		const { error } = await this.supabase
 			.from('prompts')
 			.update({ state: 'archived', archived_at: new Date().toISOString() })
@@ -233,6 +237,33 @@ export class SupabasePromptCommandService implements PromptCommandService {
 			.eq('author_id', authorId);
 
 		if (error) throw new Error(`Failed to delete prompt: ${error.message}`);
+	}
+
+	async deletePrompt(promptId: string, authorId: string): Promise<void> {
+		await this.getOwnPrompt(promptId, authorId); // ownership check
+		await this.guardNoActiveMeetings(promptId);
+
+		const { error } = await this.supabase
+			.from('prompts')
+			.delete()
+			.eq('id', promptId)
+			.eq('author_id', authorId);
+
+		if (error) throw new Error(`Failed to delete prompt: ${error.message}`);
+	}
+
+	/** Throws if the prompt has any scheduled/active meetings. */
+	private async guardNoActiveMeetings(promptId: string): Promise<void> {
+		const { data } = await this.supabase
+			.from('meetings')
+			.select('id')
+			.eq('prompt_id', promptId)
+			.in('state', ['scheduled', 'active', 'awaiting_feedback'])
+			.limit(1);
+
+		if (data && data.length > 0) {
+			throw new Error('Cannot archive or delete a conversation with a scheduled meeting.');
+		}
 	}
 
 	// Private helpers
