@@ -10,9 +10,12 @@
 		initialCenter?: [number, number] | null;
 		initialZoom?: number | null;
 		onMoveEnd?: (center: [number, number], zoom: number) => void;
+		scrollWheelZoom?: boolean;
+		zoomControl?: boolean;
+		zoomControlPosition?: 'topleft' | 'topright' | 'bottomleft' | 'bottomright';
 	}
 
-	let { prompts, onSelectPin, onMapClick, initialCenter, initialZoom, onMoveEnd }: Props = $props();
+	let { prompts, onSelectPin, onMapClick, initialCenter, initialZoom, onMoveEnd, scrollWheelZoom = true, zoomControl = false, zoomControlPosition = 'topleft' }: Props = $props();
 
 	let mapContainer: HTMLElement | undefined = $state();
 	let map: LeafletMap | undefined;
@@ -130,12 +133,18 @@
 			center: initialCenter ?? BERLIN_CENTER,
 			zoom: initialZoom ?? DEFAULT_ZOOM,
 			zoomControl: false,
-			attributionControl: true
+			attributionControl: true,
+			scrollWheelZoom
 		});
+
+		if (zoomControl) {
+			L.control.zoom({ position: zoomControlPosition }).addTo(map);
+		}
 
 		L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 			attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-			maxZoom: 18
+			maxZoom: 19,
+			detectRetina: true
 		}).addTo(map);
 
 		// Close bottom sheet when clicking the map (not a marker)

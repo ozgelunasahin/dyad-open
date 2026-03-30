@@ -143,7 +143,28 @@
 
 					<label class="field">
 						<span class="field-label">City</span>
-						<input type="text" bind:value={city} maxlength={200} placeholder="Optional" />
+						<select bind:value={city} class="city-select">
+							<option value="">Select your city</option>
+							<optgroup label="Active now">
+								<option value="Berlin">Berlin</option>
+							</optgroup>
+							<optgroup label="Coming soon">
+								<option value="Hamburg">Hamburg</option>
+								<option value="Munich">Munich</option>
+								<option value="Vienna">Vienna</option>
+								<option value="Amsterdam">Amsterdam</option>
+								<option value="London">London</option>
+								<option value="Paris">Paris</option>
+								<option value="Barcelona">Barcelona</option>
+								<option value="Lisbon">Lisbon</option>
+								<option value="Copenhagen">Copenhagen</option>
+								<option value="Stockholm">Stockholm</option>
+								<option value="New York">New York</option>
+								<option value="San Francisco">San Francisco</option>
+								<option value="Other">Other</option>
+							</optgroup>
+						</select>
+						<p class="city-note">We're currently active in Berlin and will expand to cities where we're most wanted.</p>
 					</label>
 
 					{#if error && error !== 'already'}
@@ -262,6 +283,26 @@
 	}
 
 	.field textarea { resize: vertical; line-height: var(--leading-relaxed); }
+
+	.city-select {
+		width: 100%;
+		font-size: var(--text-base);
+		padding: var(--space-3);
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-input);
+		background: var(--bg-canvas);
+		color: var(--text-primary);
+		box-sizing: border-box;
+		cursor: pointer;
+	}
+	.city-select:focus { outline: none; border-color: var(--text-muted); }
+
+	.city-note {
+		margin: var(--space-2) 0 0;
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+		line-height: 1.5;
+	}
 
 	.error-msg {
 		font-size: var(--text-sm);

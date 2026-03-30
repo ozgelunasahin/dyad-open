@@ -57,6 +57,7 @@ export interface PromptSummary {
 	id: string;
 	author_id: string;
 	author_username: string;
+	author_display_name: string | null;
 	title: string | null;
 	body_snippet: string;
 	cover_image_url: string | null;

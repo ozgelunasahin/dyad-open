@@ -7,7 +7,10 @@
 </script>
 
 <main class="admin-main">
-	<a href="/discover" class="back-to-app">&larr; Back to app</a>
+	<a href="/discover" class="back-to-app">
+		<svg width="16" height="16" viewBox="0 0 20 20" fill="none" style="vertical-align:middle;margin-right:4px"><path d="M12 15l-5-5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+		Back to app
+	</a>
 	<nav class="admin-tabs">
 		<a href="/admin/waitlist" class="admin-tab" class:active={$page.url.pathname === '/admin/waitlist'}>Waitlist</a>
 		<a href="/admin/feedback" class="admin-tab" class:active={$page.url.pathname === '/admin/feedback'}>Feedback</a>

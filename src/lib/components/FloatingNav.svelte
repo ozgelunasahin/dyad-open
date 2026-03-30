@@ -82,7 +82,7 @@
 	}
 </script>
 
-<div class="floating-nav-anchor" class:top={position === 'top'} class:bottom={position === 'bottom'}>
+<div class="floating-nav-anchor" class:top={position === 'top'} class:bottom={position === 'bottom'} class:wide={variant === 'discover'}>
 	<nav class="floating-nav" class:default-variant={variant === 'default'} aria-label="Navigation">
 	{#if variant === 'discover'}
 		<button
@@ -142,10 +142,10 @@
 		</a>
 	{:else if variant === 'default'}
 		<!-- Default variant: Discover [editor controls?] Profile -->
-		<a href="/discover" class="nav-btn" aria-label="Discover">
+		<a href="/discover" class="nav-btn" aria-label="Discover map">
 			<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-				<circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.6"/>
-				<path d="M14 14l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+				<path d="M1 4l5 2 6-2 6 2v12l-6-2-6 2-5-2V4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+				<path d="M6 6v12M12 4v12" stroke="currentColor" stroke-width="1.6"/>
 			</svg>
 		</a>
 
@@ -224,35 +224,13 @@
 			{#if attentionCount > 0}<span class="badge-dot"><span class="sr-only">{attentionCount} notifications</span></span>{/if}
 		</a>
 	{:else if variant === 'profile'}
-		<!-- Profile variant: Discover | calendar | search | + | Profile -->
-		<a href="/discover" class="nav-btn" aria-label="Discover">
+		<!-- Profile variant: Map | + | Profile -->
+		<a href="/discover" class="nav-btn" aria-label="Discover map">
 			<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-				<circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.6"/>
-				<path d="M14 14l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+				<path d="M1 4l5 2 6-2 6 2v12l-6-2-6 2-5-2V4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+				<path d="M6 6v12M12 4v12" stroke="currentColor" stroke-width="1.6"/>
 			</svg>
 		</a>
-
-		<button
-			class="nav-btn"
-			class:active-icon={calendarActive}
-			onclick={onCalendarClick}
-			aria-label={calendarActive ? 'Show all conversations' : 'Show meetings'}
-			aria-pressed={calendarActive}
-		>
-			<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-				<rect x="3" y="4" width="14" height="13" rx="2" stroke="currentColor" stroke-width="1.6"/>
-				<path d="M3 8h14" stroke="currentColor" stroke-width="1.6"/>
-				<path d="M7 2v4M13 2v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-			</svg>
-		</button>
-
-		<button class="search-pill" aria-label="Search conversations" onclick={onSearchClick}>
-			<svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-				<circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.6"/>
-				<path d="M14 14l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-			</svg>
-			<span>Search</span>
-		</button>
 
 		<a href="/conversations/new" class="nav-btn" aria-label="Start a conversation">
 			<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -317,13 +295,15 @@
 		position: fixed;
 		left: 50%;
 		transform: translateX(-50%);
-		width: calc(100% - 40px);
-		max-width: 360px;
+		width: auto;
+		max-width: calc(100% - 40px);
 		z-index: 800;
 		pointer-events: none;
 	}
 	.floating-nav-anchor.top { top: var(--space-4); }
 	.floating-nav-anchor.bottom { bottom: var(--space-5); }
+	/* Discover variant has a flex search pill that needs full available width */
+	.floating-nav-anchor.wide { width: calc(100% - 40px); max-width: 360px; }
 
 	/* Nav pill */
 	.floating-nav {

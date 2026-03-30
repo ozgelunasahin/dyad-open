@@ -3,7 +3,10 @@
 </svelte:head>
 
 <main class="legal-page">
-	<a href="/" class="back-link">&larr; dyad.berlin</a>
+	<a href="/" class="back-link">
+		<svg width="16" height="16" viewBox="0 0 20 20" fill="none" style="vertical-align:middle;margin-right:4px"><path d="M12 15l-5-5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+		dyad.berlin
+	</a>
 
 	<h1>Datenschutzerkl&auml;rung</h1>
 	<p class="subtitle">Stand: Februar 2026</p>

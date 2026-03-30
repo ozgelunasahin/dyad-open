@@ -51,13 +51,6 @@
 </script>
 
 <div class="trigger-group">
-	{#if isAdmin}
-	<a href="/admin" class="admin-trigger" aria-label="Admin panel">
-		<svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-			<path d="M10 2L2 7v6l8 5 8-5V7L10 2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
-		</svg>
-	</a>
-	{/if}
 	<button class="feedback-trigger" onclick={open} aria-label="Send feedback">?</button>
 </div>
 

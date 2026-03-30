@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { JSONContent } from '@tiptap/core';
 import type { Prompt, PromptDetail, PromptSummary, TimeSlot } from '$lib/domain/types.js';
 import { isAvailable } from '$lib/domain/time-slot.js';
-import { buildUsernameMap } from '$lib/server/username-lookup.js';
+import { buildUsernameMap, buildProfileMap } from '$lib/server/username-lookup.js';
 import { jsonToPlainText } from '$lib/utils/json-content.js';
 import { renderTiptapToHtml } from '$lib/utils/tiptap-html.js';
 
@@ -66,9 +66,9 @@ export class SupabasePromptQueryService implements PromptQueryService {
 			.eq('accepted', false)
 			.order('start_time', { ascending: true });
 
-		// Build username map
+		// Build profile map
 		const authorIds = prompts.map((p) => p.author_id);
-		const usernameMap = await buildUsernameMap(this.supabase, authorIds);
+		const profileMap = await buildProfileMap(this.supabase, authorIds);
 
 		// Filter to only available slots and group by prompt
 		const now = new Date();
@@ -86,11 +86,13 @@ export class SupabasePromptQueryService implements PromptQueryService {
 		for (const p of prompts) {
 			const slots = slotsByPrompt.get(p.id) ?? [];
 			if (slots.length === 0) continue;
+			const profile = profileMap.get(p.author_id);
 
 			summaries.push({
 				id: p.id,
 				author_id: p.author_id,
-				author_username: usernameMap.get(p.author_id) ?? 'anonymous',
+				author_username: profile?.username ?? 'anonymous',
+				author_display_name: profile?.display_name ?? null,
 				title: p.title,
 				body_snippet: makeSnippet(p.body as JSONContent | null),
 				cover_image_url: p.cover_image_url,
@@ -157,6 +159,7 @@ export class SupabasePromptQueryService implements PromptQueryService {
 				id: p.id,
 				author_id: '',
 				author_username: '•'.repeat(anonLength),
+				author_display_name: null,
 				title: p.title,
 				body_snippet: makeSnippet(p.body as JSONContent | null),
 				cover_image_url: p.cover_image_url,
@@ -201,14 +204,16 @@ export class SupabasePromptQueryService implements PromptQueryService {
 		const now = new Date();
 		const availableSlots = (slots ?? []).filter((s) => isAvailable(s as TimeSlot, now)) as TimeSlot[];
 
-		const usernameMap = await buildUsernameMap(this.supabase, [prompt.author_id]);
+		const profileMap = await buildProfileMap(this.supabase, [prompt.author_id]);
+		const authorProfile = profileMap.get(prompt.author_id);
 		const body = prompt.body as JSONContent | null;
 
 		return {
 			id: prompt.id,
 			state: prompt.state,
 			author_id: prompt.author_id,
-			author_username: usernameMap.get(prompt.author_id) ?? 'anonymous',
+			author_username: authorProfile?.username ?? 'anonymous',
+			author_display_name: authorProfile?.display_name ?? null,
 			title: prompt.title,
 			body_snippet: makeSnippet(body),
 			body: body ?? { type: 'doc', content: [] },
@@ -219,6 +224,23 @@ export class SupabasePromptQueryService implements PromptQueryService {
 			published_at: prompt.published_at,
 			region: prompt.region
 		};
+	}
+
+	async getSearchCorpus(region: string): Promise<Array<{ id: string; title: string | null; body_text: string; cover_image_url: string | null }>> {
+		const { data: prompts } = await this.supabase
+			.from('prompts')
+			.select('id, title, body, cover_image_url')
+			.eq('state', 'published')
+			.eq('region', region)
+			.order('published_at', { ascending: false })
+			.limit(200);
+
+		return (prompts ?? []).map((p) => ({
+			id: p.id,
+			title: p.title,
+			body_text: jsonToPlainText(p.body as JSONContent | null).trim(),
+			cover_image_url: p.cover_image_url
+		}));
 	}
 
 	async getMyPrompts(userId: string): Promise<Prompt[]> {
