@@ -1,8 +1,9 @@
 ---
 topic: Response-first invitation flow — gating invitations behind written engagement
 date: 2026-03-27
-prs: [44]
+prs: [44, 79]
 tags: [ux, invitation-flow, response-first, progressive-disclosure, engagement]
+related: [vague-slots-progressive-disclosure-before-response.md]
 ---
 
 # Response-First Invitation Flow

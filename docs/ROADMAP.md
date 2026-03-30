@@ -10,31 +10,32 @@
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Landing page with conversation previews | DONE | Anon visitors see real conversations |
-| Waitlist form | DONE | Saves to `contacts` table, sends welcome email |
-| Invite-based registration | **PENDING** | Signup RPC broken — blocker B1 |
-| Discover page (list + map + search) | DONE | |
+| Landing page with conversation previews | DONE | Anon visitors see real conversations, vague slots before response |
+| Waitlist form | DONE | Saves to `contacts` table |
+| Invite-based registration | DONE | Fixed signup RPC (migration 20260411) |
+| Discover page (list + map + search) | DONE | List + map + date filter + search overlay |
 | Conversation editor + publish flow | DONE | TipTap, cover image upload, slot scheduling |
-| Response-first invitation flow | DONE | Write response → select slot → send |
+| Response-first invitation flow | DONE | Vague slots before response, full reveal after |
 | Author accepts invitation → meeting | DONE | |
-| Meeting detail with location reveal | DONE | |
-| Feedback form + gate | **PENDING** | Backend done; wrong column names (B3), no cron trigger (B2) |
-| Simultaneous feedback reveal | **PENDING** | Backend done, no frontend (B6) |
-| Production email delivery | **PENDING** | Mailpit only, needs EU provider (B4) |
-| Remote Supabase migrations | **PENDING** | Not yet applied (B5) |
-| In-app feedback/report button | **PENDING** | Not yet built (B7) |
-| Admin panel (waitlist, invite, feedback) | **PENDING** | Not yet built (B8) |
-| Security fixes (RLS, function grants) | **PENDING** | Notifications INSERT policy, archive function |
-| Progressive slot disclosure | **PENDING** | Teaser before response, full after |
-| Centralized copy (`copy.ts`) | **PENDING** | Prep for localization |
-| Waitlist modal on landing page | **PENDING** | Keep user in context |
-| Mobile Playwright tests | **PENDING** | Mobile UX unverified |
-| BottomSheet non-blocking | **PENDING** | Reverted, needs proper solution |
-| Invitation decline button | **PENDING** | Authors can only accept or ignore |
-| Email notifications | **PENDING** | Invitation received, accepted, cancelled |
-| Performance optimizations | **PENDING** | Query parallelization in discover + detail |
+| Meeting detail with location reveal | DONE | Maps link, calendar export |
+| Feedback form + gate | DONE | 4-step state machine, adjective vocabulary, gate middleware |
+| Simultaneous feedback reveal | DONE | Inline reveal on feedback page |
+| In-app feedback/report button | DONE | FeedbackModal in all layout groups |
+| Admin panel (waitlist, invite, feedback) | DONE | Waitlist management, user invites, feedback viewer |
+| Security fixes (RLS, function grants) | DONE | 10 security migrations, column-level access, anon profile revocation |
+| Progressive slot disclosure | DONE | Vague slots (day + area) before response, full after |
+| Centralized copy (`copy.ts`) | DONE | 211 lines, organized by route, prep for localization |
+| Mobile Playwright tests | DONE | Multi-viewport test harness (desktop + mobile), 26 E2E tests |
+| Profile page with full actions | DONE | Calendar filter, search, + button, inline meeting context |
+| Production email delivery | **DEFERRED v0.1.x** | Mailpit only — needs EU provider |
+| Remote Supabase migrations | **DEFERRED v0.1.x** | Not yet applied to production |
+| Waitlist modal on landing page | **DEFERRED v0.2** | Not blocking alpha |
+| BottomSheet non-blocking | **DEFERRED v0.2** | Needs proper solution |
+| Invitation decline button | **DEFERRED v0.2** | Authors can only accept or ignore |
+| Email notifications | **DEFERRED v0.2** | Invitation received, accepted, cancelled |
+| Performance optimizations | **DEFERRED v0.2** | Query parallelization in discover + detail |
 
-**Detailed implementation plan:** `docs/plans/2026-03-28-feat-v01-release-readiness-plan.md`
+**Detailed implementation plan:** `docs/plans/2026-03-28-feat-v01-release-readiness-plan.md` (archived)
 
 ### Explicit non-goals for v0.1
 - Public profiles

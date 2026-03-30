@@ -157,7 +157,7 @@
 			{:else}
 				<textarea
 					class="response-input"
-					placeholder={data.prompt.available_slots.length > 0 ? copy.conversation.responsePlaceholderWithSlots : copy.conversation.responsePlaceholder}
+					placeholder={data.prompt.available_slots.length > 0 ? copy.conversation.slotsTeaser(data.prompt.author_username) : copy.conversation.responsePlaceholder}
 					bind:value={responseText}
 					rows={3}
 					disabled={responseStatus === 'sending'}
@@ -222,6 +222,7 @@
 							startTime={slot.start_time}
 							durationMinutes={slot.duration_minutes}
 							area={slot.general_area}
+							vague={!hasResponse}
 							selected={selectedSlotId === slot.id}
 							invited={invitedSlotIds.has(slot.id)}
 							onclick={hasResponse ? () => { selectedSlotId = selectedSlotId === slot.id ? null : slot.id; } : undefined}

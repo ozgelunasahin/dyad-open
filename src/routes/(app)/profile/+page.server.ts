@@ -133,6 +133,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		receivedInvitations,
 		respondedPrompts,
 		feedbackDue,
-		cancelledNotifications
+		cancelledNotifications,
+		attentionCount: receivedInvitations.length + feedbackDue.length + (cancelledNotifications?.length ?? 0)
 	};
 };

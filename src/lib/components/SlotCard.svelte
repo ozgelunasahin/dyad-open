@@ -10,12 +10,13 @@
 		invitedNote?: string;
 		exactLocation?: { name: string; address: string; lat?: number; lng?: number } | null;
 		past?: boolean;
+		vague?: boolean;
 		onclick?: () => void;
 	}
 
-	let { startTime, durationMinutes, area, selected = false, invited = false, invitedNote, exactLocation, past = false, onclick }: Props = $props();
+	let { startTime, durationMinutes, area, selected = false, invited = false, invitedNote, exactLocation, past = false, vague = false, onclick }: Props = $props();
 
-	let interactive = $derived(!!onclick && !invited);
+	let interactive = $derived(!!onclick && !invited && !vague);
 
 	/** formatHybridDate returns "Today", "Tomorrow", "Friday", or "28 Mar".
 	 *  For weekday-only results (2–6 days out), append the day number. */
@@ -26,9 +27,24 @@
 		if (/^\d/.test(hybrid)) return hybrid; // already "28 Mar"
 		return `${hybrid} ${date.getDate()}`; // "Friday 28"
 	}
+
+	function formatSlotDayOnly(iso: string): string {
+		const hybrid = formatHybridDate(iso);
+		// formatHybridDate returns "Today"/"Tomorrow"/weekday/"28 Mar"
+		// For dates > 6 days out it returns "28 Mar" — show full weekday name instead
+		if (/^\d/.test(hybrid)) return new Date(iso).toLocaleDateString('en-GB', { weekday: 'long' });
+		return hybrid;
+	}
 </script>
 
-{#if interactive}
+{#if vague}
+	<div class="slot-card vague">
+		<div class="slot-row">
+			<span class="slot-date">{formatSlotDayOnly(startTime)}</span>
+			<span class="slot-details">{area}</span>
+		</div>
+	</div>
+{:else if interactive}
 	<button
 		class="slot-card"
 		class:selected
@@ -99,6 +115,13 @@
 
 	.slot-card.past {
 		opacity: var(--opacity-disabled);
+	}
+
+	.slot-card.vague {
+		color: var(--text-muted);
+		opacity: 0.45;
+		pointer-events: none;
+		user-select: none;
 	}
 
 	.slot-row {

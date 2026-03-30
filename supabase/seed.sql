@@ -197,7 +197,11 @@ INSERT INTO prompts (id, author_id, title, body, cover_image_url, state, region,
 INSERT INTO time_slots (id, prompt_id, start_time, duration_minutes, exact_location, general_area, general_area_lat, general_area_lng, accepted) VALUES
   ('a0000006-0000-0000-0000-000000000001', 'seed-prompt-scheduled', NOW() + interval '1 day', 75,
    '{"place_id":"8","name":"Görlitzer Park","address":"Görlitzer Str., 10997 Berlin","lat":52.4966,"lng":13.4370}'::jsonb,
-   'Kreuzberg', 52.4966, 13.4370, true);
+   'Kreuzberg', 52.4966, 13.4370, true),
+  -- Second unaccepted slot prevents archive_stale_prompts from archiving this prompt
+  ('a0000006-0000-0000-0000-000000000002', 'seed-prompt-scheduled', NOW() + interval '3 days', 60,
+   '{"place_id":"9","name":"Tempelhofer Feld","address":"Tempelhofer Damm, 12101 Berlin","lat":52.4735,"lng":13.4016}'::jsonb,
+   'Tempelhof', 52.4735, 13.4016, false);
 
 -- 8. Nina's prompt — CANCELLED EARLY (>12h before, kai cancelled)
 INSERT INTO prompts (id, author_id, title, body, cover_image_url, state, region, published_at, created_at, updated_at) VALUES
