@@ -110,16 +110,16 @@
 		try {
 			const res = await fetch(`/api/prompts/${data.prompt.id}/unpublish`, { method: 'POST' });
 			if (res.ok) goto('/profile?view=conversations');
-			else { const e = await res.json().catch(() => ({})); actionError = (e as any).error ?? 'Failed to archive.'; }
-		} catch { actionError = 'Network error.'; }
+			else { const e = await res.json().catch(() => ({})); actionError = (e as any).error ?? copy.conversation.failedToArchive; }
+		} catch { actionError = copy.common.networkError; }
 	}
 
 	async function deletePrompt() {
 		try {
 			const res = await fetch(`/api/prompts/${data.prompt.id}`, { method: 'DELETE' });
 			if (res.ok) goto('/profile?view=conversations');
-			else { const e = await res.json().catch(() => ({})); actionError = (e as any).error ?? 'Failed to delete.'; }
-		} catch { actionError = 'Network error.'; }
+			else { const e = await res.json().catch(() => ({})); actionError = (e as any).error ?? copy.conversation.failedToDelete; }
+		} catch { actionError = copy.common.networkError; }
 	}
 </script>
 
@@ -149,7 +149,7 @@
 			<div class="action-dropdown">
 				<a href="/conversations/{data.prompt.id}/edit" class="action-item" onclick={() => actionsOpen = false}>{copy.conversation.edit}</a>
 				<button class="action-item" onclick={() => { actionsOpen = false; archiveDialog?.open(); }}>{copy.conversation.archive}</button>
-				<button class="action-item action-item--danger" onclick={() => { actionsOpen = false; deleteDialog?.open(); }}>Delete</button>
+				<button class="action-item action-item--danger" onclick={() => { actionsOpen = false; deleteDialog?.open(); }}>{copy.conversation.delete}</button>
 			</div>
 		{/if}
 	</div>
@@ -187,9 +187,9 @@
 		/>
 		<ConfirmDialog
 			bind:this={deleteDialog}
-			title="Delete conversation"
-			message="This will permanently delete the conversation and all its data. This cannot be undone."
-			confirmLabel="Delete"
+			title={copy.conversation.deleteTitle}
+			message={copy.conversation.deleteConfirm}
+			confirmLabel={copy.conversation.delete}
 			onConfirm={deletePrompt}
 		/>
 		{#if actionError}<p class="field-error" style="margin-top: var(--space-2)">{actionError}</p>{/if}
