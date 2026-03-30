@@ -58,6 +58,7 @@ export const copy = {
 		joinWaitlist: 'join waitlist',
 		logIn: 'log in',
 		privateBeta: 'private beta',
+		conversationsStartingSoon: 'Conversations are starting soon.',
 	},
 
 	// ── Discover ───────────────────────────────────────────────────────
@@ -68,6 +69,10 @@ export const copy = {
 		checkBackSoon: 'Check back soon, or start your own.',
 		startConversation: 'Start a conversation',
 		noMatchingFilters: 'No conversations match your filters.',
+		search: 'Search',
+		searchPlaceholder: 'Search',
+		noResults: 'No conversations found.',
+		searchSuggestions: ['strangers & connection', 'philosophy of everyday life', 'belonging in Berlin', 'silence & listening', 'living in Berlin'],
 	},
 
 	// ── Conversation detail ────────────────────────────────────────────
@@ -93,6 +98,11 @@ export const copy = {
 		edit: 'Edit',
 		archive: 'Archive',
 		archiveConfirm: 'Archiving will expire pending invitations. Continue?',
+		delete: 'Delete',
+		deleteTitle: 'Delete conversation',
+		deleteConfirm: 'This will permanently delete the conversation and all its data. This cannot be undone.',
+		failedToArchive: 'Failed to archive.',
+		failedToDelete: 'Failed to delete.',
 		meetingScheduled: 'Meeting scheduled',
 	},
 
@@ -109,6 +119,26 @@ export const copy = {
 		published: 'Published',
 		publishedDesc: 'Your conversation is live on the discover feed.',
 		unpublish: 'Unpublish',
+		saving: 'Saving...',
+		saved: 'Saved',
+		saveError: 'Error',
+		continue: 'Continue',
+		discard: 'Discard',
+		discardTitle: 'Discard draft',
+		discardConfirm: 'This will permanently delete this draft. This cannot be undone.',
+		deleteTitle: 'Delete conversation',
+		deleteConfirm: 'This will permanently delete the conversation and all its data. This cannot be undone.',
+		uploading: 'Uploading...',
+		changeCover: 'Change cover',
+		addCoverPhoto: 'Add a cover photo',
+		coverRequired: 'Required. Click or drag an image.',
+		writingPlaceholder: 'you can start writing here',
+		publishAsConversation: 'Publish as a Conversation',
+		publishInstructions: 'Pick days, then set time and place for each.',
+		privacyNote: 'We only show the address to those you agree to meet.',
+		selectDays: 'Select days',
+		addTime: '+ add time',
+		publishing: 'Publishing...',
 	},
 
 	// ── Profile ────────────────────────────────────────────────────────
@@ -131,6 +161,18 @@ export const copy = {
 		meetingCancelled: 'Meeting cancelled',
 		meetingCancelledBy: (username: string) => `@${username} cancelled your meeting`,
 		feedbackDue: 'Feedback due',
+		youStarted: 'You started',
+		youRespondedTab: 'You responded',
+		archivedTab: 'Archived',
+		pendingTab: 'Pending',
+		scheduledTab: 'Scheduled',
+		pastTab: 'Past',
+		nothingHereYet: 'Nothing here yet.',
+		noPendingInvitations: 'No pending invitations.',
+		noScheduledMeetings: 'No scheduled meetings.',
+		noPastMeetings: 'No past meetings.',
+		invitedBy: (username: string) => `Invited by @${username}`,
+		searchPlaceholder: 'Search your conversations...',
 	},
 
 	// ── Meeting detail ─────────────────────────────────────────────────
@@ -169,21 +211,50 @@ export const copy = {
 
 	// ── Waitlist ───────────────────────────────────────────────────────
 	waitlist: {
-		_routes: ['/waitlist'],
-		_description: 'Waitlist signup form for unauthenticated visitors.',
+		_routes: ['/waitlist', '/ (AuthDialog)'],
+		_description: 'Waitlist signup form and AuthDialog modal.',
 		thankYou: 'Thank you. We\'ll be in touch.',
-		alreadyOnWaitlist: 'You\'re already on the waitlist — we\'ll be in touch soon.',
+		alreadyOnWaitlist: 'You\'re already on our list. We\'ll be in touch soon.',
+		thanksForJoining: 'Thanks for joining. We\'ll be in touch within a week.',
+		joinWaitlist: 'Join the waitlist',
+		joinWaitlistButton: 'Join waitlist',
+		sendingWaitlist: 'Sending...',
+		whatsOnYourMind: 'What\'s on your mind? *',
+		thoughtPlaceholder: 'A question, a thought, something you\'d love to talk about...',
+		city: 'City',
+		selectCity: 'Select your city',
+		activeNow: 'Active now',
+		comingSoon: 'Coming soon',
+		cityExpansionNote: 'We\'re currently active in Berlin and will expand to other cities soon.',
 	},
 
 	// ── Auth ───────────────────────────────────────────────────────────
 	auth: {
-		_routes: ['/login', '/join'],
-		_description: 'Login page (email/password) and join page (invite-based signup).',
+		_routes: ['/login', '/join', '/ (AuthDialog)'],
+		_description: 'Login page, join page, and AuthDialog (modal on landing page).',
 		welcomeBack: 'Welcome back',
 		signInSubtitle: 'Sign in to create and join conversations',
 		signIn: 'Sign in',
+		loggingIn: 'Logging in...',
 		forgotPassword: 'Forgot password?',
 		passwordHint: 'At least 8 characters',
+		email: 'Email',
+		password: 'Password',
+		name: 'Name',
+		alreadyHaveAccount: 'Already have an account?',
+		dontHaveAccount: "Don't have an account?",
+		join: 'Join',
+		logIn: 'Log in',
+		somethingWentWrong: 'Something went wrong. Please try again.',
+	},
+
+	// ── Admin ──────────────────────────────────────────────────────────
+	admin: {
+		_routes: ['/admin/*'],
+		_description: 'Admin panel navigation and labels.',
+		backToApp: 'Back to app',
+		waitlist: 'Waitlist',
+		feedback: 'Feedback',
 	},
 
 	// ── App feedback ───────────────────────────────────────────────────
