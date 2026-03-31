@@ -118,20 +118,20 @@
 			</button>
 		{/if}
 
-		<!-- Search pill -->
-		<button class="search-pill" aria-label="Search" onclick={onSearchClick}>
-			<svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-				<circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.6"/>
-				<path d="M14 14l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-			</svg>
-			<span>Search</span>
-		</button>
-
-		<a href="/conversations/new" class="nav-btn" aria-label="Start a conversation">
-			<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+		<!-- Plus — center, prominent -->
+		<a href="/conversations/new" class="plus-btn" aria-label="Start a conversation">
+			<svg width="22" height="22" viewBox="0 0 20 20" fill="none">
 				<path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
 			</svg>
 		</a>
+
+		<!-- Search icon -->
+		<button class="nav-btn" aria-label="Search" onclick={onSearchClick}>
+			<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+				<circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.6"/>
+				<path d="M14 14l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+			</svg>
+		</button>
 
 		<a href="/profile" class="nav-btn" aria-label="Profile">
 			<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -302,8 +302,7 @@
 	}
 	.floating-nav-anchor.top { top: var(--space-4); }
 	.floating-nav-anchor.bottom { bottom: var(--space-5); }
-	/* Discover variant has a flex search pill that needs full available width */
-	.floating-nav-anchor.wide { width: calc(100% - 40px); max-width: 360px; }
+	.floating-nav-anchor.wide { width: auto; }
 
 	/* Nav pill */
 	.floating-nav {
@@ -365,23 +364,21 @@
 
 	.nav-spacer { flex: 1; }
 
-	.search-pill {
-		flex: 1;
+	.plus-btn {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		gap: var(--space-2);
-		padding: 9px var(--space-4);
-		background: rgba(0, 0, 0, 0.07);
-		border: none;
-		border-radius: var(--radius-pill);
-		color: var(--text-muted);
-		font-size: var(--text-sm);
-		cursor: pointer;
-		transition: background 0.15s;
+		width: 48px;
+		height: 48px;
+		border-radius: 50%;
+		background: var(--text-primary);
+		color: var(--bg-canvas);
+		text-decoration: none;
+		flex-shrink: 0;
+		transition: opacity 0.15s;
 	}
 
-	.search-pill:hover { background: var(--bg-control-hover); }
+	.plus-btn:hover { opacity: var(--opacity-hover-btn); }
 
 	/* === Editor controls (embedded in default variant) === */
 

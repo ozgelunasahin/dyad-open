@@ -2,16 +2,34 @@
 	import type { PageData } from './$types';
 	import type { PromptSummary, TimeSlot } from '$lib/domain/types';
 	import { goto } from '$app/navigation';
+	import { browser } from '$app/environment';
 	import MapView from '$lib/components/MapView.svelte';
 	import BottomSheet from '$lib/components/BottomSheet.svelte';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
 	import SearchOverlay from '$lib/components/SearchOverlay.svelte';
 	import PromptListItem from '$lib/components/PromptListItem.svelte';
+	import OnboardingModal from '$lib/components/OnboardingModal.svelte';
 	import { getWeekDates } from '$lib/utils/dates';
 	import type { Snapshot } from './$types';
 	import { copy } from '$lib/copy';
 
 	let { data }: { data: PageData } = $props();
+
+	const ONBOARDING_KEY = 'dyad_onboarding_done';
+	let showOnboarding = $state(
+		browser &&
+		new URLSearchParams(window.location.search).get('welcome') === '1' &&
+		!localStorage.getItem(ONBOARDING_KEY)
+	);
+
+	function finishOnboarding() {
+		if (browser) localStorage.setItem(ONBOARDING_KEY, '1');
+		showOnboarding = false;
+		// Clean up the ?welcome=1 param from the URL without a page reload
+		const url = new URL(window.location.href);
+		url.searchParams.delete('welcome');
+		window.history.replaceState({}, '', url);
+	}
 	let viewMode = $state<'list' | 'map'>('map');
 	let mapCenter = $state<[number, number] | null>(null);
 	let mapZoom = $state<number | null>(null);
@@ -160,6 +178,10 @@
 		onClose={() => searchOpen = false}
 		onSelect={(id) => { searchOpen = false; goto(`/conversations/${id}`); }}
 	/>
+{/if}
+
+{#if showOnboarding}
+	<OnboardingModal onDone={finishOnboarding} username={data.username} />
 {/if}
 
 <style>
