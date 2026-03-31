@@ -47,12 +47,25 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		.limit(1);
 
 	if (existing && existing.length > 0) {
-		// Already has a valid invite — return the existing link
-		return json({
-			ok: true,
-			alreadyInvited: true,
-			inviteUrl: `${APP_ORIGIN}/join?token=${existing[0].token}`
-		});
+		// Already has a valid invite — resend the email and return the existing link
+		const inviteUrl = `${APP_ORIGIN}/join?token=${existing[0].token}`;
+		const displayName = escapeHtml((typeof name === 'string' && name.trim()) || 'there');
+		sendEmail({
+			to: email.trim(),
+			subject: copy.email.inviteSubject,
+			html: `
+				<div style="font-family: Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 40px 20px; color: #1a1a1a; line-height: 1.7;">
+					<p>Hi ${displayName},</p>
+					<p>You've been invited to join dyad — a community of people in Berlin who meet for real conversations.</p>
+					<p><a href="${inviteUrl}" style="color: #1a1a1a; font-weight: bold; text-decoration: underline;">Join dyad</a></p>
+					<p style="font-size: 14px; color: #666;">This link expires in ${INVITE_EXPIRY_DAYS} days.</p>
+					<hr style="border: none; border-top: 1px solid #e0ddd8; margin: 32px 0 16px;" />
+					<a href="https://dyad.berlin" style="display: inline-block;"><img src="https://dyad.berlin/images/logo-dark.png" alt="dyad" style="height: 32px; width: auto; margin-bottom: 8px;" /></a>
+					<p style="font-size: 12px; color: #999; margin: 0;">cultivating a culture of conversation</p>
+				</div>
+			`
+		}).catch((err) => console.error('[invites] Failed to resend invite email:', err));
+		return json({ ok: true, alreadyInvited: true, inviteUrl });
 	}
 
 	// Check if this email is already a registered user
