@@ -153,7 +153,7 @@ export const actions: Actions = {
 		}
 
 		if (!signInError) {
-			redirect(302, '/discover');
+			redirect(302, '/discover?welcome=1');
 		}
 
 		// Fallback if auto-sign-in fails (e.g., email confirmation required)
