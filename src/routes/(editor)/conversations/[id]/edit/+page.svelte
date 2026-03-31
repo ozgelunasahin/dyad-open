@@ -229,6 +229,13 @@
 
 	let isDraft = $derived(data.prompt.state === 'draft');
 	let isPublished = $derived(data.prompt.state === 'published');
+	let isArchived = $derived(data.prompt.state === 'archived');
+
+	async function handlePublishContent() {
+		await saveNow();
+		goto(`/conversations/${data.prompt.id}`);
+	}
+
 </script>
 
 <svelte:head>
@@ -244,11 +251,11 @@
 	<!-- Action bar: always shown above cover image -->
 	<div class="pub-action-bar">
 		<span class="pub-save-status">
-			<a href="/profile?view=conversations" class="back-arrow" aria-label="Back to profile">
+			<button type="button" class="back-arrow" aria-label="Go back" onclick={() => history.back()}>
 				<svg width="18" height="18" viewBox="0 0 20 20" fill="none">
 					<path d="M12 4l-6 6 6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
 				</svg>
-			</a>
+			</button>
 			{#if saveStatus === 'saving'}
 				<span class="save-dot saving"></span> Saving...
 			{:else}
@@ -258,10 +265,14 @@
 		<div class="pub-actions">
 			{#if isDraft}
 				<button class="unpublish-btn" onclick={() => discardDialog?.open()}>Delete</button>
-				<button class="continue-inline-btn" onclick={handleOpenPublish}>Continue</button>
+				<button class="unpublish-btn" onclick={handleOpenPublish}>Continue</button>
+			{:else if isArchived}
+				<button class="delete-btn" onclick={() => deletePublishedDialog?.open()}>Delete</button>
+				<button class="unpublish-btn" onclick={handleOpenPublish}>Republish</button>
 			{:else}
 				<button class="unpublish-btn" onclick={handleUnpublish}>Archive</button>
 				<button class="delete-btn" onclick={() => deletePublishedDialog?.open()}>Delete</button>
+				<button class="unpublish-btn" onclick={handlePublishContent}>Republish</button>
 			{/if}
 		</div>
 	</div>
@@ -527,6 +538,16 @@
 	.save-dot.saving { background: var(--color-saving); }
 
 	.pub-actions { display: flex; gap: var(--space-3); align-items: center; }
+
+	.republish-prompt {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		padding: var(--space-3) 0;
+		border-bottom: 1px solid var(--border-link);
+		margin-bottom: var(--space-4);
+	}
+	.republish-prompt-text { font-size: var(--text-sm); color: var(--text-muted); }
 
 	.continue-inline-btn {
 		font-size: var(--text-sm);
