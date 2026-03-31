@@ -25,6 +25,8 @@ export async function sendEmail(params: {
 	const provider = env.EMAIL_PROVIDER ?? 'mailpit';
 	const from = env.EMAIL_FROM || 'hello@dyad.berlin';
 
+	console.error(`[email] provider=${provider} to=${params.to}`);
+
 	try {
 		if (provider === 'resend') {
 			const apiKey = env.RESEND_API_KEY;
