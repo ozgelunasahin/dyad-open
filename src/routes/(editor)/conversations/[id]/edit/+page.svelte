@@ -539,16 +539,6 @@
 
 	.pub-actions { display: flex; gap: var(--space-3); align-items: center; }
 
-	.republish-prompt {
-		display: flex;
-		align-items: center;
-		gap: var(--space-3);
-		padding: var(--space-3) 0;
-		border-bottom: 1px solid var(--border-link);
-		margin-bottom: var(--space-4);
-	}
-	.republish-prompt-text { font-size: var(--text-sm); color: var(--text-muted); }
-
 	.continue-inline-btn {
 		font-size: var(--text-sm);
 		font-weight: 500;
