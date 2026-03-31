@@ -40,6 +40,15 @@
 		query = result.name;
 		results = [];
 	}
+
+	function acceptFreeText() {
+		if (!query.trim()) return;
+		// If already a confirmed location with same name, keep it
+		if (value?.name === query.trim()) return;
+		// Accept typed text as a manual location (no coordinates); use name as address
+		onChange({ place_id: 'manual', name: query.trim(), address: query.trim(), lat: 0, lng: 0 });
+		results = [];
+	}
 </script>
 
 <div class="location-search">
@@ -48,6 +57,8 @@
 		{placeholder}
 		value={query}
 		oninput={handleInput}
+		onblur={acceptFreeText}
+		onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); acceptFreeText(); } }}
 		role="combobox"
 		aria-controls="location-results"
 		aria-expanded={results.length > 0}

@@ -98,6 +98,8 @@
 </svelte:head>
 
 <div class="content">
+	<button class="close-btn" onclick={() => history.back()} aria-label="Close">&times;</button>
+
 	{#if effectiveStep === 'reveal'}
 		<!-- ════ REVEAL: show what they shared ════ -->
 		<div class="reveal-state">
@@ -199,32 +201,66 @@
 </div>
 
 <style>
-	.content { width: 100%; max-width: var(--content-narrow); }
-	/* .sign-out-section — shared.css (local override: different padding-bottom) */
-	.sign-out-section { padding: var(--space-8) 0; }
+	/* Close button */
+	.close-btn {
+		position: absolute;
+		top: var(--space-4);
+		right: var(--space-4);
+		background: none;
+		border: none;
+		font-size: var(--text-2xl);
+		color: var(--text-muted);
+		cursor: pointer;
+		line-height: 1;
+		padding: var(--space-1);
+	}
+	.close-btn:hover { color: var(--text-primary); }
 
-	.meeting-context { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin: 0 0 var(--space-4); }
-	.page-title { font-size: var(--text-2xl); font-weight: normal; margin: 0 0 var(--space-2); }
-	.desc { font-size: var(--text-base); color: var(--text-muted); margin: 0 0 var(--space-6); }
+	/* Card layout — matches AuthDialog style */
+	.content {
+		position: relative;
+		width: 100%;
+		max-width: 420px;
+		background: var(--bg-canvas);
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-card);
+		padding: var(--space-8) var(--space-6);
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-4);
+		margin-top: var(--space-10);
+	}
+
+	.sign-out-section {
+		padding: var(--space-6) 0 0;
+		text-align: center;
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+	}
+	.sign-out-section a { color: var(--text-muted); text-decoration: underline; }
+
+	.meeting-context { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin: 0; }
+	.page-title { font-size: var(--text-xl); font-weight: 500; margin: 0; }
+	.desc { font-size: var(--text-sm); color: var(--text-muted); margin: 0; }
 
 	/* Met choices */
 	.met-choices { display: flex; gap: var(--space-3); }
 	.met-btn {
+		flex: 1;
 		font-size: var(--text-base);
-		padding: var(--space-4) var(--space-8);
+		padding: var(--space-3) var(--space-4);
 		border: 1px solid var(--border-link);
 		border-radius: var(--radius-input);
 		background: none;
 		color: var(--text-primary);
 		cursor: pointer;
 		transition: border-color 0.15s, background 0.15s;
-		flex: 1;
 	}
 	.met-btn:hover { border-color: var(--text-primary); }
 	.met-btn.selected { background: var(--text-primary); color: var(--bg-canvas); border-color: var(--text-primary); }
 
 	/* Tags */
-	.tag-grid { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-6); }
+	.tag-grid { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 	.tag {
 		font-size: var(--text-sm);
 		padding: var(--space-1) var(--space-3);
@@ -239,27 +275,57 @@
 	.tag.selected { background: var(--text-primary); color: var(--bg-canvas); border-color: var(--text-primary); }
 
 	/* Form fields */
-	.field { display: flex; flex-direction: column; gap: var(--space-1); margin-bottom: var(--space-4); }
+	.field { display: flex; flex-direction: column; gap: var(--space-1); }
 	.field label { font-size: var(--text-sm); color: var(--text-muted); }
-	.field textarea { font-size: var(--text-base); padding: var(--space-3) var(--space-3); border: 1px solid var(--border-link); border-radius: var(--radius-input); background: transparent; color: var(--text-primary); resize: vertical; line-height: 1.6; width: 100%; box-sizing: border-box; }
+	.field textarea {
+		font-size: var(--text-base);
+		padding: var(--space-3);
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-input);
+		background: transparent;
+		color: var(--text-primary);
+		resize: vertical;
+		line-height: 1.6;
+		width: 100%;
+		box-sizing: border-box;
+	}
 	.field textarea:focus { outline: none; border-color: var(--text-muted); }
 	.field textarea::placeholder { color: var(--text-muted); }
-	.field-error { font-size: var(--text-sm); color: var(--color-danger); margin: 0 0 var(--space-3); }
+	.field-error { font-size: var(--text-sm); color: var(--color-danger); margin: 0; }
 
 	/* Actions */
-	.actions { display: flex; gap: var(--space-3); margin-top: var(--space-2); }
-	.back-btn { font-size: var(--text-sm); padding: var(--space-3) var(--space-5); border: 1px solid var(--border-link); border-radius: var(--radius-input); background: none; color: var(--text-muted); cursor: pointer; }
-	.submit-btn { font-size: var(--text-base); padding: var(--space-3) var(--space-6); background: var(--text-primary); color: var(--bg-canvas); border: 1px solid var(--text-primary); border-radius: var(--radius-input); cursor: pointer; }
+	.actions { display: flex; gap: var(--space-3); }
+	.back-btn {
+		font-size: var(--text-sm);
+		padding: var(--space-3) var(--space-5);
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-input);
+		background: none;
+		color: var(--text-muted);
+		cursor: pointer;
+	}
+	.submit-btn {
+		flex: 1;
+		font-size: var(--text-base);
+		padding: var(--space-3) var(--space-6);
+		background: var(--text-primary);
+		color: var(--bg-canvas);
+		border: 1px solid var(--text-primary);
+		border-radius: var(--radius-input);
+		cursor: pointer;
+		transition: opacity 0.15s;
+	}
+	.submit-btn:hover { opacity: var(--opacity-hover-btn); }
 	.submit-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 
 	/* Waiting state */
-	.waiting-state { text-align: center; padding: var(--space-10) 0; }
-	.waiting-hint { font-size: var(--text-sm); color: var(--text-muted); margin: var(--space-4) 0 var(--space-8); }
+	.waiting-state { display: flex; flex-direction: column; gap: var(--space-3); }
+	.waiting-hint { font-size: var(--text-sm); color: var(--text-muted); margin: 0; }
 
 	/* Reveal state */
-	.reveal-state { padding: var(--space-5) 0; }
+	.reveal-state { display: flex; flex-direction: column; gap: var(--space-4); }
+	.reveal-card { padding: var(--space-4) 0; border-top: 1px solid var(--border-link); }
 	/* .reveal-noshow, .reveal-quote, .reveal-tags, .reveal-tag — shared.css */
-	.reveal-card { margin: var(--space-6) 0; }
 
 	/* Shared */
 	.continue-link { font-size: var(--text-base); color: var(--text-primary); text-decoration: underline; }

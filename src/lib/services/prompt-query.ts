@@ -217,7 +217,15 @@ export class SupabasePromptQueryService implements PromptQueryService {
 			title: prompt.title,
 			body_snippet: makeSnippet(body),
 			body: body ?? { type: 'doc', content: [] },
-			body_html: (() => { try { return renderTiptapToHtml(body); } catch { return ''; } })(),
+			body_html: (() => {
+				try {
+					const html = renderTiptapToHtml(body);
+					if (html) return html;
+				} catch { /* fall through */ }
+				// Fallback: full plain text as paragraphs (no truncation)
+				if (!body) return '';
+				return jsonToPlainText(body).split(/\n\n+/).filter(Boolean).map(p => `<p>${p}</p>`).join('');
+			})(),
 			cover_image_url: prompt.cover_image_url,
 			available_slots: availableSlots,
 			soonest_slot: availableSlots[0]?.start_time ?? null,

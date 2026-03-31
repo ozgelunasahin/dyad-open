@@ -49,8 +49,8 @@
 </script>
 
 <svelte:head>
-	<title>dyad. cultivating a culture of conversation</title>
-	<meta name="description" content="Meet people through conversation in Berlin. Read, pick a time, meet in person." />
+	<title>dyad.</title>
+	<meta name="description" content="Find your people, talk to them face to face." />
 </svelte:head>
 
 <div class="landing">
@@ -130,13 +130,7 @@
 			</div>
 		</div>
 
-		<footer class="page-footer">
-			<div class="legal-links">
-				<a href="/datenschutz" class="legal-link">privacy policy</a>
-				<span class="legal-sep">|</span>
-				<a href="/impressum" class="legal-link">legal notice</a>
-			</div>
-		</footer>
+		<footer class="page-footer"></footer>
 	</div>
 
 	<!-- Right: map on desktop, list on mobile -->
