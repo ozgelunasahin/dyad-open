@@ -123,9 +123,8 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 		error(500, 'Failed to save contact');
 	}
 
-	// Send welcome email (fire-and-forget — don't block the response)
 	const displayName = escapeHtml((typeof name === 'string' && name.trim()) || 'there');
-	sendEmail({
+	await sendEmail({
 		to: email.trim(),
 		subject: copy.email.waitlistSubject,
 		html: `

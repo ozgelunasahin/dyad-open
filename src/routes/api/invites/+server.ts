@@ -50,7 +50,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		// Already has a valid invite — resend the email and return the existing link
 		const inviteUrl = `${APP_ORIGIN}/join?token=${existing[0].token}`;
 		const displayName = escapeHtml((typeof name === 'string' && name.trim()) || 'there');
-		sendEmail({
+		await sendEmail({
 			to: email.trim(),
 			subject: copy.email.inviteSubject,
 			html: `
@@ -104,7 +104,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	// Send invite email
 	const displayName = escapeHtml((typeof name === 'string' && name.trim()) || 'there');
-	sendEmail({
+	await sendEmail({
 		to: email.trim(),
 		subject: copy.email.inviteSubject,
 		html: `
