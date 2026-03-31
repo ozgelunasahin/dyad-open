@@ -1,12 +1,29 @@
 <script lang="ts">
+	import { capture } from '$lib/analytics';
+
 	let { onDone, username = '' }: { onDone: () => void; username?: string } = $props();
 
 	let step = $state(0);
 	const totalSteps = 4;
 	const isLast = $derived(step === totalSteps - 1);
 
+	const stepNames = ['welcome', 'how_it_works', 'take_it_offline', 'your_move'];
+
 	function next() {
-		if (!isLast) step++;
+		if (!isLast) {
+			capture('onboarding_step_completed', { step: stepNames[step] });
+			step++;
+		}
+	}
+
+	function skip() {
+		capture('onboarding_skipped', { step: stepNames[step] });
+		onDone();
+	}
+
+	function finish() {
+		capture('onboarding_completed');
+		onDone();
 	}
 </script>
 
@@ -25,7 +42,7 @@
 			</div>
 			<div class="actions">
 				<button class="cta-btn" onclick={next}>How does it work?</button>
-				<button class="skip-btn" onclick={onDone}>Skip</button>
+				<button class="skip-btn" onclick={skip}>Skip</button>
 			</div>
 
 		{:else if step === 1}
@@ -62,7 +79,7 @@
 			</div>
 			<div class="actions">
 				<button class="cta-btn" onclick={next}>Got it</button>
-				<button class="skip-btn" onclick={onDone}>Skip</button>
+				<button class="skip-btn" onclick={skip}>Skip</button>
 			</div>
 
 		{:else if step === 2}
@@ -73,7 +90,7 @@
 			</div>
 			<div class="actions">
 				<button class="cta-btn" onclick={next}>Got it</button>
-				<button class="skip-btn" onclick={onDone}>Skip</button>
+				<button class="skip-btn" onclick={skip}>Skip</button>
 			</div>
 
 		{:else}
@@ -81,8 +98,8 @@
 				<h2 id="onboarding-title">Your move.</h2>
 			</div>
 			<div class="actions">
-				<a href="/conversations/new" class="cta-btn" onclick={onDone}>Start a conversation</a>
-				<button class="secondary-btn" onclick={onDone}>Explore</button>
+				<a href="/conversations/new" class="cta-btn" onclick={finish}>Start a conversation</a>
+				<button class="secondary-btn" onclick={finish}>Explore</button>
 			</div>
 		{/if}
 	</div>

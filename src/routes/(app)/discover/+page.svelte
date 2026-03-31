@@ -12,15 +12,21 @@
 	import { getWeekDates } from '$lib/utils/dates';
 	import type { Snapshot } from './$types';
 	import { copy } from '$lib/copy';
+	import { capture } from '$lib/analytics';
 
 	let { data }: { data: PageData } = $props();
 
 	const ONBOARDING_KEY = 'dyad_onboarding_done';
-	let showOnboarding = $state(
-		browser &&
-		new URLSearchParams(window.location.search).get('welcome') === '1' &&
-		!localStorage.getItem(ONBOARDING_KEY)
-	);
+	const isWelcome = browser && new URLSearchParams(window.location.search).get('welcome') === '1';
+	let showOnboarding = $state(isWelcome && !localStorage.getItem(ONBOARDING_KEY));
+
+	if (isWelcome && !localStorage.getItem(ONBOARDING_KEY)) {
+		// Read referral cookie for attribution
+		const dyadRef = browser
+			? document.cookie.split('; ').find(r => r.startsWith('dyad_ref='))?.split('=')[1]
+			: undefined;
+		capture('user_signed_up', { referred_by: dyadRef || null });
+	}
 
 	function finishOnboarding() {
 		if (browser) localStorage.setItem(ONBOARDING_KEY, '1');

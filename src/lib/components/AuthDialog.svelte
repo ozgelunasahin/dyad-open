@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { copy } from '$lib/copy';
+	import { capture } from '$lib/analytics';
 
 	interface Props {
 		mode?: 'waitlist' | 'login';
@@ -66,6 +67,7 @@
 
 			if (res.ok) {
 				success = true;
+				capture('waitlist_joined', { referred_by: dyadRef || null });
 			} else if (res.status === 409) {
 				success = true; // Already on waitlist — show friendly message
 				error = 'already';

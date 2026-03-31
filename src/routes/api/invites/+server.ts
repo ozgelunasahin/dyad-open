@@ -4,6 +4,7 @@ import { sendEmail } from '$lib/server/email.js';
 import { escapeHtml } from '$lib/utils/escape-html.js';
 import { nanoid } from 'nanoid';
 import { copy } from '$lib/copy';
+import { captureServer } from '$lib/server/posthog.js';
 import type { RequestHandler } from './$types';
 
 /** Derive the app origin from the Supabase URL or fall back to production. */
@@ -65,6 +66,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				</div>
 			`
 		}).catch((err) => console.error('[invites] Failed to resend invite email:', err));
+		await captureServer(locals.user!.id, 'invite_email_sent', { invited_email: email.trim(), resent: true });
 		return json({ ok: true, alreadyInvited: true, inviteUrl });
 	}
 
@@ -119,6 +121,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			</div>
 		`
 	}).catch((err) => console.error('[invites] Failed to send invite email:', err));
+	await captureServer(locals.user!.id, 'invite_email_sent', { invited_email: email.trim(), resent: false });
 
 	return json({ ok: true, inviteUrl });
 };

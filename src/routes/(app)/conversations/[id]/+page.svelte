@@ -1,12 +1,24 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
 	import SlotCard from '$lib/components/SlotCard.svelte';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import { copy } from '$lib/copy';
+	import { capture } from '$lib/analytics';
 
 	let { data }: { data: PageData } = $props();
+
+	onMount(() => {
+		capture('conversation_viewed', { prompt_id: data.prompt.id });
+
+		// Track when an invitee loads the page with a pending invite waiting for them
+		const viewerIsAuthor = data.prompt.author_id === data.user?.id;
+		if (!viewerIsAuthor && data.invitedSlotIds.length > 0) {
+			capture('meeting_invite_received', { prompt_id: data.prompt.id });
+		}
+	});
 
 	// svelte-ignore state_referenced_locally — intentional initial-value capture for editable field
 	let responseText = $state(data.myComment?.body ?? '');
@@ -42,8 +54,10 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ body: responseText.trim() })
 			});
-			if (res.ok) { responseStatus = 'sent'; }
-			else {
+			if (res.ok) {
+				responseStatus = 'sent';
+				capture('conversation_responded', { prompt_id: data.prompt.id });
+			} else {
 				const err = await res.json().catch(() => ({}));
 				responseError = (err as any).error ?? 'Failed to send';
 				responseStatus = 'error';
@@ -67,6 +81,7 @@
 			if (res.ok) {
 				if (selectedSlotId) invitedSlotIds = new Set([...invitedSlotIds, selectedSlotId]);
 				inviteStatus = 'sent';
+				capture('meeting_invite_sent', { prompt_id: data.prompt.id });
 			} else {
 				const err = await res.json().catch(() => ({}));
 				const rawError = (err as any).error ?? 'Failed to send invitation';
@@ -88,6 +103,7 @@
 			const res = await fetch(`/api/invitations/${invitationId}/accept`, { method: 'POST' });
 			if (res.ok) {
 				const { meetingId } = await res.json();
+				capture('meeting_invite_accepted', { prompt_id: data.prompt.id, meeting_id: meetingId });
 				goto(`/meetings/${meetingId}`);
 			} else {
 				const err = await res.json().catch(() => ({}));

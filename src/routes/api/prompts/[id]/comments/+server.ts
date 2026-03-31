@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { requireAuth } from '$lib/server/auth.js';
 import { parseJsonBody } from '$lib/server/parse-body.js';
 import { SupabaseCommentService } from '$lib/services/comment.js';
+import { env } from '$env/dynamic/public';
 
 /** POST /api/prompts/[id]/comments — create or edit comment (upsert) */
 export const POST: RequestHandler = async ({ params, request, locals }) => {
@@ -19,6 +20,18 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 	try {
 		// author_id always from session, never from request body
 		const comment = await service.createOrUpdate(params.id, user.id, body.body);
+		if (env.PUBLIC_POSTHOG_KEY) {
+			fetch('https://eu.i.posthog.com/capture/', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					api_key: env.PUBLIC_POSTHOG_KEY,
+					distinct_id: user.id,
+					event: 'response_sent',
+					properties: { prompt_id: params.id }
+				})
+			}).catch(() => {});
+		}
 		return json(comment, { status: 201 });
 	} catch (err) {
 		return json({ error: (err as Error).message }, { status: 400 });

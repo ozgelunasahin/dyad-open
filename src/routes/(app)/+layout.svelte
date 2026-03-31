@@ -1,9 +1,28 @@
 <script lang="ts">
+	import { page } from '$app/stores';
+	import { browser } from '$app/environment';
+	import { onMount } from 'svelte';
+	import { env } from '$env/dynamic/public';
 	import type { LayoutData } from './$types';
 	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
 	import MeetingFeedbackModal from '$lib/components/MeetingFeedbackModal.svelte';
+	import { initPosthog, capture } from '$lib/analytics';
 
 	let { data, children }: { data: LayoutData; children: any } = $props();
+
+	let posthogReady = $state(false);
+
+	onMount(async () => {
+		if (!env.PUBLIC_POSTHOG_KEY) return;
+		await initPosthog(env.PUBLIC_POSTHOG_KEY, data.user?.id, data.username);
+		posthogReady = true;
+	});
+
+	// Track SvelteKit client-side route changes
+	$effect(() => {
+		if (!posthogReady || !browser) return;
+		capture('$pageview', { path: $page.url.pathname });
+	});
 </script>
 
 <main class="main-content">

@@ -55,6 +55,7 @@
 		"@vite-pwa/sveltekit": "^1.1.0",
 		"isomorphic-dompurify": "^2.35.0",
 		"leaflet": "^1.9.4",
-		"nanoid": "^5.1.6"
+		"nanoid": "^5.1.6",
+		"posthog-js": "^1.364.4"
 	}
 }
