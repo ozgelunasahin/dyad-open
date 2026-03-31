@@ -4,6 +4,7 @@ import { requireAuth } from '$lib/server/auth.js';
 import { parseJsonBody } from '$lib/server/parse-body.js';
 import { SupabaseFeedbackService } from '$lib/services/feedback.js';
 import type { FeedbackInput } from '$lib/services/feedback.js';
+import { env } from '$env/dynamic/public';
 
 /** GET /api/feedback/[id] — get my feedback form by form ID */
 export const GET: RequestHandler = async ({ params, locals }) => {
@@ -34,9 +35,29 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 		return json({ error: 'did_meet is required' }, { status: 400 });
 	}
 
+	// Look up meeting_id before submitting (needed for analytics)
+	const { data: formRow } = await locals.supabase
+		.from('feedback_forms')
+		.select('meeting_id')
+		.eq('id', params.id)
+		.eq('reviewer_id', user.id)
+		.maybeSingle();
+
 	const service = new SupabaseFeedbackService(locals.supabase);
 	try {
 		const newState = await service.submit(params.id, body);
+		if (env.PUBLIC_POSTHOG_KEY && formRow?.meeting_id) {
+			fetch('https://eu.i.posthog.com/capture/', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					api_key: env.PUBLIC_POSTHOG_KEY,
+					distinct_id: user.id,
+					event: 'feedback_submitted',
+					properties: { meeting_id: formRow.meeting_id, did_meet: body.did_meet }
+				})
+			}).catch(() => {});
+		}
 
 		// If both parties submitted (locked), return revealed feedback directly
 		// to eliminate a second client round trip

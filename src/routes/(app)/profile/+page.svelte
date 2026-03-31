@@ -5,6 +5,7 @@
 	import { page } from '$app/state';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
 	import { copy } from '$lib/copy';
+	import { capture } from '$lib/analytics';
 
 	let { data }: { data: PageData } = $props();
 
@@ -126,6 +127,7 @@
 			const res = await fetch(`/api/invitations/${invitationId}/accept`, { method: 'POST' });
 			if (res.ok) {
 				const { meetingId } = await res.json();
+				capture('meeting_invite_accepted', { meeting_id: meetingId });
 				goto(`/meetings/${meetingId}`);
 			} else {
 				const err = await res.json().catch(() => ({}));

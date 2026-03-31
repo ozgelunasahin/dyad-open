@@ -4,6 +4,7 @@ import { requireAuth } from '$lib/server/auth.js';
 import { parseJsonBody } from '$lib/server/parse-body.js';
 import { SupabaseInvitationService } from '$lib/services/invitation.js';
 import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
+import { env } from '$env/dynamic/public';
 
 /** POST /api/prompts/[id]/invitations — create invitation (select slot + message) */
 export const POST: RequestHandler = async ({ params, request, locals }) => {
@@ -61,6 +62,18 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 			commentId: body.commentId,
 			message: body.message
 		});
+		if (env.PUBLIC_POSTHOG_KEY) {
+			fetch('https://eu.i.posthog.com/capture/', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					api_key: env.PUBLIC_POSTHOG_KEY,
+					distinct_id: user.id,
+					event: 'invitation_sent',
+					properties: { prompt_id: params.id }
+				})
+			}).catch(() => {});
+		}
 		return json(invitation, { status: 201 });
 	} catch (err) {
 		return json({ error: (err as Error).message }, { status: 400 });

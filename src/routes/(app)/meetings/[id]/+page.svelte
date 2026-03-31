@@ -5,6 +5,7 @@
 	import { generateICS, downloadICS } from '$lib/utils/calendar.js';
 	import type { PageData } from './$types';
 	import { copy } from '$lib/copy';
+	import { capture } from '$lib/analytics';
 
 	let { data }: { data: PageData } = $props();
 	let cancelling = $state(false);
@@ -35,7 +36,10 @@
 		cancelling = true;
 		try {
 			const res = await fetch(`/api/meetings/${data.meeting.id}/cancel`, { method: 'POST' });
-			if (res.ok) goto('/profile');
+			if (res.ok) {
+				capture('meeting_cancelled', { meeting_id: data.meeting.id });
+				goto('/profile');
+			}
 		} finally {
 			cancelling = false;
 		}

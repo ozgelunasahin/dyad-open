@@ -2,6 +2,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { copy } from '$lib/copy';
+	import { capture } from '$lib/analytics';
 
 	interface Props {
 		formId: string;
@@ -78,6 +79,7 @@
 			});
 			if (res.ok) {
 				const result = await res.json();
+				capture('meeting_feedback_submitted', { meeting_id: meetingId, did_meet: didMeet });
 				if ((result.state === 'locked' || result.state === 'released') && result.revealed) {
 					revealedFeedback = result.revealed;
 					userStep = 'reveal';

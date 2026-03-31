@@ -8,6 +8,7 @@
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import PublishSheet from '$lib/components/PublishSheet.svelte';
 	import { copy } from '$lib/copy';
+	import { capture } from '$lib/analytics';
 
 	let { data }: { data: PageData } = $props();
 
@@ -199,6 +200,7 @@
 				body: JSON.stringify({ slots })
 			});
 			if (res.ok) {
+				capture('conversation_published', { prompt_id: data.prompt.id, slot_count: slots.length });
 				goto(`/conversations/${data.prompt.id}`);
 			} else {
 				const err = await res.json().catch(() => ({}));
