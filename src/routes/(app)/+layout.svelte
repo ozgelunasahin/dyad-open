@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { LayoutData } from './$types';
 	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
+	import MeetingFeedbackModal from '$lib/components/MeetingFeedbackModal.svelte';
 
 	let { data, children }: { data: LayoutData; children: any } = $props();
 </script>
@@ -10,6 +11,16 @@
 </main>
 
 <FeedbackModal isAdmin={data.isAdmin} />
+
+{#if data.pendingFeedback}
+	<MeetingFeedbackModal
+		formId={data.pendingFeedback.formId}
+		meetingId={data.pendingFeedback.meetingId}
+		initialState={data.pendingFeedback.state}
+		vocabulary={data.pendingFeedback.vocabulary}
+		meetingContext={data.pendingFeedback.meetingContext}
+	/>
+{/if}
 
 <style>
 	.main-content {
