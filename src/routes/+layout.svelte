@@ -58,7 +58,7 @@
 </script>
 
 <svelte:head>
-	<title>dyad. cultivating a culture of conversation</title>
+	<title>dyad.</title>
 	<link rel="icon" href="/favicon.png" type="image/png" />
 </svelte:head>
 

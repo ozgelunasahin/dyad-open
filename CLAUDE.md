@@ -72,6 +72,7 @@ All authenticated routes live under `src/routes/(app)/`. The layout provides:
 |----------|----------|---------|
 | `PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
 | `PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon key (public, works with RLS) |
+| `RESEND_API_KEY` | Yes | Email delivery (invites, notifications) |
 | `SUPABASE_SERVICE_ROLE_KEY` | No | Only for admin scripts |
 
 ## Database
@@ -150,3 +151,92 @@ The `docs/plans/` directory contains implementation plans. When resolving a todo
 - **View tester feedback:** Admin panel → Feedback
 - **View users:** Admin panel → Users
 - **No database access needed** for routine operations
+
+## Engineering Standards
+
+The sections below codify operational standards for API contracts, security, migrations, and workflow. They exist because a 17-issue code review (see `todos/REVIEW-2026-02-22.md`) showed these are the areas where problems actually occur.
+
+### API Endpoint Standards
+
+**Always return JSON from `/api/` routes.** SvelteKit's `error()` helper returns an HTML error page, not JSON. Use `return json({ error: '...' }, { status: N })` consistently.
+
+**Wrap `request.json()` in try/catch.** Malformed input should return 400, not crash with 500:
+
+```typescript
+let body;
+try {
+    body = await request.json();
+} catch {
+    return json({ error: 'Invalid JSON' }, { status: 400 });
+}
+```
+
+**Never return internal error details.** `error.message` from Supabase or Resend can contain table names, constraint names, and query fragments. Log server-side with `console.error`, return a generic message to the client.
+
+**Validate the parsed body.** Check required fields are present and have the expected type before using them. Enforce length limits on user-generated content.
+
+**Validate auth in every mutating endpoint.** Even when RLS is configured. RLS is the safety net; the API handler is the primary check.
+
+**No `console.log` in server code.** Every log runs on every request on Cloudflare Workers. Use `console.error` for operational errors; remove debug `console.log` before committing.
+
+### Security Boundaries
+
+**`{@html}` opts out of XSS protection.** Every use requires manual sanitization. Any code that manually builds HTML for `{@html}` must route through DOMPurify or implement an explicit protocol allowlist (`http:`, `https:`, `mailto:` only).
+
+**Never return debug/diagnostic data in API responses.** No API key lengths, no email delivery results, no Supabase error objects. Log server-side, return generic messages.
+
+**Escape user input in HTML email templates.** User-supplied values interpolated into HTML email bodies must be HTML-escaped before interpolation.
+
+### Database Migrations
+
+**Every column referenced in code must have a migration, committed together.** If you add a column to an INSERT, the migration creating it must be in the same commit.
+
+**After writing a rename migration, grep the codebase for the old name.** Column rename mismatches are silent in dev and catastrophic in production.
+
+**One logical change per migration file.** This makes rollback possible at any point in the chain.
+
+**RLS policies: INSERT should constrain the target, not just the actor.** A policy that only checks `auth.uid() IS NOT NULL` lets any authenticated user write rows targeting any other user.
+
+### Constants and Configuration
+
+**Values that appear in more than one place must be constants.** Create them in `src/lib/domain/types.ts` or a dedicated constants file.
+
+**No hardcoded dates, deadlines, or time-based content as string literals.** Use a configuration file or compute dynamically.
+
+### Performance Patterns
+
+**If async operations are independent, run them in parallel.** Use `Promise.all([query1, query2])` instead of sequential `await`. Each Supabase round trip adds 30–80ms.
+
+### Code Organization
+
+**Extract after the third copy.** If you're writing the same function a third time, extract it to `$lib/utils/`.
+
+**Keep components under ~500 lines.** When a component handles multiple concerns, split using SvelteKit route groups or extract child components.
+
+### Git Workflow
+
+**Work on feature branches, not main.** Even without human reviewers, feature branches provide a clean rollback point.
+
+**One logical change per commit.** Small, focused commits are the undo button for production problems.
+
+**Run `npm run build` before pushing.** The build catches type errors, missing imports, and broken references that `svelte-check` may miss.
+
+**Never force-push to main.** Use `git revert` to undo commits on main.
+
+### Self-Review Checklist
+
+```
+- [ ] On the correct branch (not main) — `git branch` to verify
+- [ ] Every `request.json()` wrapped in try/catch
+- [ ] No `error.message` or internal details in API responses
+- [ ] No `{@html}` without protocol-safe sanitization
+- [ ] User input in email templates is HTML-escaped
+- [ ] Every new column has a migration in the same commit; renames grepped
+- [ ] Auth checked in every mutating API endpoint
+- [ ] No duplicate logic (check if a utility already exists)
+- [ ] No hardcoded values that appear elsewhere or will change
+- [ ] No console.log in server code (console.error is fine)
+- [ ] Independent async operations use Promise.all
+- [ ] Build passes (`npm run build`)
+- [ ] PR created with summary and test plan
+```

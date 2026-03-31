@@ -258,7 +258,7 @@ export class SupabasePromptCommandService implements PromptCommandService {
 			.from('meetings')
 			.select('id')
 			.eq('prompt_id', promptId)
-			.in('state', ['scheduled', 'active', 'awaiting_feedback'])
+			.in('state', ['scheduled', 'active'])
 			.limit(1);
 
 		if (data && data.length > 0) {

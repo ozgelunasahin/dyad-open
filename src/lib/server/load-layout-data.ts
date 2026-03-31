@@ -9,7 +9,9 @@ export async function loadLayoutData(locals: App.Locals) {
 		redirect(302, '/');
 	}
 
-	const [{ data: profile }, { count: invitationCount }, { count: feedbackCount }] = await Promise.all([
+	const pendingFormId = (locals as any).pendingFeedbackFormId as string | undefined;
+
+	const [{ data: profile }, { count: invitationCount }, { count: feedbackCount }, pendingFeedback] = await Promise.all([
 		locals.supabase
 			.from('profiles')
 			.select('username')
@@ -24,7 +26,8 @@ export async function loadLayoutData(locals: App.Locals) {
 			.from('feedback_forms')
 			.select('*', { count: 'exact', head: true })
 			.eq('reviewer_id', locals.user.id)
-			.eq('state', 'due')
+			.eq('state', 'due'),
+		pendingFormId ? loadPendingFeedback(locals, pendingFormId) : Promise.resolve(null)
 	]);
 
 	const isAdmin = locals.user?.app_metadata?.role === 'admin';
@@ -33,6 +36,68 @@ export async function loadLayoutData(locals: App.Locals) {
 		user: locals.user,
 		username: profile?.username ?? '',
 		attentionCount: (invitationCount ?? 0) + (feedbackCount ?? 0),
-		isAdmin
+		isAdmin,
+		pendingFeedback
+	};
+}
+
+async function loadPendingFeedback(locals: App.Locals, formId: string) {
+	const userId = locals.user!.id;
+
+	const [{ data: form }, { data: vocabRows }, meetingContext] = await Promise.all([
+		locals.supabase
+			.from('feedback_forms')
+			.select('id, meeting_id, state')
+			.eq('id', formId)
+			.eq('reviewer_id', userId)
+			.single(),
+		locals.supabase
+			.from('adjective_vocabulary')
+			.select('word')
+			.eq('active', true)
+			.order('word'),
+		loadMeetingContext(locals, formId, userId)
+	]);
+
+	if (!form) return null;
+
+	return {
+		formId: form.id,
+		meetingId: form.meeting_id as string,
+		state: form.state as string,
+		vocabulary: (vocabRows ?? []).map((r: { word: string }) => r.word),
+		meetingContext
+	};
+}
+
+async function loadMeetingContext(locals: App.Locals, formId: string, userId: string) {
+	const { data: form } = await locals.supabase
+		.from('feedback_forms')
+		.select('meeting_id')
+		.eq('id', formId)
+		.single();
+
+	if (!form?.meeting_id) return null;
+
+	const { data: meeting } = await locals.supabase
+		.from('meetings')
+		.select('scheduled_time, participant_a, participant_b')
+		.eq('id', form.meeting_id)
+		.single();
+
+	if (!meeting) return null;
+
+	const otherId = meeting.participant_a === userId ? meeting.participant_b : meeting.participant_a;
+	const { data: otherProfile } = await locals.supabase
+		.from('profiles')
+		.select('username')
+		.eq('id', otherId)
+		.single();
+
+	return {
+		otherUsername: otherProfile?.username ?? 'someone',
+		meetingDate: new Date(meeting.scheduled_time).toLocaleDateString('en-US', {
+			weekday: 'long', month: 'long', day: 'numeric'
+		})
 	};
 }

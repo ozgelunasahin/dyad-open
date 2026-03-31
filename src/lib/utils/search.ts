@@ -10,13 +10,16 @@ export interface SearchableItem {
 	title: string | null;
 	body_text: string;
 	cover_image_url: string | null;
+	username: string;
+	soonest_slot: string | null;
 }
 
 const STOP_WORDS = new Set([
 	'a','an','the','in','on','at','to','for','of','and','or','is','it',
 	'i','my','we','do','so','no','not','but','with','this','that','from',
 	'by','as','be','are','was','who','what','how','about','ihre','ich',
-	'ein','eine','der','die','das'
+	'ein','eine','der','die','das',
+	'berlin' // all conversations are in Berlin — useless as a search term
 ]);
 
 /** Strip common English suffixes for loose matching. */

@@ -67,6 +67,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 			pathname.startsWith('/datenschutz');
 
 		if (!isExempt) {
+			// Advance any meetings whose scheduled_time has passed — creates feedback_forms with state='due'
+			try { await event.locals.supabase.rpc('advance_scheduled_meetings'); } catch { /* fail open */ }
+
 			const { SupabaseGateService } = await import('$lib/services/gate.js');
 			const gateService = new SupabaseGateService(event.locals.supabase);
 			const gateStatus = await gateService.checkGate(user.id);
@@ -74,20 +77,17 @@ export const handle: Handle = async ({ event, resolve }) => {
 			if (gateStatus.gated && gateStatus.feedbackFormId) {
 				// Admin bypass: check app_metadata (no DB query — from JWT)
 				const isAdmin = event.locals.user?.app_metadata?.role === 'admin';
-				if (isAdmin) {
-					return resolve(event);
-				}
 
-				if (pathname.startsWith('/api/')) {
-					return new Response(JSON.stringify({ error: 'gated', feedbackFormId: gateStatus.feedbackFormId }), {
-						status: 403,
-						headers: { 'Content-Type': 'application/json' }
-					});
+				if (!isAdmin) {
+					if (pathname.startsWith('/api/')) {
+						return new Response(JSON.stringify({ error: 'gated', feedbackFormId: gateStatus.feedbackFormId }), {
+							status: 403,
+							headers: { 'Content-Type': 'application/json' }
+						});
+					}
+					// Store in locals so the layout renders the feedback modal instead of redirecting
+					(event.locals as any).pendingFeedbackFormId = gateStatus.feedbackFormId;
 				}
-				return new Response(null, {
-					status: 303,
-					headers: { Location: `/feedback/${gateStatus.feedbackFormId}` }
-				});
 			}
 		}
 	}

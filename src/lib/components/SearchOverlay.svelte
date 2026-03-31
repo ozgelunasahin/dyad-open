@@ -16,6 +16,10 @@
 	let liveQuery = $derived(query.trim());
 	let results = $derived(searchItems(prompts, liveQuery));
 
+	function formatDate(iso: string): string {
+		return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+	}
+
 	function handleSuggestion(s: string) {
 		query = s;
 	}
@@ -63,18 +67,24 @@
 		<div class="results" transition:fly={{ y: 10, duration: 180 }}>
 			{#each results as prompt}
 				<button class="result-row" onclick={() => onSelect(prompt.id)}>
-					<div class="result-thumb">
-						{#if prompt.cover_image_url}
-							<img src={prompt.cover_image_url} alt="" />
-						{:else}
-							<div class="thumb-placeholder"></div>
-						{/if}
-					</div>
-					<div class="result-body">
-						<p class="result-title">{prompt.title}</p>
+					{#if prompt.cover_image_url}
+						<img src={prompt.cover_image_url} alt="" class="card-thumb" loading="lazy" />
+					{:else}
+						<div class="card-thumb thumb-placeholder"></div>
+					{/if}
+					<div class="card-content">
+						<p class="card-title">{prompt.title}</p>
 						{#if prompt.body_text}
-							<p class="result-snippet">{prompt.body_text.slice(0, 120)}</p>
+							<p class="card-snippet">{prompt.body_text.slice(0, 120)}</p>
 						{/if}
+						<div class="card-meta">
+							{#if prompt.soonest_slot}
+								<span class="meta-date">{formatDate(prompt.soonest_slot)}</span>
+							{/if}
+							{#if prompt.username}
+								<span class="meta-author">@{prompt.username}</span>
+							{/if}
+						</div>
 					</div>
 				</button>
 			{/each}
@@ -167,75 +177,71 @@
 
 	.results {
 		overflow-y: auto;
-		padding: 0 0 var(--space-6);
-		max-height: 55vh;
+		padding: 0 var(--space-5) var(--space-6);
+		max-height: 50vh;
+		width: 100%;
+		max-width: 480px;
+		margin: 0 auto;
 	}
 
 	.result-row {
 		display: flex;
 		gap: var(--space-3);
-		padding: var(--space-3) var(--space-5);
+		padding: var(--space-3) 0;
 		background: none;
 		border: none;
+		border-bottom: 1px solid var(--border-link);
 		width: 100%;
 		text-align: left;
 		cursor: pointer;
-		transition: background 0.12s;
+		color: inherit;
+		transition: opacity 0.12s;
 	}
+	.result-row:last-child { border-bottom: none; }
+	.result-row:hover { opacity: var(--opacity-hover-card); }
 
-	.result-row:hover {
-		background: var(--bg-control);
-	}
-
-	.result-thumb {
-		width: 52px;
-		height: 52px;
-		flex-shrink: 0;
-		border-radius: var(--radius-input);
-		overflow: hidden;
-	}
-
-	.result-thumb img {
-		width: 100%;
-		height: 100%;
+	.card-thumb {
+		width: 64px;
+		height: 64px;
 		object-fit: cover;
-		display: block;
+		border-radius: var(--radius-input);
+		flex-shrink: 0;
 	}
 
 	.thumb-placeholder {
-		width: 100%;
-		height: 100%;
+		width: 64px;
+		height: 64px;
+		flex-shrink: 0;
+		border-radius: var(--radius-input);
 		background: var(--bg-control);
 	}
 
-	.result-body {
-		flex: 1;
-		min-width: 0;
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-1);
-		justify-content: center;
-	}
+	.card-content { flex: 1; min-width: 0; }
 
-	.result-title {
-		margin: 0;
+	.card-title {
 		font-size: var(--text-md);
 		font-weight: 500;
-		line-height: var(--leading-tight);
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
+		color: var(--text-primary);
+		margin: 0 0 var(--space-1);
+		line-height: 1.3;
 	}
 
-	.result-snippet {
-		margin: 0;
+	.card-snippet {
 		font-size: var(--text-sm);
 		color: var(--text-muted);
-		line-height: var(--leading-normal);
+		margin: 0 0 var(--space-1);
+		line-height: 1.4;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
 		line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
+	}
+
+	.card-meta {
+		display: flex;
+		gap: var(--space-2);
+		font-size: var(--text-xs);
+		color: var(--text-muted);
 	}
 </style>
