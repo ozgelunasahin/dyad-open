@@ -5,7 +5,9 @@ import { env } from '$env/dynamic/private';
 import type { Actions, PageServerLoad } from './$types';
 
 function makeAdminClient() {
-	return createClient(PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+	const key = env.SUPABASE_SERVICE_ROLE_KEY;
+	if (!key) throw new Error('SUPABASE_SERVICE_ROLE_KEY is not configured');
+	return createClient(PUBLIC_SUPABASE_URL, key, {
 		auth: { autoRefreshToken: false, persistSession: false }
 	});
 }
