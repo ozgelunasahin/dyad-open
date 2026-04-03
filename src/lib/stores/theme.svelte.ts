@@ -11,12 +11,12 @@ function getInitialTheme(): Theme {
 		return stored;
 	}
 
-	// Default to light mode
-	return 'light';
+	// Default to dark mode
+	return 'dark';
 }
 
 class ThemeStore {
-	current = $state<Theme>('light');
+	current = $state<Theme>('dark');
 
 	constructor() {
 		if (typeof window !== 'undefined') {

@@ -103,6 +103,8 @@
 
 			<p class="tagline">A place on the web to find people to talk to,<span class="tagline-break"> </span> face to face.</p>
 
+			<a href="/why" class="why-link">Why does Dyad exist?</a>
+
 			<div class="city-row">
 				<span class="city-dot" aria-hidden="true"></span>
 				<span class="city-name">BERLIN</span>
@@ -258,12 +260,23 @@
 	.tagline {
 		font-size: clamp(0.82rem, 1.1vw, 0.95rem);
 		line-height: 1.55;
-		margin: 0 0 var(--space-8);
+		margin: 0 0 var(--space-5);
 	}
 
 	.tagline-break {
 		display: inline;
 	}
+
+	.why-link {
+		display: block;
+		font-size: clamp(0.78rem, 1vw, 0.88rem);
+		font-style: italic;
+		color: var(--text-muted);
+		opacity: 0.6;
+		text-decoration: none;
+		margin: 0 0 var(--space-5);
+	}
+	.why-link:hover { opacity: 1; }
 
 	.city-row {
 		display: flex;
