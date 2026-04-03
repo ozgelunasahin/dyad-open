@@ -22,7 +22,7 @@
 		</div>
 		<div class="scattered">
 			<img class="sc sc-lg" style="--x: 2%; --y: 8%; --r: -2deg"  src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/why0.1.png" alt="" />
-			<img class="sc sc-lg" style="--x: 48%; --y: 42%; --r: 2deg" src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/why0.png" alt="" />
+			<img class="sc sc-lg" style="--x: 48%; --y: 42%; --r: 2deg" src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/why0.2.png" alt="" />
 		</div>
 	</div>
 	</div>
