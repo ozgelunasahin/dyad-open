@@ -12,17 +12,17 @@
 
 	let posthogReady = $state(false);
 
-	onMount(async () => {
-		if (!env.PUBLIC_POSTHOG_KEY) return;
-		await initPosthog(env.PUBLIC_POSTHOG_KEY, data.user?.id, data.username);
-		posthogReady = true;
-	});
+	// PostHog disabled — re-enable after privacy/reliability fixes land (#101)
+	// onMount(async () => {
+	// 	if (!env.PUBLIC_POSTHOG_KEY) return;
+	// 	await initPosthog(env.PUBLIC_POSTHOG_KEY, data.user?.id, data.username);
+	// 	posthogReady = true;
+	// });
 
-	// Track SvelteKit client-side route changes
-	$effect(() => {
-		if (!posthogReady || !browser) return;
-		capture('$pageview', { path: $page.url.pathname });
-	});
+	// $effect(() => {
+	// 	if (!posthogReady || !browser) return;
+	// 	capture('$pageview', { path: $page.url.pathname });
+	// });
 </script>
 
 <main class="main-content">

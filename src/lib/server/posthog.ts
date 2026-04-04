@@ -9,20 +9,11 @@
  */
 import { env } from '$env/dynamic/public';
 
+// Disabled — re-enable after privacy/reliability fixes land (#101)
 export async function captureServer(
-	distinctId: string,
-	event: string,
-	properties?: Record<string, unknown>
+	_distinctId: string,
+	_event: string,
+	_properties?: Record<string, unknown>
 ): Promise<void> {
-	if (!env.PUBLIC_POSTHOG_KEY) return;
-	await fetch('https://eu.i.posthog.com/capture/', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({
-			api_key: env.PUBLIC_POSTHOG_KEY,
-			event,
-			distinct_id: distinctId,
-			properties: properties ?? {}
-		})
-	}).catch((err) => console.error('[posthog] Server capture failed:', err));
+	return;
 }
