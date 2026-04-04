@@ -165,16 +165,6 @@
 
 		markerLayer = L.layerGroup().addTo(map);
 		rebuildMarkers(L);
-
-		// Center on user location if available (no animation — instant jump)
-		if (!initialCenter && 'geolocation' in navigator) {
-			navigator.geolocation.getCurrentPosition(
-				(pos) => {
-					map?.setView([pos.coords.latitude, pos.coords.longitude], 13, { animate: false });
-				},
-				() => { /* permission denied or error — stay on Berlin center */ }
-			);
-		}
 	});
 
 	let prevPrompts: PromptSummary[] | undefined;
