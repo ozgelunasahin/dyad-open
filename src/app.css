@@ -72,9 +72,9 @@
 	--color-danger: #c00;
 	--color-saving: #f59e0b;
 
-	/* Signature accent — faded terracotta. Use sparingly: city-dot pulse,
-	 * landing @username underline, a single highlight per surface. Never
-	 * for body copy or primary buttons. */
+	/* Signature accent — faded terracotta. Use sparingly: landing @username
+	 * underline, a single highlight per surface. Never for body copy or
+	 * primary buttons. (The live-city pulse uses --color-success instead.) */
 	--color-accent: #b04a3a;
 
 	/* Layout clearance */

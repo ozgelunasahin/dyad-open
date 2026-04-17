@@ -314,7 +314,7 @@
 		width: 6px;
 		height: 6px;
 		border-radius: 50%;
-		background: var(--color-accent);
+		background: var(--color-success);
 		flex-shrink: 0;
 		animation: pulse var(--duration-ambient) ease-in-out infinite;
 	}
@@ -510,7 +510,7 @@
 			min-height: unset;
 			border-right: none;
 			border-bottom: none;
-			padding: var(--space-6) var(--space-4) calc(var(--space-10) + var(--space-6));
+			padding: var(--space-6) var(--space-4) var(--space-4);
 			transform: translateZ(0); /* contain position:fixed BottomSheet within 100vh */
 		}
 
@@ -519,9 +519,9 @@
 
 		.hero-map {
 			display: block;
-			height: 45vh;
+			height: 58vh;
 			flex-shrink: 0;
-			margin: var(--space-4) 0;
+			margin: var(--space-3) 0;
 			border-radius: var(--radius-card);
 			overflow: hidden;
 			position: relative;
