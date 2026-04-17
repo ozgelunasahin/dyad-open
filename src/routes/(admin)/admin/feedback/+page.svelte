@@ -66,7 +66,7 @@
 	}
 	.badge-bug { background: rgba(239,68,68,0.12); color: #dc2626; }
 	.badge-feature { background: rgba(59,130,246,0.12); color: #2563eb; }
-	.badge-other { background: rgba(0,0,0,0.06); color: var(--text-muted); }
+	.badge-other { background: color-mix(in srgb, var(--text-primary) 6%, transparent); color: var(--text-muted); }
 	.badge-status-new { background: rgba(245,158,11,0.12); color: #b45309; }
 	.badge-status-reviewed { background: rgba(61,158,90,0.12); color: #2d7a42; }
 

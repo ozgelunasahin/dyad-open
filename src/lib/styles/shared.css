@@ -131,9 +131,9 @@
 	flex-shrink: 0;
 }
 
-.badge-draft { background: rgba(0,0,0,0.06); color: var(--text-muted); }
+.badge-draft { background: color-mix(in srgb, var(--text-primary) 6%, transparent); color: var(--text-muted); }
 .badge-published { background: rgba(61,158,90,0.12); color: #2d7a42; }
-.badge-archived { background: rgba(0,0,0,0.04); color: var(--text-muted); }
+.badge-archived { background: color-mix(in srgb, var(--text-primary) 4%, transparent); color: var(--text-muted); }
 .badge-pending { background: rgba(245,158,11,0.12); color: #b45309; }
 .badge-accepted { background: rgba(61,158,90,0.12); color: #2d7a42; }
 
