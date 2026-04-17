@@ -26,7 +26,7 @@ describe('deriveGeneralArea — Nominatim resilience', () => {
 			)
 		);
 		const result = await deriveGeneralArea({
-			name: 'x', address: 'y', lat: 52.5, lng: 13.4
+			place_id: 'test', name: 'x', address: 'y', lat: 52.5, lng: 13.4
 		});
 		expect(result.generalArea).toBe('Kreuzberg');
 	});
@@ -36,7 +36,7 @@ describe('deriveGeneralArea — Nominatim resilience', () => {
 			new Response('server error', { status: 500 })
 		);
 		const result = await deriveGeneralArea({
-			name: 'x', address: 'y', lat: 52.5, lng: 13.4
+			place_id: 'test', name: 'x', address: 'y', lat: 52.5, lng: 13.4
 		});
 		expect(result.generalArea).toBe('Berlin');
 		expect(result.centroidLat).toBe(52.5);
@@ -46,7 +46,7 @@ describe('deriveGeneralArea — Nominatim resilience', () => {
 	it('falls through to "Berlin" when fetch throws (network failure)', async () => {
 		fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('ECONNRESET'));
 		const result = await deriveGeneralArea({
-			name: 'x', address: 'y', lat: 52.5, lng: 13.4
+			place_id: 'test', name: 'x', address: 'y', lat: 52.5, lng: 13.4
 		});
 		expect(result.generalArea).toBe('Berlin');
 		expect(console.error).toHaveBeenCalled();
@@ -63,7 +63,7 @@ describe('deriveGeneralArea — Nominatim resilience', () => {
 		});
 
 		const promise = deriveGeneralArea({
-			name: 'x', address: 'y', lat: 52.5, lng: 13.4
+			place_id: 'test', name: 'x', address: 'y', lat: 52.5, lng: 13.4
 		});
 
 		// advance past the NOMINATIM_TIMEOUT_MS so the controller aborts
