@@ -7,7 +7,23 @@
 	import BottomSheet from '$lib/components/BottomSheet.svelte';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
 	import SearchOverlay from '$lib/components/SearchOverlay.svelte';
-	import PromptListItem from '$lib/components/PromptListItem.svelte';
+	import ConversationCard from '$lib/components/ConversationCard.svelte';
+
+	function slotDates(slots: { start_time: string }[]): string {
+		const dates = new Set<string>();
+		for (const s of slots) {
+			const d = new Date(s.start_time);
+			dates.add(d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' }));
+		}
+		return [...dates].join(' · ');
+	}
+
+	function uniqueAreas(slots: { general_area: string }[]): string {
+		return slots
+			.map((s) => s.general_area)
+			.filter((v, i, a) => a.indexOf(v) === i)
+			.join(', ');
+	}
 	import OnboardingModal from '$lib/components/OnboardingModal.svelte';
 	import { getWeekDates } from '$lib/utils/dates';
 	import type { Snapshot } from './$types';
@@ -157,7 +173,14 @@
 				{:else}
 					<div class="prompt-list">
 						{#each filteredPrompts as prompt}
-							<PromptListItem {prompt} href="/conversations/{prompt.id}" />
+							<ConversationCard
+								title={prompt.title ?? 'Untitled'}
+								coverUrl={prompt.cover_image_url}
+								snippet={prompt.body_snippet}
+								metaLeft={slotDates(prompt.available_slots)}
+								metaRight={uniqueAreas(prompt.available_slots)}
+								href={`/conversations/${prompt.id}`}
+							/>
 						{/each}
 					</div>
 				{/if}
@@ -254,5 +277,5 @@
 
 	.start-prompt-btn:hover { opacity: var(--opacity-hover-btn); }
 
-	/* Prompt list item styles are in PromptListItem.svelte */
+	/* Prompt list item styles live in ConversationCard.svelte */
 </style>
