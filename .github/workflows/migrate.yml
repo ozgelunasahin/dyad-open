@@ -1,0 +1,57 @@
+# Push Supabase migrations to the linked remote project on every merge to main
+# that touches supabase/migrations/**. Keeps the repo as the source of truth
+# (per CLAUDE.md) and means no contributor needs the remote DB password on
+# their laptop.
+#
+# Required GitHub Actions secrets (Settings → Secrets and variables → Actions):
+#   SUPABASE_ACCESS_TOKEN  — personal access token from supabase.com/dashboard/account/tokens
+#   SUPABASE_PROJECT_REF   — the project ref (e.g. "abcdefghijklmnop" from the dashboard URL)
+#   SUPABASE_DB_PASSWORD   — the remote Postgres password (dashboard → Project Settings → Database)
+#
+# Safety notes:
+#   - Only runs on pushes to main, so a PR must merge green before a migration
+#     can reach prod. The PR diff is the human review gate on destructive SQL.
+#   - `concurrency` serialises runs — two merges in quick succession won't race.
+#   - Supabase's migration tracker (supabase_migrations.schema_migrations) makes
+#     `db push` idempotent — re-runs of the same migration are no-ops.
+
+name: Migrate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+  workflow_dispatch: {}
+
+concurrency:
+  group: supabase-migrate
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Push migrations to Supabase
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.84.2
+
+      - name: Link project
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+
+      - name: Show migration status (pre-push)
+        run: supabase migration list --linked
+
+      - name: Push migrations
+        run: supabase db push --linked
+
+      - name: Show migration status (post-push)
+        if: always()
+        run: supabase migration list --linked
