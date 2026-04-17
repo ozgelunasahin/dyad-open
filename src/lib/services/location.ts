@@ -3,7 +3,13 @@ import type { LocationRef } from '$lib/domain/types.js';
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
 const USER_AGENT = 'dyad.berlin/0.1 (contact@dyad.berlin)';
 const RATE_LIMIT_MS = 1000;
+const NOMINATIM_TIMEOUT_MS = 6000;
 
+// Best-effort rate limit. On Cloudflare Workers, each isolate has its own
+// memory, so this counter does NOT aggregate across isolates. Good enough to
+// avoid self-inflicted bursts from a single request's sequential calls; not a
+// defense against Nominatim's fair-use policy under concurrent load. For
+// stricter rate-limiting, use a shared KV or Supabase counter.
 let lastRequestTime = 0;
 
 async function rateLimitedFetch(url: string): Promise<Response> {
@@ -13,12 +19,20 @@ async function rateLimitedFetch(url: string): Promise<Response> {
 		await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_MS - elapsed));
 	}
 	lastRequestTime = Date.now();
-	return fetch(url, {
-		headers: {
-			'User-Agent': USER_AGENT,
-			'Accept-Language': 'en'
-		}
-	});
+
+	const controller = new AbortController();
+	const timeoutId = setTimeout(() => controller.abort(), NOMINATIM_TIMEOUT_MS);
+	try {
+		return await fetch(url, {
+			signal: controller.signal,
+			headers: {
+				'User-Agent': USER_AGENT,
+				'Accept-Language': 'en'
+			}
+		});
+	} finally {
+		clearTimeout(timeoutId);
+	}
 }
 
 export interface LocationSearchResult {
@@ -66,8 +80,17 @@ export async function searchLocations(
 		viewbox
 	});
 
-	const res = await rateLimitedFetch(`${NOMINATIM_BASE}/search?${params}`);
-	if (!res.ok) return [];
+	let res: Response;
+	try {
+		res = await rateLimitedFetch(`${NOMINATIM_BASE}/search?${params}`);
+	} catch (err) {
+		console.error('[location] nominatim search failed:', err);
+		return [];
+	}
+	if (!res.ok) {
+		console.error('[location] nominatim search non-ok:', res.status);
+		return [];
+	}
 
 	const data: NominatimSearchResult[] = await res.json();
 	return data.map(toSearchResult);
@@ -87,9 +110,19 @@ export async function deriveGeneralArea(location: LocationRef): Promise<{
 		zoom: '16' // neighbourhood level
 	});
 
-	const res = await rateLimitedFetch(`${NOMINATIM_BASE}/reverse?${params}`);
+	let res: Response;
+	try {
+		res = await rateLimitedFetch(`${NOMINATIM_BASE}/reverse?${params}`);
+	} catch (err) {
+		// Timeout or network failure — do not block publish on an external geocoder.
+		console.error('[location] nominatim reverse failed, falling through to generic area:', err);
+		return {
+			generalArea: 'Berlin',
+			centroidLat: location.lat,
+			centroidLng: location.lng
+		};
+	}
 	if (!res.ok) {
-		// Fallback: use the location itself with a generic area name
 		return {
 			generalArea: 'Berlin',
 			centroidLat: location.lat,

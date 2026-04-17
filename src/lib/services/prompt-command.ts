@@ -4,6 +4,7 @@ import { nanoid } from 'nanoid';
 import type { Prompt, TimeSlotInput } from '$lib/domain/types.js';
 import { canPublish, canUnpublish, canRepublish } from '$lib/domain/prompt.js';
 import { deriveGeneralArea, validateRegion } from '$lib/services/location.js';
+import { DomainError } from '$lib/domain/errors.js';
 
 export interface PromptCommandService {
 	create(
@@ -83,24 +84,17 @@ export class SupabasePromptCommandService implements PromptCommandService {
 	async publish(promptId: string, authorId: string, slots: TimeSlotInput[]): Promise<void> {
 		const prompt = await this.getOwnPrompt(promptId, authorId);
 		if (!canPublish(prompt, slots)) {
-			throw new Error('Cannot publish: prompt must be a draft with 1-3 valid time slots');
+			throw new DomainError('Cannot publish: conversation must be a draft with 1–3 valid time slots');
 		}
 
-		await this.validateAndInsertSlots(promptId, slots, prompt.region);
-
-		const { error } = await this.supabase
-			.from('prompts')
-			.update({ state: 'published', published_at: new Date().toISOString() })
-			.eq('id', promptId)
-			.eq('author_id', authorId);
-
-		if (error) throw new Error(`Failed to publish prompt: ${error.message}`);
+		const derivedSlots = await this.deriveSlotRows(slots, prompt.region);
+		await this.callPublishRpc(promptId, derivedSlots);
 	}
 
 	async addSlots(promptId: string, authorId: string, slots: TimeSlotInput[]): Promise<void> {
 		const prompt = await this.getOwnPrompt(promptId, authorId);
 		if (prompt.state !== 'published') {
-			throw new Error('Can only add slots to a published prompt');
+			throw new DomainError('Can only add slots to a published conversation');
 		}
 
 		// Check total future non-accepted slots won't exceed 3
@@ -113,7 +107,7 @@ export class SupabasePromptCommandService implements PromptCommandService {
 			.gt('start_time', new Date().toISOString());
 
 		if ((count ?? 0) + slots.length > 3) {
-			throw new Error('Cannot exceed 3 available slots per prompt');
+			throw new DomainError('Cannot exceed 3 available slots per conversation');
 		}
 
 		await this.validateAndInsertSlots(promptId, slots, prompt.region);
@@ -122,7 +116,7 @@ export class SupabasePromptCommandService implements PromptCommandService {
 	async editSlot(slotId: string, authorId: string, updates: Partial<TimeSlotInput>): Promise<void> {
 		const slot = await this.getOwnSlot(slotId, authorId);
 		if (slot.accepted) {
-			throw new Error('Cannot edit an accepted slot');
+			throw new DomainError('Cannot edit a slot that has already been booked');
 		}
 
 		// Auto-expire pending invitations when slot is modified
@@ -132,16 +126,16 @@ export class SupabasePromptCommandService implements PromptCommandService {
 		if (updates.start_time !== undefined) {
 			const startDate = new Date(updates.start_time);
 			if (isNaN(startDate.getTime())) {
-				throw new Error('start_time must be a valid ISO 8601 date');
+				throw new DomainError('Start time must be a valid date');
 			}
 			const oneHourFromNow = new Date(Date.now() + 60 * 60 * 1000);
 			if (startDate < oneHourFromNow) {
-				throw new Error('start_time must be at least 1 hour in the future');
+				throw new DomainError('Start time must be at least 1 hour in the future');
 			}
 		}
 		if (updates.duration_minutes !== undefined) {
 			if (!Number.isInteger(updates.duration_minutes) || updates.duration_minutes < 15 || updates.duration_minutes > 480) {
-				throw new Error('duration_minutes must be an integer between 15 and 480');
+				throw new DomainError('Duration must be between 15 and 480 minutes');
 			}
 		}
 
@@ -152,7 +146,7 @@ export class SupabasePromptCommandService implements PromptCommandService {
 		if (updates.location) {
 			const prompt = await this.getOwnPrompt(slot.prompt_id, authorId);
 			if (!validateRegion(updates.location, prompt.region)) {
-				throw new Error('Location is outside the prompt region');
+				throw new DomainError('Location is outside Berlin');
 			}
 			const area = await deriveGeneralArea(updates.location);
 			fields.exact_location = updates.location;
@@ -172,7 +166,7 @@ export class SupabasePromptCommandService implements PromptCommandService {
 	async removeSlot(slotId: string, authorId: string): Promise<void> {
 		const slot = await this.getOwnSlot(slotId, authorId);
 		if (slot.accepted) {
-			throw new Error('Cannot remove an accepted slot');
+			throw new DomainError('Cannot remove a slot that has already been booked');
 		}
 
 		// Auto-expire pending invitations when slot is removed
@@ -189,7 +183,7 @@ export class SupabasePromptCommandService implements PromptCommandService {
 	async unpublish(promptId: string, authorId: string): Promise<void> {
 		const prompt = await this.getOwnPrompt(promptId, authorId);
 		if (!canUnpublish(prompt)) {
-			throw new Error('Can only unpublish a published prompt');
+			throw new DomainError('Can only archive a published conversation');
 		}
 
 		await this.guardNoActiveMeetings(promptId);
@@ -206,28 +200,17 @@ export class SupabasePromptCommandService implements PromptCommandService {
 	async republish(promptId: string, authorId: string, slots: TimeSlotInput[]): Promise<void> {
 		const prompt = await this.getOwnPrompt(promptId, authorId);
 		if (!canRepublish(prompt, slots)) {
-			throw new Error('Cannot republish: prompt must be archived with 1-3 valid time slots');
+			throw new DomainError('Cannot republish: conversation must be archived with 1–3 valid time slots');
 		}
 
-		await this.validateAndInsertSlots(promptId, slots, prompt.region);
-
-		const { error } = await this.supabase
-			.from('prompts')
-			.update({
-				state: 'published',
-				published_at: new Date().toISOString(),
-				archived_at: null
-			})
-			.eq('id', promptId)
-			.eq('author_id', authorId);
-
-		if (error) throw new Error(`Failed to republish prompt: ${error.message}`);
+		const derivedSlots = await this.deriveSlotRows(slots, prompt.region);
+		await this.callPublishRpc(promptId, derivedSlots);
 	}
 
 	async deleteDraft(promptId: string, authorId: string): Promise<void> {
 		const prompt = await this.getOwnPrompt(promptId, authorId);
 		if (prompt.state !== 'draft') {
-			throw new Error('Can only delete drafts');
+			throw new DomainError('Can only discard drafts');
 		}
 
 		const { error } = await this.supabase
@@ -262,7 +245,7 @@ export class SupabasePromptCommandService implements PromptCommandService {
 			.limit(1);
 
 		if (data && data.length > 0) {
-			throw new Error('Cannot archive or delete a conversation with a scheduled meeting.');
+			throw new DomainError('Cannot archive or delete a conversation with a scheduled meeting.');
 		}
 	}
 
@@ -284,7 +267,7 @@ export class SupabasePromptCommandService implements PromptCommandService {
 			.eq('author_id', authorId)
 			.single();
 
-		if (error || !data) throw new Error('Prompt not found or access denied');
+		if (error || !data) throw new DomainError('Conversation not found', 404);
 		return data as Prompt;
 	}
 
@@ -298,12 +281,12 @@ export class SupabasePromptCommandService implements PromptCommandService {
 			.eq('id', slotId)
 			.single();
 
-		if (error || !data) throw new Error('Slot not found');
+		if (error || !data) throw new DomainError('Slot not found', 404);
 
 		// Check ownership via the joined prompt
 		const prompt = (data as Record<string, unknown>).prompts as { author_id: string } | null;
 		if (!prompt || prompt.author_id !== authorId) {
-			throw new Error('Slot not found or access denied');
+			throw new DomainError('Slot not found', 404);
 		}
 
 		return { id: data.id, prompt_id: data.prompt_id, accepted: data.accepted };
@@ -313,63 +296,104 @@ export class SupabasePromptCommandService implements PromptCommandService {
 		// start_time: must be valid ISO 8601, at least 1 hour in the future
 		const startDate = new Date(slot.start_time);
 		if (isNaN(startDate.getTime())) {
-			throw new Error('start_time must be a valid ISO 8601 date');
+			throw new DomainError('Start time must be a valid date');
 		}
 		const oneHourFromNow = new Date(Date.now() + 60 * 60 * 1000);
 		if (startDate < oneHourFromNow) {
-			throw new Error('start_time must be at least 1 hour in the future');
+			throw new DomainError('Start time must be at least 1 hour in the future');
 		}
 
 		// duration_minutes: integer, 15-480
 		if (!Number.isInteger(slot.duration_minutes) || slot.duration_minutes < 15 || slot.duration_minutes > 480) {
-			throw new Error('duration_minutes must be an integer between 15 and 480');
+			throw new DomainError('Duration must be between 15 and 480 minutes');
 		}
 
 		// location: required fields with correct types
 		const loc = slot.location;
 		if (!loc || typeof loc !== 'object') {
-			throw new Error('location is required and must be an object');
+			throw new DomainError('Location is required');
 		}
 		if (typeof loc.name !== 'string' || !loc.name.trim()) {
-			throw new Error('location.name is required');
+			throw new DomainError('Location name is required');
 		}
 		if (typeof loc.address !== 'string' || !loc.address.trim()) {
-			throw new Error('location.address is required');
+			throw new DomainError('Location address is required');
 		}
 		if (typeof loc.lat !== 'number' || loc.lat < -90 || loc.lat > 90) {
-			throw new Error('location.lat must be a number between -90 and 90');
+			throw new DomainError('Invalid location coordinates');
 		}
 		if (typeof loc.lng !== 'number' || loc.lng < -180 || loc.lng > 180) {
-			throw new Error('location.lng must be a number between -180 and 180');
+			throw new DomainError('Invalid location coordinates');
 		}
 	}
 
+	/** For addSlots — direct insert path on a published prompt, NOT used by publish/republish. */
 	private async validateAndInsertSlots(
 		promptId: string,
 		slots: TimeSlotInput[],
 		region: string
 	): Promise<void> {
-		const rows = [];
-		for (const slot of slots) {
-			this.validateSlotFields(slot);
-
-			if (!validateRegion(slot.location, region)) {
-				throw new Error(`Location "${slot.location.name}" is outside the ${region} region`);
-			}
-
-			const area = await deriveGeneralArea(slot.location);
-			rows.push({
-				prompt_id: promptId,
-				start_time: slot.start_time,
-				duration_minutes: slot.duration_minutes,
-				exact_location: slot.location,
-				general_area: area.generalArea,
-				general_area_lat: area.centroidLat,
-				general_area_lng: area.centroidLng
-			});
-		}
-
+		const rows = await this.deriveSlotRows(slots, region, promptId);
 		const { error } = await this.supabase.from('time_slots').insert(rows);
 		if (error) throw new Error(`Failed to create time slots: ${error.message}`);
+	}
+
+	/** Validate + reverse-geocode slots into DB-shaped rows (no insert). */
+	private async deriveSlotRows(
+		slots: TimeSlotInput[],
+		region: string,
+		promptId?: string
+	): Promise<Array<{
+		prompt_id?: string;
+		start_time: string;
+		duration_minutes: number;
+		exact_location: unknown;
+		general_area: string;
+		general_area_lat: number;
+		general_area_lng: number;
+	}>> {
+		// Validate + region-check all slots up-front so we fail fast without
+		// hitting Nominatim if any slot is invalid.
+		for (const slot of slots) {
+			this.validateSlotFields(slot);
+			if (!validateRegion(slot.location, region)) {
+				throw new DomainError(`"${slot.location.name}" is outside Berlin`);
+			}
+		}
+
+		// Reverse-geocode all slots in parallel. Each deriveGeneralArea call
+		// already has a 6s AbortController timeout and falls back to "Berlin"
+		// on failure, so worst-case wall time is ~7s regardless of slot count
+		// instead of N × 7s for the sequential version.
+		const areas = await Promise.all(slots.map((s) => deriveGeneralArea(s.location)));
+
+		return slots.map((slot, i) => ({
+			...(promptId ? { prompt_id: promptId } : {}),
+			start_time: slot.start_time,
+			duration_minutes: slot.duration_minutes,
+			exact_location: slot.location,
+			general_area: areas[i].generalArea,
+			general_area_lat: areas[i].centroidLat,
+			general_area_lng: areas[i].centroidLng
+		}));
+	}
+
+	/** Publish / republish through the atomic SECURITY DEFINER RPC. */
+	private async callPublishRpc(
+		promptId: string,
+		slots: Array<{
+			start_time: string;
+			duration_minutes: number;
+			exact_location: unknown;
+			general_area: string;
+			general_area_lat: number;
+			general_area_lng: number;
+		}>
+	): Promise<void> {
+		const { error } = await this.supabase.rpc('publish_prompt', {
+			p_prompt_id: promptId,
+			p_slots: slots
+		});
+		if (error) throw new Error(`Failed to publish prompt: ${error.message}`);
 	}
 }

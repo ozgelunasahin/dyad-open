@@ -158,7 +158,9 @@
 	<div class="profile-card">
 		<div class="profile-name">{data.username}</div>
 		<div class="profile-handle">@{data.username}</div>
-		<a href="/logout" class="sign-out-link">{copy.nav.signOut}</a>
+		<form method="POST" action="/logout" class="sign-out-form">
+			<button type="submit" class="sign-out-link">{copy.nav.signOut}</button>
+		</form>
 		{#if data.isAdmin}
 			<a href="/admin" class="sign-out-link">admin</a>
 		{/if}
@@ -462,7 +464,20 @@
 
 	.profile-name { font-size: var(--text-xl); font-weight: 500; }
 	.profile-handle { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-muted); }
-	.sign-out-link { font-size: var(--text-sm); color: var(--text-muted); margin-top: var(--space-2); display: inline-block; }
+	.sign-out-form { margin: 0; padding: 0; display: inline-block; }
+	.sign-out-link {
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+		margin-top: var(--space-2);
+		display: inline-block;
+		background: none;
+		border: none;
+		padding: 0;
+		cursor: pointer;
+		font-family: inherit;
+		text-decoration: underline;
+		text-decoration-color: transparent;
+	}
 	.sign-out-link:hover { color: var(--text-primary); }
 
 	/* Sections */

@@ -218,13 +218,15 @@ export class SupabasePromptQueryService implements PromptQueryService {
 			body_snippet: makeSnippet(body),
 			body: body ?? { type: 'doc', content: [] },
 			body_html: (() => {
+				// No unescaped fallback — if the TipTap renderer fails or returns empty,
+				// body_html stays empty. The +page.svelte consumes this via {@html}, so
+				// any string-interpolation fallback here would open stored XSS.
 				try {
-					const html = renderTiptapToHtml(body);
-					if (html) return html;
-				} catch { /* fall through */ }
-				// Fallback: full plain text as paragraphs (no truncation)
-				if (!body) return '';
-				return jsonToPlainText(body).split(/\n\n+/).filter(Boolean).map(p => `<p>${p}</p>`).join('');
+					return renderTiptapToHtml(body) ?? '';
+				} catch (err) {
+					console.error('[prompt-query] tiptap render failed:', err);
+					return '';
+				}
 			})(),
 			cover_image_url: prompt.cover_image_url,
 			available_slots: availableSlots,

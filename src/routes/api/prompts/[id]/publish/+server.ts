@@ -4,6 +4,7 @@ import { requireAuth } from '$lib/server/auth.js';
 import { parseJsonBody } from '$lib/server/parse-body.js';
 import { SupabasePromptCommandService } from '$lib/services/prompt-command.js';
 import type { TimeSlotInput } from '$lib/domain/types.js';
+import { handleServiceError } from '$lib/server/handle-service-error.js';
 import { env } from '$env/dynamic/public';
 
 /** POST /api/prompts/[id]/publish — publish a draft with time slots */
@@ -46,6 +47,6 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		}
 		return json({ ok: true });
 	} catch (err) {
-		return json({ error: (err as Error).message }, { status: 400 });
+		return handleServiceError(err, '[prompts/publish]');
 	}
 };

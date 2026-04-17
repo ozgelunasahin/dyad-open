@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { requireAuth } from '$lib/server/auth.js';
 import { SupabaseMeetingService } from '$lib/services/meeting.js';
+import { handleServiceError } from '$lib/server/handle-service-error.js';
 
 /** GET /api/meetings/[id] — meeting detail (active: with location, cancelled: general area + cancellation info) */
 export const GET: RequestHandler = async ({ params, locals }) => {
@@ -23,6 +24,6 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 		return json({ error: 'Meeting not found' }, { status: 404 });
 	} catch (err) {
-		return json({ error: (err as Error).message }, { status: 400 });
+		return handleServiceError(err, '[meetings/detail]');
 	}
 };

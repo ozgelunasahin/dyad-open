@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { requireAuth } from '$lib/server/auth.js';
 import { parseJsonBody } from '$lib/server/parse-body.js';
 import { SupabaseMeetingService } from '$lib/services/meeting.js';
+import { handleServiceError } from '$lib/server/handle-service-error.js';
 import { env } from '$env/dynamic/public';
 
 /** POST /api/meetings/[id]/cancel — cancel with optional reason */
@@ -35,6 +36,6 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		}
 		return json({ ok: true, tier });
 	} catch (err) {
-		return json({ error: (err as Error).message }, { status: 400 });
+		return handleServiceError(err, '[meetings/cancel]');
 	}
 };

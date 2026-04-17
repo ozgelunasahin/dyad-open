@@ -136,12 +136,27 @@
 
 					<label class="field">
 						<span class="field-label">{copy.auth.email} *</span>
-						<input type="email" bind:value={email} required placeholder="you@example.com" />
+						<input
+							type="email"
+							bind:value={email}
+							required
+							placeholder="you@example.com"
+							autocomplete="email"
+							autocapitalize="off"
+							autocorrect="off"
+							spellcheck="false"
+						/>
 					</label>
 
 					<label class="field">
 						<span class="field-label">{copy.auth.name}</span>
-						<input type="text" bind:value={name} maxlength={200} placeholder="Optional" />
+						<input
+							type="text"
+							bind:value={name}
+							maxlength={200}
+							placeholder="Optional"
+							autocomplete="name"
+						/>
 					</label>
 
 					<label class="field">
@@ -190,12 +205,27 @@
 			<form method="POST" action="/login?/login" use:enhance={handleLoginEnhance}>
 				<label class="field">
 					<span class="field-label">{copy.auth.email}</span>
-					<input type="email" name="email" bind:value={loginEmail} required />
+					<input
+						type="email"
+						name="email"
+						bind:value={loginEmail}
+						required
+						autocomplete="email"
+						autocapitalize="off"
+						autocorrect="off"
+						spellcheck="false"
+					/>
 				</label>
 
 				<label class="field">
 					<span class="field-label">{copy.auth.password}</span>
-					<input type="password" name="password" bind:value={loginPassword} required minlength={8} />
+					<input
+						type="password"
+						name="password"
+						bind:value={loginPassword}
+						required
+						autocomplete="current-password"
+					/>
 				</label>
 
 				{#if error}

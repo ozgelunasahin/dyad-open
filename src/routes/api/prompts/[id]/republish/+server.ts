@@ -4,6 +4,7 @@ import { requireAuth } from '$lib/server/auth.js';
 import { parseJsonBody } from '$lib/server/parse-body.js';
 import { SupabasePromptCommandService } from '$lib/services/prompt-command.js';
 import type { TimeSlotInput } from '$lib/domain/types.js';
+import { handleServiceError } from '$lib/server/handle-service-error.js';
 
 /** POST /api/prompts/[id]/republish — republish an archived prompt with new slots */
 export const POST: RequestHandler = async ({ params, request, locals }) => {
@@ -21,6 +22,6 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		await service.republish(params.id, user.id, body.slots);
 		return json({ ok: true });
 	} catch (err) {
-		return json({ error: (err as Error).message }, { status: 400 });
+		return handleServiceError(err, '[prompts/republish]');
 	}
 };

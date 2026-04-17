@@ -196,7 +196,9 @@
 	{/if}
 
 	<div class="sign-out-section">
-		<a href="/logout">{copy.nav.signOut}</a>
+		<form method="POST" action="/logout" class="sign-out-form">
+			<button type="submit">{copy.nav.signOut}</button>
+		</form>
 	</div>
 </div>
 
@@ -237,7 +239,10 @@
 		font-size: var(--text-sm);
 		color: var(--text-muted);
 	}
-	.sign-out-section a { color: var(--text-muted); text-decoration: underline; }
+	.sign-out-section a,
+	.sign-out-section button { color: var(--text-muted); text-decoration: underline; }
+	.sign-out-section .sign-out-form { margin: 0; padding: 0; }
+	.sign-out-section button { background: none; border: none; cursor: pointer; font: inherit; }
 
 	.meeting-context { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin: 0; }
 	.page-title { font-size: var(--text-xl); font-weight: 500; margin: 0; }

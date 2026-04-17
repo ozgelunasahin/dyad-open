@@ -6,6 +6,7 @@ import { parseJsonBody } from '$lib/server/parse-body.js';
 import { SupabasePromptCommandService } from '$lib/services/prompt-command.js';
 import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
 import { validateTiptapContent } from '$lib/server/validate-tiptap-content.js';
+import { handleServiceError } from '$lib/server/handle-service-error.js';
 
 const MAX_TITLE_LENGTH = 200;
 const STORAGE_URL_PREFIX = `${PUBLIC_SUPABASE_URL}/storage/`;
@@ -45,7 +46,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		});
 		return json(prompt, { status: 201 });
 	} catch (err) {
-		return json({ error: (err as Error).message }, { status: 400 });
+		return handleServiceError(err, '[prompts]');
 	}
 };
 

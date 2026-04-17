@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { MeetingInvitation } from '$lib/domain/types.js';
+import { DomainError } from '$lib/domain/errors.js';
 
 export interface InvitationService {
 	create(params: {
@@ -43,7 +44,19 @@ export class SupabaseInvitationService implements InvitationService {
 			.select()
 			.single();
 
-		if (error) throw new Error(`Failed to create invitation: ${error.message}`);
+		if (error) {
+			// Postgres unique_violation on uq_one_pending_invitation_per_user_per_slot —
+			// the user already has a pending invite for this exact slot. Surface as a
+			// friendly DomainError instead of leaking the constraint name.
+			const code = (error as { code?: string }).code;
+			if (code === '23505') {
+				throw new DomainError(
+					'You already have a pending invitation for this slot.',
+					409
+				);
+			}
+			throw new Error(`Failed to create invitation: ${error.message}`);
+		}
 		return data as MeetingInvitation;
 	}
 
@@ -58,7 +71,7 @@ export class SupabaseInvitationService implements InvitationService {
 
 		if (error) throw new Error(`Failed to cancel invitation: ${error.message}`);
 		if (!data || data.length === 0) {
-			throw new Error('Invitation not found, already resolved, or not yours');
+			throw new DomainError('Invitation not found, already resolved, or not yours', 404);
 		}
 	}
 
