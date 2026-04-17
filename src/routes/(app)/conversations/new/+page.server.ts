@@ -1,10 +1,13 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { SupabasePromptCommandService } from '$lib/services/prompt-command.js';
 
-// Visiting /conversations/new creates an untitled draft and redirects to the editor immediately
-export const load: PageServerLoad = async ({ locals }) => {
-	const service = new SupabasePromptCommandService(locals.supabase);
-	const prompt = await service.create(locals.user!.id, {});
-	redirect(303, `/conversations/${prompt.id}/edit`);
+/**
+ * Entry-point for "+ new conversation". Used to create a blank draft row on
+ * load, which left stale Untitled drafts behind any time a user opened the
+ * editor and navigated away without typing. Now a plain redirect into the
+ * editor's virtual `new` path — the row only gets created the first time
+ * the user actually saves something.
+ */
+export const load: PageServerLoad = async () => {
+	redirect(303, '/conversations/new/edit');
 };
