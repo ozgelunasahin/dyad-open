@@ -8,6 +8,17 @@ import { renderTiptapToHtml } from '$lib/utils/tiptap-html.js';
 
 const SNIPPET_LENGTH = 200;
 
+export interface PublicProfile {
+	username: string;
+	display_name: string | null;
+	prompts: Array<{
+		id: string;
+		title: string | null;
+		cover_image_url: string | null;
+		published_at: string;
+	}>;
+}
+
 export interface PromptQueryService {
 	getPublishedPrompts(params: {
 		region: string;
@@ -26,6 +37,10 @@ export interface PromptQueryService {
 	getMyPrompts(userId: string): Promise<Prompt[]>;
 
 	getAvailableSlots(promptId: string, userId: string): Promise<TimeSlot[]>;
+
+	/** Returns a user's public profile (username, display name) and their
+	 *  published conversations. Null when no profile with the given username. */
+	getPublicProfile(username: string): Promise<PublicProfile | null>;
 }
 
 export class SupabasePromptQueryService implements PromptQueryService {
@@ -275,6 +290,29 @@ export class SupabasePromptQueryService implements PromptQueryService {
 
 		const now = new Date();
 		return ((slots ?? []) as TimeSlot[]).filter((s) => isAvailable(s, now));
+	}
+
+	async getPublicProfile(username: string): Promise<PublicProfile | null> {
+		const { data: profile } = await this.supabase
+			.from('profiles')
+			.select('id, username, display_name')
+			.eq('username', username)
+			.maybeSingle();
+
+		if (!profile) return null;
+
+		const { data: prompts } = await this.supabase
+			.from('prompts')
+			.select('id, title, cover_image_url, published_at')
+			.eq('author_id', profile.id)
+			.eq('state', 'published')
+			.order('published_at', { ascending: false });
+
+		return {
+			username: profile.username,
+			display_name: profile.display_name ?? null,
+			prompts: (prompts ?? []) as PublicProfile['prompts']
+		};
 	}
 }
 
