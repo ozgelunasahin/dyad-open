@@ -93,7 +93,6 @@
 
 <style>
 	:global(html) {
-		scroll-snap-type: y proximity;
 		scroll-behavior: smooth;
 	}
 

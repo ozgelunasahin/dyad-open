@@ -304,7 +304,7 @@
 		transition: background 0.15s;
 	}
 	.nav-btn:hover, .nav-btn.active-icon {
-		background: rgba(0, 0, 0, 0.07);
+		background: color-mix(in srgb, var(--text-primary) 7%, transparent);
 	}
 
 	.plus-btn {
@@ -380,7 +380,7 @@
 		transition: background 0.1s;
 	}
 	.dropdown-item:last-child { border-bottom: none; }
-	.dropdown-item:hover, .dropdown-item:focus { background: rgba(0, 0, 0, 0.04); outline: none; }
+	.dropdown-item:hover, .dropdown-item:focus { background: color-mix(in srgb, var(--text-primary) 4%, transparent); outline: none; }
 	.dropdown-item--danger { color: var(--color-danger); }
 	.dropdown-item--danger:hover { background: color-mix(in srgb, var(--color-danger) 6%, transparent); }
 
@@ -413,7 +413,7 @@
 		gap: 1px;
 		padding: var(--space-1) 0;
 		flex: 1;
-		background: rgba(0, 0, 0, 0.06);
+		background: color-mix(in srgb, var(--text-primary) 6%, transparent);
 		border: none;
 		border-radius: var(--radius-card);
 		cursor: pointer;

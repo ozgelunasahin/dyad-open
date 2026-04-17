@@ -131,7 +131,7 @@
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
 	}
-	.badge-not_invited { background: rgba(0,0,0,0.06); color: var(--text-muted); }
+	.badge-not_invited { background: color-mix(in srgb, var(--text-primary) 6%, transparent); color: var(--text-muted); }
 	.badge-invited { background: rgba(245,158,11,0.12); color: #b45309; }
 	.badge-expired { background: rgba(239,68,68,0.12); color: #dc2626; }
 	.badge-signed_up { background: rgba(61,158,90,0.12); color: #2d7a42; }
