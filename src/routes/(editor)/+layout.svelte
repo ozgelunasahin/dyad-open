@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { LayoutData } from './$types';
+	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
 
 	let { children }: { data: LayoutData; children: any } = $props();
 </script>
@@ -8,7 +9,7 @@
 	{@render children()}
 </main>
 
-<!-- FeedbackModal is on the root layout. -->
+<FeedbackModal />
 
 <style>
 	.editor-layout {

@@ -3,7 +3,6 @@
 	// favicon.png is in static/ — referenced directly
 	import { onMount } from 'svelte';
 	import { themeStore } from '$lib/stores/theme.svelte';
-	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
 
 	let { children } = $props();
 
@@ -64,5 +63,3 @@
 </svelte:head>
 
 {@render children()}
-
-<FeedbackModal />

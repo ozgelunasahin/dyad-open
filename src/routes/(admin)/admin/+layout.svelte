@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 	import type { LayoutData } from './$types';
 	import { copy } from '$lib/copy';
+	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
 
 	let { children }: { data: LayoutData; children: any } = $props();
 </script>
@@ -21,7 +22,7 @@
 	</div>
 </main>
 
-<!-- FeedbackModal is on the root layout. -->
+<FeedbackModal />
 
 <style>
 	.admin-main {
