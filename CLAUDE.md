@@ -74,6 +74,7 @@ All authenticated routes live under `src/routes/(app)/`. The layout provides:
 | `PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon key (public, works with RLS) |
 | `RESEND_API_KEY` | Yes | Email delivery (invites, notifications) |
 | `SUPABASE_SERVICE_ROLE_KEY` | No | Only for admin scripts |
+| `PUBLIC_ASSET_BASE_URL` | No | Override for static page imagery (e.g. `/why` hero images). Falls back to the default Supabase uploads bucket. Set this to route assets through a sovereign host without touching code. |
 
 ## Database
 
@@ -204,6 +205,8 @@ try {
 **One logical change per migration file.** This makes rollback possible at any point in the chain.
 
 **RLS policies: INSERT should constrain the target, not just the actor.** A policy that only checks `auth.uid() IS NOT NULL` lets any authenticated user write rows targeting any other user.
+
+**Prefer `app.current_user_id()` over `auth.uid()` in new RLS policies and SECURITY DEFINER functions.** The wrapper (defined in `supabase/migrations/20260418120000_add_app_current_user_id.sql`) delegates to `auth.uid()` today; when we move off Supabase Auth, we rewrite one function body instead of every policy. Existing `auth.uid()` call sites stay put until the surrounding policy is touched for other reasons — no bulk rewrite.
 
 ### Data Collection and Values
 

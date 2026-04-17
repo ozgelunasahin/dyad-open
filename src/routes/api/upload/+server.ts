@@ -1,14 +1,15 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { nanoid } from 'nanoid';
+import { requireAuth } from '$lib/server/auth.js';
+import { SupabaseStorageService } from '$lib/services/storage.js';
+import { handleServiceError } from '$lib/server/handle-service-error.js';
 
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	if (!locals.user) {
-		return json({ error: 'Unauthorized' }, { status: 401 });
-	}
+	const user = requireAuth(locals.user);
 
 	const formData = await request.formData();
 	const file = formData.get('file');
@@ -26,21 +27,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	const ext = file.type.split('/')[1];
-	const filename = `${locals.user.id}/${nanoid()}.${ext}`;
+	const path = `${user.id}/${nanoid()}.${ext}`;
 
-	const { error } = await locals.supabase.storage.from('uploads').upload(filename, file, {
-		cacheControl: '31536000', // 1 year cache
-		upsert: false
-	});
-
-	if (error) {
-		console.error('Upload failed:', error);
-		return json({ error: 'Failed to upload file' }, { status: 500 });
+	const storage = new SupabaseStorageService(locals.supabase);
+	try {
+		const { url } = await storage.upload('uploads', path, file);
+		return json({ url });
+	} catch (err) {
+		return handleServiceError(err, '[upload]');
 	}
-
-	const {
-		data: { publicUrl }
-	} = locals.supabase.storage.from('uploads').getPublicUrl(filename);
-
-	return json({ url: publicUrl });
 };

@@ -1,3 +1,15 @@
+<script lang="ts">
+	import { env } from '$env/dynamic/public';
+
+	// Base URL for page imagery. Falls back to the current Supabase bucket URL
+	// so deployments without the env var set keep rendering identically. Set
+	// PUBLIC_ASSET_BASE_URL to a different origin to route these assets through
+	// a sovereign host without a code change.
+	const ASSETS =
+		env.PUBLIC_ASSET_BASE_URL ??
+		'https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads';
+</script>
+
 <svelte:head>
 	<title>Why</title>
 </svelte:head>
@@ -21,8 +33,8 @@
 
 		</div>
 		<div class="scattered">
-			<img class="sc sc-lg" style="--x: 2%; --y: 8%; --r: -2deg"  src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/why0.1.png" alt="" />
-			<img class="sc sc-lg" style="--x: 48%; --y: 42%; --r: 2deg" src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/why0.2.png" alt="" />
+			<img class="sc sc-lg" style="--x: 2%; --y: 8%; --r: -2deg"  src="{ASSETS}/why0.1.png" alt="" />
+			<img class="sc sc-lg" style="--x: 48%; --y: 42%; --r: 2deg" src="{ASSETS}/why0.2.png" alt="" />
 		</div>
 	</div>
 	</div>
@@ -37,10 +49,10 @@
 		</div>
 
 		<div class="scattered">
-			<img class="sc" style="--x: 4%; --y: 20%; --r: -4deg"   src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/why1.png" alt="" />
-			<img class="sc" style="--x: 38%; --y: 14%; --r: 3deg"   src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/why2.png" alt="" />
-			<img class="sc" style="--x: 18%; --y: 52%; --r: -2deg" src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/why3.png" alt="" />
-			<img class="sc" style="--x: 50%; --y: 46%; --r: 4deg"  src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/why4.png" alt="" />
+			<img class="sc" style="--x: 4%; --y: 20%; --r: -4deg"   src="{ASSETS}/why1.png" alt="" />
+			<img class="sc" style="--x: 38%; --y: 14%; --r: 3deg"   src="{ASSETS}/why2.png" alt="" />
+			<img class="sc" style="--x: 18%; --y: 52%; --r: -2deg" src="{ASSETS}/why3.png" alt="" />
+			<img class="sc" style="--x: 50%; --y: 46%; --r: 4deg"  src="{ASSETS}/why4.png" alt="" />
 		</div>
 	</div>
 
@@ -50,10 +62,10 @@
 			<p>Dyad is a hyper local, curated network. This is among the many decisions we took to bend the overwhelm of the internet. The March 2026 verdicts against Meta and YouTube are the culmination of decades of work on digital rights and privacy and affirm that platform design is intentional and liable to its effects. With that, we situate ourselves within a countermovement to the commodification and surveillance that have come to define much of the internet. We approach our work not merely as social technology, but as a living infrastructure for connection and sensemaking, drawing from the deep traditions of inquiry, expression, and creation.</p>
 		</div>
 		<div class="scattered scattered-harm">
-			<img class="sc sc-full" style="--x: 2%; --y: 20%; --r: -3deg"  src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/harm4.png" alt="" />
-			<img class="sc sc-full" style="--x: 28%; --y: 14%; --r: 2deg"  src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/harm3.png" alt="" />
-			<img class="sc sc-full mobile-hide" style="--x: 12%; --y: 38%; --r: -2deg" src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/harm1.png" alt="" />
-			<img class="sc sc-full mobile-hide" style="--x: 38%; --y: 32%; --r: 3deg"  src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/harm2.png" alt="" />
+			<img class="sc sc-full" style="--x: 2%; --y: 20%; --r: -3deg"  src="{ASSETS}/harm4.png" alt="" />
+			<img class="sc sc-full" style="--x: 28%; --y: 14%; --r: 2deg"  src="{ASSETS}/harm3.png" alt="" />
+			<img class="sc sc-full mobile-hide" style="--x: 12%; --y: 38%; --r: -2deg" src="{ASSETS}/harm1.png" alt="" />
+			<img class="sc sc-full mobile-hide" style="--x: 38%; --y: 32%; --r: 3deg"  src="{ASSETS}/harm2.png" alt="" />
 		</div>
 	</div>
 
@@ -62,11 +74,11 @@
 			<p>Dyad is set to transition into steward ownership. A root cause that takes a big part in explaining how social platforms begin with a niche, do great service, and end up as extractive technologies with agendas of their own lies in their corporate ownership structure. Traditional corporate models, by design, do not allow operational decision making to sit separate from shareholder interests, interests that are solely monetary. With that, the mission is diluted in the pursuit of ever greater profits. Steward ownership offers a different foundation. It is grounded in self governance and treats profit as a means in service of purpose. In practice, our investors do not hold equity, nor do they have a say in our operational decision making. We believe it is our acts rather than our words that does the difference with such critical considerations. The choice of steward ownership is one of those acts.</p>
 		</div>
 		<div class="scattered">
-			<img class="sc sc-full" style="--x: 32%; --y: 12%; --r: 2deg"   src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/steward2.png" alt="" />
-			<img class="sc sc-full mobile-hide" style="--x: 14%; --y: 44%; --r: -2deg; width: 360px;" src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/steward5.png" alt="" />
-			<img class="sc sc-full mobile-hide" style="--x: 44%; --y: 38%; --r: 3deg; width: 380px;"  src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/steward4.png" alt="" />
-			<img class="sc sc-full mobile-hide" style="--x: 28%; --y: 58%; --r: -8deg; width: 280px;" src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/steward6.png" alt="" />
-			<img class="sc sc-full desktop-hide" style="--x: 60%; --y: 30%; --r: 3deg; width: 280px;" src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/steward8.png" alt="" />
+			<img class="sc sc-full" style="--x: 32%; --y: 12%; --r: 2deg"   src="{ASSETS}/steward2.png" alt="" />
+			<img class="sc sc-full mobile-hide" style="--x: 14%; --y: 44%; --r: -2deg; width: 360px;" src="{ASSETS}/steward5.png" alt="" />
+			<img class="sc sc-full mobile-hide" style="--x: 44%; --y: 38%; --r: 3deg; width: 380px;"  src="{ASSETS}/steward4.png" alt="" />
+			<img class="sc sc-full mobile-hide" style="--x: 28%; --y: 58%; --r: -8deg; width: 280px;" src="{ASSETS}/steward6.png" alt="" />
+			<img class="sc sc-full desktop-hide" style="--x: 60%; --y: 30%; --r: 3deg; width: 280px;" src="{ASSETS}/steward8.png" alt="" />
 		</div>
 	</div>
 
@@ -85,8 +97,8 @@
 		</div>
 
 		<div class="scattered">
-			<img class="sc sc-lg" style="--x: 2%; --y: 8%; --r: -4deg"  src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/whyteam1.png" alt="" />
-			<img class="sc sc-lg" style="--x: 48%; --y: 42%; --r: 3deg"  src="https://iwdjpuyuznzukhowxjhk.supabase.co/storage/v1/object/public/uploads/whyteam2.png" alt="" />
+			<img class="sc sc-lg" style="--x: 2%; --y: 8%; --r: -4deg"  src="{ASSETS}/whyteam1.png" alt="" />
+			<img class="sc sc-lg" style="--x: 48%; --y: 42%; --r: 3deg"  src="{ASSETS}/whyteam2.png" alt="" />
 		</div>
 	</div>
 </div>

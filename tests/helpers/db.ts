@@ -27,6 +27,10 @@ import {
 	SupabaseGateService,
 	type GateService
 } from '../../src/lib/services/gate.js';
+import {
+	SupabaseStorageService,
+	type StorageService
+} from '../../src/lib/services/storage.js';
 
 export interface Services {
 	promptCommand: PromptCommandService;
@@ -36,6 +40,7 @@ export interface Services {
 	meeting: MeetingService;
 	feedback: FeedbackService;
 	gate: GateService;
+	storage: StorageService;
 }
 
 /**
@@ -51,6 +56,7 @@ export function createServices(supabase: SupabaseClient): Services {
 		invitation: new SupabaseInvitationService(supabase),
 		meeting: new SupabaseMeetingService(supabase),
 		feedback: new SupabaseFeedbackService(supabase),
-		gate: new SupabaseGateService(supabase)
+		gate: new SupabaseGateService(supabase),
+		storage: new SupabaseStorageService(supabase)
 	};
 }
