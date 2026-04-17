@@ -174,6 +174,9 @@ export const copy = {
 		noPastMeetings: 'No past meetings.',
 		invitedBy: (username: string) => `Invited by @${username}`,
 		searchPlaceholder: 'Search your conversations...',
+		emptyResponded: 'No responses yet.',
+		emptyRespondedCta: 'Find a conversation →',
+		emptyArchived: 'Nothing archived yet.',
 	},
 
 	// ── Meeting detail ─────────────────────────────────────────────────

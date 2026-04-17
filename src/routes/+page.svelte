@@ -5,9 +5,25 @@
 	import type { PageData } from './$types';
 	import type { PromptSummary } from '$lib/domain/types';
 	import RotatingHeadline from '$lib/components/RotatingHeadline.svelte';
-	import PromptListItem from '$lib/components/PromptListItem.svelte';
+	import ConversationCard from '$lib/components/ConversationCard.svelte';
 	import BottomSheet from '$lib/components/BottomSheet.svelte';
 	import AuthDialog from '$lib/components/AuthDialog.svelte';
+
+	function slotDates(slots: { start_time: string }[]): string {
+		const dates = new Set<string>();
+		for (const s of slots) {
+			const d = new Date(s.start_time);
+			dates.add(d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' }));
+		}
+		return [...dates].join(' · ');
+	}
+
+	function uniqueAreas(slots: { general_area: string }[]): string {
+		return slots
+			.map((s) => s.general_area)
+			.filter((v, i, a) => a.indexOf(v) === i)
+			.join(', ');
+	}
 
 	let { data }: { data: PageData } = $props();
 
@@ -162,7 +178,14 @@
 		<div class="prompt-list">
 			{#if data.prompts && data.prompts.length > 0}
 				{#each data.prompts as prompt}
-					<PromptListItem {prompt} onclick={() => openAuth('waitlist')} hideAuthor />
+					<ConversationCard
+						title={prompt.title ?? 'Untitled'}
+						coverUrl={prompt.cover_image_url}
+						snippet={prompt.body_snippet}
+						metaLeft={slotDates(prompt.available_slots)}
+						metaRight={uniqueAreas(prompt.available_slots)}
+						onclick={() => openAuth('waitlist')}
+					/>
 				{/each}
 			{:else}
 				<div class="empty-state">

@@ -93,20 +93,27 @@ export const load: PageServerLoad = async ({ locals }) => {
 	]);
 
 	// Resolve meeting partner usernames in one batched call
-	const partnerIds = meetings.map(m => getPartnerId(m, userId));
+	const partnerIds = meetings.map((m) => getPartnerId(m, userId));
 	const partnerUsernameMap = await buildUsernameMap(locals.supabase, partnerIds);
 
-	// Build prompt_id → meeting map for inline context
-	// Prefer scheduled/awaiting_feedback meetings over cancelled/completed
-	const meetingsByPromptId: Record<string, {
-		id: string;
-		scheduled_time: string;
-		duration_minutes: number;
-		general_area: string | null;
-		exact_location: { name: string; address: string; lat?: number; lng?: number } | null;
-		partner_username: string;
-		state: string;
-	}> = {};
+	// Build prompt_id → meeting map for inline context. We intentionally do NOT
+	// fetch exact_location here — it's private data that only needs to load on
+	// /meetings/[id]. Keeping it out of the profile loader:
+	//   (a) eliminates the N+1 RPC per meeting,
+	//   (b) matches the design principle that exact locations are revealed on
+	//       the meeting detail surface, not in a list view.
+	// Prefer scheduled/awaiting_feedback meetings over cancelled/completed.
+	const meetingsByPromptId: Record<
+		string,
+		{
+			id: string;
+			scheduled_time: string;
+			duration_minutes: number;
+			general_area: string | null;
+			partner_username: string;
+			state: string;
+		}
+	> = {};
 
 	// Sort: active states first, then by most recent scheduled_time
 	const sortedMeetings = [...meetings].sort((a, b) => {
@@ -119,16 +126,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	for (const m of sortedMeetings) {
 		if (!(m.prompt_id in meetingsByPromptId)) {
-			// Fetch exact location via SECURITY DEFINER RPC (only participants can see it)
-			const { data: detail } = await locals.supabase.rpc('get_meeting_with_location', { p_meeting_id: m.id });
-			const d = Array.isArray(detail) ? detail[0] : detail;
-
 			meetingsByPromptId[m.prompt_id] = {
 				id: m.id,
 				scheduled_time: m.scheduled_time,
 				duration_minutes: m.duration_minutes,
-				general_area: d?.general_area ?? m.general_area,
-				exact_location: d?.exact_location ?? null,
+				general_area: m.general_area,
 				partner_username: partnerUsernameMap.get(getPartnerId(m, userId)) ?? 'anonymous',
 				state: m.state
 			};
