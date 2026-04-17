@@ -4,6 +4,7 @@ import { requireAuth } from '$lib/server/auth.js';
 import { parseJsonBody } from '$lib/server/parse-body.js';
 import { SupabasePromptCommandService } from '$lib/services/prompt-command.js';
 import type { TimeSlotInput } from '$lib/domain/types.js';
+import { handleServiceError } from '$lib/server/handle-service-error.js';
 
 /** PATCH /api/prompts/[id]/slots — add, edit, or remove slots */
 export const PATCH: RequestHandler = async ({ params, request, locals }) => {
@@ -40,6 +41,6 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 
 		return json({ ok: true });
 	} catch (err) {
-		return json({ error: (err as Error).message }, { status: 400 });
+		return handleServiceError(err, '[prompts/slots]');
 	}
 };

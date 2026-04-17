@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Comment } from '$lib/domain/types.js';
+import { DomainError } from '$lib/domain/errors.js';
 
 export interface CommentService {
 	createOrUpdate(promptId: string, authorId: string, body: string): Promise<Comment>;
@@ -18,8 +19,8 @@ export class SupabaseCommentService implements CommentService {
 			.eq('id', promptId)
 			.single();
 
-		if (!prompt) throw new Error('Prompt not found');
-		if (prompt.author_id === authorId) throw new Error('Cannot comment on your own prompt');
+		if (!prompt) throw new DomainError('Conversation not found', 404);
+		if (prompt.author_id === authorId) throw new DomainError('Cannot respond to your own conversation');
 
 		const { data, error } = await this.supabase
 			.from('prompt_comments')

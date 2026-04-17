@@ -84,10 +84,7 @@
 				capture('meeting_invite_sent', { prompt_id: data.prompt.id });
 			} else {
 				const err = await res.json().catch(() => ({}));
-				const rawError = (err as any).error ?? 'Failed to send invitation';
-				inviteError = rawError.includes('uq_one_pending_invitation')
-					? 'You already have a pending invitation for this time.'
-					: rawError;
+				inviteError = (err as any).error ?? 'Failed to send invitation';
 				inviteStatus = 'error';
 			}
 		} catch {

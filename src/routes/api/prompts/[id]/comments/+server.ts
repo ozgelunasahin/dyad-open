@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { requireAuth } from '$lib/server/auth.js';
 import { parseJsonBody } from '$lib/server/parse-body.js';
 import { SupabaseCommentService } from '$lib/services/comment.js';
+import { handleServiceError } from '$lib/server/handle-service-error.js';
 import { env } from '$env/dynamic/public';
 
 /** POST /api/prompts/[id]/comments — create or edit comment (upsert) */
@@ -34,7 +35,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		}
 		return json(comment, { status: 201 });
 	} catch (err) {
-		return json({ error: (err as Error).message }, { status: 400 });
+		return handleServiceError(err, '[prompts/comments/post]');
 	}
 };
 
@@ -48,6 +49,6 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		const comments = await service.getCommentsForPrompt(params.id);
 		return json(comments);
 	} catch (err) {
-		return json({ error: (err as Error).message }, { status: 400 });
+		return handleServiceError(err, '[prompts/comments/get]');
 	}
 };

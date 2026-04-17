@@ -27,7 +27,9 @@
 	</nav>
 	<div class="sidebar-bottom">
 		<span class="sidebar-username">@{username}</span>
-		<a href="/logout" class="sidebar-logout">{copy.nav.signOut}</a>
+		<form method="POST" action="/logout" class="sidebar-logout-form">
+			<button type="submit" class="sidebar-logout">{copy.nav.signOut}</button>
+		</form>
 	</div>
 </aside>
 
@@ -67,7 +69,19 @@
 
 	.sidebar-bottom { margin-top: auto; display: flex; flex-direction: column; gap: var(--space-2); }
 	.sidebar-username { color: var(--text-muted); font-size: var(--text-sm); font-family: var(--font-mono); }
-	.sidebar-logout { color: var(--text-muted); text-decoration: none; font-size: var(--text-sm); transition: color 0.2s; }
+	.sidebar-logout-form { margin: 0; padding: 0; }
+	.sidebar-logout {
+		color: var(--text-muted);
+		text-decoration: none;
+		font-size: var(--text-sm);
+		transition: color 0.2s;
+		background: none;
+		border: none;
+		padding: 0;
+		cursor: pointer;
+		font-family: inherit;
+		text-align: left;
+	}
 	.sidebar-logout:hover { color: var(--text-primary); }
 
 	@media (max-width: 768px) {

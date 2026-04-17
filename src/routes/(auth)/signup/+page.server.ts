@@ -116,10 +116,20 @@ export const actions: Actions = {
 
 		if (signUpError) {
 			const msg = signUpError.message;
-			return fail(400, {
-				username,
-				error: msg.includes('already registered') ? 'An account with this email already exists.' : msg
-			});
+			// Map known Supabase errors to friendly messages. Log the raw error for
+			// maintainers; never leak Postgres/constraint details to signup users.
+			console.error('[signup] supabase auth error:', signUpError);
+			let friendly: string;
+			if (msg.includes('already registered')) {
+				friendly = 'An account with this email already exists.';
+			} else if (msg.toLowerCase().includes('password')) {
+				friendly = 'Password is too weak. Use at least 8 characters.';
+			} else if (msg.toLowerCase().includes('email')) {
+				friendly = 'That email address looks invalid.';
+			} else {
+				friendly = 'Could not create your account. Please try again.';
+			}
+			return fail(400, { username, error: friendly });
 		}
 
 		// Capture signup event server-side
