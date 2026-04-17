@@ -233,7 +233,9 @@
 	/* ── Split layout ─────────────────────────────────────────── */
 	.landing {
 		display: grid;
-		grid-template-columns: 1fr 1fr;
+		/* Narrow text column, let the map take the rest — the map was
+		   visibly cramped at a plain 1fr/1fr split on common desktop widths. */
+		grid-template-columns: minmax(360px, 440px) 1fr;
 		height: 100vh;
 		overflow: hidden;
 		background: var(--bg-canvas);

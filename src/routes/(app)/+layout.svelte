@@ -5,6 +5,7 @@
 	import { env } from '$env/dynamic/public';
 	import type { LayoutData } from './$types';
 	import MeetingFeedbackModal from '$lib/components/MeetingFeedbackModal.svelte';
+	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
 	import { initPosthog, capture } from '$lib/analytics';
 
 	let { data, children }: { data: LayoutData; children: any } = $props();
@@ -28,8 +29,10 @@
 	{@render children()}
 </main>
 
-<!-- FeedbackModal is mounted on the root layout (src/routes/+layout.svelte)
-	so it shows on every page including pre-auth flows. -->
+<!-- Authenticated-only: /api/feedback/app requires auth, so the button
+	lives here rather than on the root layout. Pre-auth surfaces (landing,
+	/login, /signup, /join, /waitlist) deliberately have no feedback path. -->
+<FeedbackModal />
 
 {#if data.pendingFeedback}
 	<MeetingFeedbackModal
