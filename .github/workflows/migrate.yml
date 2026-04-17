@@ -50,7 +50,12 @@ jobs:
         run: supabase migration list --linked
 
       - name: Push migrations
-        run: supabase db push --linked
+        # --include-all lets the CLI apply a migration whose timestamp is
+        # earlier than the latest-applied one on remote — e.g. a migration
+        # that sat unpushed while a newer one went through another path.
+        # Already-applied migrations are never re-run; schema_migrations
+        # tracks what's been run by version prefix, so this is idempotent.
+        run: supabase db push --linked --include-all
 
       - name: Show migration status (post-push)
         if: always()
