@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { beforeNavigate, goto } from '$app/navigation';
+	import { beforeNavigate, goto, replaceState } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
 	import type { JSONContent } from '@tiptap/core';
@@ -11,6 +11,11 @@
 	import { capture } from '$lib/analytics';
 
 	let { data }: { data: PageData } = $props();
+
+	// Tracks the prompt id locally so lazy-create can flip it from 'new' to a
+	// real UUID without fighting Svelte 5's readonly $props.
+	// svelte-ignore state_referenced_locally
+	let promptId = $state(data.prompt.id);
 
 	// ── Editable state ─────────────────────────────────────────────────────────
 	// svelte-ignore state_referenced_locally — intentional initial-value capture for editor fields
@@ -45,7 +50,31 @@
 		const gen = ++saveGeneration;
 		saveStatus = 'saving';
 		try {
-			const res = await fetch(`/api/prompts/${data.prompt.id}`, {
+			// First save of a /conversations/new session — create the row now,
+			// then rewrite the URL so subsequent edits go through the PATCH path.
+			if (promptId === 'new') {
+				const res = await fetch('/api/prompts', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						title: title || undefined,
+						body,
+						coverImageUrl: coverImageUrl || undefined
+					})
+				});
+				if (gen !== saveGeneration) return;
+				if (res.ok) {
+					const created = await res.json();
+					promptId = created.id;
+					replaceState(`/conversations/${created.id}/edit`, {});
+					saveStatus = 'saved';
+				} else {
+					saveStatus = 'error';
+				}
+				return;
+			}
+
+			const res = await fetch(`/api/prompts/${promptId}`, {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -78,29 +107,17 @@
 
 	// ── Navigation guard ───────────────────────────────────────────────────────
 	beforeNavigate((navigation) => {
-		// Draft was created by /conversations/new but never touched — delete
-		// the empty row so untouched "+" clicks don't pile up as blanks.
-		// Only fire for drafts (published prompts can validly have no body
-		// in unusual states and we shouldn't drop those).
-		if (!hasContent && data.prompt.state === 'draft') {
-			// Cancel any pending autosave AND invalidate any in-flight one
-			// (bump saveGeneration so a returning PATCH no-ops on the state
-			// check). Without this, a debounced save could land after the
-			// DELETE and resurrect the prompt server-side.
+		// The virtual /conversations/new/edit page has no backing row yet, so
+		// there's nothing to save, nothing to delete. Just let navigation through.
+		if (promptId === 'new') return;
+
+		// Draft row exists but the user cleared all content back to blank
+		// (or never really added any) — delete the blank row on the way out.
+		const blank = !title.trim() && !coverImageUrl && !bodyHasText(body);
+		if (blank && data.prompt.state === 'draft') {
 			if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
 			saveGeneration++;
-			// Prefer sendBeacon so the DELETE survives tab-close / mobile
-			// Safari navigation; fall back to fetch when unavailable.
-			const url = `/api/prompts/${data.prompt.id}`;
-			if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
-				// sendBeacon only supports POST; use a dedicated override header
-				// that the DELETE handler already accepts via method. For now,
-				// send via fetch with keepalive, which gives the same tab-close
-				// durability without needing a new endpoint shape.
-				fetch(url, { method: 'DELETE', keepalive: true }).catch(() => {});
-			} else {
-				fetch(url, { method: 'DELETE' }).catch(() => {});
-			}
+			fetch(`/api/prompts/${promptId}`, { method: 'DELETE', keepalive: true }).catch(() => {});
 			return;
 		}
 		if (!saveTimer) return;
@@ -220,7 +237,7 @@
 
 	async function handleDiscard() {
 		if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
-		const res = await fetch(`/api/prompts/${data.prompt.id}`, { method: 'DELETE' });
+		const res = await fetch(`/api/prompts/${promptId}`, { method: 'DELETE' });
 		if (res.ok) goto('/profile?view=conversations');
 		else publishError = 'Failed to discard draft.';
 	}
@@ -251,14 +268,14 @@
 		await saveNow();
 
 		try {
-			const res = await fetch(`/api/prompts/${data.prompt.id}/publish`, {
+			const res = await fetch(`/api/prompts/${promptId}/publish`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ slots })
 			});
 			if (res.ok) {
-				capture('conversation_published', { prompt_id: data.prompt.id, slot_count: slots.length });
-				goto(`/conversations/${data.prompt.id}`);
+				capture('conversation_published', { prompt_id: promptId, slot_count: slots.length });
+				goto(`/conversations/${promptId}`);
 			} else {
 				const err = await res.json().catch(() => ({}));
 				publishError = (err as any).error ?? 'Failed to publish';
@@ -272,7 +289,7 @@
 
 	// ── Unpublish / Archive ────────────────────────────────────────────────────
 	async function handleUnpublish() {
-		const res = await fetch(`/api/prompts/${data.prompt.id}/unpublish`, { method: 'POST' });
+		const res = await fetch(`/api/prompts/${promptId}/unpublish`, { method: 'POST' });
 		if (res.ok) goto('/profile?view=conversations');
 		else { const e = await res.json().catch(() => ({})); publishError = (e as any).error ?? copy.conversation.failedToArchive; }
 	}
@@ -281,7 +298,7 @@
 	let deletePublishedDialog = $state<ConfirmDialog | undefined>();
 
 	async function handleDeletePublished() {
-		const res = await fetch(`/api/prompts/${data.prompt.id}`, { method: 'DELETE' });
+		const res = await fetch(`/api/prompts/${promptId}`, { method: 'DELETE' });
 		if (res.ok) goto('/profile?view=conversations');
 		else { const e = await res.json().catch(() => ({})); publishError = (e as any).error ?? copy.conversation.failedToDelete; }
 	}
