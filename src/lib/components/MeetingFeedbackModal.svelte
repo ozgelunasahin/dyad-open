@@ -88,10 +88,10 @@
 				}
 			} else {
 				const err = await res.json().catch(() => ({}));
-				submitError = (err as any).error ?? 'Failed to submit';
+				submitError = (err as any).error ?? copy.common.submitFailed;
 			}
 		} catch {
-			submitError = 'Network error. Please try again.';
+			submitError = copy.common.networkError;
 		} finally {
 			submitting = false;
 		}
@@ -112,6 +112,11 @@
 				<p class="meta">Your meeting with @{meetingContext.otherUsername}</p>
 			{/if}
 			{#if revealedFeedback.length > 0}
+				<p class="desc">
+					{meetingContext
+						? copy.feedback.revealIntro(meetingContext.otherUsername)
+						: copy.feedback.revealIntroFallback}
+				</p>
 				{#each revealedFeedback as fb}
 					<div class="reveal-card">
 						{#if fb.did_meet === false}
@@ -132,13 +137,13 @@
 			{:else}
 				<p class="desc">Feedback has been submitted.</p>
 			{/if}
-			<button class="submit-btn" onclick={dismiss}>Continue</button>
+			<button class="btn-primary flex-1" onclick={dismiss}>Continue</button>
 
 		{:else if effectiveStep === 'waiting'}
 			<h2 id="feedback-dialog-title" class="title">{copy.feedback.thankYou}</h2>
 			<p class="desc">{copy.feedback.submitted}</p>
 			<p class="desc muted">You'll see what they shared once they submit theirs.</p>
-			<button class="submit-btn" onclick={dismiss}>Continue to discover</button>
+			<button class="btn-primary flex-1" onclick={dismiss}>Continue to discover</button>
 
 		{:else if effectiveStep === 'met'}
 			{#if meetingContext}
@@ -181,7 +186,7 @@
 
 			<div class="actions">
 				<button class="back-btn" onclick={() => userStep = 'met'}>{copy.common.back}</button>
-				<button class="submit-btn" onclick={handleSubmit}
+				<button class="btn-primary flex-1" onclick={handleSubmit}
 					disabled={submitting || !shareWithPerson.trim()}>
 					{submitting ? copy.feedback.submitting : copy.feedback.submitFeedback}
 				</button>
@@ -295,19 +300,8 @@
 		color: var(--text-muted);
 		cursor: pointer;
 	}
-	.submit-btn {
-		flex: 1;
-		font-size: var(--text-base);
-		padding: var(--space-3) var(--space-6);
-		background: var(--text-primary);
-		color: var(--bg-canvas);
-		border: 1px solid var(--text-primary);
-		border-radius: var(--radius-input);
-		cursor: pointer;
-		transition: opacity 0.15s;
-	}
-	.submit-btn:hover { opacity: var(--opacity-hover-btn); }
-	.submit-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+	/* .btn-primary lives in shared.css; .flex-1 below is a flex utility for dialog footers. */
+	.flex-1 { flex: 1; }
 
 	/* Reveal */
 	.reveal-card { padding: var(--space-4) 0; border-top: 1px solid var(--border-link); }

@@ -18,8 +18,12 @@
 		"test:e2e": "playwright test",
 		"test:e2e:ui": "playwright test --ui",
 		"test:integration": "vitest run --config vitest.config.integration.ts",
+		"pretest:integration": "bash scripts/check-supabase.sh",
+		"test:integration:local": "npm run db:env && npm run test:integration",
 		"test:db": "npx supabase test db",
-		"setup": "npx supabase start && npx supabase db reset",
+		"db:env": "bash scripts/test-env.sh",
+		"db:health": "bash scripts/check-supabase.sh",
+		"setup": "npx supabase start && npx supabase db reset && npm run db:env",
 		"reset": "npx supabase db reset",
 		"feedback": "npx tsx scripts/fetch-feedback.ts"
 	},

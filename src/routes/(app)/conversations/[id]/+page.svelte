@@ -1,10 +1,11 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import SlotCard from '$lib/components/SlotCard.svelte';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+	import MeetingCard from '$lib/components/MeetingCard.svelte';
 	import { copy } from '$lib/copy';
 	import { capture } from '$lib/analytics';
 
@@ -33,6 +34,8 @@
 	let inviteError = $state('');
 	// svelte-ignore state_referenced_locally — intentional initial-value capture for local tracking
 	let invitedSlotIds = $state(new Set(data.invitedSlotIds ?? []));
+	// svelte-ignore state_referenced_locally
+	let invitationBySlotId = $state<Record<string, string>>({ ...(data.myInvitationBySlotId ?? {}) });
 
 	let selectedSlot = $derived(data.prompt.available_slots.find(s => s.id === selectedSlotId));
 
@@ -59,11 +62,11 @@
 				capture('conversation_responded', { prompt_id: data.prompt.id });
 			} else {
 				const err = await res.json().catch(() => ({}));
-				responseError = (err as any).error ?? 'Failed to send';
+				responseError = (err as any).error ?? copy.common.sendFailed;
 				responseStatus = 'error';
 			}
 		} catch {
-			responseError = 'Network error';
+			responseError = copy.common.networkError;
 			responseStatus = 'error';
 		}
 	}
@@ -79,17 +82,56 @@
 				body: JSON.stringify({ slotId: selectedSlotId, message: inviteMessage.trim() || undefined })
 			});
 			if (res.ok) {
-				if (selectedSlotId) invitedSlotIds = new Set([...invitedSlotIds, selectedSlotId]);
+				const invitation = await res.json().catch(() => null) as { id?: string } | null;
+				if (selectedSlotId) {
+					invitedSlotIds = new Set([...invitedSlotIds, selectedSlotId]);
+					if (invitation?.id) {
+						invitationBySlotId = { ...invitationBySlotId, [selectedSlotId]: invitation.id };
+					}
+				}
 				inviteStatus = 'sent';
 				capture('meeting_invite_sent', { prompt_id: data.prompt.id });
 			} else {
 				const err = await res.json().catch(() => ({}));
-				inviteError = (err as any).error ?? 'Failed to send invitation';
+				inviteError = (err as any).error ?? copy.common.sendFailed;
 				inviteStatus = 'error';
 			}
 		} catch {
-			inviteError = 'Network error';
+			inviteError = copy.common.networkError;
 			inviteStatus = 'error';
+		}
+	}
+
+	// Withdrawing a pending invitation is a free action per design principles —
+	// no confirmation dialog, no reason required, no consequences. Uses the
+	// local invitationBySlotId which covers both server-loaded and just-sent
+	// invitations (kept in sync by sendInvite).
+	let withdrawingSlotId = $state<string | null>(null);
+	let withdrawError = $state('');
+	async function withdrawInvitation(slotId: string) {
+		const invitationId = invitationBySlotId[slotId];
+		if (!invitationId) return;
+		withdrawingSlotId = slotId;
+		withdrawError = '';
+		try {
+			const res = await fetch(`/api/invitations/${invitationId}`, { method: 'DELETE' });
+			if (res.ok) {
+				invitedSlotIds = new Set([...invitedSlotIds].filter(id => id !== slotId));
+				const { [slotId]: _, ...rest } = invitationBySlotId;
+				invitationBySlotId = rest;
+				inviteStatus = 'idle';
+				selectedSlotId = null;
+				await invalidateAll();
+			} else {
+				// Keep local state untouched so the UI stays truthful — the server
+				// invitation is still live and will reappear on reload.
+				const body = await res.json().catch(() => ({}));
+				withdrawError = (body as { error?: string }).error ?? copy.conversation.withdrawFailed;
+			}
+		} catch {
+			withdrawError = copy.common.networkError;
+		} finally {
+			withdrawingSlotId = null;
 		}
 	}
 
@@ -104,10 +146,10 @@
 				goto(`/meetings/${meetingId}`);
 			} else {
 				const err = await res.json().catch(() => ({}));
-				acceptError = (err as any).error ?? 'Failed to accept';
+				acceptError = (err as any).error ?? copy.common.genericError;
 			}
 		} catch {
-			acceptError = 'Network error';
+			acceptError = copy.common.networkError;
 		} finally {
 			acceptingId = null;
 		}
@@ -117,7 +159,7 @@
 	let archiveDialog = $state<ConfirmDialog | undefined>();
 	let deleteDialog = $state<ConfirmDialog | undefined>();
 	let actionError = $state('');
-	let actionsOpen = $state(false);
+	/* action-menu state now lives inside FloatingNav (variant="detail"). */
 
 	async function archivePrompt() {
 		try {
@@ -140,33 +182,8 @@
 	<title>{data.prompt.title ?? 'Conversation'} - dyad.berlin</title>
 </svelte:head>
 
-<button class="back-pill" onclick={() => history.back()} aria-label="Go back">
-	<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-		<path d="M12 15l-5-5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-	</svg>
-</button>
-
-{#if isOwnPrompt && data.prompt.state === 'published'}
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div class="action-menu-wrap">
-		<button class="action-pill" onclick={() => actionsOpen = !actionsOpen} aria-label="Actions">
-			<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-				<circle cx="5" cy="10" r="1.5" fill="currentColor"/>
-				<circle cx="10" cy="10" r="1.5" fill="currentColor"/>
-				<circle cx="15" cy="10" r="1.5" fill="currentColor"/>
-			</svg>
-		</button>
-		{#if actionsOpen}
-			<!-- svelte-ignore a11y_click_events_have_key_events -->
-			<div class="action-backdrop" onclick={() => actionsOpen = false}></div>
-			<div class="action-dropdown">
-				<a href="/conversations/{data.prompt.id}/edit" class="action-item" onclick={() => actionsOpen = false}>{copy.conversation.edit}</a>
-				<button class="action-item" onclick={() => { actionsOpen = false; archiveDialog?.open(); }}>{copy.conversation.archive}</button>
-				<button class="action-item action-item--danger" onclick={() => { actionsOpen = false; deleteDialog?.open(); }}>{copy.conversation.delete}</button>
-			</div>
-		{/if}
-	</div>
-{/if}
+<!-- Back navigation + kebab actions live on the FloatingNav (variant="detail"),
+     not as separate fixed-position pills. -->
 
 <div class="content">
 	{#if data.prompt.cover_image_url}
@@ -213,7 +230,12 @@
 		<section class="response-section">
 			{#if hasResponse}
 				<div class="my-response">
-					<p class="meta">{copy.conversation.youResponded(data.myComment ? formatDate(data.myComment.updated_at) : 'just now')}</p>
+					<p class="meta">
+						{copy.conversation.youResponded(data.myComment ? formatDate(data.myComment.updated_at) : 'just now')}
+						{#if responseStatus === 'sent'}
+							<span class="response-sent-flag" aria-live="polite">· {copy.conversation.responseSent}</span>
+						{/if}
+					</p>
 					<p class="my-response-text">{responseStatus === 'sent' ? responseText : data.myComment?.body}</p>
 				</div>
 			{:else}
@@ -235,44 +257,50 @@
 	<!-- Available times + invitation flow (non-authors only) -->
 	{#if !isOwnPrompt}
 		{#if data.myMeeting}
-			<!-- Confirmed: meeting scheduled -->
+			<!-- Confirmed: meeting scheduled. Same <MeetingCard> used on the author
+			     view and the profile surface — a meeting is symmetric regardless
+			     of who initiated the conversation. -->
 			<section class="slots-section">
-				<div class="confirmed-card">
-					<span class="confirmed-label">{copy.conversation.confirmed}</span>
-					<p class="confirmed-title">{copy.conversation.youAreMeeting(data.prompt.author_username)}</p>
-					<SlotCard
-						startTime={data.myMeeting.scheduled_time}
+				<a href="/meetings/{data.myMeeting.id}" class="meeting-card-link">
+					<MeetingCard
+						partnerUsername={data.prompt.author_username}
+						scheduledTime={data.myMeeting.scheduled_time}
 						durationMinutes={data.myMeeting.duration_minutes}
-						area={data.myMeeting.general_area}
+						generalArea={data.myMeeting.general_area}
 						exactLocation={data.myMeeting.exact_location}
 					/>
-					<a href="/meetings/{data.myMeeting.id}" class="view-meeting-link">{copy.conversation.viewMeeting}</a>
-				</div>
+				</a>
 			</section>
-		{:else if data.prompt.available_slots.length > 0}
+		{:else}
 			<section class="slots-section">
-				{#if inviteStatus === 'sent'}
-					<!-- Just sent this session -->
-					{#if selectedSlot}
-						<SlotCard
-							startTime={selectedSlot.start_time}
-							durationMinutes={selectedSlot.duration_minutes}
-							area={selectedSlot.general_area}
-							invited={true}
-							invitedNote={copy.conversation.invitationPending(data.prompt.author_username)}
-						/>
-					{/if}
+				{#if data.myCancellation?.reason}
+					<!-- Quiet note from the canceller. Shown whether or not slots are
+					     available, so the context isn't hidden when a late cancel
+					     leaves the prompt with no open slots to re-invite on. -->
+					<blockquote class="prior-cancel-note">
+						{data.myCancellation.reason}
+						<cite>— @{data.myCancellation.cancelled_by_username ?? data.prompt.author_username}</cite>
+					</blockquote>
+				{/if}
+
+				{#if data.prompt.available_slots.length === 0}
+					<!-- No open slots is fine; the note above (if any) is all the context needed. -->
 				{:else if invitedSlotIds.size > 0}
-					<!-- Server-loaded: invitation already pending -->
+					<!-- Pending invitation (either server-loaded or just-sent this
+					     session — sendInvite keeps `invitedSlotIds` + `invitationBySlotId`
+					     in sync so the withdraw action works without a page reload). -->
 					{#each data.prompt.available_slots.filter(s => invitedSlotIds.has(s.id)) as slot}
-						<SlotCard
-							startTime={slot.start_time}
+						<MeetingCard
+							partnerUsername={data.prompt.author_username}
+							scheduledTime={slot.start_time}
 							durationMinutes={slot.duration_minutes}
-							area={slot.general_area}
-							invited={true}
-							invitedNote={copy.conversation.invitationPending(data.prompt.author_username)}
+							generalArea={slot.general_area}
+							invitedPending
+							onWithdraw={invitationBySlotId[slot.id] ? () => withdrawInvitation(slot.id) : undefined}
+							withdrawing={withdrawingSlotId === slot.id}
 						/>
 					{/each}
+					{#if withdrawError}<p class="field-error" role="alert">{withdrawError}</p>{/if}
 				{:else}
 					<!-- Normal invite flow -->
 					{#if hasResponse}
@@ -321,28 +349,41 @@
 
 					{#if invitation}
 						<div class="response-invitation">
-							{#if meeting && (meeting.state === 'cancelled_early' || meeting.state === 'cancelled_late')}
-								<div class="meeting-inline">
-									<span class="meeting-inline-detail">{formatDate(invitation.slot_start_time)} · {invitation.slot_general_area}</span>
-									{#if meeting.exact_location}
-										<span class="meeting-inline-location">{meeting.exact_location.name}</span>
-										<span class="meeting-inline-address">{meeting.exact_location.address}</span>
-									{/if}
-									<span class="meeting-inline-status cancelled">{copy.conversation.meetingCancelled(comment.author_username ?? 'someone', formatDate(meeting.resolved_at ?? meeting.scheduled_time))}</span>
-								</div>
+							{#if invitation.state === 'accepted' && meeting && (meeting.state === 'cancelled_early' || meeting.state === 'cancelled_late')}
+								<!-- Accepted invitation whose meeting was later cancelled. Any newer
+								     pending re-invitation takes the pending branch because the loader
+								     picks the most-recent invitation per inviter. -->
+								<MeetingCard
+									partnerUsername={comment.author_username ?? 'anonymous'}
+									scheduledTime={meeting.scheduled_time}
+									durationMinutes={invitation.slot_duration_minutes ?? 60}
+									generalArea={meeting.general_area ?? invitation.slot_general_area}
+									exactLocation={meeting.exact_location}
+									cancelled
+									cancelledByMe={meeting.cancelled_by !== null && meeting.cancelled_by === data.user.id}
+									cancelledByUsername={meeting.cancelled_by !== null && meeting.cancelled_by !== data.user.id
+										? (meeting.cancelled_by_username ?? comment.author_username ?? null)
+										: null}
+									cancellationReason={meeting.cancellation_reason}
+								/>
 							{:else if invitation.state === 'accepted' && meeting}
-								<a href="/meetings/{meeting.id}" class="meeting-inline" style="text-decoration: none; color: inherit; display: block;">
-									<span class="meeting-inline-label">{copy.conversation.meetingScheduled}</span>
-									<span class="meeting-inline-detail">{formatDate(meeting.scheduled_time)} · {meeting.general_area ?? invitation.slot_general_area}</span>
-									{#if meeting.exact_location}
-										<span class="meeting-inline-location">{meeting.exact_location.name}</span>
-										<span class="meeting-inline-address">{meeting.exact_location.address}</span>
-									{/if}
+								<a href="/meetings/{meeting.id}" class="meeting-card-link">
+									<MeetingCard
+										partnerUsername={comment.author_username ?? 'anonymous'}
+										scheduledTime={meeting.scheduled_time}
+										durationMinutes={invitation.slot_duration_minutes ?? 60}
+										generalArea={meeting.general_area ?? invitation.slot_general_area}
+										exactLocation={meeting.exact_location}
+									/>
 								</a>
 							{:else if invitation.state === 'accepted'}
-								<div class="meeting-inline">
-									<span class="meeting-inline-detail">{formatDate(invitation.slot_start_time)} · {invitation.slot_general_area}</span>
-								</div>
+								<!-- Accepted but meeting record isn't loaded (rare fallback). -->
+								<MeetingCard
+									partnerUsername={comment.author_username ?? 'anonymous'}
+									scheduledTime={invitation.slot_start_time}
+									durationMinutes={invitation.slot_duration_minutes ?? 60}
+									generalArea={invitation.slot_general_area}
+								/>
 							{:else if invitation.state === 'pending'}
 								<SlotCard startTime={invitation.slot_start_time} durationMinutes={invitation.slot_duration_minutes ?? 60} area={invitation.slot_general_area} />
 								{#if invitation.message}
@@ -383,94 +424,19 @@
 	{/if}
 </div>
 
-<FloatingNav variant="default" attentionCount={data.attentionCount ?? 0} />
+<FloatingNav
+	variant="detail"
+	attentionCount={data.attentionCount ?? 0}
+	actions={isOwnPrompt && data.prompt.state === 'published'
+		? [
+				{ label: copy.conversation.archive, onclick: () => archiveDialog?.open() },
+				{ label: copy.conversation.delete, onclick: () => deleteDialog?.open(), danger: true }
+			]
+		: []}
+/>
 
 <style>
-	.content { width: 100%; max-width: var(--content-standard); }
-
-	.back-pill {
-		position: fixed;
-		top: var(--space-4);
-		left: var(--space-4);
-		z-index: 800;
-		width: 40px;
-		height: 40px;
-		border-radius: var(--radius-pill);
-		background: var(--bg-canvas);
-		backdrop-filter: blur(12px);
-		-webkit-backdrop-filter: blur(12px);
-		box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
-		border: none;
-		color: var(--text-primary);
-		font-size: var(--text-lg);
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-	.back-pill:hover { opacity: var(--opacity-hover-btn); }
-
-	.action-menu-wrap {
-		position: fixed;
-		top: var(--space-4);
-		right: calc(var(--space-4) + 40px + var(--space-2));
-		z-index: 800;
-	}
-
-	.action-pill {
-		width: 40px;
-		height: 40px;
-		border-radius: var(--radius-pill);
-		background: var(--bg-canvas);
-		backdrop-filter: blur(12px);
-		-webkit-backdrop-filter: blur(12px);
-		box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
-		border: none;
-		color: var(--text-primary);
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-	.action-pill:hover { opacity: var(--opacity-hover-btn); }
-
-	.action-backdrop {
-		position: fixed;
-		inset: 0;
-		z-index: 799;
-	}
-
-	.action-dropdown {
-		position: absolute;
-		top: calc(100% + var(--space-2));
-		right: 0;
-		background: var(--bg-canvas);
-		border-radius: var(--radius-card);
-		box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
-		min-width: 140px;
-		overflow: hidden;
-		z-index: 801;
-		display: flex;
-		flex-direction: column;
-	}
-
-	.action-item {
-		font-size: var(--text-base);
-		font-family: inherit;
-		padding: var(--space-3) var(--space-4);
-		background: none;
-		border: none;
-		text-align: left;
-		color: var(--text-primary);
-		cursor: pointer;
-		text-decoration: none;
-		display: block;
-		transition: background 0.12s;
-	}
-	.action-item:hover { background: var(--bg-control); }
-	.action-item--danger { color: var(--color-danger); }
-
-	.content { width: 100%; max-width: var(--content-standard); padding-top: calc(var(--space-4) + 40px + var(--space-4)); }
+	.content { width: 100%; max-width: var(--content-standard); padding-bottom: var(--nav-clearance); }
 
 	.cover { width: 100%; max-height: 400px; object-fit: cover; border-radius: var(--radius-card); margin-bottom: var(--space-6); display: block; }
 
@@ -495,45 +461,52 @@
 
 	.my-response { margin-bottom: var(--space-6); }
 	.my-response-text { font-size: var(--text-md); line-height: var(--leading-relaxed); margin: 0 0 var(--space-2); }
-
-	/* Confirmed meeting card */
-	.confirmed-card {
-		padding: var(--space-5);
-		background: var(--bg-meeting-tint);
-		border: 1px solid color-mix(in srgb, var(--color-success) 20%, transparent);
-		border-radius: var(--radius-card);
+	.response-sent-flag {
+		color: var(--color-success);
+		font-family: var(--font-mono);
+		animation: response-sent-fade 4s ease-out forwards;
+	}
+	@keyframes response-sent-fade {
+		0%, 60% { opacity: 1; }
+		100% { opacity: 0; }
 	}
 
-	.confirmed-label {
+	/* MeetingCard inside an <a> — strip link chrome so the card reads cleanly,
+	 * but keep it hoverable/clickable for navigation to the meeting detail page. */
+	.meeting-card-link {
 		display: block;
-		font-size: var(--text-xs);
-		font-weight: 600;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-		color: var(--color-success);
-		margin-bottom: var(--space-2);
-	}
-
-	.confirmed-title {
-		font-size: var(--text-md);
-		font-weight: 500;
-		margin: 0 0 var(--space-3);
-		color: var(--text-primary);
-	}
-
-	.view-meeting-link {
-		display: inline-block;
-		font-size: var(--text-sm);
-		font-weight: 500;
-		color: var(--color-success);
 		text-decoration: none;
-		margin-top: var(--space-1);
+		color: inherit;
+		transition: opacity 0.15s;
 	}
-
-	.view-meeting-link:hover { opacity: var(--opacity-hover-btn); }
+	.meeting-card-link:hover { opacity: var(--opacity-hover-card); }
 
 	/* Invitation flow */
 	.invite-question { font-size: var(--text-md); color: var(--text-muted); margin: 0 0 var(--space-4); }
+
+	/* Withdraw button lives inside MeetingCard's invitedPending state. */
+
+	/* Prior cancellation note — quiet blockquote, no red, no border. The note
+	 * carries context without demanding attention. */
+	.prior-cancel-note {
+		font-size: var(--text-base);
+		font-style: italic;
+		color: var(--text-secondary);
+		line-height: var(--leading-relaxed);
+		margin: 0 0 var(--space-5);
+		padding: 0;
+		border: none;
+	}
+	.prior-cancel-note cite {
+		display: block;
+		font-style: normal;
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+		margin-top: var(--space-2);
+	}
+
+
 
 	.invite-message-textarea {
 		width: 100%;

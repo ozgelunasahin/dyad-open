@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
-	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import { generateICS, downloadICS } from '$lib/utils/calendar.js';
 	import type { PageData } from './$types';
 	import { copy } from '$lib/copy';
@@ -9,19 +8,45 @@
 
 	let { data }: { data: PageData } = $props();
 	let cancelling = $state(false);
-	let cancelDialog = $state<ConfirmDialog | undefined>();
+	let cancelDialog = $state<HTMLDialogElement | undefined>();
+	let cancelReason = $state('');
+	let cancelError = $state('');
+	let cancelErrorRef = $state<string | null>(null);
+
+	// Cancellation tier mirrors the cancel_meeting RPC: >12h away = early (reason required).
+	const isEarly = $derived(
+		new Date(data.meeting.scheduled_time).getTime() - Date.now() > 12 * 60 * 60 * 1000
+	);
+	const reasonTrimmed = $derived(cancelReason.trim());
+	const canSubmitCancel = $derived(
+		!cancelling && (!isEarly || reasonTrimmed.length >= 10)
+	);
+	// Button label adapts to social weight: late-without-note makes the social cost visible.
+	const cancelButtonLabel = $derived.by(() => {
+		if (cancelling) return copy.meeting.cancelling;
+		if (isEarly) return copy.meeting.cancelConfirmEarly;
+		return reasonTrimmed.length === 0
+			? copy.meeting.cancelConfirmLateNoNote
+			: copy.meeting.cancelConfirmLate;
+	});
 
 	function formatDate(iso: string): string {
 		return new Date(iso).toLocaleDateString('en-US', {
 			weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit'
 		});
 	}
+	function formatMeetingDate(iso: string): string {
+		const d = new Date(iso);
+		const date = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+		const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+		return `${date} · ${time}`;
+	}
 
 	function handleAddToCalendar() {
 		const loc = 'exact_location' in data.meeting && data.meeting.exact_location
 			? `${data.meeting.exact_location.name}, ${data.meeting.exact_location.address}`
 			: data.meeting.general_area;
-		const title = `dyad: ${data.prompt?.title ?? `Meeting with @${data.otherUsername}`}`;
+		const title = `${copy.meeting.calendarTitlePrefix}${data.prompt?.title ?? copy.meeting.calendarFallbackTitle(data.otherUsername)}`;
 		const ics = generateICS({
 			title,
 			start: data.meeting.scheduled_time,
@@ -32,14 +57,36 @@
 		downloadICS(ics, 'dyad-meeting.ics');
 	}
 
+	function openCancelDialog() {
+		cancelReason = '';
+		cancelError = '';
+		cancelErrorRef = null;
+		cancelDialog?.showModal();
+	}
+
 	async function handleCancel() {
+		if (!canSubmitCancel) return;
 		cancelling = true;
+		cancelError = '';
+		cancelErrorRef = null;
 		try {
-			const res = await fetch(`/api/meetings/${data.meeting.id}/cancel`, { method: 'POST' });
+			const reason = cancelReason.trim();
+			const res = await fetch(`/api/meetings/${data.meeting.id}/cancel`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(reason ? { reason } : {})
+			});
 			if (res.ok) {
 				capture('meeting_cancelled', { meeting_id: data.meeting.id });
+				cancelDialog?.close();
 				goto('/profile');
+				return;
 			}
+			const body = await res.json().catch(() => ({}));
+			cancelError = (body as { error?: string }).error ?? copy.meeting.cancelGenericError;
+			cancelErrorRef = (body as { reference?: string }).reference ?? null;
+		} catch {
+			cancelError = copy.meeting.cancelGenericError;
 		} finally {
 			cancelling = false;
 		}
@@ -53,13 +100,33 @@
 <div class="content">
 	<div class="meeting-header">
 		<span class="meeting-with">{copy.profile.meetingWith(data.otherUsername)}</span>
-		<span class="meeting-when">{formatDate(data.meeting.scheduled_time)}</span>
 		{#if data.meeting.state === 'scheduled'}
 			<button class="calendar-link" onclick={handleAddToCalendar}>{copy.meeting.addToCalendar}</button>
 		{/if}
 	</div>
 
+	{#if data.prompt}
+		<a href="/conversations/{data.prompt.id}" class="prompt-item">
+			<div class="prompt-row">
+				<div class="row-thumb">
+					{#if data.prompt.cover_image_url}
+						<img src={data.prompt.cover_image_url} alt="" class="thumb-img" />
+					{:else}
+						<div class="thumb-placeholder"></div>
+					{/if}
+				</div>
+				<div class="row-body">
+					<h3 class="row-title">{data.prompt.title || copy.common.untitled}</h3>
+				</div>
+			</div>
+		</a>
+	{/if}
+
 	<div class="detail-grid">
+		<div class="detail-row">
+			<span class="label">{copy.meeting.when}</span>
+			<span class="value">{formatDate(data.meeting.scheduled_time)}</span>
+		</div>
 		<div class="detail-row">
 			<span class="label">{copy.meeting.duration}</span>
 			<span class="value">{data.meeting.duration_minutes} {copy.meeting.minutes}</span>
@@ -90,32 +157,14 @@
 		</div>
 	{/if}
 
-	{#if data.prompt}
-		<a href="/conversations/{data.prompt.id}" class="prompt-item">
-			<div class="prompt-row">
-				<div class="row-thumb">
-					{#if data.prompt.cover_image_url}
-						<img src={data.prompt.cover_image_url} alt="" class="thumb-img" />
-					{:else}
-						<div class="thumb-placeholder"></div>
-					{/if}
-				</div>
-				<div class="row-body">
-					<h3 class="row-title">{data.prompt.title || copy.common.untitled}</h3>
-					<span class="row-status">{data.prompt.published_at ? formatDate(data.prompt.published_at) : ''}</span>
-				</div>
-			</div>
-		</a>
-	{/if}
-
 	<!-- Feedback status for awaiting_feedback meetings -->
 	{#if data.meeting.state === 'awaiting_feedback' && data.myFeedbackForm}
 		<section class="feedback-status">
 			{#if data.myFeedbackForm.state === 'due'}
-				<p class="feedback-prompt">You have feedback to submit</p>
-				<a href="/feedback/{data.myFeedbackForm.id}" class="btn-primary">Give feedback</a>
+				<p class="feedback-prompt">{copy.meeting.feedbackDue}</p>
+				<a href="/feedback/{data.myFeedbackForm.id}" class="btn-primary">{copy.meeting.giveFeedback}</a>
 			{:else if data.myFeedbackForm.state === 'submitted'}
-				<p class="feedback-waiting">Feedback submitted — waiting for the other person</p>
+				<p class="feedback-waiting">{copy.meeting.feedbackWaitingForOther}</p>
 			{/if}
 		</section>
 	{/if}
@@ -123,11 +172,11 @@
 	<!-- Revealed feedback for completed meetings -->
 	{#if data.revealedFeedback && data.revealedFeedback.length > 0}
 		<section class="revealed-section">
-			<h2 class="section-title">What they shared with you</h2>
+			<h2 class="section-title">{copy.meeting.revealedTitle}</h2>
 			{#each data.revealedFeedback as fb}
 				<div class="reveal-card">
 					{#if fb.did_meet === false}
-						<p class="reveal-noshow">They reported you didn't meet</p>
+						<p class="reveal-noshow">{copy.meeting.revealedNoShow}</p>
 					{/if}
 					{#if fb.share_with_person}
 						<blockquote class="reveal-quote">{fb.share_with_person}</blockquote>
@@ -145,28 +194,75 @@
 	{/if}
 
 	{#if data.meeting.state === 'scheduled'}
-		<button class="cancel-btn" onclick={() => cancelDialog?.open()} disabled={cancelling}>
-			{cancelling ? copy.meeting.cancelling : copy.meeting.cancelMeeting}
-		</button>
-		<ConfirmDialog
-			bind:this={cancelDialog}
-			title={copy.meeting.cancelMeeting}
-			message={copy.meeting.cancelConfirm}
-			confirmLabel={copy.meeting.cancelMeeting}
-			onConfirm={handleCancel}
-		/>
+		<!-- Cancel lives in the FloatingNav kebab menu; dialog triggered from there. -->
+		<dialog bind:this={cancelDialog} class="cancel-dialog" aria-labelledby="cancel-title">
+			<div class="cancel-inner">
+				<h3 id="cancel-title" class="cancel-title">{copy.meeting.cancelTitle(data.otherUsername)}</h3>
+				<p class="cancel-when">{formatMeetingDate(data.meeting.scheduled_time)}</p>
+				<p class="cancel-body" class:cancel-body--late={!isEarly}>
+					{isEarly
+						? copy.meeting.cancelBodyEarly(data.otherUsername)
+						: copy.meeting.cancelBodyLate(data.otherUsername)}
+				</p>
+
+				<div class="field">
+					<label for="cancel-reason">
+						{isEarly
+							? copy.meeting.cancelReasonLabelEarly(data.otherUsername)
+							: copy.meeting.cancelReasonLabelLate(data.otherUsername)}
+					</label>
+					<textarea
+						id="cancel-reason"
+						bind:value={cancelReason}
+						rows={4}
+						maxlength={2000}
+						placeholder={isEarly
+							? copy.meeting.cancelReasonPlaceholderEarly
+							: copy.meeting.cancelReasonPlaceholderLate}
+					></textarea>
+				</div>
+
+				{#if cancelError}
+					<p class="field-error" role="alert">
+						{cancelError}
+						{#if cancelErrorRef}
+							<span class="field-error-ref">ref: {cancelErrorRef}</span>
+						{/if}
+					</p>
+				{/if}
+
+				<div class="cancel-actions">
+					<button class="btn-secondary" onclick={() => cancelDialog?.close()} disabled={cancelling}>
+						{copy.meeting.cancelKeep}
+					</button>
+					<button
+						class="btn-danger"
+						class:btn-danger--soft={!isEarly && reasonTrimmed.length === 0}
+						onclick={handleCancel}
+						disabled={!canSubmitCancel}
+					>
+						{cancelButtonLabel}
+					</button>
+				</div>
+			</div>
+		</dialog>
 	{/if}
 </div>
 
-<FloatingNav variant="default" attentionCount={data.attentionCount ?? 0} />
+<FloatingNav
+	variant="detail"
+	attentionCount={data.attentionCount ?? 0}
+	actions={data.meeting.state === 'scheduled'
+		? [{ label: copy.meeting.cancelMeeting, onclick: openCancelDialog, danger: true }]
+		: []}
+/>
 
 <style>
-	.content { width: 100%; max-width: var(--content-narrow); }
+	.content { width: 100%; max-width: var(--content-narrow); padding-bottom: var(--nav-clearance); }
 
 	.meeting-header { margin-bottom: var(--space-6); }
 	.meeting-with { font-size: var(--text-2xl); font-weight: normal; display: block; line-height: var(--leading-tight); }
-	.meeting-when { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); display: block; margin-top: var(--space-2); }
-	.calendar-link { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-link); background: none; border: none; padding: 0; cursor: pointer; display: block; margin-top: var(--space-1); }
+	.calendar-link { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-link); background: none; border: none; padding: 0; cursor: pointer; display: block; margin-top: var(--space-2); }
 	.calendar-link:hover { text-decoration: underline; }
 
 	.detail-grid { display: flex; flex-direction: column; margin-bottom: var(--space-6); }
@@ -197,7 +293,66 @@
 	.section-title { margin: 0 0 var(--space-4); }
 	/* .reveal-card, .reveal-noshow, .reveal-quote, .reveal-tags, .reveal-tag — shared.css */
 
-	.cancel-btn { font-size: var(--text-sm); padding: var(--space-2) var(--space-5); border: 1px solid var(--border-link); border-radius: var(--radius-input); background: none; color: var(--text-muted); cursor: pointer; }
-	.cancel-btn:hover { border-color: var(--color-danger); color: var(--color-danger); }
-	.cancel-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+	.cancel-dialog {
+		border: none;
+		border-radius: var(--radius-card);
+		padding: 0;
+		max-width: 460px;
+		width: calc(100% - var(--space-8));
+		background: var(--bg-canvas);
+		color: var(--text-primary);
+		box-shadow: 0 12px 48px rgba(0, 0, 0, 0.22);
+	}
+	.cancel-dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
+	.cancel-inner { padding: var(--space-6); display: flex; flex-direction: column; gap: var(--space-4); }
+
+	.cancel-title {
+		font-family: var(--font-serif);
+		font-size: var(--text-2xl);
+		font-weight: normal;
+		line-height: var(--leading-tight);
+		margin: 0;
+	}
+	.cancel-when {
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+		margin: calc(-1 * var(--space-2)) 0 0;
+	}
+	.cancel-body {
+		font-size: var(--text-base);
+		color: var(--text-secondary);
+		line-height: var(--leading-relaxed);
+		margin: 0;
+	}
+	.cancel-body--late {
+		color: var(--text-primary);
+		border-left: 2px solid var(--color-danger);
+		padding-left: var(--space-3);
+	}
+
+	.field { display: flex; flex-direction: column; gap: var(--space-1); }
+	.field label { font-size: var(--text-sm); color: var(--text-muted); }
+	.field textarea {
+		font-size: var(--text-base);
+		padding: var(--space-3);
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-input);
+		background: transparent;
+		color: var(--text-primary);
+		resize: vertical;
+		line-height: 1.6;
+		width: 100%;
+		box-sizing: border-box;
+		font-family: inherit;
+	}
+	.field textarea:focus { outline: none; border-color: var(--text-muted); }
+	.field textarea::placeholder { color: var(--text-muted); font-style: italic; }
+	.field-error { font-size: var(--text-sm); color: var(--color-danger); margin: 0; }
+
+	.cancel-actions { display: flex; gap: var(--space-3); justify-content: flex-end; margin-top: var(--space-2); }
+
+	/* .btn-secondary / .btn-danger / .btn-danger--soft live in shared.css */
+
+	.field-error-ref { display: block; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin-top: var(--space-1); }
 </style>

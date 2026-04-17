@@ -35,8 +35,10 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 	}>(request);
 	if (errorResponse) return errorResponse;
 
-	if (body.title !== undefined && (typeof body.title !== 'string' || body.title.length > MAX_TITLE_LENGTH)) {
-		return json({ error: `Title must be a string of at most ${MAX_TITLE_LENGTH} characters` }, { status: 400 });
+	if (body.title !== undefined && body.title !== null) {
+		if (typeof body.title !== 'string' || body.title.length > MAX_TITLE_LENGTH) {
+			return json({ error: `Title must be a string of at most ${MAX_TITLE_LENGTH} characters` }, { status: 400 });
+		}
 	}
 
 	if (body.body !== undefined) {

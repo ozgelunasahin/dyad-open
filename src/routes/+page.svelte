@@ -312,9 +312,9 @@
 		width: 6px;
 		height: 6px;
 		border-radius: 50%;
-		background: var(--color-success);
+		background: var(--color-accent);
 		flex-shrink: 0;
-		animation: pulse 2.5s ease-in-out infinite;
+		animation: pulse var(--duration-ambient) ease-in-out infinite;
 	}
 
 	@keyframes pulse {

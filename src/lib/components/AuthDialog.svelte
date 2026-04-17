@@ -189,7 +189,7 @@
 						<p class="error-msg">{error}</p>
 					{/if}
 
-					<button class="submit-btn" type="submit" disabled={loading || !freewrite.trim() || !email.trim()}>
+					<button class="btn-primary btn-primary--block" type="submit" disabled={loading || !freewrite.trim() || !email.trim()}>
 						{loading ? copy.waitlist.sendingWaitlist : copy.waitlist.joinWaitlistButton}
 					</button>
 				</form>
@@ -232,7 +232,7 @@
 					<p class="error-msg">{error}</p>
 				{/if}
 
-				<button class="submit-btn" type="submit" disabled={loading}>
+				<button class="btn-primary btn-primary--block" type="submit" disabled={loading}>
 					{loading ? copy.auth.loggingIn : copy.auth.logIn}
 				</button>
 			</form>
@@ -351,19 +351,7 @@
 
 	.success-message p { margin: 0; }
 
-	.submit-btn {
-		width: 100%;
-		font-size: var(--text-base);
-		color: var(--bg-canvas);
-		background: var(--text-primary);
-		border: 1px solid var(--text-primary);
-		border-radius: var(--radius-input);
-		padding: var(--space-3) var(--space-5);
-		cursor: pointer;
-		transition: opacity 0.15s;
-	}
-	.submit-btn:hover { opacity: var(--opacity-hover-btn); }
-	.submit-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+	/* .btn-primary / .btn-primary--block live in shared.css */
 
 	.mode-switch {
 		font-size: var(--text-sm);

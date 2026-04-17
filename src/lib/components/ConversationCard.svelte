@@ -26,8 +26,14 @@
 		authorUsername?: string | null;
 		/** If true, masks the username with bullets (landing page anonymisation). */
 		anonymiseAuthor?: boolean;
-		/** Profile variant: muted, monospace uppercase status pill under the title. */
+		/** Profile variant: muted, monospace uppercase status pill under the title.
+		 * Prefer `statusText` for arbitrary free-form context ("3 responses",
+		 * "edited Tuesday", "invited — waiting"). `status` remains for the
+		 * dimmed-only draft/archived cases where no richer text is useful. */
 		status?: 'draft' | 'published' | 'responded' | 'archived' | null;
+		/** Profile variant: free-form muted text under the title (e.g. "3 responses",
+		 * "edited Tuesday"). Takes precedence over `status` when supplied. */
+		statusText?: string | null;
 		/** Muted the whole card — drafts, archived, expired items. */
 		dimmed?: boolean;
 		variant?: 'full' | 'profile' | 'compact';
@@ -46,6 +52,7 @@
 		authorUsername = null,
 		anonymiseAuthor = false,
 		status = null,
+		statusText = null,
 		dimmed = false,
 		variant = 'full',
 		children
@@ -89,7 +96,13 @@
 				</div>
 			{/if}
 			<h3 class="title">{title}</h3>
-			{#if statusLabel}
+			{#if variant === 'profile' && (authorUsername || statusText)}
+				<span class="status-line">
+					{#if authorUsername}<span class="status-author">by @{authorUsername}</span>{/if}
+					{#if authorUsername && statusText}<span class="status-sep"> · </span>{/if}
+					{#if statusText}<span>{statusText}</span>{/if}
+				</span>
+			{:else if statusLabel}
 				<span class="status">{statusLabel}</span>
 			{/if}
 			{#if snippet}
@@ -233,6 +246,22 @@
 		color: var(--text-muted);
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
+	}
+
+	/* Free-form context line — author attribution, response count, edit time,
+	 * invitation state. Replaces the uppercase status pill when supplied. */
+	.status-line {
+		display: inline-flex;
+		align-items: baseline;
+		gap: var(--space-1);
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+		margin-top: var(--space-1);
+	}
+	.status-sep {
+		color: var(--text-muted);
+		opacity: 0.6;
 	}
 
 	.snippet {

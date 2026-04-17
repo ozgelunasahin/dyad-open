@@ -4,7 +4,6 @@
 	import { onMount } from 'svelte';
 	import { env } from '$env/dynamic/public';
 	import type { LayoutData } from './$types';
-	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
 	import MeetingFeedbackModal from '$lib/components/MeetingFeedbackModal.svelte';
 	import { initPosthog, capture } from '$lib/analytics';
 
@@ -29,7 +28,8 @@
 	{@render children()}
 </main>
 
-<FeedbackModal isAdmin={data.isAdmin} />
+<!-- FeedbackModal is mounted on the root layout (src/routes/+layout.svelte)
+	so it shows on every page including pre-auth flows. -->
 
 {#if data.pendingFeedback}
 	<MeetingFeedbackModal

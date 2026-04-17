@@ -2,13 +2,79 @@
 	import type { PageData } from './$types';
 	import type { Prompt } from '$lib/domain/types';
 	import { goto } from '$app/navigation';
+	import { browser } from '$app/environment';
 	import { page } from '$app/state';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
 	import ConversationCard from '$lib/components/ConversationCard.svelte';
 	import MeetingCard from '$lib/components/MeetingCard.svelte';
 	import { copy } from '$lib/copy';
+	import { formatRelativePast } from '$lib/utils/dates';
 
 	let { data }: { data: PageData } = $props();
+
+	// Unseen-response tracking is intentionally kept in the data model (via
+	// localStorage) even though we don't surface it as a visible dot — dots
+	// were too anxiety-inducing. The signal is available if we later want to
+	// use it for sorting (unseen first), a quieter tint, or a dedicated view.
+	const SEEN_KEY = 'dyad_seen_response_counts';
+	function loadSeenMap(): Record<string, number> {
+		if (!browser) return {};
+		try {
+			const raw = localStorage.getItem(SEEN_KEY);
+			return raw ? JSON.parse(raw) : {};
+		} catch {
+			return {};
+		}
+	}
+	function isUnseen(promptId: string, currentCount: number): boolean {
+		if (!browser || currentCount === 0) return false;
+		const seen = loadSeenMap()[promptId] ?? 0;
+		return currentCount > seen;
+	}
+	function markSeen(promptId: string) {
+		if (!browser) return;
+		const current = data.responseCountByPromptId?.[promptId] ?? 0;
+		const map = loadSeenMap();
+		map[promptId] = current;
+		try {
+			localStorage.setItem(SEEN_KEY, JSON.stringify(map));
+		} catch {
+			// localStorage quota / private mode — silently ignore.
+		}
+	}
+
+	function responseCountLabel(n: number): string {
+		return n === 0 ? '' : copy.profile.responseCount(n);
+	}
+	function meetingCountLabel(n: number): string {
+		return n === 0 ? '' : copy.profile.meetingCount(n);
+	}
+	function invitationStateLabel(state: string | undefined, authorUsername: string): string | null {
+		if (!state) return null;
+		if (state === 'pending') return copy.profile.invitedWaiting(authorUsername);
+		if (state === 'declined') return copy.profile.invitationDeclined;
+		if (state === 'expired') return copy.profile.invitationExpired;
+		// 'accepted' handled by the MeetingCard — no status line needed.
+		return null;
+	}
+
+	type MeetingSnapshot = { scheduled_time: string; duration_minutes: number; state: string };
+	function meetingIsDone(m: MeetingSnapshot): boolean {
+		if (m.state === 'cancelled_early' || m.state === 'cancelled_late') return true;
+		if (m.state === 'completed' || m.state === 'awaiting_feedback') return true;
+		// Scheduled but already in the past (end time has passed).
+		const endMs = new Date(m.scheduled_time).getTime() + m.duration_minutes * 60_000;
+		return endMs < Date.now();
+	}
+
+	/** Shared tab sort: items with upcoming meetings first (soonest-first),
+	 *  everything else by sortDate descending (most recent activity). */
+	function byMeetingThenRecency(a: ConversationItem, b: ConversationItem): number {
+		const aMeet = a.meeting ? new Date(a.meeting.scheduled_time).getTime() : Infinity;
+		const bMeet = b.meeting ? new Date(b.meeting.scheduled_time).getTime() : Infinity;
+		if (aMeet !== bMeet) return aMeet - bMeet;
+		return new Date(b.sortDate).getTime() - new Date(a.sortDate).getTime();
+	}
 
 	// ── Derived lists ───────────────────────────────────────────────────
 	let published = $derived(data.prompts.filter((p: Prompt) => p.state === 'published'));
@@ -29,17 +95,43 @@
 			general_area: string | null;
 			partner_username: string;
 			state: string;
+			cancelled_by_me: boolean;
+			cancelled_by_username: string | null;
 		};
 		authorUsername?: string;
+		statusText?: string | null;
+		unseen?: boolean;
 	};
 
-	/** Started tab: drafts + published (authored by me, excluding archived). */
-	let startedConvs = $derived.by(() => {
-		const items: ConversationItem[] = [];
-		const meetingMap = data.meetingsByPromptId ?? {};
+	// Per-prompt active meeting for profile cards — skip meetings that are
+	// cancelled or past-took-place, since neither belongs on a "what's live" card.
+	// A conversation isn't "done" because one meeting happened or was cancelled —
+	// authors can keep opening new slots on the same prompt.
+	function activeMeetingFor(promptId: string) {
+		const m = (data.meetingsByPromptId ?? {})[promptId];
+		if (!m) return undefined;
+		const cancelled = m.state === 'cancelled_early' || m.state === 'cancelled_late';
+		if (cancelled) return undefined;
+		if (meetingIsDone(m)) return undefined;
+		return {
+			id: m.id,
+			scheduled_time: m.scheduled_time,
+			duration_minutes: m.duration_minutes,
+			general_area: m.general_area,
+			partner_username: m.partner_username,
+			state: m.state,
+			cancelled_by_me: m.cancelled_by_me,
+			cancelled_by_username: m.cancelled_by_username
+		};
+	}
 
+	/** Started tab: drafts + authored published, in live shape. Past meetings
+	 *  stay with the conversation (and are surfaced in Archive as a record),
+	 *  not an excuse to retire it. */
+	let startedConvs = $derived.by<ConversationItem[]>(() => {
+		const items: ConversationItem[] = [];
 		for (const p of published) {
-			const m = meetingMap[p.id];
+			const responseCount = data.responseCountByPromptId?.[p.id] ?? 0;
 			items.push({
 				type: 'published',
 				id: p.id,
@@ -47,74 +139,93 @@
 				coverUrl: p.cover_image_url ?? null,
 				href: `/conversations/${p.id}`,
 				sortDate: p.published_at ?? p.created_at,
-				meeting: m
-					? {
-							id: m.id,
-							scheduled_time: m.scheduled_time,
-							duration_minutes: m.duration_minutes,
-							general_area: m.general_area,
-							partner_username: m.partner_username,
-							state: m.state
-						}
-					: undefined
+				statusText: responseCountLabel(responseCount) || null,
+				unseen: isUnseen(p.id, responseCount),
+				meeting: activeMeetingFor(p.id)
 			});
 		}
-
 		for (const p of drafts) {
+			const edited = p.updated_at ?? p.created_at;
 			items.push({
 				type: 'draft',
 				id: p.id,
 				title: p.title || copy.common.untitled,
 				coverUrl: p.cover_image_url ?? null,
 				href: `/conversations/${p.id}/edit`,
-				sortDate: p.updated_at ?? p.created_at
+				sortDate: edited,
+				statusText: edited ? `edited ${formatRelativePast(edited)}` : null
 			});
 		}
-
-		// Sort: meetings today → upcoming meetings → drafts (recency) → published without meeting → older
-		const now = new Date();
-		const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-		const tomorrow = today + 24 * 60 * 60 * 1000;
-
+		// Started tab order (drafts-first to encourage completion):
+		//   1. drafts (most-recently-edited first)
+		//   2. meetings today
+		//   3. upcoming meetings (soonest first)
+		//   4. published without meeting (recency)
 		return items.sort((a, b) => {
 			const rank = (it: ConversationItem) => {
+				if (it.type === 'draft') return 0;
 				if (it.meeting) {
 					const mt = new Date(it.meeting.scheduled_time).getTime();
-					if (mt >= today && mt < tomorrow) return 0; // today
-					if (mt >= tomorrow) return 1; // upcoming
-					return 3; // past meetings (below drafts)
+					const now = Date.now();
+					const today = new Date();
+					today.setHours(0, 0, 0, 0);
+					const tomorrow = today.getTime() + 24 * 60 * 60 * 1000;
+					if (mt >= today.getTime() && mt < tomorrow) return 1;
+					if (mt >= now) return 2;
+					return 4;
 				}
-				if (it.type === 'draft') return 2;
-				return 4; // published without meeting
+				return 3;
 			};
 			const ra = rank(a);
 			const rb = rank(b);
 			if (ra !== rb) return ra - rb;
+			if (a.meeting && b.meeting) {
+				return new Date(a.meeting.scheduled_time).getTime() - new Date(b.meeting.scheduled_time).getTime();
+			}
 			return new Date(b.sortDate).getTime() - new Date(a.sortDate).getTime();
 		});
 	});
 
 	let respondedConvs = $derived<ConversationItem[]>(
-		(data.respondedPrompts ?? []).map((rp) => ({
-			type: 'responded',
-			id: rp.prompt_id,
-			title: rp.prompt_title,
-			coverUrl: rp.prompt_cover_image_url ?? null,
-			href: `/conversations/${rp.prompt_id}`,
-			sortDate: rp.created_at,
-			authorUsername: rp.author_username
-		}))
+		(data.respondedPrompts ?? [])
+			.map((rp) => {
+				const invState = data.myInvitationStateByPromptId?.[rp.prompt_id];
+				const inviteLabel = invState ? invitationStateLabel(invState, rp.author_username) : null;
+				const respondedLabel = rp.created_at ? `responded ${formatRelativePast(rp.created_at)}` : null;
+				return {
+					type: 'responded',
+					id: rp.prompt_id,
+					title: rp.prompt_title,
+					coverUrl: rp.prompt_cover_image_url ?? null,
+					href: `/conversations/${rp.prompt_id}`,
+					sortDate: rp.created_at,
+					authorUsername: rp.author_username,
+					statusText: inviteLabel ?? respondedLabel,
+					meeting: activeMeetingFor(rp.prompt_id)
+				} as ConversationItem;
+			})
+			.sort(byMeetingThenRecency)
 	);
 
+	/** Archive tab: prompts that are no longer active (manually archived, or
+	 *  auto-archived by the 7-day rolling-window rule server-side). Past
+	 *  meetings live with their parent conversation — clickable through the
+	 *  conversation card, not re-surfaced here as standalone records. */
 	let archivedConvs = $derived<ConversationItem[]>(
-		archived.map((p) => ({
-			type: 'archived',
-			id: p.id,
-			title: p.title || copy.common.untitled,
-			coverUrl: p.cover_image_url ?? null,
-			href: `/conversations/${p.id}`,
-			sortDate: p.archived_at ?? p.created_at
-		}))
+		archived
+			.map((p) => {
+				const count = data.meetingCountByPromptId?.[p.id] ?? 0;
+				return {
+					type: 'archived',
+					id: p.id,
+					title: p.title || copy.common.untitled,
+					coverUrl: p.cover_image_url ?? null,
+					href: `/conversations/${p.id}`,
+					sortDate: p.archived_at ?? p.created_at,
+					statusText: meetingCountLabel(count) || null
+				} as ConversationItem;
+			})
+			.sort(byMeetingThenRecency)
 	);
 
 	// ── Tab state ───────────────────────────────────────────────────────
@@ -159,7 +270,7 @@
 			<button type="submit" class="sign-out-link">{copy.nav.signOut}</button>
 		</form>
 		{#if data.isAdmin}
-			<a href="/admin" class="sign-out-link">admin</a>
+			<a href="/admin" class="sign-out-link">{copy.nav.admin}</a>
 		{/if}
 	</div>
 
@@ -167,13 +278,31 @@
 	{#if data.receivedInvitations.length > 0 || data.feedbackDue.length > 0 || (data.cancelledNotifications?.length ?? 0) > 0}
 		<section class="profile-section">
 			{#each data.cancelledNotifications ?? [] as cn}
-				<div class="attention-card">
-					<span class="attention-who">{copy.profile.meetingCancelled}</span>
-					<span class="attention-context">
-						{copy.profile.meetingCancelledBy(cn.cancelled_by_username)}{#if cn.scheduled_time}
-							{' '}on {formatDate(cn.scheduled_time)}{/if}
-					</span>
-				</div>
+				{#if cn.meeting_id}
+					<a href="/meetings/{cn.meeting_id}" class="attention-card link">
+						<span class="attention-who">{copy.profile.meetingCancelled}</span>
+						<span class="attention-context">
+							{cn.scheduled_time
+								? copy.profile.cancellationAttention(cn.cancelled_by_username, formatDate(cn.scheduled_time))
+								: copy.profile.meetingCancelledBy(cn.cancelled_by_username)}
+						</span>
+						{#if cn.reason}
+							<blockquote class="cancellation-reason">{cn.reason}</blockquote>
+						{/if}
+					</a>
+				{:else}
+					<div class="attention-card">
+						<span class="attention-who">{copy.profile.meetingCancelled}</span>
+						<span class="attention-context">
+							{cn.scheduled_time
+								? copy.profile.cancellationAttention(cn.cancelled_by_username, formatDate(cn.scheduled_time))
+								: copy.profile.meetingCancelledBy(cn.cancelled_by_username)}
+						</span>
+						{#if cn.reason}
+							<blockquote class="cancellation-reason">{cn.reason}</blockquote>
+						{/if}
+					</div>
+				{/if}
 			{/each}
 			{#each data.receivedInvitations as inv}
 				<a href="/conversations/{inv.prompt_id}" class="attention-card link">
@@ -223,24 +352,31 @@
 		{:else}
 			<div class="conversation-list">
 				{#each startedConvs as item (item.id)}
-					<ConversationCard
-						variant="profile"
-						title={item.title}
-						coverUrl={item.coverUrl}
-						href={item.href}
-						status={item.type === 'draft' ? 'draft' : null}
-						dimmed={item.type === 'draft'}
-					>
-						{#if item.meeting}
-							<MeetingCard
-								partnerUsername={item.meeting.partner_username}
-								scheduledTime={item.meeting.scheduled_time}
-								durationMinutes={item.meeting.duration_minutes}
-								generalArea={item.meeting.general_area}
-								cancelledByUsername={item.meeting.state === 'cancelled_early' || item.meeting.state === 'cancelled_late' ? item.meeting.partner_username : null}
-							/>
-						{/if}
-					</ConversationCard>
+					<!-- svelte-ignore a11y_click_events_have_key_events -->
+					<!-- svelte-ignore a11y_no_static_element_interactions -->
+					<div onclick={item.type === 'published' ? () => markSeen(item.id) : undefined}>
+						<ConversationCard
+							variant="profile"
+							title={item.title}
+							coverUrl={item.coverUrl}
+							href={item.href}
+							statusText={item.statusText ?? null}
+							status={item.type === 'draft' && !item.statusText ? 'draft' : null}
+							dimmed={item.type === 'draft'}
+						>
+							{#if item.meeting}
+								{@const isCancelled = item.meeting.state === 'cancelled_early' || item.meeting.state === 'cancelled_late'}
+								<MeetingCard
+									partnerUsername={item.meeting.partner_username}
+									scheduledTime={item.meeting.scheduled_time}
+									durationMinutes={item.meeting.duration_minutes}
+									generalArea={item.meeting.general_area}
+									cancelledByMe={isCancelled && item.meeting.cancelled_by_me}
+									cancelledByUsername={isCancelled && !item.meeting.cancelled_by_me ? (item.meeting.cancelled_by_username ?? item.meeting.partner_username) : null}
+								/>
+							{/if}
+						</ConversationCard>
+					</div>
 				{/each}
 			</div>
 		{/if}
@@ -258,8 +394,21 @@
 						title={item.title}
 						coverUrl={item.coverUrl}
 						href={item.href}
-						status="responded"
-					/>
+						authorUsername={item.authorUsername ?? null}
+						statusText={item.statusText ?? null}
+					>
+						{#if item.meeting}
+							{@const isCancelled = item.meeting.state === 'cancelled_early' || item.meeting.state === 'cancelled_late'}
+							<MeetingCard
+								partnerUsername={item.meeting.partner_username}
+								scheduledTime={item.meeting.scheduled_time}
+								durationMinutes={item.meeting.duration_minutes}
+								generalArea={item.meeting.general_area}
+								cancelledByMe={isCancelled && item.meeting.cancelled_by_me}
+								cancelledByUsername={isCancelled && !item.meeting.cancelled_by_me ? (item.meeting.cancelled_by_username ?? item.meeting.partner_username) : null}
+							/>
+						{/if}
+					</ConversationCard>
 				{/each}
 			</div>
 		{/if}
@@ -276,7 +425,8 @@
 						title={item.title}
 						coverUrl={item.coverUrl}
 						href={item.href}
-						status="archived"
+						statusText={item.statusText ?? null}
+						status={item.statusText ? null : 'archived'}
 						dimmed
 					/>
 				{/each}
@@ -372,6 +522,15 @@
 		color: var(--text-secondary);
 		font-style: italic;
 		margin: 0 0 var(--space-3);
+	}
+	.cancellation-reason {
+		font-size: var(--text-sm);
+		color: var(--text-secondary);
+		font-style: italic;
+		line-height: var(--leading-relaxed);
+		margin: var(--space-2) 0 0;
+		padding: 0;
+		border: none;
 	}
 	.attention-cta {
 		font-size: var(--text-sm);

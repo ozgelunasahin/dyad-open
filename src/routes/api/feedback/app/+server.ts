@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
-import { requireAuth } from '$lib/server/auth.js';
 import { parseJsonBody } from '$lib/server/parse-body.js';
+import { requireAuth } from '$lib/server/auth.js';
 import type { RequestHandler } from './$types';
 
 interface AppFeedbackBody {
@@ -9,9 +9,10 @@ interface AppFeedbackBody {
 	context?: Record<string, unknown>;
 }
 
-/** POST /api/feedback/app — submit in-app feedback (bug report, feature request) */
+/** POST /api/feedback/app — submit in-app feedback (authenticated users only). */
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const user = requireAuth(locals.user);
+
 	const [body, errorResponse] = await parseJsonBody<AppFeedbackBody>(request);
 	if (errorResponse) return errorResponse;
 
@@ -37,7 +38,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		.from('feedback')
 		.insert({
 			user_id: user.id,
-			type: ['bug', 'feature', 'other'].includes(type ?? '') ? type : 'other',
+			type: ['bug', 'feature', 'report', 'other'].includes(type ?? '') ? type : 'other',
 			description: description.slice(0, 5000),
 			context: sanitizedContext
 		});

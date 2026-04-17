@@ -398,10 +398,13 @@ INSERT INTO feedback_forms (id, meeting_id, reviewer_id, reviewee_id, state) VAL
    '66666666-6666-6666-6666-666666666666', '55555555-5555-5555-5555-555555555555', 'due');
 
 -- Kai + Marco: kai submitted, marco still due (one-side feedback)
-INSERT INTO feedback_forms (id, meeting_id, reviewer_id, reviewee_id, state, did_meet, rating_tags, free_text, submitted_at) VALUES
+-- free_text is platform-private; share_with_person is what Marco sees in revealed feedback
+INSERT INTO feedback_forms (id, meeting_id, reviewer_id, reviewee_id, state, did_meet, rating_tags, free_text, share_with_person, submitted_at) VALUES
   ('d0000002-0000-0000-0000-000000000001', 'c0000005-0000-0000-0000-000000000001',
    '88888888-8888-8888-8888-888888888888', '22222222-2222-2222-2222-222222222222',
-   'submitted', true, ARRAY['thoughtful', 'curious', 'articulate'], 'Marco was genuinely engaged. We talked for longer than planned.',
+   'submitted', true, ARRAY['thoughtful', 'curious', 'articulate'],
+   'Marco was genuinely engaged. We talked for longer than planned.',
+   'Thanks for going deep on the question rather than skating over it. I left thinking.',
    NOW() - interval '1 day');
 INSERT INTO feedback_forms (id, meeting_id, reviewer_id, reviewee_id, state) VALUES
   ('d0000002-0000-0000-0000-000000000002', 'c0000005-0000-0000-0000-000000000001',

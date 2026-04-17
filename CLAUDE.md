@@ -135,6 +135,8 @@ The `docs/plans/` directory contains implementation plans. When resolving a todo
 
 3. **Run `npx svelte-check --threshold error` before pushing.** This catches type errors and broken imports. Pre-existing errors (15, all Supabase type widening) are known — only worry about NEW errors.
 
+   **Integration tests** against a real Supabase stack: `npm run test:integration:local`. See [docs/TESTING.md](docs/TESTING.md) for setup, the three tiers (unit / integration / E2E), and how `.env.local` is auto-generated from `supabase status`.
+
 4. **Commit messages follow conventional format.** `fix: description`, `feat: description`, `docs: description`, `refactor: description`. Keep them concise.
 
 5. **Check `docs/solutions/` before implementing.** Past gotchas are documented there. The TipTap reactive loop, Leaflet SSR issues, RLS visibility patterns — don't rediscover what's already known.

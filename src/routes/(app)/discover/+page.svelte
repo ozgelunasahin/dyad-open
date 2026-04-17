@@ -163,7 +163,7 @@
 				<div class="empty-state">
 					<p>{copy.discover.noConversations}</p>
 					<p class="empty-hint">{copy.discover.checkBackSoon}</p>
-					<a href="/conversations/new" class="start-prompt-btn" style="margin-top: var(--space-4); display: inline-block;">{copy.discover.startConversation}</a>
+					<a href="/conversations/new" class="btn-primary btn-primary--sm" style="margin-top: var(--space-4); display: inline-block; text-decoration: none;">{copy.discover.startConversation}</a>
 				</div>
 			{:else if filteredPrompts.length === 0}
 					<div class="empty-state">
@@ -264,18 +264,5 @@
 		margin-bottom: 3rem;
 	}
 
-	.start-prompt-btn {
-				font-size: var(--text-sm);
-		padding: var(--space-2) var(--space-5);
-		border: 1px solid var(--text-primary);
-		border-radius: var(--radius-input);
-		background: var(--text-primary);
-		color: var(--bg-canvas);
-		text-decoration: none;
-		transition: opacity 0.15s;
-	}
-
-	.start-prompt-btn:hover { opacity: var(--opacity-hover-btn); }
-
-	/* Prompt list item styles live in ConversationCard.svelte */
+	/* .btn-primary / .btn-primary--sm live in shared.css; see ConversationCard.svelte for list items. */
 </style>

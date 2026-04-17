@@ -192,7 +192,7 @@
 
 		<div class="sheet-footer">
 			<button
-				class="publish-btn"
+				class="btn-primary"
 				onclick={handlePublish}
 				disabled={publishing || selectedDays.size === 0}
 			>
@@ -370,19 +370,7 @@
 		margin-top: var(--space-4);
 	}
 
-	.publish-btn {
-		font-size: var(--text-base);
-		padding: var(--space-3) 28px;
-		background: var(--text-primary);
-		color: var(--bg-canvas);
-		border: 1px solid var(--text-primary);
-		border-radius: var(--radius-input);
-		cursor: pointer;
-		transition: opacity 0.15s;
-	}
-
-	.publish-btn:hover:not(:disabled) { opacity: var(--opacity-hover-btn); }
-	.publish-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+	/* .btn-primary lives in shared.css */
 
 	@media (min-width: 768px) {
 		.backdrop {
