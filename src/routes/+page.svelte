@@ -501,12 +501,15 @@
 		.landing {
 			display: flex;
 			flex-direction: column;
-			height: 100vh;
+			/* 100dvh tracks the visible viewport as mobile browser chrome
+			 * expands/collapses; 100vh keeps a bigger area fixed, which
+			 * clipped the hero content on short phones. */
+			height: 100dvh;
 			overflow: hidden;
 		}
 
 		.left-col {
-			height: 100vh;
+			height: 100dvh;
 			min-height: unset;
 			border-right: none;
 			border-bottom: none;
@@ -514,13 +517,16 @@
 			transform: translateZ(0); /* contain position:fixed BottomSheet within 100vh */
 		}
 
-		.hero-content { margin-top: auto; }
 		.top-city-row { display: none; }
 
+		/* Map takes whatever leftover space is between the top bar and the
+		 * hero content, with a floor so it stays a usable map on very short
+		 * viewports. hero-content gets its natural height — no margin-top:auto
+		 * pushing it out of view when the viewport shrinks. */
 		.hero-map {
 			display: block;
-			height: 58vh;
-			flex-shrink: 0;
+			flex: 1 1 auto;
+			min-height: 220px;
 			margin: var(--space-3) 0;
 			border-radius: var(--radius-card);
 			overflow: hidden;
