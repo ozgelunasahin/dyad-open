@@ -26,18 +26,27 @@ async function requireAdmin(locals: App.Locals) {
 }
 
 /**
- * Render the invitation email body. `message` (when non-empty) is rendered as
- * a quoted block above the default copy, so the recipient sees the sender's
- * own words first, then the standard "you've been invited" framing.
+/**
+ * Render the invitation email body.
  *
- * Input is escaped before interpolation; line breaks in the message are
- * preserved as <br> tags. Everything else is plain text.
+ * `opener` is the admin's own opening line — e.g. "Hey T —" or "Hi Ozge,".
+ * Rendered verbatim (no "Hi " prefix). Omit entirely when empty, so the
+ * email leads straight into the personal message / standard copy rather
+ * than a defensive "Hi there,".
+ *
+ * `message` (when non-empty) is a quoted block beneath the opener — the
+ * recipient reads the sender's own words first, then the standard "you've
+ * been invited" framing.
+ *
+ * Both fields are escaped before interpolation; line breaks in the message
+ * are preserved as <br> tags. Everything else is plain text.
  */
 function renderInviteEmail(params: {
-	displayName: string;
+	opener?: string;
 	inviteUrl: string;
 	message?: string;
 }): string {
+	const openerBlock = params.opener ? `\n\t\t\t\t<p>${params.opener}</p>` : '';
 	const personalBlock = params.message
 		? `
 				<blockquote style="margin: 0 0 24px; padding: 12px 16px; background: #f7f4ee; border-left: 3px solid #c8c2b6; font-style: italic; color: #3a3a3a; white-space: pre-wrap;">${escapeHtml(
@@ -46,9 +55,8 @@ function renderInviteEmail(params: {
 		: '';
 
 	return `
-			<div style="font-family: Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 40px 20px; color: #1a1a1a; line-height: 1.7;">
-				<p>Hi ${params.displayName},</p>${personalBlock}
-				<p>You've been invited to join dyad — a community of people in Berlin who meet for real conversations.</p>
+			<div style="font-family: Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 40px 20px; color: #1a1a1a; line-height: 1.7;">${openerBlock}${personalBlock}
+				<p>You've been invited to join dyad, a community of people in Berlin who meet for real conversations.</p>
 				<p><a href="${params.inviteUrl}" style="color: #1a1a1a; font-weight: bold; text-decoration: underline;">Join dyad</a></p>
 				<p style="font-size: 14px; color: #666;">This link expires in ${INVITE_EXPIRY_DAYS} days.</p>
 				<hr style="border: none; border-top: 1px solid #e0ddd8; margin: 32px 0 16px;" />
@@ -56,6 +64,14 @@ function renderInviteEmail(params: {
 				<p style="font-size: 12px; color: #999; margin: 0;">cultivating a culture of conversation</p>
 			</div>
 		`;
+}
+
+/** Build the escaped opener line from the admin's `name` input. Undefined when blank. */
+function buildOpener(name: unknown): string | undefined {
+	if (typeof name === 'string' && name.trim()) {
+		return escapeHtml(name.trim());
+	}
+	return undefined;
 }
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -99,11 +115,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	if (existing && existing.length > 0) {
 		// Already has a valid invite — resend the email and return the existing link
 		const inviteUrl = `${APP_ORIGIN}/join?token=${existing[0].token}`;
-		const displayName = escapeHtml((typeof name === 'string' && name.trim()) || 'there');
 		await sendEmail({
 			to: email.trim(),
 			subject: copy.email.inviteSubject,
-			html: renderInviteEmail({ displayName, inviteUrl, message: trimmedMessage })
+			html: renderInviteEmail({ opener: buildOpener(name), inviteUrl, message: trimmedMessage })
 		}).catch((err) => console.error('[invites] Failed to resend invite email:', err));
 		await captureServer(locals.user!.id, 'invite_email_sent', {
 			invited_email: email.trim(),
@@ -146,11 +161,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const inviteUrl = `${APP_ORIGIN}/join?token=${token}`;
 
 	// Send invite email
-	const displayName = escapeHtml((typeof name === 'string' && name.trim()) || 'there');
 	await sendEmail({
 		to: email.trim(),
 		subject: copy.email.inviteSubject,
-		html: renderInviteEmail({ displayName, inviteUrl, message: trimmedMessage })
+		html: renderInviteEmail({ opener: buildOpener(name), inviteUrl, message: trimmedMessage })
 	}).catch((err) => console.error('[invites] Failed to send invite email:', err));
 	await captureServer(locals.user!.id, 'invite_email_sent', {
 		invited_email: email.trim(),

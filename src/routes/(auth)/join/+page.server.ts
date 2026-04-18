@@ -1,4 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
+import { makeAdminClient } from '$lib/server/supabase-admin.js';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -88,28 +89,35 @@ export const actions: Actions = {
 			return fail(400, { username, error: 'Username is already taken' });
 		}
 
-		// Create the user account
-		const { error: signUpError } = await locals.supabase.auth.signUp({
+		// Create the user account via the admin API with email_confirm: true.
+		// Admin-creating with the invitation token as proof bypasses Supabase's
+		// own confirmation-email flow entirely — we don't want the platform to
+		// send a second "please confirm" message when our invite email already
+		// served that purpose, and we don't want signUp() to fail when Supabase
+		// auth has enable_confirmations enabled but no SMTP wired up for auth.
+		const admin = makeAdminClient();
+		const { error: signUpError } = await admin.auth.admin.createUser({
 			email,
 			password,
-			options: {
-				data: { username, berlin_based: berlinBased }
-			}
+			email_confirm: true,
+			user_metadata: { username, berlin_based: berlinBased }
 		});
 
 		if (signUpError) {
-			return fail(400, { username, error: signUpError.message });
+			console.error('[join] admin.createUser failed:', signUpError);
+			// Surface a safe message — the raw error can leak Postgres detail.
+			const msg = signUpError.message.toLowerCase();
+			const friendly = msg.includes('already') || msg.includes('exists')
+				? 'An account with this email already exists.'
+				: 'Could not create your account. Please try again.';
+			return fail(400, { username, error: friendly });
 		}
 
-		// Mark the invitation as used, then confirm the email.
-		// Sequential: confirm_user_email checks that a recently consumed invitation exists.
+		// Mark the invitation as used so it can't be reused.
 		const { error: useError } = await locals.supabase.rpc('use_invitation', { invite_token: token });
 		if (useError) {
+			console.error('[join] use_invitation failed:', useError);
 			return fail(400, { username, error: 'This invitation could not be processed. Please try again.' });
-		}
-		const { error: confirmError } = await locals.supabase.rpc('confirm_user_email', { user_email: email });
-		if (confirmError) {
-			console.error('[join] Failed to confirm email after invitation:', confirmError);
 		}
 
 		// Resolve referred_by: check invitation's invited_by first, then dyad_ref cookie

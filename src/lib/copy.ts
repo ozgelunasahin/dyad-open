@@ -374,6 +374,7 @@ export const copy = {
 		_description: 'Admin panel navigation and labels.',
 		backToApp: 'Back to app',
 		waitlist: 'Waitlist',
+		invites: 'Invites',
 		feedback: 'Feedback',
 	},
 

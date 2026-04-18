@@ -3,9 +3,11 @@
 
 	let { data }: { data: PageData } = $props();
 
-	// Per-row compose state: which row is expanded, and what message the admin
-	// has typed for each email. Keyed by email so reopening a row keeps the draft.
+	// Per-row compose state: which row is expanded, and what opener + message
+	// the admin has typed for each email. Keyed by email so reopening a row
+	// keeps the draft. Both are shared across the row's Send button.
 	let expandedEmail = $state<string | null>(null);
+	let openerByEmail = $state<Record<string, string>>({});
 	let messageByEmail = $state<Record<string, string>>({});
 	let invitingEmail = $state<string | null>(null);
 	let inviteResult = $state<{ email: string; message: string; url?: string } | null>(null);
@@ -70,13 +72,19 @@
 		}
 	}
 
-	async function inviteWaitlisted(email: string, name: string | null) {
+	async function inviteWaitlisted(email: string) {
+		// The contact's stored `name` is their first name from /waitlist —
+		// don't reuse it as the opener, since the opener is a full salutation
+		// line the admin writes by hand ("Hi Ozge,", "Hey T —"). An unfilled
+		// opener means no greeting paragraph renders.
+		const opener = openerByEmail[email] ?? '';
 		const msg = messageByEmail[email] ?? '';
-		await send(email, name, msg);
+		await send(email, opener.trim() || null, msg);
 		if (inviteResult && !inviteResult.message.startsWith('Failed') && !inviteResult.message.startsWith('Network')) {
-			// Clear the draft + collapse the row on success
-			const { [email]: _, ...rest } = messageByEmail;
-			messageByEmail = rest;
+			const { [email]: _o, ...restOpeners } = openerByEmail;
+			const { [email]: _m, ...restMessages } = messageByEmail;
+			openerByEmail = restOpeners;
+			messageByEmail = restMessages;
 			expandedEmail = null;
 		}
 	}
@@ -202,11 +210,11 @@
 			</label>
 
 			<label class="direct-field">
-				<span>Name <em>(optional, shared across the batch)</em></span>
+				<span>Opener <em>(optional, shared across the batch — rendered verbatim at the top of the email)</em></span>
 				<input
 					type="text"
 					bind:value={directName}
-					placeholder="First name or blank to default to &quot;there&quot;"
+					placeholder="e.g. &quot;Hi Ozge,&quot; or &quot;Hey T —&quot;. Leave blank to skip the greeting."
 					disabled={directSending}
 				/>
 			</label>
@@ -275,8 +283,17 @@
 
 				{#if expandedEmail === contact.email}
 					<label class="compose">
+						<span>Opener <em>(optional, verbatim at the top)</em></span>
+						<input
+							type="text"
+							bind:value={openerByEmail[contact.email]}
+							placeholder={'e.g. "Hi ' + (contact.name ?? 'there') + ',"'}
+							disabled={invitingEmail === contact.email}
+						/>
+					</label>
+					<label class="compose">
 						<span
-							>Message <em>(optional, appears above the default copy)</em>
+							>Message <em>(optional, rendered as a quote)</em>
 							<span
 								class="charcount"
 								class:over={(messageByEmail[contact.email]?.length ?? 0) > MESSAGE_MAX}
@@ -298,7 +315,7 @@
 					{#if expandedEmail === contact.email}
 						<button
 							class="btn-primary"
-							onclick={() => inviteWaitlisted(contact.email, contact.name)}
+							onclick={() => inviteWaitlisted(contact.email)}
 							disabled={invitingEmail === contact.email}
 						>
 							{invitingEmail === contact.email
