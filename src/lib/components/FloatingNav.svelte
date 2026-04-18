@@ -267,8 +267,8 @@
 		z-index: 800;
 		pointer-events: none;
 	}
-	.floating-nav-anchor.top { top: var(--space-4); }
-	.floating-nav-anchor.bottom { bottom: var(--space-5); }
+	.floating-nav-anchor.top { top: calc(var(--space-4) + env(safe-area-inset-top, 0px)); }
+	.floating-nav-anchor.bottom { bottom: calc(var(--space-5) + env(safe-area-inset-bottom, 0px)); }
 	.floating-nav-anchor.wide { width: auto; }
 
 	/* Nav pill */
