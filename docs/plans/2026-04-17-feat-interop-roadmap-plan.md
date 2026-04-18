@@ -1,6 +1,7 @@
 ---
 title: Open Infra Working Group (Rebuild-adjacent) — 2026 Roadmap
 date: 2026-04-17
+last_updated: 2026-04-18
 status: draft
 owner: Theodore Evans (convenor, handing off by design)
 related:
@@ -8,6 +9,7 @@ related:
   - docs/research/interoperability-and-open-infrastructure.md
   - docs/design/shared-infrastructure-opportunities.md
   - docs/design/shared-infrastructure-review-2026-03-25.md
+  - docs/plans/2026-04-18-001-refactor-shared-infra-foundations-plan.md
 ---
 
 # Open Infra Working Group (Rebuild-adjacent) — 2026 Roadmap
@@ -39,7 +41,7 @@ This is **not** a plan for Dyad to ship open infrastructure alone. It is a plan 
 |---|---|---|---|
 | week of 2026-04-21 | **M0: Form the working group** | Self-imposed, gates M1 | 1 focused day (outreach + room) |
 | by 2026-05-01 | M1: Open Social Awards submission | External (2 weeks) | 2–5 days packaging |
-| May–Jun 2026 | M2: Foundation code abstractions | Product readiness | ~1 week engineering |
+| partially landed 2026-04-18 | M2: Foundation code abstractions | Product readiness | ~1 week engineering (3 of 4 pieces done; IdentityService remaining) |
 | by 2026-06-05 | M3: Published open-infra artefacts | Awards ceremony | ~2–3 weeks |
 | 2026-06-04–06 | M4: PublicSpaces Conference, Amsterdam | External | travel + 2 days prep |
 | 2026-07-30–08-03 | M5: DWeb Camp proof-of-presence workshop | External | ~3–4 weeks prep |
@@ -154,40 +156,42 @@ Closing (~150 words)
 
 ---
 
-## M2: Foundation code abstractions — **May–June 2026**
+## M2: Foundation code abstractions — **partially landed 2026-04-18**
 
 ### Goal
 
-Land the two code abstractions identified in the seam audit (`IdentityService`, `StorageService`). These pay for themselves on their own merits (testability, provider swap-ability) and preserve full optionality for DIDs, OIDC, eIDAS wallets, regional storage, and federation later.
+Land the code abstractions identified in the seam audit (`IdentityService`, `StorageService`, `app.current_user_id()`). These pay for themselves on their own merits (testability, provider swap-ability) and preserve full optionality for DIDs, OIDC, eIDAS wallets, regional storage, and federation later.
 
-### Deliverables
+### Status (2026-04-18)
 
-1. **`IdentityService`** — new file `src/lib/services/identity.ts`. Wraps Supabase `User` in an opaque `UserIdentity { id, email?, metadata? }`. Updates `src/lib/server/auth.ts` and replaces ~40 call sites of `locals.user.id` with `locals.identity.id`.
-2. **`StorageService`** — new file `src/lib/services/storage.ts`. Wraps `supabase.storage` calls. Replaces 15+ hardcoded `iwdjpuyuznzukhowxjhk.supabase.co` URLs with service-produced URLs. Updates `PromptCommandService`, `FeedbackService`, `src/routes/api/upload/+server.ts`, and static-asset references in `src/routes/why/+page.svelte`.
-3. **One-line `auth.uid()` wrapper** in SQL: new SECURITY DEFINER function `app.current_user_id()` delegating to `auth.uid()`, used by new RLS policies going forward. Existing 27 references can migrate incrementally.
+Three of the four pieces landed together in PR #120 — smaller surfaces than the March-25 scorecard predicted once measured on the actual codebase. `IdentityService` is the remaining piece and has its own plan at [`docs/plans/2026-04-18-001-refactor-shared-infra-foundations-plan.md`](docs/plans/2026-04-18-001-refactor-shared-infra-foundations-plan.md).
 
-### Draft: approach
+- ✅ **`StorageService`** — `src/lib/services/storage.ts` + unit tests + test-factory wiring. `src/routes/api/upload/+server.ts` refactored to use it, with `handleServiceError` wrapping so bucket / SDK internals don't leak. Scope came in at **1 file to migrate, not the 15+ the scorecard estimated** — intervening work had already cleaned up other call sites.
+- ✅ **Hardcoded asset URL extraction** — 17 `iwdjpuyuznzukhowxjhk.supabase.co` references in `src/routes/why/+page.svelte` consolidated into one `ASSETS` constant driven by a new `PUBLIC_ASSET_BASE_URL` env var. Default falls back to the current bucket URL; a sovereign CDN is now a one-env-var swap. `.env.example` + CLAUDE.md updated. Scope came in at **1 file, not the 17 the scorecard estimated** — the rest had already been cleaned up.
+- ✅ **`app.current_user_id()` SQL wrapper** — additive migration (`supabase/migrations/20260418120000_add_app_current_user_id.sql`) creates the `app` schema + SECURITY DEFINER wrapper around `auth.uid()`. Applied to remote via the CI migrate workflow (#113 + #115). CLAUDE.md updated so new policies adopt the wrapper; the existing 38 `auth.uid()` references stay put until their surrounding policies are touched for other reasons.
+- ✅ **Sovereignty verifications** — Leaflet self-hosting confirmed (CSS served from `/leaflet/leaflet.css`, icons resolved via `L.Icon.Default` imagePath override, all six assets in `static/leaflet/`). Supabase region confirmed **EU Ireland** via dashboard, with the sovereignty-spectrum caveat logged (EU-member hosting, US-parent managed service). Scorecard updated.
+- 🟡 **`IdentityService`** — not yet landed. Separate plan; `locals.user.id` → `locals.identity.id` swap across ~10 files / ~50 call sites. Sequenced next so the touch area doesn't conflict with in-flight product work.
 
-- Land `IdentityService` first as a no-op refactor. No behaviour change. Tests pass. Merge.
-- Land `StorageService` as a no-op refactor. Tests pass. Merge.
-- Add `app.current_user_id()` wrapper; use it in the next RLS policy written, not a bulk migration.
+### Deliverables (remaining)
 
-### Decisions
+1. **`IdentityService`** — new file `src/lib/services/identity.ts`. Wraps Supabase `User` in an opaque `UserIdentity { id, email?, metadata? }`. Introduces `requireIdentity(locals)` alongside the existing `requireAuth`. Replaces ~50 call sites of `locals.user.id` with `requireIdentity(locals).id`. Detailed plan at [`docs/plans/2026-04-18-001-refactor-shared-infra-foundations-plan.md`](docs/plans/2026-04-18-001-refactor-shared-infra-foundations-plan.md).
 
-- **[DECIDE]** Do M2 before or after M1? Recommendation: **after** — M2 is engineering work that should land on its own merits, doesn't affect the submission narrative directly, and sits better on the active branch the other session is driving.
-- **[DECIDE]** Do the refactors in one PR each or combine? Recommendation: one PR each (matches `docs/solutions/architecture/safe-large-scale-code-removal.md` and CLAUDE.md's "one logical change per commit" guidance).
+### Decisions (resolved)
+
+- ~~**[DECIDE]** Do M2 before or after M1?~~ Resolved: before. Three pieces shipped on 2026-04-18, unblocked by the operational rhythm we had running rather than waiting on M1.
+- ~~**[DECIDE]** Do the refactors in one PR each or combine?~~ Resolved: Sovereignty verifications + StorageService + asset-URL extraction + SQL wrapper landed as one PR (#120) because they're all no-op / additive and share the same reviewer context. IdentityService gets its own PR given the ~50-site mechanical swap.
 
 ### Dependencies
 
-- Active worktree isn't blocked on these.
-- Coordinate with the active session so the refactors don't conflict with in-flight product work.
+- `IdentityService` plan notes: "sequence after the current editor-lazy-create PR lands so the touch area settles". That PR (#119) has now merged, so IdentityService is unblocked whenever the next focused session picks it up.
 
 ### Effort
 
-- `IdentityService`: S (4–6 hours)
-- `StorageService`: M (10–14 hours)
-- `app.current_user_id()` wrapper: S (1–2 hours)
-- Total: ~1 week engineering, can be done incrementally.
+- ✅ `StorageService`: S (landed)
+- ✅ Hardcoded URL extraction: S (landed)
+- ✅ `app.current_user_id()` wrapper: S (landed)
+- ✅ Sovereignty verifications: trivial (landed)
+- 🟡 `IdentityService`: S–M (~4–6 hours)
 
 ---
 
@@ -366,27 +370,38 @@ The working group publishes its **collective map** — the union of worked entri
 
 Not milestones, but the drumbeat underneath everything:
 
-- Continue the sovereignty scorecard remediations from `docs/design/shared-infrastructure-review-2026-03-25.md` (Resend → EU email, verify Supabase EU region, self-host Leaflet assets, extract hardcoded Supabase URLs, etc.).
-- Keep domain model clean as new features land — the portability of `src/lib/domain/` is the foundation everything else rests on.
+- **Continue the sovereignty scorecard remediations** from `docs/design/shared-infrastructure-review-2026-03-25.md`. Status as of 2026-04-18:
+  - ✅ Supabase EU region — confirmed Ireland (dashboard, 2026-04-18).
+  - ✅ Self-host Leaflet assets — verified; CSS + icons served from `static/leaflet/`.
+  - ✅ Extract hardcoded Supabase URLs — landed as part of M2 via PR #120.
+  - ✅ Storage abstraction — landed as part of M2 via PR #120.
+  - 🟡 Resend → EU email (Mailjet / self-hosted) — deferred; roadmap-level, needs its own plan. Resend is acceptable for the alpha cohort.
+  - 🟡 GDPR data export / account deletion — not yet started. Separate plan needed.
+  - 🟡 `adapter-node` for EU hosting alternative — deferred (shallow coupling per `docs/solutions/architecture/sovereignty-lessons-learned.md` §5).
+  - 🟡 Bulk `auth.uid()` → `app.current_user_id()` rewrite — intentionally deferred per the wrapper's rollout rule.
+- **CI-driven migrations** — migrate workflow (PR #113 + #115) is live; `supabase db push` now runs from GitHub Actions on merge to main. Removes the "migrations applied by whoever has the password on their laptop" ambiguity.
+- **Keep domain model clean** as new features land — the portability of `src/lib/domain/` is the foundation everything else rests on.
 
 ---
 
 ## Open questions for the next session
 
-Resolved in this session:
+Resolved in the original planning session (2026-04-17):
 - ✅ Working group framing: **Rebuild-adjacent, by design** (wider aperture than Rebuild cohort alone).
 - ✅ Room approach: **one dedicated public room on prefig.tech** for the working group, migration deferred.
 - ✅ Dyad's framing in M1: **worked example, not subject**.
 
+Resolved since (2026-04-18):
+- ✅ **Supabase EU region verification** — confirmed Ireland via dashboard. Scorecard updated with sovereignty-spectrum caveat.
+- ✅ **Coordination with the active worktree session** — three of four M2 pieces landed alongside the product work in a single merged week (PRs #107, #109, #111, #117, #118, #119, #120, #121). No conflicts. IdentityService plan explicitly sequences itself after #119 to avoid the remaining touch-area overlap.
+
 Still to resolve before dropping into implementation:
 
 1. **Submission voice and positioning** — individual vs organization, Theodore-authored vs Dyad-authored vs working-group-signed. Affects tone of the M1 narrative. Decide at M0 → M1 boundary.
-2. **Coordination with the other active worktree session** — how to sequence M2 abstractions against in-flight product work without conflicts.
-3. **GitHub org strategy** — `dyad-berlin/*` vs `rebuild-adjacent-infra/*` (or similar collective org) from the start. Recommendation under the working-group frame: collective org from day one, even if sparsely populated initially. Names the aspiration in code.
-4. **Budget / funding plan if no award** — do M3 artefacts still ship on the same schedule without the €10k? Probably yes for 3a, slower for 3b. Worth stating explicitly.
-5. **Travel and time commitments** — PublicSpaces (June), DWeb Camp (July–Aug), FediForum (autumn), Rebuild 3 (December). All realistic?
-6. **Rebuild governance channel** — is there an existing contact with Rebuild organizers to coordinate handoff timing and the adjacent-but-not-inside positioning?
-7. **Supabase EU region verification** — still marked CRITICAL in the March 25 review. Confirm before M1 submission; the narrative implicitly claims EU sovereignty.
+2. **GitHub org strategy** — `dyad-berlin/*` vs `rebuild-adjacent-infra/*` (or similar collective org) from the start. Recommendation under the working-group frame: collective org from day one, even if sparsely populated initially. Names the aspiration in code.
+3. **Budget / funding plan if no award** — do M3 artefacts still ship on the same schedule without the €10k? Probably yes for 3a, slower for 3b. Worth stating explicitly.
+4. **Travel and time commitments** — PublicSpaces (June), DWeb Camp (July–Aug), FediForum (autumn), Rebuild 3 (December). All realistic?
+5. **Rebuild governance channel** — is there an existing contact with Rebuild organizers to coordinate handoff timing and the adjacent-but-not-inside positioning?
 8. **The first 3–5 targeted email recipients beyond Robin Berjon.** Pick by "sharpest specific read on one claim."
 
 ---
