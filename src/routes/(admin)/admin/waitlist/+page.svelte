@@ -12,37 +12,7 @@
 	let invitingEmail = $state<string | null>(null);
 	let inviteResult = $state<{ email: string; message: string; url?: string } | null>(null);
 
-	// Direct-invite (people who aren't on the waitlist, or a batch of them) form state.
-	// Emails are entered as free text (one per line or comma-separated) and parsed
-	// into a normalised list on the fly. Name + message are shared across the batch.
-	let directEmailsText = $state('');
-	let directName = $state('');
-	let directMessage = $state('');
-	let directOpen = $state(false);
-	let directSending = $state(false);
-	// Per-email outcome for the current batch: 'pending' | 'sending' | 'sent' | 'resent' | 'joined' | 'failed'
-	type BatchStatus = 'pending' | 'sending' | 'sent' | 'resent' | 'joined' | 'failed';
-	let batchStatus = $state<Record<string, { status: BatchStatus; note?: string }>>({});
-
 	const MESSAGE_MAX = 2000;
-	const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-	/** Normalise the textarea into a deduped, lowercased list of plausibly-valid emails. */
-	function parseEmails(text: string): { valid: string[]; invalid: string[] } {
-		const seen = new Set<string>();
-		const valid: string[] = [];
-		const invalid: string[] = [];
-		for (const raw of text.split(/[\s,;]+/)) {
-			const candidate = raw.trim().toLowerCase();
-			if (!candidate) continue;
-			if (seen.has(candidate)) continue;
-			seen.add(candidate);
-			(EMAIL_RE.test(candidate) ? valid : invalid).push(candidate);
-		}
-		return { valid, invalid };
-	}
-
-	const parsedEmails = $derived(parseEmails(directEmailsText));
 
 	async function send(email: string, name: string | null, message: string) {
 		invitingEmail = email;
@@ -89,59 +59,6 @@
 		}
 	}
 
-	/** POSTs one invite. Does not touch the shared inviteResult banner — batch
-	 *  sends have their own per-row status panel instead. */
-	async function sendOne(
-		email: string,
-		name: string | null,
-		message: string
-	): Promise<{ status: BatchStatus; note?: string }> {
-		try {
-			const res = await fetch('/api/invites', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ email, name, message: message.trim() || undefined })
-			});
-			const body = await res.json();
-			if (res.ok) {
-				return {
-					status: body.alreadyInvited ? 'resent' : 'sent',
-					note: body.alreadyInvited ? 'had a valid invite — email re-sent' : undefined
-				};
-			}
-			if (res.status === 409) return { status: 'joined', note: 'already signed up' };
-			return { status: 'failed', note: body.error ?? `HTTP ${res.status}` };
-		} catch {
-			return { status: 'failed', note: 'network error' };
-		}
-	}
-
-	async function sendBatch(e: Event) {
-		e.preventDefault();
-		const { valid } = parsedEmails;
-		if (valid.length === 0) return;
-
-		directSending = true;
-		batchStatus = Object.fromEntries(valid.map((e) => [e, { status: 'pending' as BatchStatus }]));
-
-		const sharedName = directName.trim() || null;
-		const sharedMessage = directMessage;
-		for (const email of valid) {
-			batchStatus = { ...batchStatus, [email]: { status: 'sending' } };
-			const result = await sendOne(email, sharedName, sharedMessage);
-			batchStatus = { ...batchStatus, [email]: result };
-		}
-
-		directSending = false;
-	}
-
-	function resetBatch() {
-		directEmailsText = '';
-		directName = '';
-		directMessage = '';
-		batchStatus = {};
-	}
-
 	function formatDate(iso: string): string {
 		return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 	}
@@ -165,102 +82,6 @@
 		<button class="dismiss" onclick={() => (inviteResult = null)} aria-label="Dismiss">×</button>
 	</div>
 {/if}
-
-<!-- Direct invite: people who aren't on the waitlist, single or batch. -->
-<div class="direct-invite">
-	{#if !directOpen}
-		<button class="direct-toggle" onclick={() => (directOpen = true)}>+ Send invitations</button>
-	{:else}
-		<form class="direct-form" onsubmit={sendBatch}>
-			<div class="direct-header">
-				<strong>Send invitations</strong>
-				<button
-					type="button"
-					class="direct-close"
-					onclick={() => {
-						directOpen = false;
-						resetBatch();
-					}}
-					aria-label="Close"
-				>×</button>
-			</div>
-
-			<label class="direct-field">
-				<span>
-					Emails <em>(one per line or comma-separated)</em>
-					{#if parsedEmails.valid.length > 0 || parsedEmails.invalid.length > 0}
-						<span class="parsed-count">
-							{parsedEmails.valid.length} ready{parsedEmails.invalid.length > 0
-								? `, ${parsedEmails.invalid.length} invalid`
-								: ''}
-						</span>
-					{/if}
-				</span>
-				<textarea
-					bind:value={directEmailsText}
-					rows={3}
-					placeholder="alice@example.com, bob@example.com&#10;carol@example.com"
-					disabled={directSending}
-				></textarea>
-				{#if parsedEmails.invalid.length > 0}
-					<p class="parsed-invalid">
-						Not a valid email: {parsedEmails.invalid.join(', ')}
-					</p>
-				{/if}
-			</label>
-
-			<label class="direct-field">
-				<span>Opener <em>(optional, shared across the batch — rendered verbatim at the top of the email)</em></span>
-				<input
-					type="text"
-					bind:value={directName}
-					placeholder="e.g. &quot;Hi Ozge,&quot; or &quot;Hey T —&quot;. Leave blank to skip the greeting."
-					disabled={directSending}
-				/>
-			</label>
-
-			<label class="direct-field">
-				<span>
-					Message <em>(optional, shared across the batch — appears above the default copy)</em>
-					<span class="charcount" class:over={directMessage.length > MESSAGE_MAX}>
-						{directMessage.length} / {MESSAGE_MAX}
-					</span>
-				</span>
-				<textarea
-					bind:value={directMessage}
-					rows={4}
-					maxlength={MESSAGE_MAX}
-					placeholder="A line or two — why you thought of them, what to expect."
-					disabled={directSending}
-				></textarea>
-			</label>
-
-			<button
-				type="submit"
-				class="btn-primary"
-				disabled={directSending || parsedEmails.valid.length === 0 || directMessage.length > MESSAGE_MAX}
-			>
-				{directSending
-					? 'Sending...'
-					: parsedEmails.valid.length <= 1
-						? 'Send invite'
-						: `Send ${parsedEmails.valid.length} invites`}
-			</button>
-
-			{#if Object.keys(batchStatus).length > 0}
-				<ul class="batch-status">
-					{#each Object.entries(batchStatus) as [email, row]}
-						<li class="batch-row batch-row-{row.status}">
-							<span class="batch-email">{email}</span>
-							<span class="batch-badge">{row.status}</span>
-							{#if row.note}<span class="batch-note">{row.note}</span>{/if}
-						</li>
-					{/each}
-				</ul>
-			{/if}
-		</form>
-	{/if}
-</div>
 
 <div class="waitlist">
 	{#each data.waitlist as contact}
@@ -360,34 +181,6 @@
 	.invite-url { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin-top: var(--space-1); word-break: break-all; }
 	.dismiss { margin-left: auto; font-size: var(--text-lg); color: var(--text-muted); }
 
-	.direct-invite {
-		margin-bottom: var(--space-6);
-		padding-bottom: var(--space-4);
-		border-bottom: 1px dashed color-mix(in srgb, var(--text-primary) 15%, transparent);
-	}
-	.direct-toggle {
-		font-family: inherit;
-		font-size: var(--text-sm);
-		color: var(--text-link);
-		background: none;
-		border: none;
-		padding: 0;
-		cursor: pointer;
-	}
-	.direct-toggle:hover { color: var(--text-link-hover); }
-
-	.direct-form {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-3);
-		max-width: 540px;
-	}
-	.direct-header { display: flex; align-items: center; justify-content: space-between; }
-	.direct-close { background: none; border: none; font-size: var(--text-lg); color: var(--text-muted); cursor: pointer; }
-	.direct-field { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--text-sm); }
-	.direct-field > span { color: var(--text-secondary); display: flex; align-items: baseline; gap: var(--space-2); }
-	.direct-field em { font-style: normal; color: var(--text-muted); font-size: var(--text-xs); }
-
 	.compose {
 		display: flex;
 		flex-direction: column;
@@ -400,35 +193,6 @@
 
 	.charcount { margin-left: auto; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
 	.charcount.over { color: var(--color-danger); }
-
-	.parsed-count { margin-left: auto; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
-	.parsed-invalid { margin: var(--space-1) 0 0; font-size: var(--text-xs); color: var(--color-danger); }
-
-	.batch-status {
-		list-style: none;
-		padding: 0;
-		margin: var(--space-3) 0 0;
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-1);
-		font-size: var(--text-sm);
-	}
-	.batch-row {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		padding: var(--space-1) var(--space-2);
-		border-radius: var(--radius-input);
-		background: color-mix(in srgb, var(--text-primary) 4%, transparent);
-	}
-	.batch-email { font-family: var(--font-mono); font-size: var(--text-xs); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-	.batch-badge { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 6px; border-radius: 3px; background: color-mix(in srgb, var(--text-primary) 8%, transparent); color: var(--text-muted); }
-	.batch-note { font-size: var(--text-xs); color: var(--text-muted); }
-	.batch-row-sent .batch-badge, .batch-row-resent .batch-badge { background: rgba(61,158,90,0.15); color: #2d7a42; }
-	.batch-row-failed .batch-badge { background: rgba(239,68,68,0.15); color: #dc2626; }
-	.batch-row-joined .batch-badge { background: rgba(245,158,11,0.15); color: #b45309; }
-	.batch-row-sending .batch-badge { background: rgba(59,130,246,0.15); color: #2563eb; }
-	.batch-row-pending .batch-badge { background: color-mix(in srgb, var(--text-primary) 6%, transparent); color: var(--text-muted); }
 
 	input, textarea {
 		width: 100%;
