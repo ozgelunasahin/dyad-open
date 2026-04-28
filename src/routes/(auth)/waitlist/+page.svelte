@@ -5,6 +5,7 @@
 	let email = $state('');
 	let basedIn = $state('');
 	let freewrite = $state('');
+	let newsletterConsent = $state(false);
 	let status = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
 	let errorMsg = $state('');
 
@@ -36,6 +37,15 @@
 			}
 
 			status = 'sent';
+
+			// Subscribe to newsletter if consent given — fire and forget
+			if (newsletterConsent) {
+				fetch('/api/newsletter', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ email: email.trim(), consent: true })
+				}).catch(() => { /* non-critical */ });
+			}
 		} catch (err) {
 			errorMsg = err instanceof Error ? err.message : 'Something went wrong';
 			status = 'error';
@@ -49,17 +59,16 @@
 
 <div class="auth-card">
 	<h1>Request to join</h1>
-	<p class="subtitle">For those who seek conversation for its own sake and meet others with humility, critical thinking and deep listening.</p>
 
 	{#if status === 'sent'}
 		<div class="success-message">Thank you. We'll be in touch.</div>
 	{:else}
 		<form onsubmit={handleSubmit}>
 			<div class="form-group">
-				<label for="freewrite" class="freewrite-label">Why do you want to join?</label>
+				<label for="freewrite" class="freewrite-label">Dyad is a curated network of people who see conversation as one of the limited spaces left that celebrates our differences as an asset. Why do you want more or other conversations in your life?</label>
 				<textarea
 					id="freewrite"
-					placeholder="What's in a conversation?"
+					placeholder="We wonder"
 					bind:value={freewrite}
 					disabled={status === 'sending'}
 					maxlength={2000}
@@ -86,6 +95,16 @@
 					disabled={status === 'sending'}
 				/>
 			</div>
+
+			<label class="newsletter-consent">
+				<input
+					type="checkbox"
+					bind:checked={newsletterConsent}
+					disabled={status === 'sending'}
+				/>
+				<span>Subscribe me to the Dyad newsletter on Substack.</span>
+			</label>
+
 			<button type="submit" class="submit-btn" disabled={status === 'sending'}>
 				{status === 'sending' ? 'Sending...' : 'Request to join'}
 			</button>
@@ -140,10 +159,9 @@
 
 	.freewrite-label {
 		display: block;
-		font-size: var(--text-sm);
+		font-size: var(--text-md);
 		color: var(--text-muted);
-		margin-bottom: var(--space-1);
-		font-style: italic;
+		margin-bottom: var(--space-4);
 	}
 
 	textarea {
@@ -194,6 +212,27 @@
 	input:disabled {
 		opacity: var(--opacity-disabled);
 		cursor: not-allowed;
+	}
+
+	.newsletter-consent {
+		display: flex;
+		align-items: flex-start;
+		gap: var(--space-2);
+		cursor: pointer;
+		margin-bottom: var(--space-5);
+	}
+
+	.newsletter-consent input[type='checkbox'] {
+		width: auto;
+		margin-top: 3px;
+		flex-shrink: 0;
+		cursor: pointer;
+	}
+
+	.newsletter-consent span {
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+		line-height: 1.5;
 	}
 
 	.submit-btn {

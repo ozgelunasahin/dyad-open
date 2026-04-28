@@ -4,7 +4,6 @@
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import type { PageData } from './$types';
 	import type { PromptSummary } from '$lib/domain/types';
-	import RotatingHeadline from '$lib/components/RotatingHeadline.svelte';
 	import PromptListItem from '$lib/components/PromptListItem.svelte';
 	import BottomSheet from '$lib/components/BottomSheet.svelte';
 	import AuthDialog from '$lib/components/AuthDialog.svelte';
@@ -62,7 +61,7 @@
 				<span class="city-dot" aria-hidden="true"></span>
 				<span class="city-name">BERLIN</span>
 			</div>
-			<span class="beta-label">private beta</span>
+			<a href="/why" class="why-link top-why-link">our origins</a>
 		</div>
 
 		<!-- Map preview — fills empty space on mobile, hidden on desktop -->
@@ -98,13 +97,11 @@
 			{/if}
 		</div>
 
-		<div class="hero-content">
-			<RotatingHeadline />
+		<div class="hero-center">
+			<h1 class="hero-statement"><span class="left">Dyad is</span><span class="right">a network for</span><span class="right">face to face</span><span class="right">sensemaking.</span></h1>
+		</div>
 
-			<p class="tagline">A place on the web to find people to talk to,<span class="tagline-break"> </span> face to face.</p>
-
-			<a href="/why" class="why-link">Why does Dyad exist?</a>
-
+		<div class="hero-bottom">
 			<div class="city-row">
 				<span class="city-dot" aria-hidden="true"></span>
 				<span class="city-name">BERLIN</span>
@@ -210,7 +207,7 @@
 	/* ── Split layout ─────────────────────────────────────────── */
 	.landing {
 		display: grid;
-		grid-template-columns: 1fr 1fr;
+		grid-template-columns: 50% 50%;
 		height: 100vh;
 		overflow: hidden;
 		background: var(--bg-canvas);
@@ -233,6 +230,8 @@
 		align-items: center;
 		justify-content: space-between;
 		flex-shrink: 0;
+		height: 48px;
+		overflow: hidden;
 	}
 
 	/* City indicator in top bar — hidden on desktop, shown on mobile */
@@ -240,7 +239,9 @@
 
 	.logo {
 		height: 28px;
+		max-height: 100%;
 		width: auto;
+		flex-shrink: 0;
 		filter: brightness(0) opacity(0.4);
 	}
 	:global([data-theme='dark']) .logo { filter: none; }
@@ -252,19 +253,35 @@
 		color: var(--text-muted);
 	}
 
-	.hero-content {
-		margin-top: auto;
+	.hero-center {
+		margin: auto 0;
+	}
+
+	.hero-statement {
+		font-size: clamp(3rem, 5.8vw, 7.5rem);
+		font-weight: normal;
+		line-height: 1;
+		letter-spacing: -0.01em;
+		margin: 0;
+		color: var(--text-primary);
+		text-align: justify;
+		text-align-last: justify;
+	}
+
+	.hero-statement :global(.right) {
+		display: block;
+		text-align: right;
+		text-align-last: right;
+	}
+
+	.hero-statement :global(.left) {
+		display: block;
+		text-align: left;
+		text-align-last: left;
+	}
+
+	.hero-bottom {
 		padding-bottom: var(--space-6);
-	}
-
-	.tagline {
-		font-size: clamp(0.82rem, 1.1vw, 0.95rem);
-		line-height: 1.55;
-		margin: 0 0 var(--space-5);
-	}
-
-	.tagline-break {
-		display: inline;
 	}
 
 	.why-link {
@@ -277,6 +294,7 @@
 		margin: 0 0 var(--space-5);
 	}
 	.why-link:hover { opacity: 1; }
+	.top-why-link { color: var(--text-primary); opacity: 1; font-style: normal; display: inline; align-self: center; margin: 0; }
 
 	.city-row {
 		display: flex;
@@ -489,7 +507,7 @@
 			transform: translateZ(0); /* contain position:fixed BottomSheet within 100vh */
 		}
 
-		.hero-content { margin-top: auto; }
+		.hero-center { margin: auto 0; }
 		.top-city-row { display: none; }
 
 		.hero-map {
