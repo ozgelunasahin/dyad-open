@@ -29,14 +29,18 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const [{ data: otherProfile }, { data: prompt }, invitation, revealedFeedback, myFeedbackForm] = await Promise.all([
 		locals.supabase.from('profiles').select('username').eq('id', otherId).single(),
 		locals.supabase.from('prompts').select('id, title, cover_image_url, state, author_id, published_at').eq('id', meeting.prompt_id).single(),
-		locals.supabase
-			.from('prompt_invitations')
-			.select('message')
-			.eq('prompt_id', meeting.prompt_id)
-			.eq('state', 'accepted')
-			.limit(1)
-			.maybeSingle()
-			.then(r => r.data ?? null),
+		// The invitation that created THIS specific meeting. Meeting.invitation_id
+		// is the direct FK — previously this fetched any accepted invitation on
+		// the prompt, which after cancel + re-invite surfaced the stale
+		// original-invite's note instead of the new one.
+		meeting.invitation_id
+			? locals.supabase
+					.from('prompt_invitations')
+					.select('message')
+					.eq('id', meeting.invitation_id)
+					.maybeSingle()
+					.then(r => r.data ?? null)
+			: Promise.resolve(null),
 		// Load revealed feedback for completed meetings
 		meeting.state === 'completed'
 			? feedbackService.getRevealedFeedback(params.id, userId)

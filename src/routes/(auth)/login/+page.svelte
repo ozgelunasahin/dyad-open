@@ -13,15 +13,15 @@
 </script>
 
 <svelte:head>
-	<title>{mode === 'login' ? 'login' : mode === 'reset' ? 'reset password' : 'set new password'} - dyad. cultivating a culture of conversation</title>
+	<title>{mode === 'login' ? copy.auth.pageTitleLogin : mode === 'reset' ? copy.auth.pageTitleReset : copy.auth.pageTitleUpdate}</title>
 </svelte:head>
 
 <div class="auth-card">
 	<h1>
-		{#if mode === 'login'}{copy.auth.welcomeBack}{:else if mode === 'reset'}Reset password{:else}Set new password{/if}
+		{#if mode === 'login'}{copy.auth.welcomeBack}{:else if mode === 'reset'}{copy.auth.resetPasswordTitle}{:else}{copy.auth.setNewPasswordTitle}{/if}
 	</h1>
 	<p class="subtitle">
-		{#if mode === 'login'}{copy.auth.signInSubtitle}{:else if mode === 'reset'}Enter your email to receive a reset link{:else}Choose a new password for your account{/if}
+		{#if mode === 'login'}{copy.auth.signInSubtitle}{:else if mode === 'reset'}{copy.auth.resetSubtitle}{:else}{copy.auth.updateSubtitle}{/if}
 	</p>
 
 	{#if form?.error}
@@ -45,7 +45,7 @@
 	>
 		{#if mode !== 'update'}
 			<div class="form-group">
-				<label for="email">Email</label>
+				<label for="email" class="sr-only">{copy.auth.email}</label>
 				<input
 					type="email"
 					id="email"
@@ -53,6 +53,7 @@
 					bind:value={email}
 					required
 					autocomplete="email"
+					placeholder={copy.auth.emailPlaceholder}
 					disabled={loading}
 				/>
 			</div>
@@ -60,7 +61,7 @@
 
 		{#if mode !== 'reset'}
 			<div class="form-group">
-				<label for="password">{mode === 'update' ? 'New password' : 'Password'}</label>
+				<label for="password" class="sr-only">{mode === 'update' ? copy.auth.newPasswordLabel : copy.auth.password}</label>
 				<input
 					type="password"
 					id="password"
@@ -68,6 +69,7 @@
 					bind:value={password}
 					required
 					autocomplete={mode === 'login' ? 'current-password' : 'new-password'}
+					placeholder={mode === 'update' ? copy.auth.newPasswordLabel : copy.auth.passwordPlaceholder}
 					disabled={loading}
 					minlength={mode === 'update' ? 8 : undefined}
 				/>
@@ -77,11 +79,11 @@
 			</div>
 		{/if}
 
-		<button type="submit" class="submit-btn" disabled={loading}>
+		<button type="submit" class="btn-primary btn-primary--block" disabled={loading}>
 			{#if loading}
-				{#if mode === 'login'}Signing in...{:else if mode === 'reset'}Sending...{:else}Updating...{/if}
+				{#if mode === 'login'}{copy.auth.signingIn}{:else if mode === 'reset'}{copy.auth.sending}{:else}{copy.auth.updating}{/if}
 			{:else}
-				{#if mode === 'login'}{copy.auth.signIn}{:else if mode === 'reset'}Send reset link{:else}Update password{/if}
+				{#if mode === 'login'}{copy.auth.signIn}{:else if mode === 'reset'}{copy.auth.sendResetLink}{:else}{copy.auth.updatePasswordAction}{/if}
 			{/if}
 		</button>
 	</form>
@@ -89,12 +91,12 @@
 	<div class="switch-auth">
 		{#if mode === 'login'}
 			<button type="button" class="link-btn" onclick={() => (mode = 'reset')}>{copy.auth.forgotPassword}</button>
-			<a href="/waitlist" class="link-btn">Join</a>
+			<a href="/waitlist" class="link-btn">{copy.auth.join}</a>
 		{:else if mode === 'reset'}
-			<button type="button" class="link-btn" onclick={() => (mode = 'login')}>Sign in</button>
-			<a href="/waitlist" class="link-btn">Join</a>
+			<button type="button" class="link-btn" onclick={() => (mode = 'login')}>{copy.auth.signIn}</button>
+			<a href="/waitlist" class="link-btn">{copy.auth.join}</a>
 		{:else}
-			<a href="/discover" class="link-btn">Go to dashboard</a>
+			<a href="/discover" class="link-btn">{copy.auth.goToDashboard}</a>
 		{/if}
 	</div>
 </div>
@@ -177,28 +179,7 @@
 		color: var(--text-muted);
 	}
 
-	.submit-btn {
-		width: 100%;
-		padding: var(--space-3);
-		background: var(--text-primary);
-		color: var(--bg-canvas);
-		border: none;
-		border-radius: var(--radius-input);
-		font-size: var(--text-lg);
-		font-family: inherit;
-		cursor: pointer;
-		transition: opacity 0.2s;
-		margin-top: var(--space-2);
-	}
-
-	.submit-btn:hover:not(:disabled) {
-		opacity: var(--opacity-hover-btn);
-	}
-
-	.submit-btn:disabled {
-		opacity: var(--opacity-disabled);
-		cursor: not-allowed;
-	}
+	/* .btn-primary / .btn-primary--block live in shared.css */
 
 	.switch-auth {
 		margin: var(--space-6) 0 0 0;

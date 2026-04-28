@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import type { LayoutData } from './$types';
-	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
 	import { copy } from '$lib/copy';
+	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
 
-	let { data, children }: { data: LayoutData; children: any } = $props();
+	let { children }: { data: LayoutData; children: any } = $props();
 </script>
 
 <main class="admin-main">
@@ -14,6 +14,7 @@
 	</a>
 	<nav class="admin-tabs">
 		<a href="/admin/waitlist" class="admin-tab" class:active={$page.url.pathname === '/admin/waitlist'}>{copy.admin.waitlist}</a>
+		<a href="/admin/invites" class="admin-tab" class:active={$page.url.pathname === '/admin/invites'}>{copy.admin.invites}</a>
 		<a href="/admin/feedback" class="admin-tab" class:active={$page.url.pathname === '/admin/feedback'}>{copy.admin.feedback}</a>
 	</nav>
 
@@ -22,7 +23,7 @@
 	</div>
 </main>
 
-<FeedbackModal isAdmin={data.isAdmin} />
+<FeedbackModal />
 
 <style>
 	.admin-main {

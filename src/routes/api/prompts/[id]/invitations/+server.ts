@@ -4,6 +4,7 @@ import { requireAuth } from '$lib/server/auth.js';
 import { parseJsonBody } from '$lib/server/parse-body.js';
 import { SupabaseInvitationService } from '$lib/services/invitation.js';
 import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
+import { handleServiceError } from '$lib/server/handle-service-error.js';
 import { env } from '$env/dynamic/public';
 
 /** POST /api/prompts/[id]/invitations — create invitation (select slot + message) */
@@ -76,6 +77,6 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		}
 		return json(invitation, { status: 201 });
 	} catch (err) {
-		return json({ error: (err as Error).message }, { status: 400 });
+		return handleServiceError(err, '[prompts/invitations]');
 	}
 };

@@ -3,7 +3,19 @@
  * Use these classes across pages instead of re-declaring.
  */
 
-/* ── Buttons ────────────────────────────────────────────────── */
+/* ── Buttons ──────────────────────────────────────────────────
+ * .btn-primary         — default filled black button for primary actions
+ * .btn-primary--block  — full-width variant for form submits (login, signup, etc.)
+ * .btn-primary--sm     — compact variant for header bars and dense layouts
+ * .btn-secondary       — outlined button for "cancel" / "back" in dialogs
+ * .btn-text            — underline-only text button for tertiary actions
+ * .btn-danger          — outlined red destructive action (cancel meeting, delete, etc.)
+ * .btn-danger--soft    — dashed border variant: visible "cost" when a destructive
+ *                        action lacks its expected input (e.g. cancelling without a note)
+ *
+ * Documented exceptions live as named classes with comments at their call site
+ * (see OnboardingModal .cta-btn — radius-pill is intentional for onboarding).
+ */
 .btn-primary {
 	font-size: var(--text-base);
 	padding: var(--space-3) var(--space-6);
@@ -11,11 +23,26 @@
 	color: var(--bg-canvas);
 	border: 1px solid var(--text-primary);
 	border-radius: var(--radius-input);
+	font-family: inherit;
 	cursor: pointer;
 	transition: opacity 0.15s;
 }
 .btn-primary:hover:not(:disabled) { opacity: var(--opacity-hover-btn); }
 .btn-primary:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+
+.btn-primary--block {
+	width: 100%;
+	font-size: var(--text-lg);
+	padding: var(--space-3);
+	margin-top: var(--space-2);
+	border: none;
+}
+
+.btn-primary--sm {
+	font-size: var(--text-sm);
+	padding: var(--space-2) var(--space-4);
+	font-weight: 500;
+}
 
 .btn-secondary {
 	font-size: var(--text-sm);
@@ -24,6 +51,7 @@
 	border-radius: var(--radius-input);
 	background: none;
 	color: var(--text-primary);
+	font-family: inherit;
 	cursor: pointer;
 	transition: background 0.15s, color 0.15s;
 }
@@ -40,6 +68,21 @@
 	text-decoration: underline;
 }
 .btn-text:hover { color: var(--text-primary); }
+
+.btn-danger {
+	font-size: var(--text-base);
+	padding: var(--space-2) var(--space-5);
+	border: 1px solid var(--color-danger);
+	border-radius: var(--radius-input);
+	background: none;
+	color: var(--color-danger);
+	font-family: inherit;
+	cursor: pointer;
+	transition: background 0.15s;
+}
+.btn-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--color-danger) 10%, transparent); }
+.btn-danger:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+.btn-danger--soft { border-style: dashed; }
 
 /* ── Typography ─────────────────────────────────────────────── */
 .section-title {
@@ -88,9 +131,9 @@
 	flex-shrink: 0;
 }
 
-.badge-draft { background: rgba(0,0,0,0.06); color: var(--text-muted); }
+.badge-draft { background: color-mix(in srgb, var(--text-primary) 6%, transparent); color: var(--text-muted); }
 .badge-published { background: rgba(61,158,90,0.12); color: #2d7a42; }
-.badge-archived { background: rgba(0,0,0,0.04); color: var(--text-muted); }
+.badge-archived { background: color-mix(in srgb, var(--text-primary) 4%, transparent); color: var(--text-muted); }
 .badge-pending { background: rgba(245,158,11,0.12); color: #b45309; }
 .badge-accepted { background: rgba(61,158,90,0.12); color: #2d7a42; }
 
@@ -104,9 +147,11 @@
 .row-status { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
 
 /* ── Meeting inline card ──────────────────────────────────── */
+/* Default is the scheduled state; MeetingCard overrides fill/border per state
+ * via .state-past / .state-cancelled / .state-invited modifiers. */
 .meeting-inline {
 	padding: var(--space-3);
-	background: var(--bg-meeting-tint);
+	background: var(--bg-meeting-scheduled);
 	border-radius: var(--radius-input);
 	margin-bottom: var(--space-3);
 }

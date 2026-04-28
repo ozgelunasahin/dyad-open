@@ -4,6 +4,7 @@ import { requireAuth } from '$lib/server/auth.js';
 import { parseJsonBody } from '$lib/server/parse-body.js';
 import { SupabaseFeedbackService } from '$lib/services/feedback.js';
 import type { FeedbackInput } from '$lib/services/feedback.js';
+import { handleServiceError } from '$lib/server/handle-service-error.js';
 import { env } from '$env/dynamic/public';
 
 /** GET /api/feedback/[id] — get my feedback form by form ID */
@@ -18,7 +19,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		.eq('reviewer_id', user.id)
 		.maybeSingle();
 
-	if (error) return json({ error: 'Failed to load feedback form' }, { status: 400 });
+	if (error) return handleServiceError(error, '[feedback/get]');
 	if (!data) return json({ error: 'Form not found' }, { status: 404 });
 
 	return json(data);
@@ -71,6 +72,6 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 
 		return json({ ok: true, state: newState });
 	} catch (err) {
-		return json({ error: 'Failed to submit feedback' }, { status: 400 });
+		return handleServiceError(err, '[feedback/patch]');
 	}
 };

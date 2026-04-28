@@ -2,6 +2,7 @@ import type { PageServerLoad } from './$types';
 import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
 import { SupabaseMeetingService } from '$lib/services/meeting.js';
 import { buildUsernameMap } from '$lib/server/username-lookup.js';
+import { loadCancellersFor } from '$lib/services/cancellation-query.js';
 
 function getPartnerId(m: { participant_a: string; participant_b: string }, userId: string): string {
 	return m.participant_a === userId ? m.participant_b : m.participant_a;
@@ -85,28 +86,111 @@ export const load: PageServerLoad = async ({ locals }) => {
 				const usernameMap = await buildUsernameMap(locals.supabase, cancellerIds);
 				return data.map((n: any) => ({
 					id: n.id,
+					meeting_id: (n.data?.meeting_id as string | undefined) ?? null,
 					cancelled_by_username: usernameMap.get(n.data?.cancelled_by) ?? 'someone',
 					scheduled_time: n.data?.scheduled_time,
+					reason: (n.data?.reason as string | null | undefined) ?? null,
 					created_at: n.created_at
 				}));
 			})
 	]);
 
+	// Mark cancelled-meeting notifications as read now that the user has loaded
+	// the profile and seen them. The card renders from the loader's snapshot,
+	// so it's visible on this view; next reload they'll be gone. The cancellation
+	// is still fully visible on the conversation page if the user wants the
+	// context back. Fire-and-forget — a transient failure just means the card
+	// shows again on the next load, which is harmless.
+	if (cancelledNotifications.length > 0) {
+		const ids = cancelledNotifications.map((n) => n.id);
+		locals.supabase
+			.from('notifications')
+			.update({ read: true })
+			.in('id', ids)
+			.then(({ error }) => {
+				if (error) console.error('[profile] mark notifications read failed:', error);
+			});
+	}
+
 	// Resolve meeting partner usernames in one batched call
-	const partnerIds = meetings.map(m => getPartnerId(m, userId));
+	const partnerIds = meetings.map((m) => getPartnerId(m, userId));
 	const partnerUsernameMap = await buildUsernameMap(locals.supabase, partnerIds);
 
-	// Build prompt_id → meeting map for inline context
-	// Prefer scheduled/awaiting_feedback meetings over cancelled/completed
-	const meetingsByPromptId: Record<string, {
-		id: string;
-		scheduled_time: string;
-		duration_minutes: number;
-		general_area: string | null;
-		exact_location: { name: string; address: string; lat?: number; lng?: number } | null;
-		partner_username: string;
-		state: string;
-	}> = {};
+	// Per-prompt context signals surfaced on profile cards.
+	const authoredPromptIds = prompts.map((p) => p.id);
+	const respondedPromptIds = respondedPrompts.map((rp) => rp.prompt_id);
+
+	const [responseCountsData, myInvitationsData] = await Promise.all([
+		// Response count per authored prompt (for the Started tab).
+		authoredPromptIds.length > 0
+			? locals.supabase
+					.from('prompt_comments')
+					.select('prompt_id')
+					.in('prompt_id', authoredPromptIds)
+					.then(({ data }) => data ?? [])
+			: Promise.resolve([]),
+		// Invitations I sent out — used to show state on the Responded tab.
+		respondedPromptIds.length > 0
+			? locals.supabase
+					.from('prompt_invitations')
+					.select('prompt_id, state, created_at')
+					.eq('inviter_id', userId)
+					.in('prompt_id', respondedPromptIds)
+					.order('created_at', { ascending: false })
+					.then(({ data }) => data ?? [])
+			: Promise.resolve([])
+	]);
+
+	const responseCountByPromptId: Record<string, number> = {};
+	for (const row of responseCountsData as Array<{ prompt_id: string }>) {
+		responseCountByPromptId[row.prompt_id] = (responseCountByPromptId[row.prompt_id] ?? 0) + 1;
+	}
+
+	// Per-prompt most-recent invitation state I've sent (responded tab).
+	const myInvitationStateByPromptId: Record<string, 'pending' | 'accepted' | 'declined' | 'expired'> = {};
+	for (const inv of myInvitationsData as Array<{ prompt_id: string; state: string }>) {
+		if (!(inv.prompt_id in myInvitationStateByPromptId)) {
+			myInvitationStateByPromptId[inv.prompt_id] =
+				inv.state as 'pending' | 'accepted' | 'declined' | 'expired';
+		}
+	}
+
+	// Per-prompt completed-meeting count (archived tab).
+	const meetingCountByPromptId: Record<string, number> = {};
+	for (const m of meetings) {
+		const isCompleted = m.state === 'completed' || m.state === 'awaiting_feedback';
+		if (isCompleted) {
+			meetingCountByPromptId[m.prompt_id] = (meetingCountByPromptId[m.prompt_id] ?? 0) + 1;
+		}
+	}
+
+	// Canceller lookup for cancelled meetings — shared helper keeps attribution
+	// consistent with the conversation page (the partner isn't always the canceller).
+	const cancelledMeetingIds = meetings
+		.filter((m) => m.state === 'cancelled_early' || m.state === 'cancelled_late')
+		.map((m) => m.id);
+	const cancellers = await loadCancellersFor(locals.supabase, cancelledMeetingIds);
+
+	// Build prompt_id → meeting map for inline context. We intentionally do NOT
+	// fetch exact_location here — it's private data that only needs to load on
+	// /meetings/[id]. Keeping it out of the profile loader:
+	//   (a) eliminates the N+1 RPC per meeting,
+	//   (b) matches the design principle that exact locations are revealed on
+	//       the meeting detail surface, not in a list view.
+	// Prefer scheduled/awaiting_feedback meetings over cancelled/completed.
+	const meetingsByPromptId: Record<
+		string,
+		{
+			id: string;
+			scheduled_time: string;
+			duration_minutes: number;
+			general_area: string | null;
+			partner_username: string;
+			state: string;
+			cancelled_by_me: boolean;
+			cancelled_by_username: string | null;
+		}
+	> = {};
 
 	// Sort: active states first, then by most recent scheduled_time
 	const sortedMeetings = [...meetings].sort((a, b) => {
@@ -119,18 +203,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	for (const m of sortedMeetings) {
 		if (!(m.prompt_id in meetingsByPromptId)) {
-			// Fetch exact location via SECURITY DEFINER RPC (only participants can see it)
-			const { data: detail } = await locals.supabase.rpc('get_meeting_with_location', { p_meeting_id: m.id });
-			const d = Array.isArray(detail) ? detail[0] : detail;
-
+			const canceller = cancellers.get(m.id) ?? null;
 			meetingsByPromptId[m.prompt_id] = {
 				id: m.id,
 				scheduled_time: m.scheduled_time,
 				duration_minutes: m.duration_minutes,
-				general_area: d?.general_area ?? m.general_area,
-				exact_location: d?.exact_location ?? null,
+				general_area: m.general_area,
 				partner_username: partnerUsernameMap.get(getPartnerId(m, userId)) ?? 'anonymous',
-				state: m.state
+				state: m.state,
+				cancelled_by_me: canceller?.cancelled_by === userId,
+				cancelled_by_username: canceller?.cancelled_by_username ?? null
 			};
 		}
 	}
@@ -142,6 +224,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 		respondedPrompts,
 		feedbackDue,
 		cancelledNotifications,
+		responseCountByPromptId,
+		myInvitationStateByPromptId,
+		meetingCountByPromptId,
 		attentionCount: receivedInvitations.length + feedbackDue.length + (cancelledNotifications?.length ?? 0)
 	};
 };

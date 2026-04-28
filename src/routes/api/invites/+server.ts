@@ -8,11 +8,13 @@ import { captureServer } from '$lib/server/posthog.js';
 import type { RequestHandler } from './$types';
 
 /** Derive the app origin from the Supabase URL or fall back to production. */
-const APP_ORIGIN = PUBLIC_SUPABASE_URL?.includes('localhost') || PUBLIC_SUPABASE_URL?.includes('127.0.0.1')
-	? 'http://localhost:5173'
-	: 'https://dyad.berlin';
+const APP_ORIGIN =
+	PUBLIC_SUPABASE_URL?.includes('localhost') || PUBLIC_SUPABASE_URL?.includes('127.0.0.1')
+		? 'http://localhost:5173'
+		: 'https://dyad.berlin';
 
 const INVITE_EXPIRY_DAYS = 14;
+const MAX_MESSAGE_LENGTH = 2000;
 
 async function requireAdmin(locals: App.Locals) {
 	if (!locals.user) {
@@ -21,6 +23,54 @@ async function requireAdmin(locals: App.Locals) {
 	if (locals.user.app_metadata?.role !== 'admin') {
 		error(403, 'Admin access required');
 	}
+}
+
+/**
+ * Render the invitation email body.
+ *
+ * `opener` is the admin's own opening line — e.g. "Hey T —" or "Hi Ozge,".
+ * Rendered verbatim (no "Hi " prefix). Omit entirely when empty, so the
+ * email leads straight into the personal message / standard copy rather
+ * than a defensive "Hi there,".
+ *
+ * `message` (when non-empty) is a quoted block beneath the opener — the
+ * recipient reads the sender's own words first, then the standard "you've
+ * been invited" framing.
+ *
+ * Both fields are escaped before interpolation; line breaks in the message
+ * are preserved as <br> tags. Everything else is plain text.
+ */
+function renderInviteEmail(params: {
+	opener?: string;
+	inviteUrl: string;
+	message?: string;
+}): string {
+	const openerBlock = params.opener ? `\n\t\t\t\t<p>${params.opener}</p>` : '';
+	const personalBlock = params.message
+		? `
+				<blockquote style="margin: 0 0 24px; padding: 12px 16px; background: #f7f4ee; border-left: 3px solid #c8c2b6; font-style: italic; color: #3a3a3a; white-space: pre-wrap;">${escapeHtml(
+					params.message
+				).replace(/\n/g, '<br>')}</blockquote>`
+		: '';
+
+	return `
+			<div style="font-family: Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 40px 20px; color: #1a1a1a; line-height: 1.7;">${openerBlock}${personalBlock}
+				<p>You've been invited to join dyad, a community of people in Berlin who meet for real conversations.</p>
+				<p><a href="${params.inviteUrl}" style="color: #1a1a1a; font-weight: bold; text-decoration: underline;">Join dyad</a></p>
+				<p style="font-size: 14px; color: #666;">This link expires in ${INVITE_EXPIRY_DAYS} days.</p>
+				<hr style="border: none; border-top: 1px solid #e0ddd8; margin: 32px 0 16px;" />
+				<a href="https://dyad.berlin" style="display: inline-block;"><img src="https://dyad.berlin/images/logo-dark.png" alt="dyad" style="height: 32px; width: auto; margin-bottom: 8px;" /></a>
+				<p style="font-size: 12px; color: #999; margin: 0;">cultivating a culture of conversation</p>
+			</div>
+		`;
+}
+
+/** Build the escaped opener line from the admin's `name` input. Undefined when blank. */
+function buildOpener(name: unknown): string | undefined {
+	if (typeof name === 'string' && name.trim()) {
+		return escapeHtml(name.trim());
+	}
+	return undefined;
 }
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -32,10 +82,24 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	} catch {
 		return json({ error: 'Invalid JSON body' }, { status: 400 });
 	}
-	const { email, name } = body;
+	const { email, name, message } = body;
 
 	if (!email || typeof email !== 'string') {
 		error(400, 'Email is required');
+	}
+
+	// Validate + trim the optional custom message. Admin-only surface, so a
+	// clear 400 is fine — this is a sanity guard, not a user-facing error.
+	let trimmedMessage: string | undefined;
+	if (message !== undefined && message !== null && message !== '') {
+		if (typeof message !== 'string') {
+			error(400, 'message must be a string');
+		}
+		const candidate = message.trim();
+		if (candidate.length > MAX_MESSAGE_LENGTH) {
+			error(400, `message must be at most ${MAX_MESSAGE_LENGTH} characters`);
+		}
+		if (candidate.length > 0) trimmedMessage = candidate;
 	}
 
 	// Check if this email already has an unused, non-expired invitation
@@ -50,23 +114,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	if (existing && existing.length > 0) {
 		// Already has a valid invite — resend the email and return the existing link
 		const inviteUrl = `${APP_ORIGIN}/join?token=${existing[0].token}`;
-		const displayName = escapeHtml((typeof name === 'string' && name.trim()) || 'there');
 		await sendEmail({
 			to: email.trim(),
 			subject: copy.email.inviteSubject,
-			html: `
-				<div style="font-family: Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 40px 20px; color: #1a1a1a; line-height: 1.7;">
-					<p>Hi ${displayName},</p>
-					<p>We are letting in groups of people to come and play. We are currently on our private beta and would love for you to take a walk inside and tell us about your experience. You can do this asynchronously via the feedback area on the bottom right with a question mark icon. We are looking forward to bringing the fruits of our love, care and labor to you.</p>
-					<p><a href="${inviteUrl}" style="color: #1a1a1a; font-weight: bold; text-decoration: underline;">Join dyad</a></p>
-					<p style="font-size: 14px; color: #666;">This link expires in ${INVITE_EXPIRY_DAYS} days.</p>
-					<hr style="border: none; border-top: 1px solid #e0ddd8; margin: 32px 0 16px;" />
-					<a href="https://dyad.berlin" style="display: inline-block;"><img src="https://dyad.berlin/images/logo-dark.png" alt="dyad" style="height: 32px; width: auto; margin-bottom: 8px;" /></a>
-					<p style="font-size: 12px; color: #999; margin: 0;">cultivating a culture of conversation</p>
-				</div>
-			`
+			html: renderInviteEmail({ opener: buildOpener(name), inviteUrl, message: trimmedMessage })
 		}).catch((err) => console.error('[invites] Failed to resend invite email:', err));
-		await captureServer(locals.user!.id, 'invite_email_sent', { invited_email: email.trim(), resent: true });
+		await captureServer(locals.user!.id, 'invite_email_sent', {
+			invited_email: email.trim(),
+			resent: true,
+			has_message: !!trimmedMessage
+		});
 		return json({ ok: true, alreadyInvited: true, inviteUrl });
 	}
 
@@ -88,14 +145,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const expiresAt = new Date();
 	expiresAt.setDate(expiresAt.getDate() + INVITE_EXPIRY_DAYS);
 
-	const { error: dbError } = await locals.supabase
-		.from('invitations')
-		.insert({
-			email: email.trim(),
-			token,
-			expires_at: expiresAt.toISOString(),
-			invited_by: locals.user!.id
-		});
+	const { error: dbError } = await locals.supabase.from('invitations').insert({
+		email: email.trim(),
+		token,
+		expires_at: expiresAt.toISOString(),
+		invited_by: locals.user!.id
+	});
 
 	if (dbError) {
 		console.error('Failed to create invitation:', dbError);
@@ -105,23 +160,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const inviteUrl = `${APP_ORIGIN}/join?token=${token}`;
 
 	// Send invite email
-	const displayName = escapeHtml((typeof name === 'string' && name.trim()) || 'there');
 	await sendEmail({
 		to: email.trim(),
 		subject: copy.email.inviteSubject,
-		html: `
-			<div style="font-family: Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 40px 20px; color: #1a1a1a; line-height: 1.7;">
-				<p>Hi ${displayName},</p>
-				<p>You've been invited to join dyad — a community of people in Berlin who meet for real conversations.</p>
-				<p><a href="${inviteUrl}" style="color: #1a1a1a; font-weight: bold; text-decoration: underline;">Join dyad</a></p>
-				<p style="font-size: 14px; color: #666;">This link expires in ${INVITE_EXPIRY_DAYS} days.</p>
-				<hr style="border: none; border-top: 1px solid #e0ddd8; margin: 32px 0 16px;" />
-				<a href="https://dyad.berlin" style="display: inline-block;"><img src="https://dyad.berlin/images/logo-dark.png" alt="dyad" style="height: 32px; width: auto; margin-bottom: 8px;" /></a>
-				<p style="font-size: 12px; color: #999; margin: 0;">cultivating a culture of conversation</p>
-			</div>
-		`
+		html: renderInviteEmail({ opener: buildOpener(name), inviteUrl, message: trimmedMessage })
 	}).catch((err) => console.error('[invites] Failed to send invite email:', err));
-	await captureServer(locals.user!.id, 'invite_email_sent', { invited_email: email.trim(), resent: false });
+	await captureServer(locals.user!.id, 'invite_email_sent', {
+		invited_email: email.trim(),
+		resent: false,
+		has_message: !!trimmedMessage
+	});
 
 	return json({ ok: true, inviteUrl });
 };

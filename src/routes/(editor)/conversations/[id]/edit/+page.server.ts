@@ -1,9 +1,33 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import type { Prompt } from '$lib/domain/types.js';
 import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const userId = locals.user!.id;
+
+	// Virtual path: /conversations/new/edit renders the editor with an
+	// in-memory blank prompt. No DB row is created until the user saves
+	// something. Keeps the drafts table clean of blank rows from users
+	// who clicked "+" and bailed without typing.
+	if (params.id === 'new') {
+		const now = new Date().toISOString();
+		const blank: Prompt = {
+			id: 'new',
+			author_id: userId,
+			title: null,
+			body: null,
+			cover_image_url: null,
+			state: 'draft',
+			region: 'berlin',
+			published_at: null,
+			archived_at: null,
+			created_at: now,
+			updated_at: now
+		};
+		return { prompt: blank, slots: [] };
+	}
+
 	const service = new SupabasePromptQueryService(locals.supabase);
 
 	// Use getMyPrompts to ensure we only load the author's own prompts

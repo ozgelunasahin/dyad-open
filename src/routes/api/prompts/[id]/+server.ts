@@ -6,6 +6,7 @@ import { parseJsonBody } from '$lib/server/parse-body.js';
 import { SupabasePromptCommandService } from '$lib/services/prompt-command.js';
 import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
 import { validateTiptapContent } from '$lib/server/validate-tiptap-content.js';
+import { handleServiceError } from '$lib/server/handle-service-error.js';
 
 const MAX_TITLE_LENGTH = 200;
 const STORAGE_URL_PREFIX = `${PUBLIC_SUPABASE_URL}/storage/`;
@@ -34,8 +35,10 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 	}>(request);
 	if (errorResponse) return errorResponse;
 
-	if (body.title !== undefined && (typeof body.title !== 'string' || body.title.length > MAX_TITLE_LENGTH)) {
-		return json({ error: `Title must be a string of at most ${MAX_TITLE_LENGTH} characters` }, { status: 400 });
+	if (body.title !== undefined && body.title !== null) {
+		if (typeof body.title !== 'string' || body.title.length > MAX_TITLE_LENGTH) {
+			return json({ error: `Title must be a string of at most ${MAX_TITLE_LENGTH} characters` }, { status: 400 });
+		}
 	}
 
 	if (body.body !== undefined) {
@@ -58,7 +61,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 		});
 		return json(prompt);
 	} catch (err) {
-		return json({ error: (err as Error).message }, { status: 400 });
+		return handleServiceError(err, '[prompts/patch]');
 	}
 };
 
@@ -71,6 +74,6 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 		await service.deletePrompt(params.id, user.id);
 		return json({ ok: true });
 	} catch (err) {
-		return json({ error: (err as Error).message }, { status: 400 });
+		return handleServiceError(err, '[prompts/delete]');
 	}
 };

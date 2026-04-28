@@ -5,7 +5,7 @@
 
 	let dialog: HTMLDialogElement | undefined = $state();
 	let description = $state('');
-	let type = $state<'bug' | 'feature' | 'other'>('bug');
+	let type = $state<'bug' | 'feature' | 'report' | 'other'>('bug');
 	let submitting = $state(false);
 	let submitted = $state(false);
 	let error = $state('');
@@ -40,10 +40,10 @@
 				setTimeout(() => dialog?.close(), 1500);
 			} else {
 				const body = await res.json().catch(() => ({}));
-				error = (body as any).error ?? 'Failed to submit';
+				error = (body as any).error ?? copy.common.submitFailed;
 			}
 		} catch {
-			error = 'Network error';
+			error = copy.common.networkError;
 		} finally {
 			submitting = false;
 		}
@@ -69,12 +69,18 @@
 			<div class="type-selector">
 				<button class="type-btn" class:active={type === 'bug'} onclick={() => type = 'bug'}>{copy.appFeedback.typeBug}</button>
 				<button class="type-btn" class:active={type === 'feature'} onclick={() => type = 'feature'}>{copy.appFeedback.typeFeature}</button>
+				<button class="type-btn" class:active={type === 'report'} onclick={() => type = 'report'}>{copy.appFeedback.typeReport}</button>
 				<button class="type-btn" class:active={type === 'other'} onclick={() => type = 'other'}>{copy.appFeedback.typeOther}</button>
 			</div>
 
 			<textarea
 				bind:value={description}
-				placeholder={copy.appFeedback.placeholder}
+				placeholder={
+					type === 'bug' ? copy.appFeedback.placeholderBug
+					: type === 'feature' ? copy.appFeedback.placeholderFeature
+					: type === 'report' ? copy.appFeedback.placeholderReport
+					: copy.appFeedback.placeholderOther
+				}
 				rows={4}
 				disabled={submitting}
 			></textarea>
@@ -91,23 +97,13 @@
 <style>
 	.trigger-group {
 		position: fixed;
-		bottom: var(--space-5);
-		right: var(--space-4);
+		bottom: calc(var(--space-5) + env(safe-area-inset-bottom, 0px));
+		right: calc(var(--space-4) + env(safe-area-inset-right, 0px));
 		display: flex;
 		flex-direction: row;
 		gap: var(--space-2);
 		align-items: center;
 		z-index: 900;
-	}
-
-	/* Mobile: move to top-right to avoid FloatingNav overlap */
-	@media (max-width: 430px) {
-		.trigger-group {
-			bottom: auto;
-			top: var(--space-4);
-			left: auto;
-			right: var(--space-4);
-		}
 	}
 
 	.admin-trigger {

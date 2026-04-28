@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { beforeNavigate, goto } from '$app/navigation';
+	import { beforeNavigate, goto, replaceState } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
 	import type { JSONContent } from '@tiptap/core';
@@ -11,6 +11,11 @@
 	import { capture } from '$lib/analytics';
 
 	let { data }: { data: PageData } = $props();
+
+	// Tracks the prompt id locally so lazy-create can flip it from 'new' to a
+	// real UUID without fighting Svelte 5's readonly $props.
+	// svelte-ignore state_referenced_locally
+	let promptId = $state(data.prompt.id);
 
 	// ── Editable state ─────────────────────────────────────────────────────────
 	// svelte-ignore state_referenced_locally — intentional initial-value capture for editor fields
@@ -26,12 +31,50 @@
 	let saveTimer: ReturnType<typeof setTimeout> | null = null;
 	let saveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
+	/** True once the draft has any real content (title, body text, or cover).
+	 *  Starts true for drafts that already have content from the server;
+	 *  stays false for freshly-created blank drafts until the user types. */
+	function bodyHasText(json: JSONContent | null | undefined): boolean {
+		if (!json) return false;
+		if (json.type === 'text' && typeof json.text === 'string' && json.text.trim()) return true;
+		if (!json.content) return false;
+		return json.content.some(bodyHasText);
+	}
+	// svelte-ignore state_referenced_locally — initial-value capture from server data
+	let hasContent = $state(
+		!!data.prompt.title?.trim() || !!data.prompt.cover_image_url || bodyHasText(data.prompt.body)
+	);
+
 	async function saveNow() {
 		if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
 		const gen = ++saveGeneration;
 		saveStatus = 'saving';
 		try {
-			const res = await fetch(`/api/prompts/${data.prompt.id}`, {
+			// First save of a /conversations/new session — create the row now,
+			// then rewrite the URL so subsequent edits go through the PATCH path.
+			if (promptId === 'new') {
+				const res = await fetch('/api/prompts', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						title: title || undefined,
+						body,
+						coverImageUrl: coverImageUrl || undefined
+					})
+				});
+				if (gen !== saveGeneration) return;
+				if (res.ok) {
+					const created = await res.json();
+					promptId = created.id;
+					replaceState(`/conversations/${created.id}/edit`, {});
+					saveStatus = 'saved';
+				} else {
+					saveStatus = 'error';
+				}
+				return;
+			}
+
+			const res = await fetch(`/api/prompts/${promptId}`, {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -49,6 +92,14 @@
 	}
 
 	function scheduleSave() {
+		// Skip autosave while the draft is still completely blank — no title,
+		// no body text, no cover. Once the user puts anything in, latch
+		// hasContent to true so future edits (including clearing back to
+		// blank) still save normally.
+		if (!hasContent) {
+			hasContent = !!title.trim() || !!coverImageUrl || bodyHasText(body);
+			if (!hasContent) return;
+		}
 		if (saveTimer) clearTimeout(saveTimer);
 		saveStatus = 'idle';
 		saveTimer = setTimeout(saveNow, 1500);
@@ -56,6 +107,19 @@
 
 	// ── Navigation guard ───────────────────────────────────────────────────────
 	beforeNavigate((navigation) => {
+		// The virtual /conversations/new/edit page has no backing row yet, so
+		// there's nothing to save, nothing to delete. Just let navigation through.
+		if (promptId === 'new') return;
+
+		// Draft row exists but the user cleared all content back to blank
+		// (or never really added any) — delete the blank row on the way out.
+		const blank = !title.trim() && !coverImageUrl && !bodyHasText(body);
+		if (blank && data.prompt.state === 'draft') {
+			if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+			saveGeneration++;
+			fetch(`/api/prompts/${promptId}`, { method: 'DELETE', keepalive: true }).catch(() => {});
+			return;
+		}
 		if (!saveTimer) return;
 		if (navigation.willUnload) { navigation.cancel(); return; }
 		navigation.cancel();
@@ -107,12 +171,24 @@
 				scheduleSave();
 			} else {
 				const err = await res.json().catch(() => ({}));
-				publishError = `Upload failed: ${(err as any).error ?? 'unknown error'}`;
+				const ref = (err as { reference?: string }).reference;
+				publishError =
+					`Upload failed: ${(err as { error?: string }).error ?? 'unknown error'}` +
+					(ref ? ` (ref: ${ref})` : '');
+				// Clear both the in-flight preview AND any stale upload URL so the
+				// placeholder returns to its "add a cover" state. Prevents the
+				// "image appears present but publish complains" trap.
+				URL.revokeObjectURL(coverPreview);
 				coverPreview = null;
+				coverImageUrl = '';
+				coverError = true;
 			}
 		} catch {
-			publishError = 'Upload failed: network error';
+			publishError = 'Upload failed: network error. Please try again.';
+			if (coverPreview) URL.revokeObjectURL(coverPreview);
 			coverPreview = null;
+			coverImageUrl = '';
+			coverError = true;
 		} finally {
 			uploading = false;
 		}
@@ -161,7 +237,7 @@
 
 	async function handleDiscard() {
 		if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
-		const res = await fetch(`/api/prompts/${data.prompt.id}`, { method: 'DELETE' });
+		const res = await fetch(`/api/prompts/${promptId}`, { method: 'DELETE' });
 		if (res.ok) goto('/profile?view=conversations');
 		else publishError = 'Failed to discard draft.';
 	}
@@ -170,12 +246,10 @@
 		publishError = '';
 		if (uploading) { publishError = 'Please wait for the cover image to finish uploading.'; return; }
 		if (!title.trim()) { publishError = 'Title is required to publish.'; return; }
+		// uploadFile() clears coverPreview + coverImageUrl on failure, so the
+		// only way to reach this branch is a legitimately-missing cover.
 		if (!coverImageUrl) {
-			if (coverPreview) {
-				publishError = 'Cover image upload may have failed. Please try uploading again.';
-			} else {
-				publishError = 'Cover image is required to publish.';
-			}
+			publishError = 'Cover image is required to publish.';
 			coverError = true;
 			return;
 		}
@@ -194,14 +268,14 @@
 		await saveNow();
 
 		try {
-			const res = await fetch(`/api/prompts/${data.prompt.id}/publish`, {
+			const res = await fetch(`/api/prompts/${promptId}/publish`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ slots })
 			});
 			if (res.ok) {
-				capture('conversation_published', { prompt_id: data.prompt.id, slot_count: slots.length });
-				goto(`/conversations/${data.prompt.id}`);
+				capture('conversation_published', { prompt_id: promptId, slot_count: slots.length });
+				goto(`/conversations/${promptId}`);
 			} else {
 				const err = await res.json().catch(() => ({}));
 				publishError = (err as any).error ?? 'Failed to publish';
@@ -215,29 +289,23 @@
 
 	// ── Unpublish / Archive ────────────────────────────────────────────────────
 	async function handleUnpublish() {
-		const res = await fetch(`/api/prompts/${data.prompt.id}/unpublish`, { method: 'POST' });
+		const res = await fetch(`/api/prompts/${promptId}/unpublish`, { method: 'POST' });
 		if (res.ok) goto('/profile?view=conversations');
-		else { const e = await res.json().catch(() => ({})); publishError = (e as any).error ?? 'Failed to archive.'; }
+		else { const e = await res.json().catch(() => ({})); publishError = (e as any).error ?? copy.conversation.failedToArchive; }
 	}
 
 	// ── Delete (published) ─────────────────────────────────────────────────────
 	let deletePublishedDialog = $state<ConfirmDialog | undefined>();
 
 	async function handleDeletePublished() {
-		const res = await fetch(`/api/prompts/${data.prompt.id}`, { method: 'DELETE' });
+		const res = await fetch(`/api/prompts/${promptId}`, { method: 'DELETE' });
 		if (res.ok) goto('/profile?view=conversations');
-		else { const e = await res.json().catch(() => ({})); publishError = (e as any).error ?? 'Failed to delete.'; }
+		else { const e = await res.json().catch(() => ({})); publishError = (e as any).error ?? copy.conversation.failedToDelete; }
 	}
 
 	let isDraft = $derived(data.prompt.state === 'draft');
 	let isPublished = $derived(data.prompt.state === 'published');
 	let isArchived = $derived(data.prompt.state === 'archived');
-
-	async function handlePublishContent() {
-		await saveNow();
-		goto(`/conversations/${data.prompt.id}`);
-	}
-
 </script>
 
 <svelte:head>
@@ -259,22 +327,26 @@
 				</svg>
 			</button>
 			{#if saveStatus === 'saving'}
-				<span class="save-dot saving"></span> Saving...
-			{:else}
-				<span class="save-dot saved"></span> Saved
+				<span class="save-dot saving"></span> {copy.editor.saving}
+			{:else if saveStatus === 'error'}
+				<span class="save-dot error"></span> {copy.editor.saveError}
+			{:else if hasContent}
+				<span class="save-dot saved"></span> {copy.editor.saved}
 			{/if}
 		</span>
 		<div class="pub-actions">
 			{#if isDraft}
-				<button class="unpublish-btn" onclick={() => discardDialog?.open()}>Delete</button>
-				<button class="unpublish-btn" onclick={handleOpenPublish}>Continue</button>
+				<button class="unpublish-btn" onclick={() => discardDialog?.open()}>{copy.editor.discard}</button>
+				<button class="btn-primary btn-primary--sm" onclick={handleOpenPublish}>{copy.editor.publishAction}</button>
 			{:else if isArchived}
-				<button class="delete-btn" onclick={() => deletePublishedDialog?.open()}>Delete</button>
-				<button class="unpublish-btn" onclick={handleOpenPublish}>Republish</button>
+				<button class="delete-btn" onclick={() => deletePublishedDialog?.open()}>{copy.editor.deleteAction}</button>
+				<button class="btn-primary btn-primary--sm" onclick={handleOpenPublish}>{copy.editor.republishAction}</button>
 			{:else}
-				<button class="unpublish-btn" onclick={handleUnpublish}>Archive</button>
-				<button class="delete-btn" onclick={() => deletePublishedDialog?.open()}>Delete</button>
-				<button class="unpublish-btn" onclick={handlePublishContent}>Republish</button>
+				<!-- Published: content edits auto-save. No publish-style action — the
+					conversation is already live. Archive takes it off the feed; Delete
+					removes it permanently. -->
+				<button class="unpublish-btn" onclick={handleUnpublish}>{copy.editor.archiveAction}</button>
+				<button class="delete-btn" onclick={() => deletePublishedDialog?.open()}>{copy.editor.deleteAction}</button>
 			{/if}
 		</div>
 	</div>
@@ -353,17 +425,17 @@
 
 <ConfirmDialog
 	bind:this={discardDialog}
-	title="Discard draft"
-	message="This will permanently delete this draft. This cannot be undone."
-	confirmLabel="Discard"
+	title={copy.editor.discardTitle}
+	message={copy.editor.discardConfirm}
+	confirmLabel={copy.editor.discard}
 	onConfirm={handleDiscard}
 />
 
 <ConfirmDialog
 	bind:this={deletePublishedDialog}
-	title="Delete conversation"
-	message="This will permanently delete the conversation and all its data. This cannot be undone."
-	confirmLabel="Delete"
+	title={copy.editor.deleteTitle}
+	message={copy.editor.deleteConfirm}
+	confirmLabel={copy.editor.deleteAction}
 	onConfirm={handleDeletePublished}
 />
 
@@ -390,15 +462,15 @@
 		gap: var(--space-2);
 		padding: var(--space-10) var(--space-8);
 		margin-bottom: var(--space-6);
-		border: 1.5px dashed rgba(0, 0, 0, 0.12);
+		border: 1.5px dashed color-mix(in srgb, var(--text-primary) 12%, transparent);
 		border-radius: var(--radius-card);
-		background: rgba(0, 0, 0, 0.025);
+		background: color-mix(in srgb, var(--text-primary) 2.5%, transparent);
 		cursor: pointer;
 		transition: border-color 0.15s, background 0.15s;
 	}
 
-	.cover-placeholder:hover { border-color: var(--text-muted); background: rgba(0, 0, 0, 0.04); }
-	.cover-placeholder.drag-over { border-color: var(--text-primary); background: rgba(0, 0, 0, 0.05); border-style: solid; }
+	.cover-placeholder:hover { border-color: var(--text-muted); background: color-mix(in srgb, var(--text-primary) 4%, transparent); }
+	.cover-placeholder.drag-over { border-color: var(--text-primary); background: color-mix(in srgb, var(--text-primary) 5%, transparent); border-style: solid; }
 	.cover-placeholder.cover-error { border-color: var(--color-danger); }
 
 	.cover-icon { color: var(--text-muted); }
@@ -448,7 +520,7 @@
 		font-family: var(--font-mono);
 		font-size: var(--text-sm);
 		color: var(--text-muted);
-		background: rgba(0, 0, 0, 0.04);
+		background: color-mix(in srgb, var(--text-primary) 4%, transparent);
 		padding: var(--space-1) var(--space-3);
 		border-radius: var(--radius-pill);
 		margin-bottom: var(--space-5);
@@ -502,6 +574,8 @@
 		cursor: pointer;
 	}
 	.unpublish-btn:hover { border-color: var(--text-primary); color: var(--text-primary); }
+
+	/* .btn-primary / .btn-primary--sm live in shared.css */
 
 	/* Back arrow */
 	.back-arrow {

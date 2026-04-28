@@ -27,6 +27,8 @@ Assessment of the current codebase against `docs/design/shared-infrastructure-op
 ### 1. Supabase region — CRITICAL
 All user data (auth, profiles, prompts, meetings, feedback) flows through the hosted Supabase instance. **Verify the region is EU (Frankfurt).** If US, migrate to EU or self-host on Hetzner.
 
+_Status (2026-04-18): resolved. Confirmed EU (Ireland) via the Supabase dashboard. Note: Ireland is EU-member-state hosting but still under a US-parent managed service — see `docs/solutions/architecture/sovereignty-lessons-learned.md` for the sovereignty-spectrum framing._
+
 ### 2. Resend email — HIGH
 Email delivery via Resend (US company) exposes PII (email addresses, names, invite tokens). Replace with:
 - Mailjet (EU company, EU hosting)
@@ -35,6 +37,8 @@ Email delivery via Resend (US company) exposes PII (email addresses, names, invi
 
 ### 3. unpkg CDN for Leaflet — MEDIUM
 `src/lib/components/MapView.svelte` loads Leaflet CSS/icons from `unpkg.com` (Cloudflare US). Self-host the 4 files in `static/leaflet/`.
+
+_Status (2026-04-18): resolved. CSS served from `/leaflet/leaflet.css`; icons resolved via `L.Icon.Default.prototype.options.imagePath = '/leaflet/'`. All six asset files present in `static/leaflet/`. No `unpkg.com` or `cdnjs` references remain in `MapView.svelte`._
 
 ### 4. Hardcoded Supabase URLs — MEDIUM
 17 files contain `iwdjpuyuznzukhowxjhk.supabase.co` URLs for static assets (logos, images). Extract to environment variable.

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Meeting, MeetingWithLocation, MeetingDetail, CancellationTier } from '$lib/domain/types.js';
+import { DomainError } from '$lib/domain/errors.js';
 
 export interface MeetingService {
 	getWithLocation(meetingId: string): Promise<MeetingWithLocation | null>;
@@ -53,7 +54,14 @@ export class SupabaseMeetingService implements MeetingService {
 			p_reason: reason ?? null
 		});
 
-		if (error) throw new Error(`Failed to cancel meeting: ${error.message}`);
+		if (error) {
+			// cancel_meeting RPC raises specific validation messages. Surface them to the user.
+			const msg = error.message ?? '';
+			if (msg.includes('Meeting not found')) throw new DomainError(msg, 404);
+			if (msg.includes('Not a participant')) throw new DomainError(msg, 403);
+			if (msg.includes('Early cancellation requires an explanation')) throw new DomainError(msg, 400);
+			throw new Error(`Failed to cancel meeting: ${msg}`);
+		}
 		return data as CancellationTier;
 	}
 }

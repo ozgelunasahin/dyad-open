@@ -46,28 +46,7 @@
 		background: rgba(0, 0, 0, 0.5);
 	}
 
-	.btn-secondary {
-		font-size: var(--text-base);
-		padding: var(--space-2) var(--space-5);
-		border: 1px solid var(--border-link);
-		border-radius: var(--radius-input);
-		background: none;
-		color: var(--text-primary);
-		cursor: pointer;
-	}
-	.btn-secondary:hover { border-color: var(--text-primary); }
-
-	.btn-primary {
-		font-size: var(--text-base);
-		padding: var(--space-2) var(--space-5);
-		border: 1px solid var(--text-primary);
-		border-radius: var(--radius-input);
-		background: var(--text-primary);
-		color: var(--bg-canvas);
-		cursor: pointer;
-		transition: opacity 0.15s;
-	}
-	.btn-primary:hover { opacity: var(--opacity-hover-btn); }
+	/* .btn-primary / .btn-secondary live in shared.css */
 
 	.confirm-content {
 		padding: var(--space-6);

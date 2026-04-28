@@ -3,6 +3,7 @@ import type { PageServerLoad } from './$types';
 import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
 import { SupabaseCommentService } from '$lib/services/comment.js';
 import { SupabaseInvitationService } from '$lib/services/invitation.js';
+import { loadCancellersFor } from '$lib/services/cancellation-query.js';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const userId = locals.user!.id;
@@ -25,6 +26,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	// Slots the current user already has a pending invitation for
 	const invitedSlotIds = new Set(myInvitations.map(inv => inv.slot_id));
+	// slot_id → invitation_id map so the responder can withdraw their own
+	// pending invitation from the conversation page without another lookup.
+	const myInvitationBySlotId: Record<string, string> = {};
+	for (const inv of myInvitations) myInvitationBySlotId[inv.slot_id] = inv.id;
 
 	// For the author: load enriched invitation data (inviter username, comment text, slot details)
 	let receivedInvitations: Array<{
@@ -57,7 +62,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			`)
 			.eq('prompt_id', params.id)
 			.in('state', ['pending', 'accepted'])
-			.order('created_at', { ascending: true });
+			// Most recent first — the author view picks the first match per inviter,
+			// so newer re-invitations must take precedence over older (possibly
+			// cancelled) ones.
+			.order('created_at', { ascending: false });
 
 		if (enriched) {
 			// Separate lookup for inviter usernames (no FK from inviter_id to profiles)
@@ -108,19 +116,34 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		scheduled_time: string;
 		state: string;
 		resolved_at: string | null;
-		exact_location: { name: string; address: string; lat?: number; lng?: number } | null;
+		exact_location: { place_id: string; name: string; address: string; lat: number; lng: number } | null;
 		general_area: string | null;
+		cancelled_by: string | null;
+		cancelled_by_username: string | null;
+		cancellation_reason: string | null;
 	}> = [];
 	if (isAuthor) {
 		const { data: meetings } = await locals.supabase
 			.from('meetings')
 			.select('id, slot_id, scheduled_time, state, resolved_at')
-			.eq('prompt_id', params.id);
+			.eq('prompt_id', params.id)
+			// Active (unresolved) meetings first, then most-recently-resolved.
+			// When a slot has both a cancelled meeting and a fresh scheduled one
+			// from a re-invite, .find(m => m.slot_id === inv.slot_id) must hit
+			// the active one — otherwise the author sees stale cancelled state.
+			.order('resolved_at', { ascending: false, nullsFirst: true });
+
+		// Fetch canceller info (id + username) for cancelled meetings in one shared query.
+		const cancelledMeetingIds = (meetings ?? [])
+			.filter((m) => m.state === 'cancelled_early' || m.state === 'cancelled_late')
+			.map((m) => m.id);
+		const cancellers = await loadCancellersFor(locals.supabase, cancelledMeetingIds);
 
 		// Enrich with exact_location via SECURITY DEFINER RPC
 		for (const m of meetings ?? []) {
 			const { data: detail } = await locals.supabase.rpc('get_meeting_with_location', { p_meeting_id: m.id });
 			const d = Array.isArray(detail) ? detail[0] : detail;
+			const canceller = cancellers.get(m.id) ?? null;
 			promptMeetings.push({
 				id: m.id,
 				slot_id: m.slot_id,
@@ -128,7 +151,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				state: m.state,
 				resolved_at: m.resolved_at ?? null,
 				exact_location: d?.exact_location ?? null,
-				general_area: d?.general_area ?? null
+				general_area: d?.general_area ?? null,
+				cancelled_by: canceller?.cancelled_by ?? null,
+				cancelled_by_username: canceller?.cancelled_by_username ?? null,
+				cancellation_reason: canceller?.reason ?? null
 			});
 		}
 	}
@@ -140,6 +166,15 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		duration_minutes: number;
 		general_area: string;
 		exact_location: { place_id: string; name: string; address: string; lat: number; lng: number } | null;
+	} | null = null;
+
+	// Most recent cancellation involving the responder on this prompt — used to surface
+	// the canceller's note and a "re-invite" nudge when there's no active meeting.
+	let myCancellation: {
+		cancelled_by: string;
+		cancelled_by_username: string | null;
+		reason: string | null;
+		cancelled_at: string;
 	} | null = null;
 
 	if (!isAuthor) {
@@ -167,6 +202,44 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 					exact_location: meetingData.exact_location ?? null
 				};
 			}
+		} else {
+			// No active meeting — look for a recent cancelled one on this prompt.
+			const { data: cancelledRows } = await locals.supabase
+				.from('meetings')
+				.select('id')
+				.eq('prompt_id', params.id)
+				.or(`participant_a.eq.${userId},participant_b.eq.${userId}`)
+				.in('state', ['cancelled_early', 'cancelled_late'])
+				.order('resolved_at', { ascending: false })
+				.limit(1);
+			const cancelledMeetingId = cancelledRows?.[0]?.id;
+			if (cancelledMeetingId) {
+				const { data: record } = await locals.supabase
+					.from('cancellation_records')
+					.select('cancelled_by, reason, cancelled_at, id')
+					.eq('meeting_id', cancelledMeetingId)
+					// Tie-breaker on id keeps selection stable when two records
+					// share an exact cancelled_at timestamp.
+					.order('cancelled_at', { ascending: false })
+					.order('id', { ascending: false })
+					.limit(1)
+					.maybeSingle();
+				if (record) {
+					let cancellerUsername: string | null = null;
+					const { data: cProfile } = await locals.supabase
+						.from('profiles')
+						.select('username')
+						.eq('id', record.cancelled_by)
+						.maybeSingle();
+					cancellerUsername = cProfile?.username ?? null;
+					myCancellation = {
+						cancelled_by: record.cancelled_by,
+						cancelled_by_username: cancellerUsername,
+						reason: record.reason,
+						cancelled_at: record.cancelled_at
+					};
+				}
+			}
 		}
 	}
 
@@ -175,9 +248,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		comments: enrichedComments,
 		myComment,
 		invitedSlotIds: [...invitedSlotIds],
+		myInvitationBySlotId,
 		receivedInvitations,
 		promptMeetings,
 		myMeeting,
+		myCancellation,
 		user: { id: userId }
 	};
 };

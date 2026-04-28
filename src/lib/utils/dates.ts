@@ -38,6 +38,24 @@ export function formatHybridDate(iso: string): string {
 	return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
+/**
+ * Past-looking relative date for "when did this happen":
+ * today → "today", yesterday → "yesterday", 2-6 days ago → weekday,
+ * beyond that → "12 Apr".
+ */
+export function formatRelativePast(iso: string): string {
+	const date = new Date(iso);
+	const now = new Date();
+	const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+	const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+	const diffDays = Math.round((today.getTime() - target.getTime()) / (1000 * 60 * 60 * 24));
+
+	if (diffDays <= 0) return 'today';
+	if (diffDays === 1) return 'yesterday';
+	if (diffDays <= 6) return date.toLocaleDateString('en-GB', { weekday: 'long' });
+	return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
 /** Format time range: "15:00–16:00" */
 export function formatSlotTimeRange(iso: string, durationMinutes: number): string {
 	const start = new Date(iso);

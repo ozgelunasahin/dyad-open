@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { requireAuth } from '$lib/server/auth.js';
 import { SupabaseInvitationService } from '$lib/services/invitation.js';
+import { handleServiceError } from '$lib/server/handle-service-error.js';
 import { env } from '$env/dynamic/public';
 
 /** POST /api/invitations/[id]/accept — accept invitation, create meeting atomically */
@@ -26,9 +27,12 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 			}
 			return json({ ok: true, meetingId });
 		} else {
-			return json({ ok: false, reason: 'Slot already booked or invitation expired' }, { status: 409 });
+			return json(
+				{ ok: false, error: 'That slot was booked by someone else, or the invitation has expired.' },
+				{ status: 409 }
+			);
 		}
 	} catch (err) {
-		return json({ error: (err as Error).message }, { status: 400 });
+		return handleServiceError(err, '[invitations/accept]');
 	}
 };

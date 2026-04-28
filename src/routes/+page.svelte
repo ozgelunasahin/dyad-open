@@ -4,9 +4,25 @@
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import type { PageData } from './$types';
 	import type { PromptSummary } from '$lib/domain/types';
-	import PromptListItem from '$lib/components/PromptListItem.svelte';
+	import ConversationCard from '$lib/components/ConversationCard.svelte';
 	import BottomSheet from '$lib/components/BottomSheet.svelte';
 	import AuthDialog from '$lib/components/AuthDialog.svelte';
+
+	function slotDates(slots: { start_time: string }[]): string {
+		const dates = new Set<string>();
+		for (const s of slots) {
+			const d = new Date(s.start_time);
+			dates.add(d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' }));
+		}
+		return [...dates].join(' · ');
+	}
+
+	function uniqueAreas(slots: { general_area: string }[]): string {
+		return slots
+			.map((s) => s.general_area)
+			.filter((v, i, a) => a.indexOf(v) === i)
+			.join(', ');
+	}
 
 	let { data }: { data: PageData } = $props();
 
@@ -159,7 +175,14 @@
 		<div class="prompt-list">
 			{#if data.prompts && data.prompts.length > 0}
 				{#each data.prompts as prompt}
-					<PromptListItem {prompt} onclick={() => openAuth('waitlist')} hideAuthor />
+					<ConversationCard
+						title={prompt.title ?? 'Untitled'}
+						coverUrl={prompt.cover_image_url}
+						snippet={prompt.body_snippet}
+						metaLeft={slotDates(prompt.available_slots)}
+						metaRight={uniqueAreas(prompt.available_slots)}
+						onclick={() => openAuth('waitlist')}
+					/>
 				{/each}
 			{:else}
 				<div class="empty-state">
@@ -309,7 +332,7 @@
 		border-radius: 50%;
 		background: var(--color-success);
 		flex-shrink: 0;
-		animation: pulse 2.5s ease-in-out infinite;
+		animation: pulse var(--duration-ambient) ease-in-out infinite;
 	}
 
 	@keyframes pulse {
@@ -494,27 +517,34 @@
 		.landing {
 			display: flex;
 			flex-direction: column;
-			height: 100vh;
+			/* 100dvh tracks the visible viewport as mobile browser chrome
+			 * expands/collapses; 100vh keeps a bigger area fixed, which
+			 * clipped the hero content on short phones. */
+			height: 100dvh;
 			overflow: hidden;
 		}
 
 		.left-col {
-			height: 100vh;
+			height: 100dvh;
 			min-height: unset;
 			border-right: none;
 			border-bottom: none;
-			padding: var(--space-6) var(--space-4) calc(var(--space-10) + var(--space-6));
+			padding: var(--space-6) var(--space-4) var(--space-4);
 			transform: translateZ(0); /* contain position:fixed BottomSheet within 100vh */
 		}
 
 		.hero-center { margin: auto 0; }
 		.top-city-row { display: none; }
 
+		/* Map takes whatever leftover space is between the top bar and the
+		 * hero content, with a floor so it stays a usable map on very short
+		 * viewports. hero-content gets its natural height — no margin-top:auto
+		 * pushing it out of view when the viewport shrinks. */
 		.hero-map {
 			display: block;
-			height: 45vh;
-			flex-shrink: 0;
-			margin: var(--space-4) 0;
+			flex: 1 1 auto;
+			min-height: 220px;
+			margin: var(--space-3) 0;
 			border-radius: var(--radius-card);
 			overflow: hidden;
 			position: relative;
@@ -561,10 +591,6 @@
 		.hero-sheet-wrap :global(.sheet) {
 			max-height: calc(100vh - 45vh - 96px);
 			border-radius: var(--radius-card) var(--radius-card) 0 0;
-		}
-
-		.tagline-break {
-			display: block;
 		}
 
 		.hero-actions { padding-bottom: 0; }

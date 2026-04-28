@@ -1,5 +1,6 @@
 <script lang="ts">
 	import CitySearch from '$lib/components/CitySearch.svelte';
+	import { copy } from '$lib/copy';
 
 	let name = $state('');
 	let email = $state('');
@@ -14,7 +15,7 @@
 		if (!email) return;
 
 		if (!freewrite.trim()) {
-			errorMsg = 'Please share your thoughts before joining.';
+			errorMsg = copy.waitlist.freewriteRequired;
 			status = 'error';
 			return;
 		}
@@ -33,7 +34,7 @@
 
 			if (!res.ok) {
 				const data = await res.json();
-				throw new Error(data.error || 'Something went wrong');
+				throw new Error(data.error || copy.waitlist.genericError);
 			}
 
 			status = 'sent';
@@ -47,28 +48,29 @@
 				}).catch(() => { /* non-critical */ });
 			}
 		} catch (err) {
-			errorMsg = err instanceof Error ? err.message : 'Something went wrong';
+			errorMsg = err instanceof Error ? err.message : copy.waitlist.genericError;
 			status = 'error';
 		}
 	}
 </script>
 
 <svelte:head>
-	<title>join - dyad. cultivating a culture of conversation</title>
+	<title>{copy.waitlist.pageTitle}</title>
 </svelte:head>
 
 <div class="auth-card">
-	<h1>Request to join</h1>
+	<h1>{copy.waitlist.heading}</h1>
+	<p class="subtitle">{copy.waitlist.subtitle}</p>
 
 	{#if status === 'sent'}
-		<div class="success-message">Thank you. We'll be in touch.</div>
+		<div class="success-message">{copy.waitlist.successMessage}</div>
 	{:else}
 		<form onsubmit={handleSubmit}>
 			<div class="form-group">
-				<label for="freewrite" class="freewrite-label">Dyad is a curated network of people who see conversation as one of the limited spaces left that celebrates our differences as an asset. Why do you want more or other conversations in your life?</label>
+				<label for="freewrite" class="freewrite-label">{copy.waitlist.freewriteLabel}</label>
 				<textarea
 					id="freewrite"
-					placeholder="We wonder"
+					placeholder={copy.waitlist.freewritePlaceholder}
 					bind:value={freewrite}
 					disabled={status === 'sending'}
 					maxlength={2000}
@@ -78,7 +80,7 @@
 			<div class="form-group">
 				<input
 					type="text"
-					placeholder="Name"
+					placeholder={copy.waitlist.namePlaceholder}
 					bind:value={name}
 					disabled={status === 'sending'}
 				/>
@@ -89,7 +91,7 @@
 			<div class="form-group">
 				<input
 					type="email"
-					placeholder="Email"
+					placeholder={copy.waitlist.emailPlaceholder}
 					bind:value={email}
 					required
 					disabled={status === 'sending'}
@@ -105,8 +107,8 @@
 				<span>Subscribe me to the Dyad newsletter on Substack.</span>
 			</label>
 
-			<button type="submit" class="submit-btn" disabled={status === 'sending'}>
-				{status === 'sending' ? 'Sending...' : 'Request to join'}
+			<button type="submit" class="btn-primary btn-primary--block" disabled={status === 'sending'}>
+				{status === 'sending' ? copy.waitlist.sending : copy.waitlist.submitCta}
 			</button>
 			{#if status === 'error'}
 				<div class="error-message">{errorMsg}</div>
@@ -235,26 +237,5 @@
 		line-height: 1.5;
 	}
 
-	.submit-btn {
-		width: 100%;
-		padding: var(--space-3);
-		background: var(--text-primary);
-		color: var(--bg-canvas);
-		border: none;
-		border-radius: var(--radius-input);
-		font-size: var(--text-lg);
-		font-family: inherit;
-		cursor: pointer;
-		transition: opacity 0.2s;
-		margin-top: var(--space-2);
-	}
-
-	.submit-btn:hover:not(:disabled) {
-		opacity: var(--opacity-hover-btn);
-	}
-
-	.submit-btn:disabled {
-		opacity: var(--opacity-disabled);
-		cursor: not-allowed;
-	}
+	/* .btn-primary / .btn-primary--block live in shared.css */
 </style>

@@ -74,6 +74,7 @@ All authenticated routes live under `src/routes/(app)/`. The layout provides:
 | `PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon key (public, works with RLS) |
 | `RESEND_API_KEY` | Yes | Email delivery (invites, notifications) |
 | `SUPABASE_SERVICE_ROLE_KEY` | No | Only for admin scripts |
+| `PUBLIC_ASSET_BASE_URL` | No | Override for static page imagery (e.g. `/why` hero images). Falls back to the default Supabase uploads bucket. Set this to route assets through a sovereign host without touching code. |
 
 ## Database
 
@@ -135,6 +136,8 @@ The `docs/plans/` directory contains implementation plans. When resolving a todo
 
 3. **Run `npx svelte-check --threshold error` before pushing.** This catches type errors and broken imports. Pre-existing errors (15, all Supabase type widening) are known — only worry about NEW errors.
 
+   **Integration tests** against a real Supabase stack: `npm run test:integration:local`. See [docs/TESTING.md](docs/TESTING.md) for setup, the three tiers (unit / integration / E2E), and how `.env.local` is auto-generated from `supabase status`.
+
 4. **Commit messages follow conventional format.** `fix: description`, `feat: description`, `docs: description`, `refactor: description`. Keep them concise.
 
 5. **Check `docs/solutions/` before implementing.** Past gotchas are documented there. The TipTap reactive loop, Leaflet SSR issues, RLS visibility patterns — don't rediscover what's already known.
@@ -189,6 +192,12 @@ try {
 
 ### Database Migrations
 
+**The repo is the source of truth. Never apply migrations directly to remote via the Supabase dashboard.** Every schema change lives in `supabase/migrations/` and reaches production through `supabase db push` from a merged PR. If you experiment in the dashboard SQL editor, copy the final SQL into a migration file and open a PR before anything becomes permanent. A diverged migration history is painful to recover (see the 20260415/20260416 incident).
+
+**Before pushing migrations, run `supabase migration list`.** Local and remote columns should match row-for-row. Any `—` in the Local column means someone edited remote directly; stop and reconcile before pushing.
+
+**Use full timestamp naming — `YYYYMMDDHHMMSS_name.sql`.** The tracker uses the version prefix as a primary key; the old `YYYYMMDD_name.sql` convention caps you at one migration per day and silently collides on the second push. Letter-suffix hacks like `20260401b_*.sql` are *skipped* by the CLI parser — do not use them.
+
 **Every column referenced in code must have a migration, committed together.** If you add a column to an INSERT, the migration creating it must be in the same commit.
 
 **After writing a rename migration, grep the codebase for the old name.** Column rename mismatches are silent in dev and catastrophic in production.
@@ -196,6 +205,12 @@ try {
 **One logical change per migration file.** This makes rollback possible at any point in the chain.
 
 **RLS policies: INSERT should constrain the target, not just the actor.** A policy that only checks `auth.uid() IS NOT NULL` lets any authenticated user write rows targeting any other user.
+
+**Prefer `app.current_user_id()` over `auth.uid()` in new RLS policies and SECURITY DEFINER functions.** The wrapper (defined in `supabase/migrations/20260418120000_add_app_current_user_id.sql`) delegates to `auth.uid()` today; when we move off Supabase Auth, we rewrite one function body instead of every policy. Existing `auth.uid()` call sites stay put until the surrounding policy is touched for other reasons — no bulk rewrite.
+
+### Data Collection and Values
+
+**If a new data use would need to be disclosed in `/datenschutz`, treat that as a strong signal to reconsider collecting it at all.** The Datenschutz page is our honest record of what we do with people's data. Every addition to it is a surface we commit to maintaining — consent flows, retention policy, Art 30 records, possibly cross-border transfer paperwork. Before adding a disclosure, ask: do we need this data, or can we achieve the same goal by pointing users at a third party that acts as the controller themselves? Example: newsletter collection was removed (migration 20260417110000_drop_newsletter_subscribers.sql) because pointing users at a Substack signup directly makes Substack the controller — we don't touch the email. Same outcome, no GDPR surface on our side.
 
 ### Constants and Configuration
 

@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { page } from '$app/state';
 	import type { ActionData, PageData } from './$types';
+	import { copy } from '$lib/copy';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	let loading = $state(false);
@@ -10,6 +12,17 @@
 	const checkEmail = $derived((form as any)?.checkEmail === true);
 	const verifyEmail = $derived((form as any)?.email as string | undefined);
 	const verifyError = $derived((form as any)?.verifyError as string | undefined);
+
+	// Preserve the referral context across the OTP round-trip. After the
+	// signup POST the URL keeps any `?ref=` param, so reading from page.url
+	// here is resilient to refreshes and cross-checks data.ref.
+	const startOverHref = $derived.by(() => {
+		const params = new URLSearchParams();
+		const ref = page.url.searchParams.get('ref') ?? data.ref ?? '';
+		if (ref) params.set('ref', ref);
+		const qs = params.toString();
+		return qs ? `/signup?${qs}` : '/signup';
+	});
 
 	// 6 individual digit inputs
 	let digits = $state(['', '', '', '', '', '']);
@@ -47,15 +60,15 @@
 </script>
 
 <svelte:head>
-	<title>Join dyad.</title>
+	<title>{copy.auth.signupPageTitle}</title>
 </svelte:head>
 
 <div class="auth-card">
 	{#if checkEmail}
 		<!-- Step 2: OTP verification -->
-		<h1>Check your email</h1>
+		<h1>{copy.auth.checkYourEmail}</h1>
 		<p class="subtitle">
-			We sent a 6-digit code to <strong>{verifyEmail}</strong>.
+			{copy.auth.otpIntro} <strong>{verifyEmail}</strong>.
 		</p>
 
 		{#if verifyError}
@@ -93,17 +106,17 @@
 				{/each}
 			</div>
 
-			<button type="submit" class="submit-btn" disabled={loading || otp.length < 6}>
-				{loading ? 'Verifying...' : 'Confirm'}
+			<button type="submit" class="btn-primary btn-primary--block" disabled={loading || otp.length < 6}>
+				{loading ? copy.auth.verifying : copy.auth.confirm}
 			</button>
 		</form>
 
-		<p class="switch-auth">Wrong email? <a href="/signup?ref={data.ref ?? ''}" class="link-btn">Start over</a></p>
+		<p class="switch-auth">{copy.auth.wrongEmail} <a href={startOverHref} class="link-btn">{copy.auth.startOver}</a></p>
 
 	{:else}
 		<!-- Step 1: Create account form -->
-		<h1>You're invited</h1>
-		<p class="subtitle">Create your account to join the conversation.</p>
+		<h1>{copy.auth.youreInvited}</h1>
+		<p class="subtitle">{copy.auth.createAccountSubtitle}</p>
 
 		{#if form?.error}
 			<div class="error-message">{form.error}</div>
@@ -124,7 +137,7 @@
 			<input type="hidden" name="motivation" value={data.motivation ?? ''} />
 
 			<div class="form-group">
-				<label for="email">Email</label>
+				<label for="email" class="sr-only">{copy.auth.email}</label>
 				<input
 					type="email"
 					id="email"
@@ -132,12 +145,13 @@
 					value={data.email ?? ''}
 					required
 					autocomplete="email"
+					placeholder={copy.auth.emailPlaceholder}
 					disabled={loading}
 				/>
 			</div>
 
 			<div class="form-group">
-				<label for="username">Username</label>
+				<label for="username" class="sr-only">{copy.auth.usernamePlaceholder}</label>
 				<input
 					type="text"
 					id="username"
@@ -145,44 +159,45 @@
 					bind:value={username}
 					required
 					autocomplete="username"
+					placeholder={copy.auth.usernamePlaceholder}
 					disabled={loading}
 					minlength={3}
 					maxlength={30}
 					pattern="[a-z0-9_\-]+"
-					title="Lowercase letters, numbers, underscores, and hyphens only"
+					title={copy.auth.usernameTitle}
 				/>
-				<p class="hint">Your public URL: dyad.berlin/<strong>@username</strong></p>
+				<p class="hint">{copy.auth.usernameHintShort}<strong>@username</strong></p>
 			</div>
 
 			<div class="form-group">
-				<label for="password">Password</label>
+				<label for="password" class="sr-only">{copy.auth.password}</label>
 				<input
 					type="password"
 					id="password"
 					name="password"
 					required
 					autocomplete="new-password"
+					placeholder={copy.auth.passwordWithMinPlaceholder}
 					disabled={loading}
 					minlength={8}
 				/>
-				<p class="hint">At least 8 characters</p>
 			</div>
 
 			<div class="form-group checkbox-group">
 				<label class="checkbox-label">
 					<input type="checkbox" name="berlin_based" checked disabled={loading} />
-					<span>I'm based in Berlin</span>
+					<span>{copy.auth.berlinBased}</span>
 				</label>
 			</div>
 
-			<button type="submit" class="submit-btn" disabled={loading}>
-				{loading ? 'Creating account...' : 'Create account'}
+			<button type="submit" class="btn-primary btn-primary--block" disabled={loading}>
+				{loading ? copy.auth.creatingAccount : copy.auth.createAccount}
 			</button>
 		</form>
 
 		<p class="switch-auth">
-			Already have an account?
-			<a href="/login" class="link-btn">Sign in</a>
+			{copy.auth.alreadyHaveAccount}
+			<a href="/login" class="link-btn">{copy.auth.signIn}</a>
 		</p>
 	{/if}
 </div>
@@ -303,29 +318,7 @@
 		border-color: var(--text-primary);
 	}
 
-	/* ── Submit ── */
-	.submit-btn {
-		width: 100%;
-		padding: var(--space-3);
-		background: var(--text-primary);
-		color: var(--bg-canvas);
-		border: none;
-		border-radius: var(--radius-input);
-		font-size: var(--text-lg);
-		font-family: inherit;
-		cursor: pointer;
-		transition: opacity 0.2s;
-		margin-top: var(--space-2);
-	}
-
-	.submit-btn:hover:not(:disabled) {
-		opacity: var(--opacity-hover-btn);
-	}
-
-	.submit-btn:disabled {
-		opacity: var(--opacity-disabled);
-		cursor: not-allowed;
-	}
+	/* .btn-primary / .btn-primary--block live in shared.css */
 
 	.switch-auth {
 		margin: var(--space-6) 0 0 0;

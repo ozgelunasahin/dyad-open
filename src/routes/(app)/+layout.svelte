@@ -4,32 +4,35 @@
 	import { onMount } from 'svelte';
 	import { env } from '$env/dynamic/public';
 	import type { LayoutData } from './$types';
-	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
 	import MeetingFeedbackModal from '$lib/components/MeetingFeedbackModal.svelte';
+	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
 	import { initPosthog, capture } from '$lib/analytics';
 
 	let { data, children }: { data: LayoutData; children: any } = $props();
 
 	let posthogReady = $state(false);
 
-	onMount(async () => {
-		if (!env.PUBLIC_POSTHOG_KEY) return;
-		await initPosthog(env.PUBLIC_POSTHOG_KEY, data.user?.id, data.username);
-		posthogReady = true;
-	});
+	// PostHog disabled — re-enable after privacy/reliability fixes land (#101)
+	// onMount(async () => {
+	// 	if (!env.PUBLIC_POSTHOG_KEY) return;
+	// 	await initPosthog(env.PUBLIC_POSTHOG_KEY, data.user?.id, data.username);
+	// 	posthogReady = true;
+	// });
 
-	// Track SvelteKit client-side route changes
-	$effect(() => {
-		if (!posthogReady || !browser) return;
-		capture('$pageview', { path: $page.url.pathname });
-	});
+	// $effect(() => {
+	// 	if (!posthogReady || !browser) return;
+	// 	capture('$pageview', { path: $page.url.pathname });
+	// });
 </script>
 
 <main class="main-content">
 	{@render children()}
 </main>
 
-<FeedbackModal isAdmin={data.isAdmin} />
+<!-- Authenticated-only: /api/feedback/app requires auth, so the button
+	lives here rather than on the root layout. Pre-auth surfaces (landing,
+	/login, /signup, /join, /waitlist) deliberately have no feedback path. -->
+<FeedbackModal />
 
 {#if data.pendingFeedback}
 	<MeetingFeedbackModal
