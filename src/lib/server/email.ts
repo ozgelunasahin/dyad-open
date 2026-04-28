@@ -15,7 +15,7 @@ import { env } from '$env/dynamic/private';
  * Environment variables:
  *   EMAIL_PROVIDER   — 'mailpit' (default) or 'resend'
  *   RESEND_API_KEY   — Resend API key (required for resend)
- *   EMAIL_FROM       — sender address (default: hello@dyad.berlin)
+ *   EMAIL_FROM       — sender address (default: hello@dyadberlin)
  */
 export async function sendEmail(params: {
 	to: string;
@@ -42,7 +42,7 @@ export async function sendEmail(params: {
 					'Authorization': `Bearer ${apiKey}`
 				},
 				body: JSON.stringify({
-					from: `dyad. <${from}>`,
+					from: `Dyad <${from}>`,
 					to: [params.to],
 					subject: params.subject,
 					html: params.html
@@ -62,7 +62,7 @@ export async function sendEmail(params: {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
-				From: { Email: from, Name: 'dyad.' },
+				From: { Email: from, Name: 'Dyad' },
 				To: [{ Email: params.to }],
 				Subject: params.subject,
 				HTML: params.html

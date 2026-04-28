@@ -57,7 +57,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			html: `
 				<div style="font-family: Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 40px 20px; color: #1a1a1a; line-height: 1.7;">
 					<p>Hi ${displayName},</p>
-					<p>You've been invited to join dyad — a community of people in Berlin who meet for real conversations.</p>
+					<p>We are letting in groups of people to come and play. We are currently on our private beta and would love for you to take a walk inside and tell us about your experience. You can do this asynchronously via the feedback area on the bottom right with a question mark icon. We are looking forward to bringing the fruits of our love, care and labor to you.</p>
 					<p><a href="${inviteUrl}" style="color: #1a1a1a; font-weight: bold; text-decoration: underline;">Join dyad</a></p>
 					<p style="font-size: 14px; color: #666;">This link expires in ${INVITE_EXPIRY_DAYS} days.</p>
 					<hr style="border: none; border-top: 1px solid #e0ddd8; margin: 32px 0 16px;" />
