@@ -26,7 +26,6 @@ async function requireAdmin(locals: App.Locals) {
 }
 
 /**
-/**
  * Render the invitation email body.
  *
  * `opener` is the admin's own opening line — e.g. "Hey T —" or "Hi Ozge,".

@@ -21,6 +21,7 @@
 	let name = $state('');
 	let city = $state('');
 	let email = $state('');
+	let newsletterConsent = $state(false);
 
 	// Login fields
 	let loginEmail = $state('');
@@ -68,6 +69,13 @@
 			if (res.ok) {
 				success = true;
 				capture('waitlist_joined', { referred_by: dyadRef || null });
+				if (newsletterConsent) {
+					fetch('/api/newsletter', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ email: email.trim(), consent: true, source: 'waitlist' })
+					}).catch(() => { /* non-critical */ });
+				}
 			} else if (res.status === 409) {
 				success = true; // Already on waitlist — show friendly message
 				error = 'already';
@@ -183,6 +191,11 @@
 							</optgroup>
 						</select>
 						<p class="city-note">{copy.waitlist.cityExpansionNote}</p>
+					</label>
+
+					<label class="newsletter-consent">
+						<input type="checkbox" bind:checked={newsletterConsent} />
+						<span>Subscribe to the Dyad newsletter on Substack.</span>
 					</label>
 
 					{#if error && error !== 'already'}
@@ -333,6 +346,26 @@
 	.city-note {
 		margin: var(--space-2) 0 0;
 		font-size: var(--text-xs);
+		color: var(--text-muted);
+		line-height: 1.5;
+	}
+
+	.newsletter-consent {
+		display: flex;
+		align-items: flex-start;
+		gap: var(--space-2);
+		cursor: pointer;
+		margin-bottom: var(--space-4);
+	}
+
+	.newsletter-consent input[type='checkbox'] {
+		margin-top: 3px;
+		flex-shrink: 0;
+		cursor: pointer;
+	}
+
+	.newsletter-consent span {
+		font-size: var(--text-sm);
 		color: var(--text-muted);
 		line-height: 1.5;
 	}

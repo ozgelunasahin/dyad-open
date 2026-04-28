@@ -6,6 +6,7 @@
 	let email = $state('');
 	let basedIn = $state('');
 	let freewrite = $state('');
+	let newsletterConsent = $state(false);
 	let status = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
 	let errorMsg = $state('');
 
@@ -37,6 +38,15 @@
 			}
 
 			status = 'sent';
+
+			// Subscribe to newsletter if consent given — fire and forget
+			if (newsletterConsent) {
+				fetch('/api/newsletter', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ email: email.trim(), consent: true })
+				}).catch(() => { /* non-critical */ });
+			}
 		} catch (err) {
 			errorMsg = err instanceof Error ? err.message : copy.waitlist.genericError;
 			status = 'error';
@@ -87,6 +97,16 @@
 					disabled={status === 'sending'}
 				/>
 			</div>
+
+			<label class="newsletter-consent">
+				<input
+					type="checkbox"
+					bind:checked={newsletterConsent}
+					disabled={status === 'sending'}
+				/>
+				<span>Subscribe me to the Dyad newsletter on Substack.</span>
+			</label>
+
 			<button type="submit" class="btn-primary btn-primary--block" disabled={status === 'sending'}>
 				{status === 'sending' ? copy.waitlist.sending : copy.waitlist.submitCta}
 			</button>
@@ -141,10 +161,9 @@
 
 	.freewrite-label {
 		display: block;
-		font-size: var(--text-sm);
+		font-size: var(--text-md);
 		color: var(--text-muted);
-		margin-bottom: var(--space-1);
-		font-style: italic;
+		margin-bottom: var(--space-4);
 	}
 
 	textarea {
@@ -195,6 +214,27 @@
 	input:disabled {
 		opacity: var(--opacity-disabled);
 		cursor: not-allowed;
+	}
+
+	.newsletter-consent {
+		display: flex;
+		align-items: flex-start;
+		gap: var(--space-2);
+		cursor: pointer;
+		margin-bottom: var(--space-5);
+	}
+
+	.newsletter-consent input[type='checkbox'] {
+		width: auto;
+		margin-top: 3px;
+		flex-shrink: 0;
+		cursor: pointer;
+	}
+
+	.newsletter-consent span {
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+		line-height: 1.5;
 	}
 
 	/* .btn-primary / .btn-primary--block live in shared.css */
