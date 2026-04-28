@@ -45,21 +45,21 @@ function renderInviteEmail(params: {
 	inviteUrl: string;
 	message?: string;
 }): string {
-	const openerBlock = params.opener ? `\n\t\t\t\t<p>${params.opener}</p>` : '';
+	const openerBlock = params.opener ? `\n\t\t\t\t<p style="font-family: Helvetica, Arial, sans-serif; margin: 0 0 16px;">${params.opener}</p>` : '';
 	const personalBlock = params.message
 		? `
-				<blockquote style="margin: 0 0 24px; padding: 12px 16px; background: #f7f4ee; border-left: 3px solid #c8c2b6; font-style: italic; color: #3a3a3a; white-space: pre-wrap;">${escapeHtml(
+				<blockquote style="font-family: Helvetica, Arial, sans-serif; margin: 0 0 24px; padding: 12px 16px; background: #f7f4ee; border-left: 3px solid #c8c2b6; font-style: italic; color: #3a3a3a; white-space: pre-wrap;">${escapeHtml(
 					params.message
 				).replace(/\n/g, '<br>')}</blockquote>`
 		: '';
 
 	return `
 			<div style="font-family: Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 40px 20px; color: #1a1a1a; line-height: 1.7;">${openerBlock}${personalBlock}
-				<p><a href="${params.inviteUrl}" style="color: #1a1a1a; font-weight: bold; text-decoration: underline;">Join dyad</a></p>
-				<p style="font-size: 14px; color: #666;">This link expires in ${INVITE_EXPIRY_DAYS} days.</p>
+				<p style="font-family: Helvetica, Arial, sans-serif; margin: 0 0 16px;"><a href="${params.inviteUrl}" style="font-family: Helvetica, Arial, sans-serif; color: #1a1a1a; font-weight: bold; text-decoration: underline;">Join dyad</a></p>
+				<p style="font-family: Helvetica, Arial, sans-serif; font-size: 14px; color: #666; margin: 0 0 0;">This link expires in ${INVITE_EXPIRY_DAYS} days.</p>
 				<hr style="border: none; border-top: 1px solid #e0ddd8; margin: 32px 0 16px;" />
 				<a href="https://dyad.berlin" style="display: inline-block;"><img src="https://dyad.berlin/images/logo-dark.png" alt="dyad" style="height: 32px; width: auto; margin-bottom: 8px;" /></a>
-				<p style="font-size: 12px; color: #999; margin: 0;">cultivating a culture of conversation</p>
+				<p style="font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: #999; margin: 0;">cultivating a culture of conversation</p>
 			</div>
 		`;
 }
