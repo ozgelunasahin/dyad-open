@@ -3,6 +3,17 @@
 
 	let { data }: { data: PageData } = $props();
 
+	let showResolved = $state(false);
+
+	const HIDDEN_STATUSES = new Set(['resolved', 'wont_fix']);
+
+	let visibleEntries = $derived(
+		showResolved ? data.entries : data.entries.filter((e) => !HIDDEN_STATUSES.has(e.status))
+	);
+	let hiddenCount = $derived(
+		data.entries.filter((e) => HIDDEN_STATUSES.has(e.status)).length
+	);
+
 	function formatDate(iso: string): string {
 		return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 	}
@@ -13,13 +24,22 @@
 </svelte:head>
 
 <h1 class="admin-title">App Feedback</h1>
-<p class="admin-subtitle">{data.entries.length} entries</p>
+<p class="admin-subtitle">
+	{visibleEntries.length} of {data.entries.length} entries{#if hiddenCount > 0 && !showResolved} · {hiddenCount} hidden{/if}
+</p>
+
+<label class="show-resolved">
+	<input type="checkbox" bind:checked={showResolved} />
+	<span>Show resolved &amp; won't-fix</span>
+</label>
 
 {#if data.entries.length === 0}
 	<p class="empty">No feedback submitted yet.</p>
+{:else if visibleEntries.length === 0}
+	<p class="empty">No open feedback. Tick the box above to see resolved items.</p>
 {:else}
 	<div class="feedback-list">
-		{#each data.entries as entry}
+		{#each visibleEntries as entry}
 			<div class="feedback-card">
 				<div class="feedback-header">
 					<span class="badge badge-{entry.type}">{entry.type}</span>
@@ -38,8 +58,19 @@
 
 <style>
 	.admin-title { font-size: var(--text-2xl); font-weight: normal; margin: 0 0 var(--space-1); }
-	.admin-subtitle { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin: 0 0 var(--space-6); }
+	.admin-subtitle { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin: 0 0 var(--space-3); }
 	.empty { color: var(--text-muted); padding: var(--space-6) 0; }
+
+	.show-resolved {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+		cursor: pointer;
+		margin-bottom: var(--space-6);
+	}
+	.show-resolved input { cursor: pointer; }
 
 	.feedback-card {
 		padding: var(--space-4);
@@ -68,7 +99,10 @@
 	.badge-feature { background: rgba(59,130,246,0.12); color: #2563eb; }
 	.badge-other { background: color-mix(in srgb, var(--text-primary) 6%, transparent); color: var(--text-muted); }
 	.badge-status-new { background: rgba(245,158,11,0.12); color: #b45309; }
-	.badge-status-reviewed { background: rgba(61,158,90,0.12); color: #2d7a42; }
+	.badge-status-reviewed { background: rgba(59,130,246,0.12); color: #2563eb; }
+	.badge-status-in_progress { background: rgba(168,85,247,0.12); color: #7c3aed; }
+	.badge-status-resolved { background: rgba(61,158,90,0.12); color: #2d7a42; }
+	.badge-status-wont_fix { background: color-mix(in srgb, var(--text-primary) 6%, transparent); color: var(--text-muted); }
 
 	.feedback-user { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
 	.feedback-date { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
