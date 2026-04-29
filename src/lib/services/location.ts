@@ -144,16 +144,45 @@ export async function deriveGeneralArea(location: LocationRef): Promise<{
 	};
 }
 
-/** Check if a location falls within the expected region. */
+/** Marker used by LocationSearch when the user typed a free-text address that
+ *  Nominatim didn't surface as a structured result. These have no real coords
+ *  (lat: 0, lng: 0) so they can't be validated against a bbox — treat the
+ *  user's intent as authoritative and accept them. */
+const MANUAL_PLACE_ID = 'manual';
+
+/** Check if a location falls within the expected region.
+ *
+ *  Free-text manual entries (place_id === 'manual') bypass the bbox check —
+ *  the user typed the address explicitly, often because Nominatim returned no
+ *  Berlin match (e.g. small cafés, recently-opened venues) or returned a
+ *  geocoded result outside the bbox. Trust the user's intent over geocoding.
+ *  Real Nominatim results are still bbox-checked. */
 export function validateRegion(location: LocationRef, region: string = 'berlin'): boolean {
+	if (location.place_id === MANUAL_PLACE_ID) return true;
+
 	const bounds = regionBounds[region];
 	if (!bounds) return false;
-	return (
+	const inside =
 		location.lat >= bounds.south &&
 		location.lat <= bounds.north &&
 		location.lng >= bounds.west &&
-		location.lng <= bounds.east
-	);
+		location.lng <= bounds.east;
+
+	// Geocoding failures are the most common source of "outside region" rejects
+	// for addresses that obviously belong (e.g. Nominatim returning a different
+	// Friedrichshain). Log a structured trace so future reports can be diagnosed
+	// without instrumenting the user.
+	if (!inside) {
+		console.error('[location] validateRegion rejected non-manual location:', {
+			region,
+			place_id: location.place_id,
+			name: location.name,
+			lat: location.lat,
+			lng: location.lng
+		});
+	}
+
+	return inside;
 }
 
 // Region definitions
