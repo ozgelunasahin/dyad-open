@@ -65,6 +65,10 @@ const WikilinkStatic = Node.create({
  */
 const extensions = [
 	StarterKit.configure({
+		// Disable StarterKit's bundled Link so we can register our own with custom HTMLAttributes.
+		// Including both StarterKit's Link and a separate Link triggers a tiptap duplicate-extension
+		// warning that has caused empty render output in some environments.
+		link: false,
 		heading: { levels: [1, 2, 3] },
 		bulletList: {},
 		orderedList: {},
@@ -126,11 +130,7 @@ export function renderTiptapToHtml(content: JSONContent | null | undefined): str
 	const safeContent =
 		content.type === 'doc' ? content : { type: 'doc', content: [{ type: 'paragraph' }] };
 
-	try {
-		const html = generateHTML(safeContent, extensions);
-		return DOMPurify.sanitize(html, PURIFY_CONFIG);
-	} catch (err) {
-		console.error('TipTap HTML rendering failed:', err);
-		return '';
-	}
+	// Let exceptions propagate so callers can attach context (e.g. prompt id) before logging.
+	const html = generateHTML(safeContent, extensions);
+	return DOMPurify.sanitize(html, PURIFY_CONFIG);
 }

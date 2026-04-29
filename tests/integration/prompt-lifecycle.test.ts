@@ -187,6 +187,35 @@ describe('Prompt lifecycle', () => {
 				expect((slot as unknown as Record<string, unknown>).exact_location).toBeUndefined();
 			}
 		});
+
+		it('prompt detail body_html contains the full body text for a long body (no truncation)', async () => {
+			// Create a draft with a deliberately long body so body_snippet must truncate to 200ch + …
+			// while body_html must contain the full text. Asserting against jsonToPlainText guarantees
+			// fidelity rather than just a length comparison.
+			const longText = 'word '.repeat(80).trim() + ' end-marker.';
+			const draft = await digitServices.promptCommand.create(SEED_USERS.digit.id, {
+				title: 'long-body fidelity test',
+				body: {
+					type: 'doc',
+					content: [{ type: 'paragraph', content: [{ type: 'text', text: longText }] }]
+				}
+			});
+			const slots: TimeSlotInput[] = [
+				{
+					start_time: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+					duration_minutes: 60,
+					location: { place_id: '1', name: 'Test', address: 'Test', lat: 52.5, lng: 13.4 }
+				}
+			];
+			await digitServices.promptCommand.publish(draft.id, SEED_USERS.digit.id, slots);
+
+			const detail = await otherServices.promptQuery.getPromptDetail(draft.id, SEED_USERS.other.id);
+			expect(detail).toBeTruthy();
+			expect(detail!.body_snippet?.endsWith('…')).toBe(true);
+			expect(detail!.body_html).toContain('end-marker.');
+			expect(detail!.body_html).not.toMatch(/…\s*<\/p>\s*$/);
+			expect(detail!.body_html.length).toBeGreaterThan(longText.length);
+		});
 	});
 
 	afterAll(() => cleanTestData());

@@ -202,8 +202,6 @@
 	<div class="body">
 		{#if data.prompt.body_html}
 			{@html data.prompt.body_html}
-		{:else if data.prompt.body_snippet}
-			<p>{data.prompt.body_snippet}</p>
 		{/if}
 	</div>
 

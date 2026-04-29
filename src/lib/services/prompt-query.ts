@@ -4,7 +4,7 @@ import type { Prompt, PromptDetail, PromptSummary, TimeSlot } from '$lib/domain/
 import { isAvailable } from '$lib/domain/time-slot.js';
 import { buildUsernameMap, buildProfileMap } from '$lib/server/username-lookup.js';
 import { jsonToPlainText } from '$lib/utils/json-content.js';
-import { renderTiptapToHtml } from '$lib/utils/tiptap-html.js';
+import { renderBodyHtmlOrFallback } from '$lib/utils/render-body.js';
 
 const SNIPPET_LENGTH = 200;
 
@@ -232,17 +232,7 @@ export class SupabasePromptQueryService implements PromptQueryService {
 			title: prompt.title,
 			body_snippet: makeSnippet(body),
 			body: body ?? { type: 'doc', content: [] },
-			body_html: (() => {
-				// No unescaped fallback — if the TipTap renderer fails or returns empty,
-				// body_html stays empty. The +page.svelte consumes this via {@html}, so
-				// any string-interpolation fallback here would open stored XSS.
-				try {
-					return renderTiptapToHtml(body) ?? '';
-				} catch (err) {
-					console.error('[prompt-query] tiptap render failed:', err);
-					return '';
-				}
-			})(),
+			body_html: renderBodyHtmlOrFallback(body, prompt.id),
 			cover_image_url: prompt.cover_image_url,
 			available_slots: availableSlots,
 			soonest_slot: availableSlots[0]?.start_time ?? null,
