@@ -17,6 +17,9 @@ export interface InvitationService {
 	/** Accept an invitation. Returns meeting ID on success, null if slot already booked. Authorization via auth.uid(). */
 	accept(invitationId: string): Promise<string | null>;
 
+	/** Decline a pending invitation with an optional reason. Authorization via auth.uid() (must be invitee). */
+	decline(invitationId: string, reason?: string): Promise<void>;
+
 	getPendingForPrompt(promptId: string, userId: string): Promise<MeetingInvitation[]>;
 }
 
@@ -82,6 +85,29 @@ export class SupabaseInvitationService implements InvitationService {
 
 		if (error) throw new Error(`Failed to accept invitation: ${error.message}`);
 		return (data as string) ?? null;
+	}
+
+	async decline(invitationId: string, reason?: string): Promise<void> {
+		const { error } = await this.supabase.rpc('decline_invitation', {
+			p_invitation_id: invitationId,
+			p_reason: reason ?? null
+		});
+
+		if (error) {
+			// Surface validation errors as DomainError so the API layer can choose
+			// the right HTTP status without leaking the raw Postgres message.
+			const msg = error.message ?? '';
+			if (msg.includes('Not authorized')) {
+				throw new DomainError('Not authorized to decline this invitation', 403);
+			}
+			if (msg.includes('not pending') || msg.includes('not found')) {
+				throw new DomainError('Invitation not found or already resolved', 404);
+			}
+			if (msg.includes('at most 2000 characters')) {
+				throw new DomainError('Reason must be at most 2000 characters', 400);
+			}
+			throw new Error(`Failed to decline invitation: ${error.message}`);
+		}
 	}
 
 	async getPendingForPrompt(promptId: string, userId: string): Promise<MeetingInvitation[]> {

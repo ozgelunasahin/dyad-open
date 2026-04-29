@@ -163,6 +163,101 @@ describe('Invitation lifecycle', () => {
 			);
 			expect(slots.length).toBe(0); // no available slots left
 		});
+
+		it('accept inserts a meeting_response notification for the inviter', async () => {
+			const { data: notifications } = await adminClient
+				.from('notifications')
+				.select('user_id, type, data')
+				.eq('user_id', SEED_USERS.digit.id)
+				.eq('type', 'meeting_response')
+				.order('created_at', { ascending: false })
+				.limit(1);
+
+			const latest = notifications?.[0];
+			expect(latest).toBeTruthy();
+			expect((latest!.data as { kind?: string }).kind).toBe('accepted');
+			expect((latest!.data as { invitation_id?: string }).invitation_id).toBe(invitationId);
+		});
+	});
+
+	describe('decline', () => {
+		let promptId: string;
+		let slotId: string;
+		let invitationId: string;
+
+		it('sets up a fresh prompt for decline testing', async () => {
+			const prompt = await otherServices.promptCommand.create(SEED_USERS.other.id, {
+				title: 'Decline test prompt'
+			});
+			promptId = prompt.id;
+
+			const fiveDaysOut = new Date();
+			fiveDaysOut.setDate(fiveDaysOut.getDate() + 5);
+
+			await otherServices.promptCommand.publish(promptId, SEED_USERS.other.id, [
+				{
+					start_time: fiveDaysOut.toISOString(),
+					duration_minutes: 60,
+					location: {
+						place_id: 'decline-test',
+						name: 'Decline Venue',
+						address: 'Declinestr 1, 10999 Berlin',
+						lat: 52.5,
+						lng: 13.43
+					}
+				}
+			]);
+
+			const slots = await otherServices.promptQuery.getAvailableSlots(
+				promptId,
+				SEED_USERS.other.id
+			);
+			slotId = slots[0].id;
+
+			const invitation = await digitServices.invitation.create({
+				promptId,
+				slotId,
+				inviterId: SEED_USERS.digit.id,
+				inviteeId: SEED_USERS.other.id
+			});
+			invitationId = invitation.id;
+		});
+
+		it('invitee declines with a reason — state moves to declined', async () => {
+			await otherServices.invitation.decline(invitationId, 'Not the right time for me');
+
+			const { data: row } = await adminClient
+				.from('prompt_invitations')
+				.select('state, resolved_at, decline_reason')
+				.eq('id', invitationId)
+				.single();
+
+			expect(row?.state).toBe('declined');
+			expect(row?.resolved_at).toBeTruthy();
+			expect(row?.decline_reason).toBe('Not the right time for me');
+		});
+
+		it('decline inserts a meeting_response notification for the inviter', async () => {
+			const { data: notifications } = await adminClient
+				.from('notifications')
+				.select('user_id, type, data')
+				.eq('user_id', SEED_USERS.digit.id)
+				.eq('type', 'meeting_response')
+				.order('created_at', { ascending: false })
+				.limit(1);
+
+			const latest = notifications?.[0];
+			expect(latest).toBeTruthy();
+			expect((latest!.data as { kind?: string }).kind).toBe('declined');
+			expect((latest!.data as { invitation_id?: string }).invitation_id).toBe(invitationId);
+			expect((latest!.data as { reason?: string }).reason).toBe('Not the right time for me');
+		});
+
+		it('declining an already-resolved invitation throws', async () => {
+			await expect(
+				otherServices.invitation.decline(invitationId, 'second attempt')
+			).rejects.toThrow();
+		});
 	});
 
 	describe('expiry', () => {

@@ -43,6 +43,12 @@
 	let acceptingId = $state<string | null>(null);
 	let acceptError = $state('');
 
+	// Author: decline invitation (with optional message)
+	let decliningId = $state<string | null>(null);
+	let declineError = $state('');
+	let openDeclineId = $state<string | null>(null);
+	let declineMessage = $state('');
+
 	function formatDate(iso: string): string {
 		return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 	}
@@ -152,6 +158,44 @@
 			acceptError = copy.common.networkError;
 		} finally {
 			acceptingId = null;
+		}
+	}
+
+	function openDecline(invitationId: string) {
+		openDeclineId = invitationId;
+		declineMessage = '';
+		declineError = '';
+	}
+
+	function cancelDecline() {
+		openDeclineId = null;
+		declineMessage = '';
+		declineError = '';
+	}
+
+	async function declineInvitation(invitationId: string) {
+		decliningId = invitationId;
+		declineError = '';
+		try {
+			const reason = declineMessage.trim();
+			const res = await fetch(`/api/invitations/${invitationId}/decline`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(reason ? { reason } : {})
+			});
+			if (res.ok) {
+				capture('meeting_invite_declined', { prompt_id: data.prompt.id });
+				openDeclineId = null;
+				declineMessage = '';
+				await invalidateAll();
+			} else {
+				const err = await res.json().catch(() => ({}));
+				declineError = (err as { error?: string }).error ?? copy.conversation.declineFailed;
+			}
+		} catch {
+			declineError = copy.common.networkError;
+		} finally {
+			decliningId = null;
 		}
 	}
 
@@ -387,9 +431,34 @@
 								{#if invitation.message}
 									<p class="inv-message">{invitation.message}</p>
 								{/if}
-								<button class="btn-primary" onclick={() => acceptInvitation(invitation.id)} disabled={acceptingId === invitation.id}>
-									{acceptingId === invitation.id ? copy.common.accepting : copy.common.accept}
-								</button>
+								{#if openDeclineId === invitation.id}
+									<textarea
+										class="invite-message-textarea"
+										placeholder={copy.conversation.declineMessagePlaceholder}
+										bind:value={declineMessage}
+										rows={3}
+										maxlength={2000}
+										disabled={decliningId === invitation.id}
+									></textarea>
+									{#if declineError}<p class="field-error" role="alert">{declineError}</p>{/if}
+									<div class="invite-actions">
+										<button class="btn-secondary" onclick={cancelDecline} disabled={decliningId === invitation.id}>
+											{copy.common.cancel}
+										</button>
+										<button class="btn-primary" onclick={() => declineInvitation(invitation.id)} disabled={decliningId === invitation.id}>
+											{decliningId === invitation.id ? copy.conversation.declining : copy.conversation.decline}
+										</button>
+									</div>
+								{:else}
+									<div class="invite-actions">
+										<button class="btn-text btn-text--danger" onclick={() => openDecline(invitation.id)} disabled={acceptingId === invitation.id}>
+											{copy.conversation.decline}
+										</button>
+										<button class="btn-primary" onclick={() => acceptInvitation(invitation.id)} disabled={acceptingId === invitation.id}>
+											{acceptingId === invitation.id ? copy.common.accepting : copy.common.accept}
+										</button>
+									</div>
+								{/if}
 							{/if}
 						</div>
 					{/if}
@@ -409,9 +478,34 @@
 							{#if inv.message}
 								<p class="inv-message">{inv.message}</p>
 							{/if}
-							<button class="btn-primary" onclick={() => acceptInvitation(inv.id)} disabled={acceptingId === inv.id}>
-								{acceptingId === inv.id ? copy.common.accepting : copy.common.accept}
-							</button>
+							{#if openDeclineId === inv.id}
+								<textarea
+									class="invite-message-textarea"
+									placeholder={copy.conversation.declineMessagePlaceholder}
+									bind:value={declineMessage}
+									rows={3}
+									maxlength={2000}
+									disabled={decliningId === inv.id}
+								></textarea>
+								{#if declineError}<p class="field-error" role="alert">{declineError}</p>{/if}
+								<div class="invite-actions">
+									<button class="btn-secondary" onclick={cancelDecline} disabled={decliningId === inv.id}>
+										{copy.common.cancel}
+									</button>
+									<button class="btn-primary" onclick={() => declineInvitation(inv.id)} disabled={decliningId === inv.id}>
+										{decliningId === inv.id ? copy.conversation.declining : copy.conversation.decline}
+									</button>
+								</div>
+							{:else}
+								<div class="invite-actions">
+									<button class="btn-text btn-text--danger" onclick={() => openDecline(inv.id)} disabled={acceptingId === inv.id}>
+										{copy.conversation.decline}
+									</button>
+									<button class="btn-primary" onclick={() => acceptInvitation(inv.id)} disabled={acceptingId === inv.id}>
+										{acceptingId === inv.id ? copy.common.accepting : copy.common.accept}
+									</button>
+								</div>
+							{/if}
 						{/if}
 					</div>
 				</div>
@@ -452,6 +546,15 @@
 
 	.btn-text--danger { color: var(--color-danger); }
 	.btn-text--danger:hover { opacity: var(--opacity-hover-btn); }
+
+	/* Accept / Decline action row beneath an invitation card. */
+	.invite-actions {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		margin-top: var(--space-3);
+	}
+	.invite-actions :global(.btn-primary) { margin-left: auto; }
 
 	/* Sections */
 	.slots-section { margin-top: var(--space-4); margin-bottom: var(--space-6); }
