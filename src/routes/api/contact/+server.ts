@@ -88,6 +88,21 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 		error(400, 'Referred by username is too long');
 	}
 
+	// Short-circuit: if this email already belongs to a confirmed account,
+	// don't add them to the waitlist again — direct them to log in instead.
+	const { data: alreadyMember } = await locals.supabase.rpc('email_is_registered', {
+		p_email: email.trim()
+	});
+	if (alreadyMember === true) {
+		return json(
+			{
+				error: 'This email is already a member. Try signing in instead.',
+				alreadyMember: true
+			},
+			{ status: 409 }
+		);
+	}
+
 	const insertRow: Record<string, string | null> = {
 		email: email.trim(),
 		name: (typeof name === 'string' ? name.trim() : null) || null,

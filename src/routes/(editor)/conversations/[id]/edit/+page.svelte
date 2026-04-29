@@ -153,11 +153,20 @@
 	let dragOver = $state(false);
 	let dragEnterCount = 0;
 	let coverError = $state(false);
+	let coverErrorMessage = $state<string | null>(null);
+
+	function friendlyUploadError(serverMessage: string | undefined): string {
+		const msg = serverMessage ?? '';
+		if (msg.includes('Invalid file type')) return copy.editor.coverInvalidType;
+		if (msg.includes('too large')) return copy.editor.coverTooLarge;
+		return copy.editor.coverUploadFailed;
+	}
 
 	async function uploadFile(file: File) {
 		if (coverPreview) URL.revokeObjectURL(coverPreview);
 		coverPreview = URL.createObjectURL(file);
 		coverError = false;
+		coverErrorMessage = null;
 		publishError = '';
 
 		uploading = true;
@@ -171,10 +180,7 @@
 				scheduleSave();
 			} else {
 				const err = await res.json().catch(() => ({}));
-				const ref = (err as { reference?: string }).reference;
-				publishError =
-					`Upload failed: ${(err as { error?: string }).error ?? 'unknown error'}` +
-					(ref ? ` (ref: ${ref})` : '');
+				coverErrorMessage = friendlyUploadError((err as { error?: string }).error);
 				// Clear both the in-flight preview AND any stale upload URL so the
 				// placeholder returns to its "add a cover" state. Prevents the
 				// "image appears present but publish complains" trap.
@@ -184,7 +190,7 @@
 				coverError = true;
 			}
 		} catch {
-			publishError = 'Upload failed: network error. Please try again.';
+			coverErrorMessage = copy.editor.coverNetworkError;
 			if (coverPreview) URL.revokeObjectURL(coverPreview);
 			coverPreview = null;
 			coverImageUrl = '';
@@ -382,6 +388,10 @@
 		</label>
 	{/if}
 
+	{#if coverErrorMessage}
+		<p class="cover-error-message" role="alert">{coverErrorMessage}</p>
+	{/if}
+
 	<!-- Title -->
 	<input
 		class="title-input"
@@ -472,6 +482,12 @@
 	.cover-placeholder:hover { border-color: var(--text-muted); background: color-mix(in srgb, var(--text-primary) 4%, transparent); }
 	.cover-placeholder.drag-over { border-color: var(--text-primary); background: color-mix(in srgb, var(--text-primary) 5%, transparent); border-style: solid; }
 	.cover-placeholder.cover-error { border-color: var(--color-danger); }
+
+	.cover-error-message {
+		font-size: var(--text-sm);
+		color: var(--color-danger);
+		margin: var(--space-2) 0 var(--space-3);
+	}
 
 	.cover-icon { color: var(--text-muted); }
 	.cover-text { font-size: var(--text-lg); color: var(--text-muted); font-weight: 500; }
