@@ -376,6 +376,7 @@ export const copy = {
 		waitlist: 'Waitlist',
 		invites: 'Invites',
 		feedback: 'Feedback',
+		fieldNotes: 'Field Notes',
 	},
 
 	// ── App feedback ───────────────────────────────────────────────────

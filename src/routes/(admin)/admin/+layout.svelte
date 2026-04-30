@@ -16,6 +16,7 @@
 		<a href="/admin/waitlist" class="admin-tab" class:active={$page.url.pathname === '/admin/waitlist'}>{copy.admin.waitlist}</a>
 		<a href="/admin/invites" class="admin-tab" class:active={$page.url.pathname === '/admin/invites'}>{copy.admin.invites}</a>
 		<a href="/admin/feedback" class="admin-tab" class:active={$page.url.pathname === '/admin/feedback'}>{copy.admin.feedback}</a>
+		<a href="/admin/newsletter" class="admin-tab" class:active={$page.url.pathname.startsWith('/admin/newsletter')}>{copy.admin.fieldNotes}</a>
 	</nav>
 
 	<div class="admin-content">
