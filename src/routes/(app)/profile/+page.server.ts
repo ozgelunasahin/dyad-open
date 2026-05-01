@@ -1,4 +1,5 @@
 import type { PageServerLoad } from './$types';
+import { requireIdentity } from '$lib/services/identity.js';
 import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
 import { SupabaseMeetingService } from '$lib/services/meeting.js';
 import { buildUsernameMap } from '$lib/server/username-lookup.js';
@@ -9,7 +10,8 @@ function getPartnerId(m: { participant_a: string; participant_b: string }, userI
 }
 
 export const load: PageServerLoad = async ({ locals }) => {
-	const userId = locals.user!.id;
+	const upactor = requireIdentity(locals);
+	const userId = upactor.id;
 
 	const [prompts, meetings, receivedInvitations, respondedPrompts, feedbackDue, cancelledNotifications] = await Promise.all([
 		new SupabasePromptQueryService(locals.supabase).getMyPrompts(userId),

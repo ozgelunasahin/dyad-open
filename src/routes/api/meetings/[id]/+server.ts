@@ -1,12 +1,12 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { requireAuth } from '$lib/server/auth.js';
+import { requireIdentity } from '$lib/services/identity.js';
 import { SupabaseMeetingService } from '$lib/services/meeting.js';
 import { handleServiceError } from '$lib/server/handle-service-error.js';
 
 /** GET /api/meetings/[id] — meeting detail (active: with location, cancelled: general area + cancellation info) */
 export const GET: RequestHandler = async ({ params, locals }) => {
-	const user = requireAuth(locals.user);
+	requireIdentity(locals);
 
 	const service = new SupabaseMeetingService(locals.supabase);
 	try {

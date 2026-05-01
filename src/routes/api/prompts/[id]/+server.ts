@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import type { RequestHandler } from './$types';
-import { requireAuth } from '$lib/server/auth.js';
+import { requireIdentity } from '$lib/services/identity.js';
 import { parseJsonBody } from '$lib/server/parse-body.js';
 import { SupabasePromptCommandService } from '$lib/services/prompt-command.js';
 import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
@@ -13,10 +13,10 @@ const STORAGE_URL_PREFIX = `${PUBLIC_SUPABASE_URL}/storage/`;
 
 /** GET /api/prompts/[id] — prompt detail */
 export const GET: RequestHandler = async ({ params, locals }) => {
-	const user = requireAuth(locals.user);
+	const upactor = requireIdentity(locals);
 
 	const service = new SupabasePromptQueryService(locals.supabase);
-	const detail = await service.getPromptDetail(params.id, user.id);
+	const detail = await service.getPromptDetail(params.id, upactor.id);
 
 	if (!detail) {
 		return json({ error: 'Prompt not found' }, { status: 404 });
@@ -26,7 +26,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 /** PATCH /api/prompts/[id] — update content/image */
 export const PATCH: RequestHandler = async ({ params, request, locals }) => {
-	const user = requireAuth(locals.user);
+	const upactor = requireIdentity(locals);
 
 	const [body, errorResponse] = await parseJsonBody<{
 		title?: string;
@@ -54,7 +54,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 
 	const service = new SupabasePromptCommandService(locals.supabase);
 	try {
-		const prompt = await service.update(params.id, user.id, {
+		const prompt = await service.update(params.id, upactor.id, {
 			title: body.title,
 			body: body.body as import('@tiptap/core').JSONContent | undefined,
 			coverImageUrl: body.coverImageUrl
@@ -67,11 +67,11 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 
 /** DELETE /api/prompts/[id] — delete a prompt (any state) */
 export const DELETE: RequestHandler = async ({ params, locals }) => {
-	const user = requireAuth(locals.user);
+	const upactor = requireIdentity(locals);
 
 	const service = new SupabasePromptCommandService(locals.supabase);
 	try {
-		await service.deletePrompt(params.id, user.id);
+		await service.deletePrompt(params.id, upactor.id);
 		return json({ ok: true });
 	} catch (err) {
 		return handleServiceError(err, '[prompts/delete]');

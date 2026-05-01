@@ -1,11 +1,13 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { requireIdentity } from '$lib/services/identity.js';
 import { SupabaseMeetingService } from '$lib/services/meeting.js';
 import { SupabaseFeedbackService } from '$lib/services/feedback.js';
 import type { RevealedFeedback, FeedbackForm } from '$lib/domain/types.js';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
-	const userId = locals.user!.id;
+	const upactor = requireIdentity(locals);
+	const userId = upactor.id;
 	const meetingService = new SupabaseMeetingService(locals.supabase);
 
 	const meeting = await meetingService.getWithLocation(params.id)

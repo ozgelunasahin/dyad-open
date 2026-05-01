@@ -1,10 +1,12 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { requireIdentity } from '$lib/services/identity.js';
 import { SupabaseFeedbackService } from '$lib/services/feedback.js';
 import type { RevealedFeedback } from '$lib/domain/types.js';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
-	const userId = locals.user!.id;
+	const upactor = requireIdentity(locals);
+	const userId = upactor.id;
 	const service = new SupabaseFeedbackService(locals.supabase);
 
 	const [form, vocabulary] = await Promise.all([

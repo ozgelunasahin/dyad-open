@@ -1,10 +1,12 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { requireIdentity } from '$lib/services/identity.js';
 import type { Prompt } from '$lib/domain/types.js';
 import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
-	const userId = locals.user!.id;
+	const upactor = requireIdentity(locals);
+	const userId = upactor.id;
 
 	// Virtual path: /conversations/new/edit renders the editor with an
 	// in-memory blank prompt. No DB row is created until the user saves
