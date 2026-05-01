@@ -1,4 +1,5 @@
 import { redirect } from '@sveltejs/kit';
+import { userToUpactor } from '@prefig/upact-supabase';
 
 /**
  * Shared layout data loader for authenticated route groups.
@@ -33,7 +34,7 @@ export async function loadLayoutData(locals: App.Locals) {
 	const isAdmin = locals.user?.app_metadata?.role === 'admin';
 
 	return {
-		user: locals.user,
+		identity: userToUpactor(locals.user),
 		username: profile?.username ?? '',
 		attentionCount: (invitationCount ?? 0) + (feedbackCount ?? 0),
 		isAdmin,

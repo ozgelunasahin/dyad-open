@@ -44,7 +44,12 @@
 		"vite": "^7.2.6",
 		"vitest": "^4.0.17"
 	},
+	"overrides": {
+		"@supabase/supabase-js": "$@supabase/supabase-js"
+	},
 	"dependencies": {
+		"@prefig/upact": "file:../prefig/upact",
+		"@prefig/upact-supabase": "file:../prefig/upact-supabase",
 		"@supabase/ssr": "^0.8.0",
 		"@supabase/supabase-js": "^2.90.1",
 		"@sveltejs/adapter-cloudflare": "^7.2.5",

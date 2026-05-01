@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { requireAuth } from '$lib/server/auth.js';
+import { requireIdentity } from '$lib/services/identity.js';
 import { SupabaseInvitationService } from '$lib/services/invitation.js';
 import { handleServiceError } from '$lib/server/handle-service-error.js';
 
@@ -8,7 +8,7 @@ const MAX_REASON_LENGTH = 2000;
 
 /** POST /api/invitations/[id]/decline — invitee declines a pending invitation */
 export const POST: RequestHandler = async ({ params, request, locals }) => {
-	const user = requireAuth(locals.user);
+	const upactor = requireIdentity(locals);
 
 	let body: unknown = {};
 	const contentLength = request.headers.get('content-length');
@@ -41,7 +41,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		await service.decline(params.id, reason);
 		// Suppress unused-variable warning while keeping the auth call as the
 		// authoritative gate (the SQL function also enforces invitee identity).
-		void user;
+		void upactor;
 		return json({ ok: true });
 	} catch (err) {
 		return handleServiceError(err, '[invitations/decline]');
