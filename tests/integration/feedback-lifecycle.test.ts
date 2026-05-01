@@ -31,7 +31,8 @@ describe('Feedback lifecycle', () => {
 	describe('setup: create a meeting and advance it', () => {
 		it('creates a prompt, invitation, and meeting', async () => {
 			const prompt = await otherServices.promptCommand.create(SEED_USERS.other.id, {
-				title: 'Feedback test prompt'
+				title: 'Feedback test prompt',
+				coverImageUrl: 'https://picsum.photos/seed/test/800/400'
 			});
 
 			const twoDays = new Date();
@@ -195,7 +196,8 @@ describe('Feedback lifecycle', () => {
 		it('rejects invalid rating tags', async () => {
 			// Create a new meeting for this test
 			const prompt = await otherServices.promptCommand.create(SEED_USERS.other.id, {
-				title: 'Vocab validation test'
+				title: 'Vocab validation test',
+				coverImageUrl: 'https://picsum.photos/seed/test/800/400'
 			});
 			const twoDays = new Date();
 			twoDays.setDate(twoDays.getDate() + 2);
