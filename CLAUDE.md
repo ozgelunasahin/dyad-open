@@ -73,7 +73,9 @@ All authenticated routes live under `src/routes/(app)/`. The layout provides:
 | `PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
 | `PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon key (public, works with RLS) |
 | `RESEND_API_KEY` | Yes | Email delivery (invites, notifications) |
-| `SUPABASE_SERVICE_ROLE_KEY` | No | Only for admin scripts |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes (for admin plane) | Service-role client for the admin plane. The user app never uses it. |
+| `ADMIN_USERNAME` | Yes (for admin plane) | HTTP Basic Auth username gating `/admin/*`. The admin plane has zero overlap with user auth — see `docs/solutions/identity-decoupling-security-tradeoffs.md`. |
+| `ADMIN_PASSWORD` | Yes (for admin plane) | HTTP Basic Auth password for the admin plane. Rotate regularly. |
 | `PUBLIC_ASSET_BASE_URL` | No | Override for static page imagery (e.g. `/why` hero images). Falls back to the default Supabase uploads bucket. Set this to route assets through a sovereign host without touching code. |
 
 ## Database

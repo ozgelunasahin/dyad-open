@@ -1,4 +1,5 @@
 import { redirect } from '@sveltejs/kit';
+import type { Session } from '@prefig/upact';
 import type { Actions } from './$types';
 
 /**
@@ -8,7 +9,13 @@ import type { Actions } from './$types';
  */
 export const actions: Actions = {
 	default: async ({ locals }) => {
-		await locals.supabase.auth.signOut();
+		// See note in (auth)/login/+page.server.ts — both current adapters
+		// ignore the Session param and read their own cookie state.
+		try {
+			await locals.identityPort.invalidate({} as Session);
+		} catch {
+			// Fail open: redirect even if the substrate is unavailable.
+		}
 		redirect(303, '/');
 	}
 };

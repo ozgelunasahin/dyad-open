@@ -1,12 +1,14 @@
-import { redirect } from '@sveltejs/kit';
-import { loadLayoutData } from '$lib/server/load-layout-data';
 import type { LayoutServerLoad } from './$types';
 
-export const load: LayoutServerLoad = async ({ locals }) => {
-	// loadLayoutData handles the auth check + redirect
-	const layoutData = await loadLayoutData(locals);
-
-	if (!layoutData.isAdmin) redirect(302, '/discover');
-
-	return layoutData;
+/**
+ * Admin plane layout — auth is enforced in src/hooks.server.ts before this
+ * load runs. By the time we reach here, the request has passed Basic Auth.
+ *
+ * The admin plane has no user context: no locals.user, no isAdmin, no profile.
+ * Pages access the database via the service-role client (makeAdminClient).
+ *
+ * See docs/solutions/identity-decoupling-security-tradeoffs.md.
+ */
+export const load: LayoutServerLoad = async () => {
+	return {};
 };

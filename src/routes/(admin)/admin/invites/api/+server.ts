@@ -1,10 +1,22 @@
 import { json, error } from '@sveltejs/kit';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
+import { makeAdminClient } from '$lib/server/supabase-admin';
 import { sendEmail } from '$lib/server/email.js';
 import { escapeHtml } from '$lib/utils/escape-html.js';
 import { nanoid } from 'nanoid';
 import { copy } from '$lib/copy';
 import type { RequestHandler } from './$types';
+
+/**
+ * Admin-plane invite endpoint.
+ *
+ * Lives under /admin/* and is gated by the admin Basic Auth hook in
+ * src/hooks.server.ts. Uses the service-role Supabase client — no user
+ * identity is involved at any point.
+ *
+ * Replaces the former /api/invites endpoint, which leaked admin authority
+ * into the user app's API surface.
+ */
 
 /** Derive the app origin from the Supabase URL or fall back to production. */
 const APP_ORIGIN =
@@ -15,29 +27,16 @@ const APP_ORIGIN =
 const INVITE_EXPIRY_DAYS = 14;
 const MAX_MESSAGE_LENGTH = 2000;
 
-async function requireAdmin(locals: App.Locals) {
-	if (!locals.user) {
-		error(401, 'Authentication required');
-	}
-	if (locals.user.app_metadata?.role !== 'admin') {
-		error(403, 'Admin access required');
-	}
-}
-
 /**
  * Render the invitation email body.
  *
  * `opener` is the admin's own opening line — e.g. "Hey T —" or "Hi Ozge,".
- * Rendered verbatim (no "Hi " prefix). Omit entirely when empty, so the
- * email leads straight into the personal message / standard copy rather
- * than a defensive "Hi there,".
+ * Rendered verbatim (no "Hi " prefix). Omit entirely when empty.
  *
- * `message` (when non-empty) is a quoted block beneath the opener — the
- * recipient reads the sender's own words first, then the standard "you've
- * been invited" framing.
+ * `message` (when non-empty) is a quoted block beneath the opener.
  *
  * Both fields are escaped before interpolation; line breaks in the message
- * are preserved as <br> tags. Everything else is plain text.
+ * are preserved as <br> tags.
  */
 function renderInviteEmail(params: {
 	opener?: string;
@@ -71,8 +70,9 @@ function buildOpener(name: unknown): string | undefined {
 	return undefined;
 }
 
-export const POST: RequestHandler = async ({ request, locals }) => {
-	await requireAdmin(locals);
+export const POST: RequestHandler = async ({ request }) => {
+	// Auth is enforced by the admin hook before we get here.
+	const supabase = makeAdminClient();
 
 	let body: Record<string, unknown>;
 	try {
@@ -86,8 +86,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		error(400, 'Email is required');
 	}
 
-	// Validate + trim the optional custom message. Admin-only surface, so a
-	// clear 400 is fine — this is a sanity guard, not a user-facing error.
+	// Validate + trim the optional custom message.
 	let trimmedMessage: string | undefined;
 	if (message !== undefined && message !== null && message !== '') {
 		if (typeof message !== 'string') {
@@ -101,7 +100,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	// Check if this email already has an unused, non-expired invitation
-	const { data: existing } = await locals.supabase
+	const { data: existing } = await supabase
 		.from('invitations')
 		.select('id, token, expires_at, used_at')
 		.eq('email', email.trim())
@@ -116,13 +115,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			to: email.trim(),
 			subject: copy.email.inviteSubject,
 			html: renderInviteEmail({ opener: buildOpener(name), inviteUrl, message: trimmedMessage })
-		}).catch((err) => console.error('[invites] Failed to resend invite email:', err));
+		}).catch((err) => console.error('[admin/invites] Failed to resend invite email:', err));
 		return json({ ok: true, alreadyInvited: true, inviteUrl });
 	}
 
 	// Check if this email is already a registered user
-	// (We can check if an invitation was already used)
-	const { data: usedInvite } = await locals.supabase
+	const { data: usedInvite } = await supabase
 		.from('invitations')
 		.select('id')
 		.eq('email', email.trim())
@@ -133,16 +131,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return json({ error: 'This person has already signed up.' }, { status: 409 });
 	}
 
-	// Generate new invitation
+	// Generate new invitation. invited_by is null — the admin plane has no
+	// user identity. If a future operator-attribution column is added (e.g.
+	// invited_by_operator: text), populate it here from the basic-auth username.
 	const token = nanoid();
 	const expiresAt = new Date();
 	expiresAt.setDate(expiresAt.getDate() + INVITE_EXPIRY_DAYS);
 
-	const { error: dbError } = await locals.supabase.from('invitations').insert({
+	const { error: dbError } = await supabase.from('invitations').insert({
 		email: email.trim(),
 		token,
 		expires_at: expiresAt.toISOString(),
-		invited_by: locals.user!.id
+		invited_by: null
 	});
 
 	if (dbError) {
@@ -157,7 +157,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		to: email.trim(),
 		subject: copy.email.inviteSubject,
 		html: renderInviteEmail({ opener: buildOpener(name), inviteUrl, message: trimmedMessage })
-	}).catch((err) => console.error('[invites] Failed to send invite email:', err));
+	}).catch((err) => console.error('[admin/invites] Failed to send invite email:', err));
 
 	return json({ ok: true, inviteUrl });
 };

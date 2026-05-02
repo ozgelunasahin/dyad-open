@@ -3,8 +3,17 @@ import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/publi
 import { dev } from '$app/environment';
 import type { Handle } from '@sveltejs/kit';
 import { createSupabaseAdapter } from '@prefig/upact-supabase';
+import { requireAdminAuth } from '$lib/server/admin-auth';
 
 export const handle: Handle = async ({ event, resolve }) => {
+	// Admin plane: gated by HTTP Basic Auth, no overlap with user identity.
+	// Returns 401 + WWW-Authenticate before any user-app logic runs.
+	if (event.url.pathname.startsWith('/admin')) {
+		const authResponse = requireAdminAuth(event.request);
+		if (authResponse) return authResponse;
+		return resolve(event);
+	}
+
 	event.locals.supabase = createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
 		cookies: {
 			getAll: () => event.cookies.getAll(),
@@ -38,7 +47,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 		return { session, user };
 	};
 
-	// Populate user and session for convenience
+	// TODO (Phase E): replace safeGetSession() with identityPort.currentUpactor(event.request)
+	// so per-request identity resolves through the port rather than calling Supabase Auth
+	// directly. Requires: (1) locals.upactor: Upactor | null added to App.Locals,
+	// (2) feedback gate uses upactor.id.
 	const { session, user } = await event.locals.safeGetSession();
 	event.locals.session = session;
 	event.locals.user = user;
@@ -77,19 +89,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 			const gateStatus = await gateService.checkGate(user.id);
 
 			if (gateStatus.gated && gateStatus.feedbackFormId) {
-				// Admin bypass: check app_metadata (no DB query — from JWT)
-				const isAdmin = event.locals.user?.app_metadata?.role === 'admin';
-
-				if (!isAdmin) {
-					if (pathname.startsWith('/api/')) {
-						return new Response(JSON.stringify({ error: 'gated', feedbackFormId: gateStatus.feedbackFormId }), {
-							status: 403,
-							headers: { 'Content-Type': 'application/json' }
-						});
-					}
-					// Store in locals so the layout renders the feedback modal instead of redirecting
-					(event.locals as any).pendingFeedbackFormId = gateStatus.feedbackFormId;
+				if (pathname.startsWith('/api/')) {
+					return new Response(JSON.stringify({ error: 'gated', feedbackFormId: gateStatus.feedbackFormId }), {
+						status: 403,
+						headers: { 'Content-Type': 'application/json' }
+					});
 				}
+				// Store in locals so the layout renders the feedback modal instead of redirecting
+				(event.locals as any).pendingFeedbackFormId = gateStatus.feedbackFormId;
 			}
 		}
 	}

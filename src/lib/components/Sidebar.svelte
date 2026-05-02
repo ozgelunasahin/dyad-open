@@ -2,10 +2,9 @@
 	import { page } from '$app/stores';
 	import { copy } from '$lib/copy';
 
-	let { username, attentionCount = 0, isAdmin = false }: {
+	let { username, attentionCount = 0 }: {
 		username: string;
 		attentionCount?: number;
-		isAdmin?: boolean;
 	} = $props();
 
 	let currentPath = $derived($page.url.pathname);
@@ -21,9 +20,6 @@
 			{copy.nav.profile}
 			{#if attentionCount > 0}<span class="sidebar-badge">{attentionCount}</span>{/if}
 		</a>
-		{#if isAdmin}
-			<a href="/admin" class="sidebar-link" class:active={currentPath.startsWith('/admin')}>{copy.nav.admin}</a>
-		{/if}
 	</nav>
 	<div class="sidebar-bottom">
 		<span class="sidebar-username">@{username}</span>

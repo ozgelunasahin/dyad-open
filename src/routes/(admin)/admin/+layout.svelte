@@ -1,10 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import type { LayoutData } from './$types';
 	import { copy } from '$lib/copy';
-	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
 
-	let { children }: { data: LayoutData; children: any } = $props();
+	let { children }: { children: any } = $props();
 </script>
 
 <main class="admin-main">
@@ -22,8 +20,6 @@
 		{@render children()}
 	</div>
 </main>
-
-<FeedbackModal />
 
 <style>
 	.admin-main {

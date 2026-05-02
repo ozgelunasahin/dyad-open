@@ -61,7 +61,7 @@
 		resendingEmail = email;
 		result = null;
 		try {
-			const res = await fetch('/api/invites', {
+			const res = await fetch('/admin/invites/api', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -104,7 +104,7 @@
 		message: string
 	): Promise<{ status: BatchStatus; note?: string }> {
 		try {
-			const res = await fetch('/api/invites', {
+			const res = await fetch('/admin/invites/api', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ email, name, message: message.trim() || undefined })

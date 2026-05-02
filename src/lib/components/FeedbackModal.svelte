@@ -1,8 +1,6 @@
 <script lang="ts">
 	import { copy } from '$lib/copy';
 
-	let { isAdmin = false }: { isAdmin?: boolean } = $props();
-
 	let dialog: HTMLDialogElement | undefined = $state();
 	let description = $state('');
 	let type = $state<'bug' | 'feature' | 'report' | 'other'>('bug');

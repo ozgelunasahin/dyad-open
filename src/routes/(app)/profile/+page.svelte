@@ -269,9 +269,6 @@
 		<form method="POST" action="/logout" class="sign-out-form">
 			<button type="submit" class="sign-out-link">{copy.nav.signOut}</button>
 		</form>
-		{#if data.isAdmin}
-			<a href="/admin" class="sign-out-link">{copy.nav.admin}</a>
-		{/if}
 	</div>
 
 	<!-- Needs your attention — notification surface only, actions happen on conversation detail -->

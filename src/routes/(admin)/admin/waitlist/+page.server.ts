@@ -1,13 +1,17 @@
+import { makeAdminClient } from '$lib/server/supabase-admin';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async () => {
+	// Admin plane: service-role client, no user/session context.
+	const supabase = makeAdminClient();
+
 	// Two parallel queries — no FK between contacts and invitations (merge by email)
 	const [{ data: contacts }, { data: invitations }] = await Promise.all([
-		locals.supabase
+		supabase
 			.from('contacts')
 			.select('id, email, name, based_in, freewrite, created_at')
 			.order('created_at', { ascending: false }),
-		locals.supabase
+		supabase
 			.from('invitations')
 			.select('email, token, used_at, expires_at, created_at')
 	]);

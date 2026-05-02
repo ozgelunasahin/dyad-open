@@ -1,18 +1,20 @@
+import { makeAdminClient } from '$lib/server/supabase-admin';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals }) => {
-	// All invitations, most recent first. Admin-only route (admin layout gates
-	// it); we read all columns except the token itself, which stays
-	// server-side — the re-send form doesn't need it, re-send just POSTs the
-	// email back to /api/invites and the existing token is looked up there.
+export const load: PageServerLoad = async () => {
+	// Admin plane: service-role client, no user/session context.
+	const supabase = makeAdminClient();
+
+	// All invitations, most recent first. Token stays server-side — re-send
+	// looks up the existing token by email.
 	const [{ data: invitations }, { data: admins }] = await Promise.all([
-		locals.supabase
+		supabase
 			.from('invitations')
 			.select('id, email, expires_at, used_at, created_at, invited_by')
 			.order('created_at', { ascending: false }),
 		// Usernames of everyone who has ever sent an invite — small set, batched
 		// once so the row render doesn't N+1.
-		locals.supabase.from('profiles').select('id, username')
+		supabase.from('profiles').select('id, username')
 	]);
 
 	const usernameById = new Map<string, string>();
