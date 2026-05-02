@@ -81,6 +81,8 @@ All authenticated routes live under `src/routes/(app)/`. The layout provides:
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes (for admin plane) | Service-role client for the admin plane to access the user-tier database. |
 | `ADMIN_DEV_BYPASS` | No (dev only) | Set to `1` in `.env.local` to allow `/admin/*` through without Cloudflare Access. Has no effect in production builds. |
 | `PUBLIC_ASSET_BASE_URL` | No | Override for static page imagery (e.g. `/why` hero images). Falls back to the default Supabase uploads bucket. Set this to route assets through a sovereign host without touching code. |
+| `PUBLIC_PLAUSIBLE_DOMAIN` | No | Plausible Analytics site domain (e.g. `dyad.berlin`). Enables the script tag in the public + authenticated app when set; the admin plane is always excluded. Unset = no analytics. |
+| `PUBLIC_PLAUSIBLE_SCRIPT_SRC` | No | Override for the Plausible script URL. Defaults to `https://plausible.io/js/script.js`. Set this to point at a self-hosted Plausible instance. |
 
 Admin authentication is gated by Cloudflare Access at the edge — operator identity lives in Cloudflare's identity layer, not in dyad. See `src/lib/server/admin-auth.ts` for the implementation and `SECURITY.md` for the threat model.
 
