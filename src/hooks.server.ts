@@ -5,18 +5,36 @@ import type { Handle } from '@sveltejs/kit';
 import { createSupabaseAdapter } from '@prefig/upact-supabase';
 import { getAuthorizedAdminOperator } from '$lib/server/admin-auth';
 
+const ADMIN_HOSTNAME = 'admin.dyad.berlin';
+const APEX_HOSTNAME = 'dyad.berlin';
+
 export const handle: Handle = async ({ event, resolve }) => {
-	// Admin plane: gated by Cloudflare Access at the edge. dyad has no admin
-	// login flow — Cloudflare authenticates the operator before the request
-	// reaches us. We just verify the Cf-Access-Authenticated-User-Email header.
-	if (event.url.pathname.startsWith('/admin')) {
+	// Backwards compat: dyad.berlin/admin/* redirects to admin.dyad.berlin/*
+	// so the admin plane is reachable only via its own hostname. Old bookmarks
+	// keep working but land in the right place.
+	if (event.url.hostname === APEX_HOSTNAME && event.url.pathname.startsWith('/admin')) {
+		const adminPath = event.url.pathname.replace(/^\/admin/, '') || '/';
+		return new Response(null, {
+			status: 301,
+			headers: { Location: `https://${ADMIN_HOSTNAME}${adminPath}${event.url.search}` }
+		});
+	}
+
+	// Admin plane: gated by Cloudflare Access at admin.dyad.berlin. The reroute
+	// hook (src/hooks.ts) maps admin.dyad.berlin/foo → /admin/foo internally so
+	// existing route files keep working. We authorize based on hostname (production)
+	// or /admin/* path (local dev, where there's no subdomain).
+	const isAdminRequest =
+		event.url.hostname === ADMIN_HOSTNAME || event.url.pathname.startsWith('/admin');
+
+	if (isAdminRequest) {
 		const operator = getAuthorizedAdminOperator(event.request);
 		if (!operator) {
 			return new Response(
 				'Admin access requires Cloudflare Access authentication.\n\n' +
 					'Production: this should not be reachable — Cloudflare Access ' +
-					'will redirect unauthenticated requests to its own login page ' +
-					'before they hit the origin.\n\n' +
+					'gates admin.dyad.berlin and redirects unauthenticated requests ' +
+					'to its own login page before they hit the origin.\n\n' +
 					'Local dev: set ADMIN_DEV_BYPASS=1 in .env.local to allow ' +
 					'/admin/* through.',
 				{ status: 401, headers: { 'Content-Type': 'text/plain' } }
