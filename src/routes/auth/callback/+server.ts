@@ -4,7 +4,7 @@ import type { RequestHandler } from './$types';
 // Supabase-specific callback: handles magic links and password-reset codes.
 // When the substrate is replaced with an OIDC provider, this route becomes
 // the OIDC redirect_uri and calls identityPort.authenticate({ kind: 'oidc-callback', request }).
-export const GET: RequestHandler = async ({ url, locals, request }) => {
+export const GET: RequestHandler = async ({ url, locals, request: _request }) => {
 	const code = url.searchParams.get('code');
 	const type = url.searchParams.get('type');
 
