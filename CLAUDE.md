@@ -29,7 +29,9 @@ src/lib/services/
   cancellation-query.ts  # Read-side queries for cancellations
 ```
 
-Services are TypeScript interfaces + `Supabase*` implementation classes. Page server loaders call services directly (not internal API fetches). The test factory in `tests/helpers/db.ts` is the single swap point for portability.
+Most services follow `interface XxxService` + `class SupabaseXxxService implements XxxService`. The exception is `identity.ts`, which is a thin functional module wrapping `@prefig/upact-supabase` — it's the boundary where the upact port is consumed.
+
+Page server loaders call services directly (not via internal API fetches). The upact port is resolved in `hooks.server.ts` and `identity.ts`; the resulting substrate ID is passed to services as a plain `userId: string` parameter. Services do not see the `Upactor` abstraction. The test factory in `tests/helpers/db.ts` is the single swap point for portability.
 
 ### (app) Layout Group
 
