@@ -217,7 +217,7 @@
 				<input
 					type="text"
 					bind:value={directName}
-					placeholder="e.g. &quot;Hi Ozge,&quot; or &quot;Hey T —&quot;. Leave blank to skip the greeting."
+					placeholder='e.g. "Hi friend," or "Hey —". Leave blank to skip the greeting.'
 					disabled={directSending}
 				/>
 			</label>
@@ -296,7 +296,7 @@
 							<input
 								type="text"
 								bind:value={openerByEmail[inv.email]}
-								placeholder={'e.g. "Hi Ozge," or "Hey T —"'}
+								placeholder={'e.g. "Hi friend," or "Hey —"'}
 								disabled={resendingEmail === inv.email}
 							/>
 						</label>

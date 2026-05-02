@@ -66,7 +66,21 @@
 
 <svelte:head>
 	<title>dyad.</title>
-	<meta name="description" content="Find your people, talk to them face to face." />
+	<meta name="description" content="A network for face to face sensemaking, in Berlin." />
+
+	<!-- Open Graph (Facebook, LinkedIn, Slack, iMessage, Discord, Signal, …) -->
+	<meta property="og:title" content="dyad." />
+	<meta property="og:description" content="A network for face to face sensemaking, in Berlin." />
+	<meta property="og:url" content="https://dyad.berlin" />
+	<meta property="og:type" content="website" />
+	<meta property="og:image" content="https://dyad.berlin/images/logo.png" />
+	<meta property="og:site_name" content="dyad" />
+
+	<!-- Twitter / X -->
+	<meta name="twitter:card" content="summary" />
+	<meta name="twitter:title" content="dyad." />
+	<meta name="twitter:description" content="A network for face to face sensemaking, in Berlin." />
+	<meta name="twitter:image" content="https://dyad.berlin/images/logo.png" />
 </svelte:head>
 
 <div class="landing">

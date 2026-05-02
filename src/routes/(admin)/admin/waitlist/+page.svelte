@@ -45,8 +45,8 @@
 	async function inviteWaitlisted(email: string) {
 		// The contact's stored `name` is their first name from /waitlist —
 		// don't reuse it as the opener, since the opener is a full salutation
-		// line the admin writes by hand ("Hi Ozge,", "Hey T —"). An unfilled
-		// opener means no greeting paragraph renders.
+		// line the admin writes by hand. An unfilled opener means no greeting
+		// paragraph renders.
 		const opener = openerByEmail[email] ?? '';
 		const msg = messageByEmail[email] ?? '';
 		await send(email, opener.trim() || null, msg);

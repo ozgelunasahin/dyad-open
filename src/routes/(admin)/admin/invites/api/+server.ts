@@ -30,7 +30,7 @@ const MAX_MESSAGE_LENGTH = 2000;
 /**
  * Render the invitation email body.
  *
- * `opener` is the admin's own opening line — e.g. "Hey T —" or "Hi Ozge,".
+ * `opener` is the admin's own opening line — e.g. "Hey —" or "Hi friend,".
  * Rendered verbatim (no "Hi " prefix). Omit entirely when empty.
  *
  * `message` (when non-empty) is a quoted block beneath the opener.
