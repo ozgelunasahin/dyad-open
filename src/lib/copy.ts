@@ -59,6 +59,10 @@ export const copy = {
 	landing: {
 		_routes: ['/'],
 		_description: 'Landing page for unauthenticated visitors.',
+		title: 'dyad.',
+		metaDescription: 'A network for face to face sensemaking, in Berlin.',
+		ogSiteName: 'dyad',
+		ogUrl: 'https://dyad.berlin',
 		rotatingWords: ['writers', 'parents', 'artists', 'neighbours', 'strangers', 'night owls', 'commuters', 'berliners', 'listeners', 'you'],
 		tagline: 'cultivating a culture of conversation',
 		joinWaitlist: 'join waitlist',

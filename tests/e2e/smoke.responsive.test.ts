@@ -4,7 +4,7 @@ import { TEST_USERS } from '../helpers/auth.js';
 test.describe('Smoke tests', () => {
 	test('landing page loads for anonymous users', async ({ page }) => {
 		await page.goto('/');
-		await expect(page.locator('.tagline')).toBeVisible();
+		await expect(page.locator('.headline')).toBeVisible();
 		await expect(page.getByRole('button', { name: /join waitlist/i })).toBeVisible();
 	});
 

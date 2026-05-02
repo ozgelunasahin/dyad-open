@@ -1,0 +1,56 @@
+dyad
+Copyright (C) 2025–2026 dyad cofounders and contributors
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, version 3 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+details. The full text of the licence is in the LICENSE file at the root of
+this repository.
+
+----------------------------------------------------------------------
+Names and marks
+----------------------------------------------------------------------
+
+The AGPL-3.0 covers the source code. It does not grant rights to use the
+project's identifying names or marks. The following are reserved by the
+dyad cofounders:
+
+  * the name "dyad"
+  * the wordmark "dyad.berlin"
+  * the domain "dyad.berlin"
+  * any logo or visual identity associated with the platform
+
+A derivative work distributed under the AGPL must use a different name and
+must not present itself as the dyad platform. Forks for personal study or
+contribution are unaffected. Forks operated as a public service must use a
+distinct identity that does not invite confusion with dyad.berlin.
+
+If you want to discuss using the name or running an instance under the
+dyad identity, contact `hello@dyad.berlin`.
+
+----------------------------------------------------------------------
+Third-party components
+----------------------------------------------------------------------
+
+This project depends on third-party libraries each governed by their own
+licences. The set of dependencies and their licences is recorded in
+`package.json` and `package-lock.json`. Notable runtime dependencies:
+
+  * Svelte / SvelteKit             — MIT
+  * Supabase JS client / SSR       — MIT
+  * TipTap and ProseMirror modules — MIT
+  * Leaflet                        — BSD-2-Clause
+  * isomorphic-dompurify           — Apache-2.0
+  * @prefig/upact                  — Apache-2.0
+  * @prefig/upact-supabase         — Apache-2.0
+
+Static assets:
+
+  * Map tiles via OpenStreetMap (© OpenStreetMap contributors, ODbL).
+  * Geocoding via Nominatim, used in line with the Nominatim Usage Policy.
+
+When redistributing this software, retain this NOTICE alongside the LICENSE.

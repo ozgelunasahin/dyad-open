@@ -56,7 +56,7 @@ The complete conversation lifecycle works end-to-end: discover conversations on 
 - Map BottomSheet blocks map interaction (#086)
 - No fuzz circles on map (#087)
 - Invitation flow uses raw form elements on some paths (#089 partially addressed)
-- No real-time notifications — check when you open the app (by design: "healthy brain")
+- No real-time notifications — check when you open the app (by design: calm technology)
 - No conversation editing after publish (edit link exists from profile but not from detail)
 - Own conversations hidden from discover feed
 - No CI pipeline

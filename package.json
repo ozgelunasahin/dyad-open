@@ -1,7 +1,17 @@
 {
-	"name": "dyad.berlin",
+	"name": "dyad",
 	"private": true,
 	"version": "0.0.1",
+	"description": "A platform for in-person conversations between strangers in Berlin.",
+	"license": "AGPL-3.0-only",
+	"homepage": "https://dyad.berlin",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/dyad-berlin/dyad.git"
+	},
+	"bugs": {
+		"url": "https://github.com/dyad-berlin/dyad/issues"
+	},
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",

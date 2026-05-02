@@ -2,12 +2,16 @@
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { themeStore } from '$lib/stores/theme.svelte';
+	import { copy } from '$lib/copy';
 	import type { PageData } from './$types';
 	import type { PromptSummary } from '$lib/domain/types';
 	import ConversationCard from '$lib/components/ConversationCard.svelte';
 	import BottomSheet from '$lib/components/BottomSheet.svelte';
 	import AuthDialog from '$lib/components/AuthDialog.svelte';
 	import RotatingHeadline from '$lib/components/RotatingHeadline.svelte';
+
+	const og = copy.landing;
+	const ogImage = `${og.ogUrl}/images/og-card.png`;
 
 	function slotDates(slots: { start_time: string }[]): string {
 		const dates = new Set<string>();
@@ -65,8 +69,22 @@
 </script>
 
 <svelte:head>
-	<title>dyad.</title>
-	<meta name="description" content="Find your people, talk to them face to face." />
+	<title>{og.title}</title>
+	<meta name="description" content={og.metaDescription} />
+
+	<!-- Open Graph (Facebook, LinkedIn, Slack, iMessage, Discord, Signal, …) -->
+	<meta property="og:title" content={og.title} />
+	<meta property="og:description" content={og.metaDescription} />
+	<meta property="og:url" content={og.ogUrl} />
+	<meta property="og:type" content="website" />
+	<meta property="og:image" content={ogImage} />
+	<meta property="og:site_name" content={og.ogSiteName} />
+
+	<!-- Twitter / X -->
+	<meta name="twitter:card" content="summary_large_image" />
+	<meta name="twitter:title" content={og.title} />
+	<meta name="twitter:description" content={og.metaDescription} />
+	<meta name="twitter:image" content={ogImage} />
 </svelte:head>
 
 <div class="landing">
