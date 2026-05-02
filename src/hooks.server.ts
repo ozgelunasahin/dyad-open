@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 import { dev } from '$app/environment';
 import type { Handle } from '@sveltejs/kit';
+import { createSupabaseAdapter } from '@prefig/upact-supabase';
 
 export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.supabase = createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
@@ -14,6 +15,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			}
 		}
 	});
+	event.locals.identityPort = createSupabaseAdapter(event.locals.supabase);
 
 	event.locals.safeGetSession = async () => {
 		const {

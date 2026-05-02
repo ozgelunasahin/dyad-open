@@ -20,7 +20,8 @@ describe('Auto-archival', () => {
 
 		// Create and publish a prompt
 		const prompt = await promptCommand.create(SEED_USERS.digit.id, {
-			title: 'Archival test prompt'
+			title: 'Archival test prompt',
+			coverImageUrl: 'https://picsum.photos/seed/test/800/400'
 		});
 		promptId = prompt.id;
 

@@ -1,14 +1,15 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { requireAuth } from '$lib/server/auth.js';
+import { requireIdentity } from '$lib/services/identity.js';
 import { parseJsonBody } from '$lib/server/parse-body.js';
 import { SupabaseInvitationService } from '$lib/services/invitation.js';
 import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
 import { handleServiceError } from '$lib/server/handle-service-error.js';
+import { env } from '$env/dynamic/public';
 
 /** POST /api/prompts/[id]/invitations — create invitation (select slot + message) */
 export const POST: RequestHandler = async ({ params, request, locals }) => {
-	const user = requireAuth(locals.user);
+	const upactor = requireIdentity(locals);
 
 	const [body, errorResponse] = await parseJsonBody<{
 		slotId: string;
@@ -34,7 +35,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 			.select('id')
 			.eq('id', body.commentId)
 			.eq('prompt_id', params.id)
-			.eq('author_id', user.id)
+			.eq('author_id', upactor.id)
 			.single();
 		if (!comment) {
 			return json({ error: 'Invalid comment reference' }, { status: 400 });
@@ -43,12 +44,12 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 
 	// Look up the prompt to get the author (invitee)
 	const queryService = new SupabasePromptQueryService(locals.supabase);
-	const prompt = await queryService.getPromptDetail(params.id, user.id);
+	const prompt = await queryService.getPromptDetail(params.id, upactor.id);
 	if (!prompt) {
 		return json({ error: 'Prompt not found' }, { status: 404 });
 	}
 
-	if (prompt.author_id === user.id) {
+	if (prompt.author_id === upactor.id) {
 		return json({ error: 'Cannot invite yourself' }, { status: 400 });
 	}
 
@@ -57,11 +58,23 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		const invitation = await service.create({
 			promptId: params.id,
 			slotId: body.slotId,
-			inviterId: user.id,
+			inviterId: upactor.id,
 			inviteeId: prompt.author_id,
 			commentId: body.commentId,
 			message: body.message
 		});
+		if (env.PUBLIC_POSTHOG_KEY) {
+			fetch('https://eu.i.posthog.com/capture/', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					api_key: env.PUBLIC_POSTHOG_KEY,
+					distinct_id: upactor.id,
+					event: 'invitation_sent',
+					properties: { prompt_id: params.id }
+				})
+			}).catch(() => {});
+		}
 		return json(invitation, { status: 201 });
 	} catch (err) {
 		return handleServiceError(err, '[prompts/invitations]');

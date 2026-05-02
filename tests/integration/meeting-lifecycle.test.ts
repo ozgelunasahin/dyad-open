@@ -32,7 +32,8 @@ describe('Meeting lifecycle', () => {
 
 		it('sets up a prompt with invitation', async () => {
 			const prompt = await otherServices.promptCommand.create(SEED_USERS.other.id, {
-				title: 'Meeting test prompt'
+				title: 'Meeting test prompt',
+				coverImageUrl: 'https://picsum.photos/seed/test/800/400'
 			});
 			promptId = prompt.id;
 
@@ -102,7 +103,8 @@ describe('Meeting lifecycle', () => {
 
 		it('sets up a meeting for cancellation', async () => {
 			const prompt = await otherServices.promptCommand.create(SEED_USERS.other.id, {
-				title: 'Early cancel test'
+				title: 'Early cancel test',
+				coverImageUrl: 'https://picsum.photos/seed/test/800/400'
 			});
 
 			const threeDays = new Date();
@@ -168,7 +170,8 @@ describe('Meeting lifecycle', () => {
 
 		it('sets up a meeting with near-future slot', async () => {
 			const prompt = await otherServices.promptCommand.create(SEED_USERS.other.id, {
-				title: 'Late cancel test'
+				title: 'Late cancel test',
+				coverImageUrl: 'https://picsum.photos/seed/test/800/400'
 			});
 
 			const tomorrow = new Date();
@@ -220,7 +223,8 @@ describe('Meeting lifecycle', () => {
 
 		it('sets up a meeting and moves it to the past', async () => {
 			const prompt = await otherServices.promptCommand.create(SEED_USERS.other.id, {
-				title: 'Advance test'
+				title: 'Advance test',
+				coverImageUrl: 'https://picsum.photos/seed/test/800/400'
 			});
 
 			const twoDays = new Date();

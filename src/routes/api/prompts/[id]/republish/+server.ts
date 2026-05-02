@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { requireAuth } from '$lib/server/auth.js';
+import { requireIdentity } from '$lib/services/identity.js';
 import { parseJsonBody } from '$lib/server/parse-body.js';
 import { SupabasePromptCommandService } from '$lib/services/prompt-command.js';
 import type { TimeSlotInput } from '$lib/domain/types.js';
@@ -8,7 +8,7 @@ import { handleServiceError } from '$lib/server/handle-service-error.js';
 
 /** POST /api/prompts/[id]/republish — republish an archived prompt with new slots */
 export const POST: RequestHandler = async ({ params, request, locals }) => {
-	const user = requireAuth(locals.user);
+	const upactor = requireIdentity(locals);
 
 	const [body, errorResponse] = await parseJsonBody<{ slots: TimeSlotInput[] }>(request);
 	if (errorResponse) return errorResponse;
@@ -19,7 +19,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 
 	const service = new SupabasePromptCommandService(locals.supabase);
 	try {
-		await service.republish(params.id, user.id, body.slots);
+		await service.republish(params.id, upactor.id, body.slots);
 		return json({ ok: true });
 	} catch (err) {
 		return handleServiceError(err, '[prompts/republish]');

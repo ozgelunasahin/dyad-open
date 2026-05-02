@@ -1,12 +1,14 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { requireIdentity } from '$lib/services/identity.js';
 import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
 import { SupabaseCommentService } from '$lib/services/comment.js';
 import { SupabaseInvitationService } from '$lib/services/invitation.js';
 import { loadCancellersFor } from '$lib/services/cancellation-query.js';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
-	const userId = locals.user!.id;
+	const upactor = requireIdentity(locals);
+	const userId = upactor.id;
 	const promptService = new SupabasePromptQueryService(locals.supabase);
 	const commentService = new SupabaseCommentService(locals.supabase);
 	const invitationService = new SupabaseInvitationService(locals.supabase);
@@ -110,7 +112,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	// Load meetings for this prompt (to link accepted invitations to meetings)
 	// Author can see exact_location for their own prompt's meetings
-	let promptMeetings: Array<{
+	const promptMeetings: Array<{
 		id: string;
 		slot_id: string;
 		scheduled_time: string;
@@ -225,16 +227,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 					.limit(1)
 					.maybeSingle();
 				if (record) {
-					let cancellerUsername: string | null = null;
 					const { data: cProfile } = await locals.supabase
 						.from('profiles')
 						.select('username')
 						.eq('id', record.cancelled_by)
 						.maybeSingle();
-					cancellerUsername = cProfile?.username ?? null;
 					myCancellation = {
 						cancelled_by: record.cancelled_by,
-						cancelled_by_username: cancellerUsername,
+						cancelled_by_username: cProfile?.username ?? null,
 						reason: record.reason,
 						cancelled_at: record.cancelled_at
 					};

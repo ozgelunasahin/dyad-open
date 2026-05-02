@@ -44,6 +44,7 @@ describe('Prompt lifecycle', () => {
 		it('creates a draft prompt', async () => {
 			const prompt = await digitServices.promptCommand.create(SEED_USERS.digit.id, {
 				title: 'Integration test prompt',
+				coverImageUrl: 'https://picsum.photos/seed/test/800/400',
 				body: {
 					type: 'doc',
 					content: [
@@ -147,7 +148,7 @@ describe('Prompt lifecycle', () => {
 			// Can only delete drafts, so this should fail on archived
 			await expect(
 				digitServices.promptCommand.deleteDraft(createdPromptId, SEED_USERS.digit.id)
-			).rejects.toThrow('Can only delete drafts');
+			).rejects.toThrow('Can only discard drafts');
 		});
 	});
 
@@ -195,6 +196,7 @@ describe('Prompt lifecycle', () => {
 			const longText = 'word '.repeat(80).trim() + ' end-marker.';
 			const draft = await digitServices.promptCommand.create(SEED_USERS.digit.id, {
 				title: 'long-body fidelity test',
+				coverImageUrl: 'https://picsum.photos/seed/test/800/400',
 				body: {
 					type: 'doc',
 					content: [{ type: 'paragraph', content: [{ type: 'text', text: longText }] }]

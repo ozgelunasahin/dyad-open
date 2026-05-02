@@ -38,7 +38,8 @@ describe('Invitation lifecycle', () => {
 
 		it('sets up a prompt with a slot for invitation testing', async () => {
 			const prompt = await otherServices.promptCommand.create(SEED_USERS.other.id, {
-				title: 'Invitation test prompt'
+				title: 'Invitation test prompt',
+				coverImageUrl: 'https://picsum.photos/seed/test/800/400'
 			});
 			createdPromptId = prompt.id;
 
@@ -115,7 +116,8 @@ describe('Invitation lifecycle', () => {
 
 		it('sets up a fresh prompt for acceptance testing', async () => {
 			const prompt = await otherServices.promptCommand.create(SEED_USERS.other.id, {
-				title: 'Accept test prompt'
+				title: 'Accept test prompt',
+				coverImageUrl: 'https://picsum.photos/seed/test/800/400'
 			});
 			promptId = prompt.id;
 
@@ -187,7 +189,8 @@ describe('Invitation lifecycle', () => {
 
 		it('sets up a fresh prompt for decline testing', async () => {
 			const prompt = await otherServices.promptCommand.create(SEED_USERS.other.id, {
-				title: 'Decline test prompt'
+				title: 'Decline test prompt',
+				coverImageUrl: 'https://picsum.photos/seed/test/800/400'
 			});
 			promptId = prompt.id;
 
@@ -266,7 +269,8 @@ describe('Invitation lifecycle', () => {
 
 		it('sets up a prompt with a near-future slot', async () => {
 			const prompt = await otherServices.promptCommand.create(SEED_USERS.other.id, {
-				title: 'Expiry test prompt'
+				title: 'Expiry test prompt',
+				coverImageUrl: 'https://picsum.photos/seed/test/800/400'
 			});
 			promptId = prompt.id;
 
@@ -331,7 +335,8 @@ describe('Invitation lifecycle', () => {
 
 		it('sets up a prompt with an invitation', async () => {
 			const prompt = await otherServices.promptCommand.create(SEED_USERS.other.id, {
-				title: 'Slot modification test'
+				title: 'Slot modification test',
+				coverImageUrl: 'https://picsum.photos/seed/test/800/400'
 			});
 			promptId = prompt.id;
 
