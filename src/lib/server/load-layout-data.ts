@@ -35,7 +35,7 @@ export async function loadLayoutData(locals: App.Locals) {
 		identity: userToUpactor(locals.user),
 		username: profile?.username ?? '',
 		attentionCount: (invitationCount ?? 0) + (feedbackCount ?? 0),
-		isAdmin: locals.isAdmin,
+		isAdmin: locals.isAdmin, // out-of-port admin channel, set in hooks.server.ts
 		pendingFeedback
 	};
 }

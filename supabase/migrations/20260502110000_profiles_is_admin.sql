@@ -1,37 +1,24 @@
--- Move admin role from auth.users.app_metadata (Supabase-specific) to
--- profiles.is_admin (application-owned). Admin status now lives on the
--- application identity rather than the auth substrate — it survives a
--- provider swap.
+-- Admin identity: out-of-port channel decision
 --
--- Security model:
---   - Only service_role can write is_admin (not in the authenticated UPDATE grant)
---   - Authenticated users can read is_admin (added to SELECT grant)
---   - INSERT is table-level; the INSERT RLS policy WITH CHECK now enforces is_admin = false
---     so authenticated users cannot self-elevate via PostgREST INSERT
---   - Default false; explicit grant required for every admin
-
-ALTER TABLE profiles
-  ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT false;
-
--- Extend the column-level SELECT grant to include is_admin.
-GRANT SELECT (is_admin) ON profiles TO authenticated;
-
--- Harden the INSERT RLS policy: require is_admin = false on all authenticated inserts.
--- Prevents privilege escalation via PostgREST: an authenticated user with no profile row
--- cannot POST {"id": "...", "is_admin": true} to elevate themselves.
-DROP POLICY IF EXISTS "Users can insert their own profile" ON profiles;
-CREATE POLICY "Users can insert their own profile"
-  ON profiles FOR INSERT TO authenticated
-  WITH CHECK (app.current_user_id() = id AND is_admin = false);
-
--- Signal PostgREST to reload its schema cache so the new column/grant are visible.
--- supabase db push triggers this automatically; included here as an explicit safety net.
-SELECT pg_notify('pgrst', 'reload schema');
-
--- Backfill from Supabase app_metadata — one-time, substrate-specific.
--- After this migration, is_admin is the authoritative source.
-UPDATE profiles
-SET is_admin = true
-FROM auth.users
-WHERE profiles.id = auth.users.id
-  AND (auth.users.raw_app_meta_data->>'role') = 'admin';
+-- Decision: admin identity is NOT modelled as a column on profiles (or any
+-- application-owned table). Admin is an operator role, not a user attribute.
+-- It sits above the upact port, not inside it.
+--
+-- The upact privacy minima protect users from the application. Admins are
+-- operators of the application — they need to see things users cannot, and
+-- the substrate-native capability mechanism (Supabase app_metadata.role,
+-- or OIDC group claims after a provider swap) is the correct channel for
+-- this. That channel is explicitly out-of-port.
+--
+-- For the Supabase phase: admin is signalled by app_metadata.role = 'admin'
+-- (JWT claim, set via Admin API, immutable from the client side).
+-- To grant admin: UPDATE auth.users SET raw_app_meta_data =
+--   raw_app_meta_data || '{"role": "admin"}'::jsonb WHERE email = '<email>';
+--
+-- After a provider swap: replace the app_metadata check in hooks.server.ts
+-- with the equivalent substrate-native claim (e.g., OIDC group membership).
+-- The admin panel RLS policies in 20260408_admin_panel.sql will also need
+-- to be updated at that time — but only at that time.
+--
+-- This migration is intentionally empty. It exists to record this decision
+-- in the migration history at the point where the alternative was considered.

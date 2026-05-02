@@ -1,0 +1,36 @@
+{
+  "reviewer": "agent-native",
+  "branch": "fix/conversation-body-truncation",
+  "timestamp": "2026-04-29",
+  "verdict": "PASS",
+  "score": "0/0 high-priority agent capabilities affected by this diff",
+  "summary": "dyad.berlin has no agent tool layer at all — no tool definitions, no system prompt construction, no LLM SDK dependency. Every user-facing action is an orphan feature relative to agents. However, this diff is a read-path bug fix only (body rendering pipeline for /conversations/[id]) and introduces no new user-facing actions. The fix cannot worsen agent-native parity because parity does not yet exist. The one relevant observation for this diff is that GET /api/prompts/[id] already returns the full PromptDetail object including body_html, and this PR ensures body_html is now always populated with full content rather than silently empty — which is a net improvement for any future agent consuming that endpoint.",
+  "capability_map": [],
+  "findings": {
+    "critical": [],
+    "warnings": [],
+    "observations": [
+      {
+        "id": "obs-1",
+        "title": "No agent tool layer exists in this codebase",
+        "description": "There are no tool definitions, system prompts, or LLM SDK dependencies anywhere in the source tree. Every user action (create/edit/publish prompt, respond, invite, give feedback) is accessible only through the browser UI. This is a pre-existing baseline gap, not introduced by this diff. Flagged here for visibility; the diff itself is neutral on this point.",
+        "confidence": 0.99,
+        "diff_introduced": false
+      },
+      {
+        "id": "obs-2",
+        "title": "body_html in GET /api/prompts/[id] response is now reliable for API consumers",
+        "description": "Before this fix, GET /api/prompts/[id] could return an empty body_html string for prompts with content (due to the duplicate-Link extension bug and the narrow \\n\\n+ split in the IIFE fallback). Any future agent reading that endpoint would have received an empty field and had no way to read the conversation body. This diff corrects that: renderBodyHtmlOrFallback guarantees non-empty HTML whenever body contains text. The raw body (TipTap JSONContent) is also present in the response as the body field, giving a future agent two options for reading body content.",
+        "confidence": 0.97,
+        "diff_introduced": false,
+        "files": [
+          "src/lib/utils/render-body.ts",
+          "src/lib/services/prompt-query.ts",
+          "src/routes/api/prompts/[id]/+server.ts"
+        ]
+      }
+    ]
+  },
+  "diff_impact_on_parity": "neutral_to_positive",
+  "notes": "The plan doc (docs/plans/2026-04-29-fix-truncated-conversation-body-plan.md) correctly scopes this as read-path only. No new UI actions, no new agent capabilities needed. Unit 3 (upstream root-cause patch) is still open; if it modifies validate-tiptap-content.ts or tiptap-html.ts the XSS posture should be re-checked but agent-native parity remains unaffected."
+}

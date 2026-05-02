@@ -1,0 +1,253 @@
+{
+  "title": "Deployment Checklist: profiles.is_admin migration + hooks.server.ts admin query",
+  "migration": "supabase/migrations/20260502110000_profiles_is_admin.sql",
+  "generated": "2026-05-02",
+  "risk_summary": "Silent failure mode: if the profiles.is_admin query returns null (column missing, RLS gap, or Supabase error), isAdmin defaults to false on every request. All admin panel access is lost with no application error. The backfill from auth.users.raw_app_meta_data is the only source of truth promotion — if it matches zero rows the window closes with no retry path.",
+
+  "invariants": [
+    "All profiles rows that currently have raw_app_meta_data->>'role' = 'admin' in auth.users must have is_admin = true after migration",
+    "No profile row may have is_admin = true after migration unless the corresponding auth.users row had raw_app_meta_data->>'role' = 'admin'",
+    "Total count of profiles rows is unchanged (ALTER TABLE + UPDATE, no DELETE)",
+    "Column is_admin is NOT NULL with DEFAULT false — no NULL values may exist after migration",
+    "Authenticated role SELECT grant covers is_admin — the per-request query in hooks.server.ts must not get a PostgREST permission error",
+    "Admin panel routes (/admin/*) remain accessible to admin users and redirect non-admins to /discover",
+    "Feedback gate bypass (event.locals.isAdmin check) continues to work for admin users",
+    "No UPDATE write path for is_admin exists for the authenticated role — only service_role can promote admins"
+  ],
+
+  "pre_deploy_audits": {
+    "description": "Run these read-only queries BEFORE applying the migration. Save all output.",
+    "queries": [
+      {
+        "id": "pre-1",
+        "label": "Count rows that will be backfilled to is_admin = true",
+        "sql": "SELECT COUNT(*) AS will_be_admin FROM auth.users WHERE (raw_app_meta_data->>'role') = 'admin';",
+        "note": "Save this number. Must be >= 1. If 0, backfill matches nothing — all admin access will be lost after migration. STOP if 0.",
+        "expected": ">= 1 row"
+      },
+      {
+        "id": "pre-2",
+        "label": "List the exact user IDs and emails that will become admins",
+        "sql": "SELECT u.id, u.email, u.raw_app_meta_data->>'role' AS role FROM auth.users u WHERE (u.raw_app_meta_data->>'role') = 'admin' ORDER BY u.email;",
+        "note": "Verify these are the correct accounts. Any surprise entries = STOP.",
+        "expected": "Known admin accounts only"
+      },
+      {
+        "id": "pre-3",
+        "label": "Confirm matching profiles rows exist for every admin user",
+        "sql": "SELECT u.id, u.email FROM auth.users u LEFT JOIN profiles p ON p.id = u.id WHERE (u.raw_app_meta_data->>'role') = 'admin' AND p.id IS NULL;",
+        "note": "Expected: 0 rows. Any rows here = admin user has no profiles row — UPDATE will silently skip them.",
+        "expected": "0 rows"
+      },
+      {
+        "id": "pre-4",
+        "label": "Total profiles row count baseline",
+        "sql": "SELECT COUNT(*) AS total_profiles FROM profiles;",
+        "note": "Save this value. Must match exactly after migration.",
+        "expected": "Save exact count"
+      },
+      {
+        "id": "pre-5",
+        "label": "Confirm is_admin column does not already exist",
+        "sql": "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'is_admin';",
+        "note": "Expected: 0 rows. If 1 row, the column already exists — migration will fail on ALTER TABLE. Investigate before proceeding.",
+        "expected": "0 rows"
+      },
+      {
+        "id": "pre-6",
+        "label": "Verify current authenticated column grants on profiles",
+        "sql": "SELECT grantee, privilege_type, column_name FROM information_schema.column_privileges WHERE table_schema = 'public' AND table_name = 'profiles' AND grantee = 'authenticated' ORDER BY column_name;",
+        "note": "Baseline for comparison after migration. is_admin must appear in SELECT grants post-deploy.",
+        "expected": "Save exact column list"
+      }
+    ]
+  },
+
+  "migration_steps": [
+    {
+      "step": 1,
+      "action": "Run supabase migration list",
+      "command": "supabase migration list",
+      "purpose": "Confirm local and remote migration rows match before pushing. Any dash in the Local column = diverged history. Stop and reconcile.",
+      "estimated_runtime": "< 10 seconds",
+      "rollback": "N/A — read-only check"
+    },
+    {
+      "step": 2,
+      "action": "Push migration",
+      "command": "supabase db push",
+      "purpose": "Applies ALTER TABLE, GRANT, and UPDATE backfill in a single transaction on the remote database.",
+      "estimated_runtime": "< 60 seconds",
+      "lock_note": "ALTER TABLE acquires AccessExclusiveLock on profiles. The table is small; lock duration is effectively instant. No batching required.",
+      "rollback": "See rollback_plan"
+    },
+    {
+      "step": 3,
+      "action": "Deploy application code",
+      "command": "Deploy Cloudflare Pages build containing updated hooks.server.ts",
+      "purpose": "Activates the per-request profiles.is_admin query. Must happen AFTER migration — code queries a column that must already exist.",
+      "ordering_constraint": "CRITICAL: code deploy must follow migration. Deploying code first causes a runtime error on every authenticated request because the column does not yet exist.",
+      "rollback": "Revert to previous Cloudflare Pages deployment"
+    }
+  ],
+
+  "post_deploy_verification": {
+    "description": "Run within 5 minutes of code deploy going live.",
+    "queries": [
+      {
+        "id": "post-1",
+        "label": "Confirm backfill completed — count admins with is_admin = true",
+        "sql": "SELECT COUNT(*) AS admin_count FROM profiles WHERE is_admin = true;",
+        "expected": "Must equal the pre-deploy pre-1 count. If 0 = INCIDENT: all admin access is broken."
+      },
+      {
+        "id": "post-2",
+        "label": "Verify no NULL values in is_admin",
+        "sql": "SELECT COUNT(*) AS null_count FROM profiles WHERE is_admin IS NULL;",
+        "expected": "0 — column is NOT NULL, this should be impossible, but verify"
+      },
+      {
+        "id": "post-3",
+        "label": "Verify total profiles count unchanged",
+        "sql": "SELECT COUNT(*) AS total_profiles FROM profiles;",
+        "expected": "Must match pre-deploy pre-4 count exactly"
+      },
+      {
+        "id": "post-4",
+        "label": "Verify is_admin column exists with correct type and default",
+        "sql": "SELECT column_name, data_type, column_default, is_nullable FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'is_admin';",
+        "expected": "data_type = 'boolean', column_default = 'false', is_nullable = 'NO'"
+      },
+      {
+        "id": "post-5",
+        "label": "Verify authenticated role has SELECT grant on is_admin",
+        "sql": "SELECT grantee, privilege_type, column_name FROM information_schema.column_privileges WHERE table_schema = 'public' AND table_name = 'profiles' AND grantee = 'authenticated' AND column_name = 'is_admin';",
+        "expected": "1 row: authenticated / SELECT / is_admin. If 0 rows, the per-request query in hooks.server.ts will return a PostgREST 42501 error and isAdmin will silently fall back to false for all users."
+      },
+      {
+        "id": "post-6",
+        "label": "Verify authenticated role has NO UPDATE grant on is_admin",
+        "sql": "SELECT grantee, privilege_type, column_name FROM information_schema.column_privileges WHERE table_schema = 'public' AND table_name = 'profiles' AND grantee = 'authenticated' AND column_name = 'is_admin' AND privilege_type = 'UPDATE';",
+        "expected": "0 rows — no write path for is_admin via authenticated role"
+      },
+      {
+        "id": "post-7",
+        "label": "Spot-check admin backfill correctness",
+        "sql": "SELECT p.id, p.username, p.is_admin, u.raw_app_meta_data->>'role' AS meta_role FROM profiles p JOIN auth.users u ON p.id = u.id WHERE p.is_admin = true OR (u.raw_app_meta_data->>'role') = 'admin' ORDER BY p.username;",
+        "expected": "Every row where meta_role = 'admin' must have is_admin = true. No row may have is_admin = true without meta_role = 'admin'."
+      }
+    ],
+    "manual_checks": [
+      "Log in as an admin account and navigate to /admin — must load without redirect",
+      "Log in as a non-admin account and navigate to /admin — must redirect to /discover",
+      "Confirm admin panel pages (feedback, waitlist, users) render correctly",
+      "Confirm /api/invites returns 403 for non-admin users (still enforced via locals.isAdmin)"
+    ]
+  },
+
+  "rollback_plan": {
+    "can_rollback": true,
+    "type": "Partial — code rollback is clean; data rollback requires dropping is_admin column",
+    "steps": [
+      {
+        "step": 1,
+        "action": "Revert Cloudflare Pages deployment to previous build",
+        "note": "Previous build reads isAdmin from JWT app_metadata. This restores admin access immediately without touching the database."
+      },
+      {
+        "step": 2,
+        "action": "Verify admin access restored before touching database",
+        "check": "Log in as admin, confirm /admin loads"
+      },
+      {
+        "step": 3,
+        "action": "Drop is_admin column if needed",
+        "sql": "ALTER TABLE profiles DROP COLUMN IF EXISTS is_admin;",
+        "note": "Only required if the column causes issues. The previous code does not query it, so the column can safely remain while you diagnose. Do not drop unless you have confirmed step 1 restored access."
+      },
+      {
+        "step": 4,
+        "action": "Remove migration file from repo",
+        "note": "Delete supabase/migrations/20260502110000_profiles_is_admin.sql and commit. This keeps migration history consistent with remote state after the column drop."
+      }
+    ],
+    "data_loss_risk": "None — the backfill is additive (new column, UPDATE only). Rolling back loses the is_admin column but auth.users.raw_app_meta_data is unchanged and remains the source for a future re-run."
+  },
+
+  "monitoring": {
+    "first_hour": [
+      {
+        "signal": "Cloudflare Pages error rate on /admin/* routes",
+        "alert_condition": "Any 5xx response on /admin/* within 10 minutes of deploy",
+        "action": "Immediate rollback — admin panel is broken"
+      },
+      {
+        "signal": "302 redirect rate on /admin/* routes",
+        "alert_condition": "Spike in 302s from /admin/* to /discover within 5 minutes of deploy",
+        "action": "Confirms admins are being treated as non-admin — check post-1 and post-5 queries, likely the GRANT was not applied"
+      },
+      {
+        "signal": "Supabase PostgREST logs for 42501 (permission denied) on profiles",
+        "alert_condition": "Any 42501 referencing profiles.is_admin",
+        "action": "The GRANT SELECT (is_admin) did not apply — run post-5 query, re-apply grant manually, redeploy"
+      },
+      {
+        "signal": "Application logs for hooks.server.ts admin query",
+        "alert_condition": "Any error object on the .from('profiles').select('is_admin') call",
+        "note": "Current code uses optional chaining with ?? false, so errors are silent. Add a console.error before go-live if possible."
+      }
+    ],
+    "first_24_hours": [
+      {
+        "check": "Re-run post-1 through post-7 SQL queries at +1h and +4h",
+        "purpose": "Confirm state is stable, no unexpected is_admin changes"
+      },
+      {
+        "check": "Confirm no support reports of unexpected admin lockout",
+        "purpose": "Silent failure (isAdmin = false) would surface as admin users unable to reach /admin"
+      }
+    ],
+    "known_silent_failure_mode": "If the Supabase client returns an error on the profiles.is_admin query (e.g. network timeout, RLS misconfiguration), profile?.is_admin evaluates to undefined and ?? false sets isAdmin = false. The admin loses access and no error is logged. This is the highest-probability failure mode. Mitigation: add console.error logging around the query before deploying."
+  },
+
+  "checklist": {
+    "pre_deploy": [
+      "Run pre-1: confirm at least 1 admin will be backfilled (STOP if 0)",
+      "Run pre-2: verify exact admin user IDs and emails match expectations",
+      "Run pre-3: confirm all admin users have matching profiles rows (STOP if any missing)",
+      "Run pre-4: save total profiles count as baseline",
+      "Run pre-5: confirm is_admin column does not already exist",
+      "Run pre-6: save current column grants as baseline",
+      "Run supabase migration list: confirm local/remote rows match",
+      "Confirm staging deploy passed all verification queries",
+      "Confirm rollback procedure reviewed and Cloudflare Pages rollback is one click away"
+    ],
+    "deploy_steps": [
+      "Run supabase db push (migration first)",
+      "Wait for db push to complete — confirm no errors",
+      "Immediately run post-1: confirm admin_count >= 1 (if 0, do NOT deploy code — rollback DB)",
+      "Deploy application code (Cloudflare Pages)"
+    ],
+    "post_deploy_5min": [
+      "Run post-1 through post-7 verification queries",
+      "Compare post-3 with pre-4 baseline (total count unchanged)",
+      "Compare post-5 with pre-6 (is_admin added to SELECT grants)",
+      "Log in as admin and navigate to /admin — confirm access",
+      "Log in as non-admin and navigate to /admin — confirm redirect to /discover",
+      "Check Cloudflare Pages error dashboard for 5xx on /admin/*"
+    ],
+    "monitoring_24h": [
+      "Set alert: any 302 spike on /admin/* routes",
+      "Set alert: any 42501 in Supabase PostgREST logs for profiles",
+      "Re-run post-1, post-5, post-7 at +1h",
+      "Re-run post-1, post-5, post-7 at +4h",
+      "Check no user reports of admin lockout at +24h"
+    ],
+    "rollback_if_needed": [
+      "Revert Cloudflare Pages to previous deployment",
+      "Verify admin access restored (log in, check /admin)",
+      "Drop is_admin column only if confirmed necessary",
+      "Remove migration file from repo if column dropped"
+    ]
+  }
+}

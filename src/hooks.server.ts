@@ -46,19 +46,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.session = session;
 	event.locals.user = user;
 
-	// Admin status from profiles.is_admin — application-owned, substrate-agnostic.
-	// Replaces the former app_metadata.role === 'admin' check (Supabase-specific).
-	if (user) {
-		const { data: profile, error: profileError } = await event.locals.supabase
-			.from('profiles')
-			.select('is_admin')
-			.eq('id', user.id)
-			.single();
-		if (profileError) console.error('[hooks] failed to read profiles.is_admin:', profileError.message);
-		event.locals.isAdmin = profile?.is_admin ?? false;
-	} else {
-		event.locals.isAdmin = false;
-	}
+	// Admin identity: out-of-port channel. Admin is an operator role, not a user
+	// attribute — it sits above the upact port, not inside it. For the Supabase
+	// phase this is the app_metadata JWT claim (set via Admin API, immutable from
+	// the client). After a provider swap, replace with the equivalent substrate-
+	// native claim (e.g., OIDC group membership). See docs/solutions/identity-
+	// decoupling-security-tradeoffs.md for the full rationale.
+	event.locals.isAdmin = user?.app_metadata?.role === 'admin';
 
 	// Redirect old /prompts/ URLs to /conversations/
 	if (event.url.pathname.startsWith('/prompts/')) {

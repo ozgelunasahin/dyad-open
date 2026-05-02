@@ -1,0 +1,102 @@
+{
+  "reviewer": "kieran-typescript",
+  "findings": [
+    {
+      "id": "KT-01",
+      "severity": "low",
+      "confidence": 0.82,
+      "file": "/home/digit/dyad.berlin/src/lib/utils/render-body.ts",
+      "lines": [14, 15],
+      "title": "JSONContent | null | undefined parameter — undefined arm adds no value at the call site",
+      "description": "The only call site passes `body: JSONContent | null` (cast from the DB result at prompt-query.ts:205). The `undefined` arm is never exercised in production — only in the test for `renderBodyHtmlOrFallback(undefined)`. Accepting `undefined` widens the contract beyond what the codebase actually passes, which means a future caller could pass `undefined` without realising `null` is the canonical 'no body' shape. The `!body` guard handles it correctly either way, but the signature is looser than it needs to be. Tightening to `JSONContent | null` would make the empty-body contract explicit and match both `PromptDetail.body` (`JSONContent`) and the DB read (`JSONContent | null`).",
+      "recommendation": "Change the parameter to `body: JSONContent | null` and remove the `undefined` test. If callers outside this diff can pass `undefined` (e.g. from optional chaining), document that explicitly; don't absorb it silently."
+    },
+    {
+      "id": "KT-02",
+      "severity": "low",
+      "confidence": 0.72,
+      "file": "/home/digit/dyad.berlin/src/lib/utils/render-body.ts",
+      "lines": [16],
+      "title": "opts?: { promptId?: string } — anonymous inline object type, no named alias",
+      "description": "The plan explicitly considered whether to name this type. The current choice (anonymous inline) is not wrong, but it means any future callers who need to pass opts must repeat the shape. Given there is only one field and the function already lives in an isolated module, a positional `promptId?: string` second parameter would be equally clear, easier to call, and removes the optional-chaining on `opts?.promptId` inside the function. The opts bag is only justified if more fields are expected; none are named in the plan.",
+      "recommendation": "Flatten to a positional `promptId?: string` second parameter. This removes the `opts?.promptId` optional chain in the error log, makes the call in prompt-query.ts read as `renderBodyHtmlOrFallback(body, prompt.id)`, and matches the 'single field, no expansion planned' constraint. If a second field is added later, promote to a named type at that point."
+    },
+    {
+      "id": "KT-03",
+      "severity": "low",
+      "confidence": 0.75,
+      "file": "/home/digit/dyad.berlin/src/lib/utils/render-body.ts",
+      "lines": [24, 25, 26, 27],
+      "title": "Conditional string interpolation in error message is hard to scan",
+      "description": "The expression `\\`renderTiptapToHtml failed${opts?.promptId ? \\` for prompt ${opts.promptId}\\` : ''}:\\`` composes the label via a nested ternary inside a template literal. A reader has to trace three levels of nesting to know whether ` for prompt <id>` appears. This is not a type issue but a clarity issue: the Cloudflare Workers log line is the triage surface this change is explicitly trying to improve, so it is worth making it unambiguous.",
+      "recommendation": "Split into two lines: build `const context = promptId ? ` for prompt ${promptId}` : ''` before the catch block (or inside it), then `console.error(\\`renderTiptapToHtml failed${context}:\\`, err)`. This is also the natural form if KT-02 is accepted and the parameter becomes positional."
+    },
+    {
+      "id": "KT-04",
+      "severity": "low",
+      "confidence": 0.78,
+      "file": "/home/digit/dyad.berlin/src/lib/utils/render-body.ts",
+      "lines": [22],
+      "title": "Magic string '<p></p>' for empty-doc detection — no named constant",
+      "description": "`html.trim() !== '<p></p>'` is the correct check given TipTap's StarterKit wraps empty docs in a bare paragraph. But it is a magic string: if the DOMPurify config or TipTap version ever changes the emitted form (e.g., to `<p> </p>` or `<p data-empty=\"true\"></p>`), this check silently breaks and the fallback stops triggering. There is also a companion test that reproduces the string literal. A named constant shared between implementation and test would make both the check and its intent explicit.",
+      "recommendation": "Extract `const EMPTY_TIPTAP_HTML = '<p></p>'` at module scope in render-body.ts and reference it in both the guard and the test. A comment explaining why this specific string is the expected empty-doc output from TipTap StarterKit is worth adding."
+    },
+    {
+      "id": "KT-05",
+      "severity": "low",
+      "confidence": 0.65,
+      "file": "/home/digit/dyad.berlin/src/lib/utils/tiptap-html.test.ts",
+      "lines": [13],
+      "title": "marks parameter typed as Array<{ type: string; attrs?: Record<string, unknown> }> rather than JSONContent['marks']",
+      "description": "The `text()` factory uses `Array<{ type: string; attrs?: Record<string, unknown> }>` for the marks parameter, which is slightly narrower than `JSONContent['marks']` (the official type uses `Record<string, any>` for attrs and also includes `[key: string]: any`). The widening was done to avoid `any`, which is correct instinct. The actual impact is low: the test only passes `{ type: 'bold' }` and `{ type: 'link', attrs: { href: '...' } }`, both of which satisfy the narrower shape. However, `Record<string, unknown>` for attrs means a test that passes a non-string-keyed attr (none here) would need a cast. Using `JSONContent['marks']` directly would be both more precise and self-documenting — the test is testing JSONContent rendering, so using the type from the same source is the right anchor.",
+      "recommendation": "Type the marks parameter as `JSONContent['marks']` (i.e., `{ type: string; attrs?: Record<string, any>; [key: string]: any }[] | undefined`). This removes the need for the widened local type and keeps the test factory aligned with the type it exercises."
+    },
+    {
+      "id": "KT-06",
+      "severity": "medium",
+      "confidence": 0.81,
+      "file": "/home/digit/dyad.berlin/src/lib/utils/render-body.ts",
+      "lines": [22],
+      "title": "Empty-doc detection is incomplete — only catches '<p></p>' but DOMPurify output may include whitespace",
+      "description": "The guard is `html.trim() !== '<p></p>'`. `html.trim()` strips leading/trailing whitespace from the overall string, but TipTap with StarterKit may emit `<p></p>` with no extra whitespace, so this works in practice today. The more subtle risk: DOMPurify can strip attributes that TipTap adds (e.g., `<p data-pm-slice=\"...\">`) leaving `<p></p>`, but it could also emit a slightly different whitespace form depending on the serializer version. The `.trim()` call does not normalise internal whitespace. This is a moderate risk rather than a certain bug, but the check is load-bearing for the fallback trigger and deserves a comment explaining the assumption.",
+      "recommendation": "Add an inline comment: `// TipTap StarterKit emits '<p></p>' for an empty doc after DOMPurify. If this ever changes, the fallback will not trigger for empty bodies.` This documents the assumption without requiring a structural change. If hardening further, strip internal whitespace before comparing: `html.replace(/\\s+/g, '') !== '<p></p>'`."
+    }
+  ],
+  "residual_risks": [
+    {
+      "id": "RR-01",
+      "file": "/home/digit/dyad.berlin/src/lib/utils/render-body.ts",
+      "description": "The fallback path produces `<p>`-wrapped lines from `jsonToPlainText` output split on `\\n+`. `jsonToPlainText` appends a single `\\n` after block nodes (paragraph, heading, blockquote, codeBlock, listItem) but does not add a `\\n` after the top-level `doc`. A body that is a single paragraph with no trailing newline will produce a one-element array from `.split(/\\n+/)` after `.trim()`, which is correct. A body whose only content is block nodes separated only by `\\n` (not `\\n\\n`) will also be split correctly. Risk is low but worth noting: a heading rendered via the fallback loses its `<h1>` tag and becomes a `<p>`, which is a semantic downgrade. This is acceptable per the plan (R2: 'text fallback acceptable'), but it is not documented as a known limitation.",
+      "severity": "low"
+    },
+    {
+      "id": "RR-02",
+      "file": "/home/digit/dyad.berlin/src/lib/utils/tiptap-html.ts",
+      "description": "The `WikilinkStatic` extension remains in the server-side extension list after the `link: false` fix. The plan notes it as a suspect for the upstream render failure. If stored bodies do not contain `wikilink` nodes, it is inert. If they do, it now renders correctly. But the extension list comment says 'Must match the extensions used in TiptapEditor.svelte', and `WikilinkStatic` is not in the editor's extension set. This is a latent inconsistency that will confuse the next person reading the extensions array — especially since the plan named it as a likely fix candidate in Unit 3.",
+      "severity": "low"
+    },
+    {
+      "id": "RR-03",
+      "file": "/home/digit/dyad.berlin/src/lib/utils/render-body.test.ts",
+      "description": "The spy-based tests for the fallback path use dynamic `await import('./tiptap-html.js')` to get a mutable module reference. This pattern works with Vitest's default module isolation but is fragile if the test runner's module cache is shared across test files (e.g. if `tiptap-html.test.ts` imports the module first). The `spy.mockRestore()` in each test mitigates this, but a test failure before `mockRestore()` would leave the spy in place. Wrapping each spy test in a try/finally or using `vi.restoreAllMocks()` in `afterEach` would be safer.",
+      "severity": "low"
+    }
+  ],
+  "testing_gaps": [
+    {
+      "id": "TG-01",
+      "description": "No test covers the case where `renderTiptapToHtml` returns a non-empty string that is not `<p></p>` but whose trimmed form matches (e.g., `'  <p></p>  '`). The current `html.trim() !== '<p></p>'` guard handles this, but the test suite only mocks the exact string `'<p></p>'`. A test with leading/trailing whitespace would lock in the `.trim()` behaviour.",
+      "files": ["/home/digit/dyad.berlin/src/lib/utils/render-body.test.ts"]
+    },
+    {
+      "id": "TG-02",
+      "description": "The `tiptap-html.test.ts` extension matrix covers bold, italic, link, bullet list, ordered list, blockquote, and hard break, but does not cover `codeBlock` or inline `code` mark. The plan's Unit 4 test scenario explicitly lists both. A body with a fenced code block that causes `generateHTML` to throw would reach the fallback path — exactly the failure mode being fixed. A test exercising these would close the matrix gap.",
+      "files": ["/home/digit/dyad.berlin/src/lib/utils/tiptap-html.test.ts"]
+    },
+    {
+      "id": "TG-03",
+      "description": "The integration test (`prompt-lifecycle.test.ts`) only asserts `body_html` is longer than `body_snippet` when the snippet ends in `…`. It does not assert that `body_html` contains the full plain-text content of the body. The plan's Unit 4 intent was `jsonToPlainText(body)` is a substring of the plain-text projection of `body_html`. The current test would pass even if `body_html` were slightly longer than 200 chars but still truncated. A stronger assertion — `expect(body_html).toContain(jsonToPlainText(body_from_seed).trim())` — would close this.",
+      "files": ["/home/digit/dyad.berlin/tests/integration/prompt-lifecycle.test.ts"]
+    }
+  ]
+}

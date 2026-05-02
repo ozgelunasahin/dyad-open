@@ -1,0 +1,71 @@
+{
+  "reviewer": "reliability",
+  "findings": [
+    {
+      "id": "REL-001",
+      "title": "SubstrateUnavailableError from authenticate() is unhandled in the login action",
+      "severity": "high",
+      "confidence": 0.95,
+      "file": "/home/digit/dyad.berlin/src/routes/(auth)/login/+page.server.ts",
+      "lines": "31-38",
+      "description": "The adapter's authenticate() throws SubstrateUnavailableError (not returns — throws) when the Supabase network call raises an exception. The login action checks 'code' in result to detect errors-as-values, but does not wrap the await in try/catch. A Supabase outage causes an unhandled exception that propagates up to SvelteKit's error boundary, rendering a 500 HTML page instead of a user-facing error message. The logout action on line 47 has the same gap: invalidate() calls supabase.auth.signOut() without a try/catch inside the adapter, and while the adapter does not document throwing SubstrateUnavailableError from invalidate(), the underlying signOut() call can still throw a network error that propagates uncaught.",
+      "affected_code": "const result = await locals.identityPort.authenticate({ kind: 'password', email, password });",
+      "fix": "Wrap the authenticate() call in try/catch. On SubstrateUnavailableError return fail(503, { email: email.toString(), error: 'Service temporarily unavailable — please try again' }). Similarly wrap invalidate() in logout and redirect to '/' even on failure."
+    },
+    {
+      "id": "REL-002",
+      "title": "Profile query error is silently swallowed — DB outage grants isAdmin=false to all users including real admins",
+      "severity": "medium",
+      "confidence": 0.92,
+      "file": "/home/digit/dyad.berlin/src/hooks.server.ts",
+      "lines": "52-57",
+      "description": "The destructured form `const { data: profile }` discards the `error` field entirely. When the profiles table is slow or erroring, the query returns error != null and data == null. The expression `profile?.is_admin ?? false` then evaluates to false for every user, including admins. This silently strips admin access from every request during a DB degradation event. No log is emitted so the condition is invisible. Additionally, this query runs on every single authenticated request — including static asset requests — adding a Supabase round-trip to every page load with no caching.",
+      "affected_code": "const { data: profile } = await event.locals.supabase.from('profiles').select('is_admin').eq('id', user.id).single();",
+      "fix": "Destructure error: `const { data: profile, error: profileError } = ...`. On profileError, emit console.error and consider either failing open (isAdmin=false, current behavior but now explicit and logged) or failing closed for admin routes specifically. Document the chosen policy."
+    },
+    {
+      "id": "REL-003",
+      "title": "exchangeCodeForSession in auth callback has no error handling — failed PKCE exchange silently redirects to /discover",
+      "severity": "medium",
+      "confidence": 0.88,
+      "file": "/home/digit/dyad.berlin/src/routes/auth/callback/+server.ts",
+      "lines": "14-22",
+      "description": "exchangeCodeForSession() returns { data, error } but the error is not checked. If the code exchange fails (expired code, replay, network error), the function falls through and redirects the user to /discover anyway. The user lands on /discover without a valid session, gets redirected to /login, and has no feedback about why their password-reset or magic-link flow failed. The password recovery flow is broken silently under any exchange failure.",
+      "affected_code": "await locals.supabase.auth.exchangeCodeForSession(code);",
+      "fix": "Destructure `const { error } = await locals.supabase.auth.exchangeCodeForSession(code)`. On error, redirect to `/login?error=link_expired` or similar rather than continuing to /discover."
+    },
+    {
+      "id": "REL-004",
+      "title": "resetPasswordForEmail leaks internal Supabase error.message to the client",
+      "severity": "low",
+      "confidence": 0.90,
+      "file": "/home/digit/dyad.berlin/src/routes/(auth)/login/+page.server.ts",
+      "lines": "59-65",
+      "description": "The resetPassword action returns `error.message` directly from Supabase in the fail() payload. Per the project's own engineering standards: 'Never return internal error details. error.message from Supabase can contain table names, constraint names, and query fragments.' The updatePassword action on line 78-84 has the same issue.",
+      "affected_code": "return fail(400, { email: email.toString(), error: error.message });",
+      "fix": "Log the error server-side with console.error, return a generic message: 'Unable to send reset email — please try again'."
+    }
+  ],
+  "residual_risks": [
+    {
+      "id": "RR-001",
+      "description": "The profiles query for isAdmin runs on every authenticated HTTP request with no caching. Under load this is one extra Supabase round-trip per request. If the profiles table becomes a hot spot, this will manifest as increased p99 latency across all authenticated routes before it manifests as errors.",
+      "confidence": 0.55
+    },
+    {
+      "id": "RR-002",
+      "description": "invalidate() in the Supabase adapter calls supabase.auth.signOut() with no try/catch inside the adapter body itself. If signOut() throws (network partition), the SvelteKit action throws an unhandled exception. The user's session cookie may or may not be cleared depending on how far signOut() got before throwing. Whether the cookie is cleared before or after the network call is Supabase-SDK-internal and not visible in this diff.",
+      "confidence": 0.65
+    }
+  ],
+  "testing_gaps": [
+    {
+      "description": "No test covers the SubstrateUnavailableError path in the login action. A test that mocks authenticate() to throw SubstrateUnavailableError would verify the user gets a 503 response instead of an uncaught exception.",
+      "file": "/home/digit/dyad.berlin/src/routes/(auth)/login/+page.server.ts"
+    },
+    {
+      "description": "No test covers the profile query error path in hooks.server.ts. A test where the profiles query returns an error should verify isAdmin defaults to false AND that an error is logged — not just that it defaults silently.",
+      "file": "/home/digit/dyad.berlin/src/hooks.server.ts"
+    }
+  ]
+}

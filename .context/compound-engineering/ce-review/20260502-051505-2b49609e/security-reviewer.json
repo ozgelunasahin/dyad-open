@@ -1,0 +1,58 @@
+{
+  "reviewer": "security",
+  "findings": [
+    {
+      "id": "SEC-001",
+      "severity": "high",
+      "confidence": 0.92,
+      "title": "is_admin flag readable by all authenticated users via column grant — attacker can confirm their own admin status before privilege escalation attempts",
+      "description": "The migration adds `GRANT SELECT (is_admin) ON profiles TO authenticated` with the comment 'Reading another user's admin status is not sensitive.' But this same grant, combined with the existing permissive row-level SELECT policy (`USING (app.current_user_id() IS NOT NULL)`), means any authenticated user can enumerate which other users are admins by reading the profiles table. More critically, the `is_admin` column is now returned to the application in `loadLayoutData` and stored in `locals.isAdmin`, making the flag client-visible in serialized layout data. An attacker who can find a privilege-escalation path (e.g. a missing WITH CHECK on the UPDATE policy) can verify success immediately without any server-side logging. The guard in the UPDATE RLS policy (`USING (app.current_user_id() = id)`) blocks updating other users' rows but does NOT include a `WITH CHECK` clause, meaning an authenticated user who can somehow satisfy USING can set `is_admin = true` on their own row — however the column is not in the `GRANT UPDATE` list from migration 20260417100200, so Postgres will block it at the privilege layer. That column-level UPDATE protection is the sole barrier and must hold.",
+      "file": "supabase/migrations/20260502110000_profiles_is_admin.sql",
+      "lines": "16",
+      "attack_path": "1. Attacker authenticates normally. 2. Attacker issues PostgREST GET /profiles?select=id,is_admin to enumerate all admin accounts. 3. Attacker uses this information to target social engineering or to verify success of any privilege escalation attempt.",
+      "recommendation": "Remove `is_admin` from the authenticated SELECT grant. The application reads it server-side via the service-role client in `hooks.server.ts` (which uses the anon key but the row is owned by the auth user so RLS passes), but the broad authenticated grant is unnecessary. Alternatively scope the SELECT policy for `is_admin` to `USING (app.current_user_id() = id)` so a user can only read their own flag."
+    },
+    {
+      "id": "SEC-002",
+      "severity": "high",
+      "confidence": 0.85,
+      "title": "Admin status read via anon-key client in hooks.server.ts — bypassed if RLS is misconfigured, and adds a per-request latency+attack surface",
+      "description": "The `is_admin` lookup in `hooks.server.ts` (lines 51-57) uses `event.locals.supabase`, which is the standard SSR client built with the PUBLIC anon key. This client operates under RLS. If the row-level SELECT policy is permissive (it is — `USING (app.current_user_id() IS NOT NULL)`), the read succeeds and returns `is_admin`. The risk: if a future migration accidentally drops the column-level UPDATE restriction on `is_admin`, a user could `PATCH /rest/v1/profiles?id=eq.<own-id>` with `{is_admin: true}` via PostgREST using their own session token, then on the next request `hooks.server.ts` would read `true` from the database and set `event.locals.isAdmin = true`, granting full admin access including feedback-gate bypass and access to all admin API routes. The current column-level GRANT in 20260417100200 prevents this, but the safety chain is: anon-key client + RLS policy + column-level UPDATE grant — three layers that must all hold. A service-role read for `is_admin` would remove two of those dependencies.",
+      "file": "src/hooks.server.ts",
+      "lines": "51-57",
+      "attack_path": "1. Attacker authenticates as regular user. 2. If column-level UPDATE grant on is_admin is ever inadvertently added, attacker sends: `PATCH /rest/v1/profiles?id=eq.<own_id>` with body `{is_admin:true}` using their session Bearer token. 3. RLS USING clause passes (own row). 4. Next request to any route: hooks.server.ts reads is_admin=true, sets event.locals.isAdmin=true. 5. Attacker now passes requireAdmin() in /api/invites and bypasses feedback gate.",
+      "recommendation": "Read `is_admin` using the service-role client (`supabase-admin.ts`) rather than the anon-key client. This removes the RLS/column-grant dependency from the trust chain for the most security-sensitive flag in the application."
+    },
+    {
+      "id": "SEC-003",
+      "severity": "medium",
+      "confidence": 0.80,
+      "title": "error.message from Supabase Auth leaked to client in resetPassword and updatePassword actions",
+      "description": "The `resetPassword` action at line 64 and `updatePassword` action at line 81 of `/src/routes/(auth)/login/+page.server.ts` return `error.message` directly from the Supabase Auth client. Supabase error messages can contain internal detail such as rate-limit state, email provider rejection reasons, or constraint names. The `login` action in the same file was correctly updated in this diff to map error codes to generic messages, but `resetPassword` and `updatePassword` were not updated and still use the raw `error.message`. This is inconsistent with the engineering standard: 'Never return internal error details.'",
+      "file": "src/routes/(auth)/login/+page.server.ts",
+      "lines": "64, 81",
+      "attack_path": "1. Attacker calls the resetPassword or updatePassword form actions. 2. Supabase returns an error (e.g. rate limit, invalid token, email provider rejection). 3. error.message is returned verbatim to the client in the fail() payload and rendered in the UI, leaking internal state.",
+      "recommendation": "Apply the same pattern used in the `login` action: map known error codes to generic user-facing messages and log the raw error server-side with console.error."
+    },
+    {
+      "id": "SEC-004",
+      "severity": "low",
+      "confidence": 0.65,
+      "title": "logout action passes empty object cast as Session — contract breakage risk on adapter swap",
+      "description": "Both logout action sites (`/src/routes/(auth)/login/+page.server.ts` line 47 and `/src/routes/logout/+page.server.ts` line 14) call `locals.identityPort.invalidate({} as Session)`. The `as Session` cast bypasses TypeScript's type checking. The code comment acknowledges that 'both current adapters ignore the passed Session', but this assumption is baked into two call sites with a dangerous cast. If a future IdentityPort adapter (e.g. OIDC) requires a valid Session to extract a token for backchannel logout, the empty object will cause a silent failure — the user's server-side session token will not be revoked at the provider, but they will be redirected to `/login` as if logout succeeded. This is not an exploitable vulnerability today but becomes one the moment an OIDC adapter ships.",
+      "file": "src/routes/logout/+page.server.ts",
+      "lines": "14",
+      "attack_path": "Future: user initiates logout, client cookies are cleared, but OIDC provider session persists. An attacker with network access who captures the original bearer token can continue making authenticated requests to the provider until natural token expiry.",
+      "recommendation": "Thread the actual Session through from safeGetSession() into the invalidate() call, or define a no-arg invalidate() signature in the IdentityPort interface for adapters that are stateless on logout."
+    }
+  ],
+  "residual_risks": [
+    "The migration backfill (`UPDATE profiles SET is_admin = true FROM auth.users WHERE ... raw_app_meta_data->>'role' = 'admin'`) runs once at deploy time. If any admin user was created after the migration is applied but before `app_metadata` is the authoritative source, they will not be backfilled. The transition period — between migration apply and full cutover — has no documented admin-provisioning procedure for new admins.",
+    "The admin layout guard in `src/routes/(admin)/admin/+layout.server.ts` delegates to `loadLayoutData` which reads `locals.isAdmin` set in hooks.server.ts. If `loadLayoutData` is ever called outside the hooks pipeline (e.g. in a test harness or a custom server handler), `locals.isAdmin` defaults to `undefined` which evaluates falsy — the redirect fires correctly, but the failure mode is silent rather than an explicit error."
+  ],
+  "testing_gaps": [
+    "No test covers the case where `profiles.is_admin = true` is attempted via a direct PostgREST PATCH from an authenticated user session — this is the key exploit scenario for SEC-002 and should be a migration-level RLS test.",
+    "No test verifies that `event.locals.isAdmin` is `false` when the profiles query returns an error (e.g. network timeout) — the current code uses `?? false` which is correct, but error handling in the admin gate path is untested.",
+    "The `resetPassword` and `updatePassword` error-message leak (SEC-003) has no test asserting that the response does not contain Supabase-internal error strings."
+  ]
+}

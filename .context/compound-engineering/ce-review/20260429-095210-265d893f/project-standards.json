@@ -1,0 +1,15 @@
+{
+  "reviewer": "project-standards",
+  "findings": [],
+  "residual_risks": [
+    {
+      "area": "{@html} sanitization audit",
+      "note": "The primary render path (renderTiptapToHtml) passes output through DOMPurify before returning. The fallback path in render-body.ts wraps each line in escapeHtml() before placing it inside <p> tags, so raw user text never reaches {@html} unsanitized. Both paths satisfy CLAUDE.md Security Boundaries: '{@html} opts out of XSS protection. Every use requires manual sanitization.'"
+    },
+    {
+      "area": "console.error in render-body.ts (server-side utility)",
+      "note": "render-body.ts is called from prompt-query.ts which runs server-side. The console.error on the catch branch is explicitly permitted by CLAUDE.md: 'Use console.error for operational errors; remove debug console.log before committing.' No console.log present."
+    }
+  ],
+  "testing_gaps": []
+}

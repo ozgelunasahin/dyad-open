@@ -1,0 +1,114 @@
+{
+  "reviewer": "adversarial",
+  "findings": [
+    {
+      "id": "ADV-001",
+      "title": "Privilege escalation: authenticated user self-elevates to admin via PostgREST INSERT on profiles",
+      "severity": "critical",
+      "confidence": 0.82,
+      "technique": "assumption_violation",
+      "assumption_violated": "GRANT INSERT ON profiles TO authenticated is table-level; the migration comment asserts 'only service_role can write is_admin' but that claim only holds for UPDATE, not INSERT",
+      "evidence": [
+        "Migration 20260417100200 issued REVOKE ALL then GRANT INSERT ON profiles TO authenticated at table level (not column-scoped) because 'Postgres column-scoped INSERT grants don't cover the common insert with defaults path'",
+        "Migration 20260502110000 adds the is_admin column with DEFAULT false but no CHECK constraint enforcing is_admin = false",
+        "The INSERT RLS policy 'Users can insert their own profile' only checks: WITH CHECK (app.current_user_id() = id) — it does not restrict column values",
+        "Attack: a user whose profile row does not exist (e.g. handle_new_user trigger failed during signup) POSTs to /rest/v1/profiles with body {\"id\": \"<their_uuid>\", \"is_admin\": true}",
+        "PostgreSQL evaluates: table-level INSERT grant (passes), column DEFAULT overridden by explicit value (passes), RLS WITH CHECK (id matches, passes)",
+        "Result: profiles row with is_admin=true is committed",
+        "On next request, hooks.server.ts line 54-57 queries profiles.is_admin for the authenticated user and returns true",
+        "event.locals.isAdmin = true -> feedback gate bypass at line 96, admin layout passes at admin/+layout.server.ts line 9",
+        "The trigger failure precondition is not exotic: any Supabase network timeout during signup, or a future code path that creates auth.users without triggering handle_new_user, creates this opening"
+      ],
+      "affected_files": [
+        "/home/digit/dyad.berlin/supabase/migrations/20260502110000_profiles_is_admin.sql",
+        "/home/digit/dyad.berlin/supabase/migrations/20260417100200_profiles_authenticated_column_grants.sql",
+        "/home/digit/dyad.berlin/supabase/migrations/20260502100400_rls_use_app_current_user_id.sql",
+        "/home/digit/dyad.berlin/src/hooks.server.ts"
+      ],
+      "fix": "Replace table-level GRANT INSERT with column-scoped INSERT grants that exclude is_admin, OR add a BEFORE INSERT OR UPDATE trigger that enforces NEW.is_admin = false (raising an exception otherwise), OR add a CHECK constraint: CHECK (is_admin = false) with only service_role allowed to bypass via the trigger-set default. The cleanest fix is a trigger: CREATE OR REPLACE FUNCTION enforce_is_admin_immutable() RETURNS trigger AS $$ BEGIN IF NEW.is_admin = true AND (SELECT auth.uid()) IS NOT NULL THEN RAISE EXCEPTION 'is_admin cannot be set by authenticated users'; END IF; RETURN NEW; END; $$ LANGUAGE plpgsql SECURITY DEFINER.",
+      "autofix_class": "manual",
+      "owner": "human"
+    },
+    {
+      "id": "ADV-002",
+      "title": "Split-brain admin authority: new admins bypass the feedback gate but see empty data in admin panel",
+      "severity": "high",
+      "confidence": 0.95,
+      "technique": "composition_failure",
+      "description": "The app layer (hooks.server.ts) now uses profiles.is_admin as the admin authority. The DB layer RLS policies on contacts, invitations, and feedback tables still use auth.jwt() -> 'app_metadata' ->> 'role' = 'admin' (set in migration 20260408_admin_panel.sql, never superseded). Any admin granted via profiles.is_admin=true without the corresponding app_metadata entry has app-layer privileges but no DB-layer data access.",
+      "evidence": [
+        "Migration 20260408_admin_panel.sql created RLS policies: 'Admins can view contacts' (contacts FOR SELECT), 'Admins can create invitations' (invitations FOR INSERT), 'Admins can read invitations' (invitations FOR SELECT), 'Admins read all feedback' (feedback FOR SELECT) — all using USING ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')",
+        "Migration 20260502110000 adds profiles.is_admin and backfills from app_metadata, but does NOT update these four RLS policies",
+        "No subsequent migration updates the 20260408 policies to reference is_admin",
+        "The admin panel pages (waitlist, feedback) use locals.supabase (anon-key, RLS enforced), not a service-role client",
+        "A new admin granted by setting profiles.is_admin=true: event.locals.isAdmin=true (line 57 hooks.server.ts) -> admin layout check passes (admin/+layout.server.ts:9) -> admin panel opens",
+        "BUT locals.supabase.from('contacts').select(...) -> RLS check: app_metadata role='admin'? No. Returns empty array.",
+        "Same for invitations and feedback: all return empty. Admin UI silently shows no data.",
+        "The feedback gate bypass at hooks.server.ts:96 DOES work correctly because it uses event.locals.isAdmin, not the DB query",
+        "The split only manifests when the new admin tries to use admin panel features that require data from the protected tables",
+        "Existing admins who were backfilled from app_metadata in 20260502110000 are unaffected — they have both is_admin=true AND app_metadata.role='admin'"
+      ],
+      "affected_files": [
+        "/home/digit/dyad.berlin/supabase/migrations/20260408_admin_panel.sql",
+        "/home/digit/dyad.berlin/supabase/migrations/20260502110000_profiles_is_admin.sql",
+        "/home/digit/dyad.berlin/src/routes/(admin)/admin/waitlist/+page.server.ts",
+        "/home/digit/dyad.berlin/src/routes/(admin)/admin/feedback/+page.server.ts"
+      ],
+      "fix": "Add a follow-on migration that replaces the four app_metadata RLS policies with is_admin equivalents. The pattern: USING (EXISTS (SELECT 1 FROM profiles WHERE profiles.id = app.current_user_id() AND profiles.is_admin = true)). Or, if performance matters, use a SECURITY DEFINER function is_current_user_admin() that does the profile lookup once.",
+      "autofix_class": "manual",
+      "owner": "human"
+    },
+    {
+      "id": "ADV-003",
+      "title": "Cascade: Supabase substrate unavailable during logout leaves active session and unhandled 500",
+      "severity": "medium",
+      "confidence": 0.80,
+      "technique": "cascade_construction",
+      "description": "Both logout paths call identityPort.invalidate({} as Session) without try/catch. The adapter's invalidate calls supabase.auth.signOut(). If Supabase is unreachable, the adapter throws SubstrateUnavailableError (an unhandled exception). SvelteKit converts this to a 500 response. The redirect to /login or / never executes. The user's session cookie is not cleared. On the next request, safeGetSession() finds the still-valid cookie, revalidates it against Supabase (now possibly back online), and the user is still authenticated.",
+      "evidence": [
+        "adapter.ts line 82-84: invalidate calls supabase.auth.signOut() with no error handling — on network failure this propagates as SubstrateUnavailableError (thrown at the supabase client level)",
+        "logout/+page.server.ts line 14: await locals.identityPort.invalidate({} as Session) — no try/catch wrapping",
+        "login/+page.server.ts line 47: same pattern for the logout form action",
+        "SvelteKit's unhandled exception in a server action returns a 500 error page",
+        "The redirect(303, '/') on line 16 of logout/+page.server.ts only executes if invalidate() resolves without throwing",
+        "The Supabase SSR client sets cookies on the response via the setAll callback only when signOut() completes; a thrown exception before cookie clearance means the auth cookie remains",
+        "On Cloudflare Pages edge, a transient Supabase outage during a logout attempt permanently locks out the user from being able to log out until the substrate recovers",
+        "If the user closes the browser tab after seeing the 500, their server-side session remains active until natural token expiry"
+      ],
+      "affected_files": [
+        "/home/digit/dyad.berlin/src/routes/logout/+page.server.ts",
+        "/home/digit/dyad.berlin/src/routes/(auth)/login/+page.server.ts",
+        "/home/digit/prefig/upact-supabase/src/adapter.ts"
+      ],
+      "fix": "Wrap invalidate() in try/catch in both logout handlers and proceed with the redirect regardless: try { await locals.identityPort.invalidate({} as Session); } catch { /* best-effort; cookie may persist until expiry */ } redirect(303, '/'). Alternatively, clear the Supabase auth cookies directly in the catch block as a fallback.",
+      "autofix_class": "manual",
+      "owner": "human"
+    }
+  ],
+  "residual_risks": [
+    {
+      "id": "RR-001",
+      "description": "The is_admin column is selectable by any authenticated user for any profile row. Any logged-in user can enumerate the full admin roster via GET /rest/v1/profiles?select=id,username,is_admin&is_admin=eq.true. The migration comment acknowledges this as 'not sensitive' but the admin roster is operationally sensitive information (targeted social engineering, knowing who to impersonate).",
+      "confidence": 0.90
+    },
+    {
+      "id": "RR-002",
+      "description": "resetPassword action at login/+page.server.ts line 64 returns error.message from Supabase directly: return fail(400, { email: email.toString(), error: error.message }). This violates the CLAUDE.md standard 'Never return internal error details' and the Supabase error for a non-existent email may differ from a known-email error, enabling account enumeration. This is a single-boundary issue owned by reliability-reviewer but noted because the same login route now routes auth through the identity port for the login action but bypasses it for resetPassword.",
+      "confidence": 0.85
+    }
+  ],
+  "testing_gaps": [
+    {
+      "id": "TG-001",
+      "description": "No integration test covers the INSERT privilege escalation path: authenticated user with no profile row attempting to INSERT a profile with is_admin=true via PostgREST."
+    },
+    {
+      "id": "TG-002",
+      "description": "No test covers the admin split-brain: a user with is_admin=true but no app_metadata.role='admin' should see empty contacts/invitations/feedback in the admin panel, but this failure is currently silent."
+    },
+    {
+      "id": "TG-003",
+      "description": "No test covers SubstrateUnavailableError propagating from invalidate() — the logout failure cascade is not exercised."
+    }
+  ]
+}

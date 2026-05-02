@@ -1,0 +1,74 @@
+{
+  "reviewer": "maintainability",
+  "findings": [
+    {
+      "id": "M1",
+      "category": "naming",
+      "confidence": 0.62,
+      "file": "src/lib/utils/render-body.ts",
+      "lines": "14-16",
+      "title": "Inline opts type is unambiguous today but costs discoverability if a second caller appears",
+      "detail": "The second parameter is `opts?: { promptId?: string }`. The type is structural so any caller that passes `{ promptId }` works without importing anything. The cost is that if a second consumer of this helper ever wants to grep for the opts contract, there is no named symbol to search. Since `promptId` is the only field and is explicitly optional, an exported `interface RenderBodyOpts { promptId?: string }` is not worth adding today — but the finding is worth flagging so the next person who adds a second opts field doesn't have to backfill the name. Low urgency.",
+      "suggestion": "No change required now. If a second opts field is ever added, introduce `export interface RenderBodyOpts` in the same file at that time."
+    },
+    {
+      "id": "M2",
+      "category": "dead_code",
+      "confidence": 0.90,
+      "file": "src/lib/utils/render-body.ts",
+      "lines": "22",
+      "title": "Empty-doc check `html.trim() !== '<p></p>'` is fragile — misses other empty-output shapes",
+      "detail": "The guard on line 22 catches exactly the string `<p></p>` produced by an empty paragraph node. It does not catch `<p> </p>` (whitespace-only paragraph), `<h1></h1>` (empty heading), `<p></p><p></p>` (two empty paragraphs from a doc with two empty nodes), or the empty string that DOMPurify returns if it strips everything. Of these: the empty-string case is already handled because `html` is falsy. The `<p> </p>` case would pass the guard and return whitespace-only HTML as non-empty, causing the detail page to render a blank paragraph rather than falling back to the plain-text projection. The `<h1></h1>` case would pass through as apparently valid HTML that contains no text — a user who typed a heading, deleted all the text, and saved would see a blank detail page rather than an empty state. The check is provably incomplete for the stated contract ('returns empty string when the body itself contains no text at all'). A trim-plus-strip-tags check or DOMPurify's `.textContent` on the sanitised fragment would be more reliable.",
+      "suggestion": "Consider replacing the single-string check with `DOMPurify.sanitize(html, PURIFY_CONFIG).replace(/<[^>]+>/g, '').trim() === ''` to treat any HTML that resolves to zero visible text as empty, or at minimum add `<p> </p>` and `<h1></h1>` patterns to the existing guard."
+    },
+    {
+      "id": "M3",
+      "category": "unnecessary_indirection",
+      "confidence": 0.72,
+      "file": "src/lib/utils/render-body.test.ts and src/lib/utils/tiptap-html.test.ts",
+      "lines": "render-body.test.ts:5-14, tiptap-html.test.ts:5-16",
+      "title": "Three JSONContent factory helpers are duplicated across both test files",
+      "detail": "`doc` is identical in both files. `paragraph` diverges only in signature: render-body uses `paragraph(text: string)` while tiptap-html uses `paragraph(...children: JSONContent[])` — the latter is strictly more general. `heading` appears only in render-body.test.ts. `text` appears only in tiptap-html.test.ts. The duplication is small now (14 lines total across both files) but both test files will evolve: tiptap-html.test.ts adds node types, render-body.test.ts will add branches as the helper grows. When the two `paragraph` factories diverge further (one takes a string, the other takes nodes) a developer adding a new test will have to choose which file to copy from. Extracting to a shared `src/lib/utils/__tests__/tiptap-fixtures.ts` would eliminate the inconsistency and the copy-before-test decision.",
+      "suggestion": "Extract `doc`, `paragraph`, `heading`, and `text` into `src/lib/utils/__tests__/tiptap-fixtures.ts` with the more general signatures (`paragraph(...children)`, `text(value, marks?)`). Both test files import from there. This is not urgent — do it when a third test file needs these helpers or when the paragraph-signature divergence causes a real confusion."
+    },
+    {
+      "id": "M4",
+      "category": "naming",
+      "confidence": 0.68,
+      "file": "src/lib/utils/tiptap-html.ts",
+      "lines": "126-131",
+      "title": "The duplicate-extension test in tiptap-html.test.ts tests behaviour, not the structural property it claims to guard",
+      "detail": "The test at tiptap-html.test.ts:126-132 is labelled 'does not register the Link extension twice' but asserts only that the output contains 'any text' — it would pass whether or not the extension is duplicated, as long as rendering doesn't throw. The comment explains the warning would appear, but the assertion doesn't verify the absence of the warning. If someone reintroduces the duplicate, this test would still pass as long as `generateHTML` returns non-empty output despite the warning. The test's name promises more than it delivers; the next developer reading it might trust it as a regression guard when it isn't one.",
+      "suggestion": "Either assert `console.warn` is not called during the render (mock `console.warn` in a `beforeEach` and assert `mockWarn` was not called with a string matching `/[Dd]uplicate/`), or rename the test to 'renders without error when Link extension is configured' to match what it actually checks."
+    }
+  ],
+  "residual_risks": [
+    {
+      "id": "RR1",
+      "description": "The `renderBodyHtmlOrFallback` helper correctly lives in `src/lib/utils/` as a pure transformation. No coupling concern: it imports from other utils (tiptap-html, json-content, escape-html) with no service-layer dependencies, and is imported by the service layer in one direction only. The placement is appropriate.",
+      "severity": "none"
+    },
+    {
+      "id": "RR2",
+      "description": "`body_snippet` is confirmed live in PromptListItem (line 42-43), ConversationCard (41-42), BottomSheet (30-31), and SearchOverlay (31, 108-109). Its removal from the detail-page else-branch does not affect those consumers. No dead-code finding warranted for `body_snippet` itself.",
+      "severity": "none"
+    },
+    {
+      "id": "RR3",
+      "description": "The tiptap-html.ts module-level comment on line 1-6 still says 'Used for rendering note content in static section previews. All output MUST be passed through DOMPurify before use in `{@html}` blocks.' The second sentence is stale: DOMPurify is now called inside `renderTiptapToHtml` itself, so callers no longer need to sanitize. `render-body.ts` correctly uses `{@html}` via the service layer trusting the already-sanitized output. The stale warning could cause a future developer to double-sanitize. Not a maintainability finding severe enough to flag, but worth noting.",
+      "severity": "low"
+    }
+  ],
+  "testing_gaps": [
+    {
+      "id": "TG1",
+      "description": "No test covers the case where the TipTap renderer returns a whitespace-only paragraph (`<p> </p>`) or an empty heading (`<h1></h1>`). Given finding M2, these are the exact shapes that would silently bypass the empty-doc guard and render as blank HTML on the detail page. A test for each would both document the expected behaviour and fail loudly if the guard is tightened.",
+      "files": ["src/lib/utils/render-body.test.ts"]
+    },
+    {
+      "id": "TG2",
+      "description": "The integration test at tests/integration/prompt-lifecycle.test.ts:715-729 only fires its non-trivial assertion (`body_html.length > body_snippet.length`) when the seed prompt's snippet ends with `…`. If the seed body is shorter than 200 characters, the conditional branch is never exercised and the test passes vacuously. The test comment acknowledges this indirectly but the conditional means CI can go green with zero coverage of the anti-truncation invariant. Consider making the seed prompt body unconditionally longer than 200 characters so the branch always executes.",
+      "files": ["tests/integration/prompt-lifecycle.test.ts"]
+    }
+  ]
+}

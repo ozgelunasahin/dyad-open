@@ -19,7 +19,7 @@ async function requireAdmin(locals: App.Locals) {
 	if (!locals.user) {
 		error(401, 'Authentication required');
 	}
-	if (!locals.isAdmin) {
+	if (!locals.isAdmin) { // out-of-port admin channel, see hooks.server.ts
 		error(403, 'Admin access required');
 	}
 }

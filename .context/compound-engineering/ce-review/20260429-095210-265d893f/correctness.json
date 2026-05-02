@@ -1,0 +1,73 @@
+{
+  "reviewer": "correctness",
+  "findings": [
+    {
+      "id": "C-01",
+      "severity": "high",
+      "confidence": 0.95,
+      "title": "Integration test assertion never fires for seed data — body_html='' would pass silently",
+      "file": "tests/integration/prompt-lifecycle.test.ts",
+      "lines": "200-204",
+      "description": "The new assertion is guarded by `if (detail!.body_snippet?.endsWith('…'))`. The seed prompt 'seed-prompt-published' has a body of 157 characters, which is below SNIPPET_LENGTH (200), so body_snippet is set to the raw text without an ellipsis. The guard condition is therefore always false. The only assertion that executes unconditionally is `expect(detail!.body_html).not.toMatch(/…\\s*<\\/p>\\s*$/)` — but that would also pass if body_html is the empty string. Concretely: if renderBodyHtmlOrFallback regressed to returning '' for the seed prompt body, both assertions would pass and the test would report green. The test does not cover the primary regression it was added to catch.",
+      "reproduction": "Seed prompt body text is 157 chars; SNIPPET_LENGTH=200; makeSnippet returns '157-char text' with no ellipsis. body_snippet.endsWith('…') === false → inner expect skipped. body_html='' satisfies not.toMatch(/…<\\/p>/) → outer expect passes.",
+      "fix": "Either (a) use a seed body longer than 200 chars so the ellipsis guard fires, or (b) replace the conditional with an unconditional assertion: assert that every text node in jsonToPlainText(detail.body) appears as a substring of detail.body_html whenever body_html is non-empty, and assert body_html is non-empty when the body has text content."
+    },
+    {
+      "id": "C-02",
+      "severity": "medium",
+      "confidence": 0.85,
+      "title": "Empty-paragraph guard only matches the exact string '<p></p>' — multi-empty-paragraph docs bypass the guard",
+      "file": "src/lib/utils/render-body.ts",
+      "lines": "22",
+      "description": "Line 22: `if (html && html.trim() !== '<p></p>') return html`. A TipTap doc containing two or more empty paragraphs (e.g., `{ type: 'doc', content: [{ type: 'paragraph' }, { type: 'paragraph' }] }`) produces `<p></p><p></p>` after generateHTML + DOMPurify. That string is truthy and its trim() is not equal to '<p></p>', so the guard returns it. The caller receives two empty paragraph tags, and the `{#if data.prompt.body_html}` condition in +page.svelte evaluates truthy, rendering two invisible empty paragraphs in the body div. The plan requirement is 'empty doc → returns '', convo page renders no body section'. This requirement is unmet for docs with more than one empty paragraph. The previous IIFE returned '' for this case (generateHTML returns '<p></p><p></p>', DOMPurify passes it, the original code returned '' from the outer catch if generateHTML threw, but in non-throwing cases just returned the string — so this was also a pre-existing issue, but the plan explicitly states the empty-doc contract should now return ''. In practice, can a published prompt have a multi-empty body? The editor can produce them by pressing Enter in an empty doc; the validator allowlist permits paragraphs.",
+      "reproduction": "body = { type: 'doc', content: [{ type: 'paragraph' }, { type: 'paragraph' }] }. renderTiptapToHtml returns '<p></p><p></p>'. html.trim() !== '<p></p>' → true → function returns '<p></p><p></p>'. Page renders it. jsonToPlainText of this body returns '' (empty paragraphs have no text children), so the fallback would correctly return ''. The guard just short-circuits before reaching it.",
+      "fix": "Replace the exact-string check with a DOMPurify post-process strip or a check based on whether the HTML contains any non-whitespace text content, e.g.: `if (html) { const stripped = html.replace(/<[^>]+>/g, '').trim(); if (stripped) return html; }`. This handles any number of empty block elements."
+    },
+    {
+      "id": "C-03",
+      "severity": "medium",
+      "confidence": 0.80,
+      "title": "vi.spyOn on statically-imported ESM binding may not intercept production call path",
+      "file": "src/lib/utils/render-body.test.ts",
+      "lines": "63-103",
+      "description": "Three tests (lines 63-78, 81-91, 93-103) spy on renderTiptapToHtml by dynamically importing the tiptap-html module and calling vi.spyOn on it. However render-body.ts imports renderTiptapToHtml as a static top-level import. Under Vitest's ESM handling (environment: 'node', no explicit vi.mock hoisting), whether a post-import vi.spyOn replacement intercepts the bound name inside render-body.ts depends on whether Vite transforms the module to CJS bindings or leaves it as native ESM live bindings. If render-body.ts has already captured the direct function reference at module evaluation time (native ESM), the spy object replaces the export slot on the module namespace but the local binding in render-body.ts still points to the original function. All three tests would silently exercise the real renderer rather than the mock. The tests may pass trivially (real renderer produces non-empty HTML, so 'contains all the text here' is satisfied) or fail for the wrong reason. Specifically the 'throws' test (line 63) would not see a throw from the spy, the real renderer would run and return HTML — the test's expectation `expect(html).toContain('safe')` would pass but `expect(html).not.toContain('<script>')` would also pass because DOMPurify strips the script tag. So tests appear green but the fallback branch they claim to cover is never actually executed.",
+      "reproduction": "Vitest config: `test: { include: ['src/**/*.test.ts'], environment: 'node' }`. No vi.mock call. Static import in render-body.ts evaluated before spy is set in async test body.",
+      "fix": "Use `vi.mock('./tiptap-html.js', ...)` hoisted at the module level, or restructure render-body.ts to accept renderTiptapToHtml as an injectable dependency for testing. Alternatively use `vi.doMock` with a dynamic import of render-body.ts after the mock is installed."
+    },
+    {
+      "id": "C-04",
+      "severity": "low",
+      "confidence": 0.75,
+      "title": "body_html.length > body_snippet.length is an unsound truncation guarantee even when the ellipsis guard fires",
+      "file": "tests/integration/prompt-lifecycle.test.ts",
+      "lines": "200-201",
+      "description": "If the seed body were longer than 200 chars and the guard fired, the assertion `expect(detail!.body_html.length).toBeGreaterThan(detail!.body_snippet.length)` only proves body_html is longer than 201 characters (body_snippet = 200ch + '…'). A body_html of 202 characters would satisfy the assertion even if the original body is 10,000 characters and body_html is severely truncated. The assertion proves only that body_html is not the snippet itself — not that it contains the full body text. This is noted in the review scope as a specific concern.",
+      "reproduction": "body_snippet = 'a'.repeat(200) + '…' (length 201). body_html = 'a'.repeat(202) (length 202). 202 > 201 → assertion passes. Original body had 5000 chars. Truncation not detected.",
+      "fix": "Assert `jsonToPlainText(detail!.body).trim()` is a substring of the text content of detail!.body_html, or at minimum assert `detail!.body_html.length >= jsonToPlainText(detail!.body).length`."
+    }
+  ],
+  "residual_risks": [
+    {
+      "id": "RR-01",
+      "description": "The plain-text fallback path in render-body.ts splits on \\n+ and wraps each line in <p>. A body whose jsonToPlainText output contains a line with only a newline character (e.g., a listItem whose text is a single newline) would be filtered by .filter(Boolean) only if the split result is an empty string — a line of just whitespace would survive the filter and produce '<p>  </p>' (whitespace paragraph). This is invisible to the user but produces non-empty HTML, so body_html is truthy and the page body div will render with the whitespace element. This is a cosmetic issue, not a content-loss issue."
+    },
+    {
+      "id": "RR-02",
+      "description": "renderTiptapToHtml has an internal try/catch that catches generateHTML errors and returns ''. render-body.ts also wraps renderTiptapToHtml in a try/catch expecting it might throw. Because renderTiptapToHtml never actually throws (it returns '' on error), the catch block in render-body.ts can never fire for renderer errors — console.error with the prompt id context will never be emitted on renderer failure. The fallback path still executes correctly (empty string triggers it), but the enhanced logging that was a stated goal of this PR for Unit 2 is unreachable."
+    }
+  ],
+  "testing_gaps": [
+    {
+      "id": "TG-01",
+      "description": "No test covers a doc with multiple empty paragraphs (e.g., two consecutive { type: 'paragraph' } nodes with no content). This is the exact shape that bypasses the '<p></p>' guard in render-body.ts and causes it to return non-empty HTML for an empty body (C-02)."
+    },
+    {
+      "id": "TG-02",
+      "description": "No integration test uses a body longer than 200 chars, so the ellipsis-conditional assertion in the new prompt-lifecycle test never executes. The primary regression the test was added to detect — that body_html contains the full body text for a long prompt — has no live coverage."
+    },
+    {
+      "id": "TG-03",
+      "description": "No test covers the case where body is a non-doc root node (e.g., stored as a bare paragraph). renderTiptapToHtml replaces it with an empty doc, and body_html falls back to the plain-text path. This is a known real-world data shape risk documented in the plan."
+    }
+  ]
+}

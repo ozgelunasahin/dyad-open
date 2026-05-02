@@ -1,0 +1,108 @@
+{
+  "reviewer": "testing",
+  "findings": [
+    {
+      "id": "T1",
+      "category": "integration_test_gate_always_skips",
+      "severity": "high",
+      "confidence": 0.97,
+      "file": "tests/integration/prompt-lifecycle.test.ts",
+      "lines": "200-201",
+      "title": "Integration test's core truncation assertion is dead code against current seed data",
+      "detail": "The test at line 200 gates its primary assertion — `expect(detail!.body_html.length).toBeGreaterThan(detail!.body_snippet.length)` — on `detail!.body_snippet?.endsWith('…')`. The seed prompt `seed-prompt-published` has a body of 157 characters, which is under the 200-character SNIPPET_LENGTH, so `makeSnippet` returns it without a trailing `…`. This means the conditional branch containing the length comparison NEVER executes. The only assertion that always runs is the negative regex `expect(detail!.body_html).not.toMatch(/…\\s*<\\/p>\\s*$/)`, which passes trivially for any non-ellipsis-terminated string, including an empty string `''`. The test provides zero regression protection for the bug it was introduced to prevent.",
+      "fix": "Either seed a prompt whose body exceeds 200 characters in the test's beforeAll/setup (or use an existing one that does), or drop the conditional entirely and assert `!detail!.body_html.includes('…')` plus that `body_html.length` exceeds `SNIPPET_LENGTH` when body text is known long."
+    },
+    {
+      "id": "T2",
+      "category": "untested_branches",
+      "severity": "high",
+      "confidence": 0.95,
+      "file": "src/lib/utils/render-body.test.ts",
+      "lines": "63-103",
+      "title": "Spy-based fallback tests may not intercept the static import binding in render-body.ts",
+      "detail": "Three tests (lines 63-78, 81-91, 93-103) spy on `renderTiptapToHtml` via `await import('./tiptap-html.js')` followed by `vi.spyOn(tiptap, 'renderTiptapToHtml').mockImplementation(...)`. The SUT (`render-body.ts`) binds `renderTiptapToHtml` via a static named import at module load time. In Vitest 4 with the `node` test environment (as set in `vite.config.ts`), Vitest does wrap module namespaces to make exports configurable, so `vi.spyOn` on a dynamically-imported namespace object typically intercepts the live binding. However, this relies on Vitest's module mock infrastructure without an explicit `vi.mock()` hoisting guard. Without `vi.mock()`, there is no compile-time guarantee that the spy patches the exact namespace object render-body.ts holds. If the module cache yields different namespace references (e.g., due to SSR vs client module graphs in the Vite transform pipeline), the spy silently does nothing and the tests pass regardless — asserting the real implementation's output, not the mocked path. This is particularly dangerous for the error-path and empty-return tests: if the spy does not intercept, the real `renderTiptapToHtml` runs, returns valid HTML, and all assertions pass vacuously (the real renderer never throws and never returns `''` for a valid doc).",
+      "fix": "Add `vi.mock('./tiptap-html.js', () => ({ renderTiptapToHtml: vi.fn() }))` at the top of the file (Vitest hoists it before imports), then configure per-test behavior with `vi.mocked(renderTiptapToHtml).mockImplementation(...)`. This guarantees the SUT's static import is intercepted."
+    },
+    {
+      "id": "T3",
+      "category": "untested_branches",
+      "severity": "medium",
+      "confidence": 0.92,
+      "file": "src/lib/utils/tiptap-html.test.ts",
+      "lines": "1-133",
+      "title": "Extension matrix missing codeBlock, code mark, image, horizontalRule, and strike",
+      "detail": "The plan explicitly enumerates the required extension matrix: paragraph, heading h1/h2/h3, bullet list, ordered list, blockquote, code block, code mark, bold, italic, strike, link, hard break, horizontal rule, image. The test file covers paragraph, heading, bold, italic, bulletList, orderedList, blockquote, link, hardBreak — 9 of 14. Missing: codeBlock, code mark, image, horizontalRule, strike. These are all registered in `extensions` in `tiptap-html.ts` and are editor-producible node types. The root cause of the bug (empty `body_html`) was a `generateHTML` failure caused by extension misconfiguration. Any one of the untested node types could trigger the same failure pattern if a future extension change introduces a similar mismatch.",
+      "fix": "Add tests for `{ type: 'codeBlock', content: [{ type: 'text', text: 'x = 1' }] }`, `text('inline', [{ type: 'code' }])`, `{ type: 'horizontalRule' }`, `{ type: 'image', attrs: { src: '...', alt: '' } }`, and `text('struck', [{ type: 'strike' }])`. Each should assert the source text (or `<hr>` for horizontalRule) appears in the output."
+    },
+    {
+      "id": "T4",
+      "category": "untested_branches",
+      "severity": "medium",
+      "confidence": 0.88,
+      "file": "src/lib/utils/render-body.test.ts",
+      "lines": "406-409",
+      "title": "The <p></p> emptiness guard does not cover multi-empty-paragraph docs",
+      "detail": "The guard in `render-body.ts` line 22 is `html.trim() !== '<p></p>'`. A doc containing two empty paragraphs (`{ type: 'doc', content: [{ type: 'paragraph' }, { type: 'paragraph' }] }`) causes `generateHTML` to return `<p></p><p></p>`, which does NOT match `'<p></p>'` and is therefore returned as-is. The function then returns `'<p></p><p></p>'` to the caller instead of `''`. The test at line 407 only tests the single-empty-paragraph case. This means the emptiness guard's contract — \"returns '' only when body itself contains no text\" — is violated for multi-empty-paragraph docs, producing stray empty HTML. The fallback path is never reached for this shape.",
+      "fix": "Either widen the guard to check whether the trimmed HTML consists entirely of empty `<p>` tags (e.g., `/^(<p>\\s*<\\/p>\\s*)+$/.test(html.trim())`), or compare against `jsonToPlainText(body).trim()` to decide whether to fall back. Add a test: `renderBodyHtmlOrFallback(doc({ type: 'paragraph' }, { type: 'paragraph' }))` should equal `''`."
+    },
+    {
+      "id": "T5",
+      "category": "tests_dont_assert_behavior",
+      "severity": "medium",
+      "confidence": 0.85,
+      "file": "src/lib/utils/tiptap-html.test.ts",
+      "lines": "126-132",
+      "title": "Duplicate-extension regression test does not assert the absence of warnings",
+      "detail": "The test titled 'does not register the Link extension twice' only asserts that `html` contains 'any text'. This would pass even if a duplicate extension warning is emitted, because TipTap warns but may still render. The test's stated purpose — \"fail loudly if someone re-introduces the duplicate\" — is only met if the duplicate causes rendering to produce empty output. In environments where the duplicate produces a warning without silencing output, the test passes while the regression is present. Additionally, the test is structurally identical to the paragraph rendering test and adds no behavioral distinction.",
+      "fix": "Spy on `console.warn` before calling `renderTiptapToHtml` and assert it was NOT called with a string matching `/[Dd]uplicate/`. This directly tests the property the comment claims to guard."
+    },
+    {
+      "id": "T6",
+      "category": "untested_branches",
+      "severity": "low",
+      "confidence": 0.82,
+      "file": "src/lib/utils/render-body.test.ts",
+      "lines": "63-78",
+      "title": "Error log path tested with promptId but not without promptId",
+      "detail": "The `console.error` call in `render-body.ts` has two branches: with `opts?.promptId` it logs 'for prompt {id}', without it logs without the prompt context. The error-path test at line 63 always passes `{ promptId: 'test-id' }`, so the log message format is exercised only for the with-promptId branch. The without-promptId branch (opts undefined) is never verified. The mock on `console.error` in `beforeEach` is set but its call arguments are never asserted in any test.",
+      "fix": "Add an assertion `expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('test-id'), expect.any(Error))` in the throws test, and add a second throws test without `promptId` asserting the log does NOT contain 'for prompt'."
+    }
+  ],
+  "residual_risks": [
+    {
+      "id": "RR1",
+      "description": "The integration test passes with the current seed data regardless of whether the bug fix is correct, because the seed prompt is short enough to never trigger `body_snippet` truncation. A future change that shortens seed bodies further, or a refactor of `makeSnippet`, would continue to pass this test even if truncation were reintroduced on the `getPromptDetail` path.",
+      "confidence": 0.97
+    },
+    {
+      "id": "RR2",
+      "description": "The `<p></p>` emptiness guard (render-body.ts line 22) is a string literal comparison that only matches exactly one empty paragraph. Any multi-node empty document will bypass the guard and return non-empty HTML. No test covers this, and no test verifies the guard's contract holds for all valid 'empty body' document shapes.",
+      "confidence": 0.90
+    },
+    {
+      "id": "RR3",
+      "description": "The three spy-based fallback tests in render-body.test.ts (throws, returns-empty, returns-p-empty) may be verifying the real implementation instead of the mocked path if Vitest's module namespace interception does not work for this module graph. If the spies silently fail to intercept, these tests provide false confidence about the fallback branches in render-body.ts.",
+      "confidence": 0.75
+    }
+  ],
+  "testing_gaps": [
+    {
+      "id": "TG1",
+      "description": "No test writes a prompt with body text longer than 200 characters and then calls getPromptDetail to assert body_html contains the full text. This is the exact regression the plan's Unit 4 describes, but the integration test only uses the short seed prompt.",
+      "affected_code": "tests/integration/prompt-lifecycle.test.ts + src/lib/services/prompt-query.ts:renderBodyHtmlOrFallback call",
+      "severity": "high"
+    },
+    {
+      "id": "TG2",
+      "description": "No unit test for renderBodyHtmlOrFallback covers a body where renderTiptapToHtml returns valid HTML for a non-doc root node type. In render-body.ts, if body.type !== 'doc', renderTiptapToHtml wraps it in an empty paragraph (tiptap-html.ts line 131), potentially losing content. No test exercises this code path.",
+      "affected_code": "src/lib/utils/render-body.ts + src/lib/utils/tiptap-html.ts:130-131",
+      "severity": "medium"
+    },
+    {
+      "id": "TG3",
+      "description": "No test in tiptap-html.test.ts exercises the WikilinkStatic extension, which is registered in the extensions array and is the extension most likely to hold legacy data from old prompts. If a stored prompt contains a wikilink node, the current test suite gives no signal about whether it renders correctly or causes a throw.",
+      "affected_code": "src/lib/utils/tiptap-html.ts:66-90 (WikilinkStatic in extensions array)",
+      "severity": "medium"
+    }
+  ]
+}

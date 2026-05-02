@@ -1,0 +1,48 @@
+{
+  "reviewer": "data-migrations",
+  "findings": [
+    {
+      "id": "DMR-001",
+      "severity": "high",
+      "confidence": 0.92,
+      "title": "Stale RLS admin policies still check app_metadata after is_admin migration",
+      "description": "Three RLS policies created in 20260408_admin_panel.sql continue to gate admin access using `(SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'` even after this migration makes profiles.is_admin the authoritative source. The policies are: 'Admins can view contacts' on contacts, 'Admins can create invitations' and 'Admins can read invitations' on invitations, and 'Admins read all feedback' on feedback. The D5 migration (20260502100400) does not touch these tables. After deployment, any new admin granted via profiles.is_admin will pass the application-layer isAdmin check in hooks.server.ts but will be blocked by the database-layer RLS policies on those three tables, because their JWT app_metadata.role will not equal 'admin'. Conversely, if app_metadata.role is later cleared from existing admins' JWTs (which is the logical next step after this migration), those admins will lose access to contacts, invitations, and legacy feedback at the DB layer even though is_admin=true.",
+      "affected_files": [
+        "/home/digit/dyad.berlin/supabase/migrations/20260408_admin_panel.sql",
+        "/home/digit/dyad.berlin/supabase/migrations/20260502110000_profiles_is_admin.sql"
+      ],
+      "recommendation": "Add a follow-on migration (or include in this one) that rewrites the four app_metadata-checking policies to use profiles.is_admin. Pattern: JOIN profiles ON profiles.id = app.current_user_id() WHERE profiles.is_admin = true. Until that migration is deployed, the two admin-check systems are split and will diverge as soon as app_metadata is cleared."
+    },
+    {
+      "id": "DMR-002",
+      "severity": "medium",
+      "confidence": 0.85,
+      "title": "No rollback path — backfill is irreversible without re-reading app_metadata",
+      "description": "The migration has no down migration. If it needs to be rolled back (e.g. due to the split-admin-check problem above), the application code in hooks.server.ts already reads profiles.is_admin exclusively. Rolling back the code to read app_metadata would require a separate deployment. The migration also does not archive the source data: after the migration, is_admin=true rows exist in profiles, but there is no record of which rows were promoted from app_metadata vs. set manually. If the backfill is wrong (e.g. app_metadata had stale or incorrect role values), there is no self-correcting path — a manual audit against auth.users is required. Given the ~50-user alpha scale this is low operational risk, but the absence of a rollback note is worth flagging explicitly.",
+      "affected_files": [
+        "/home/digit/dyad.berlin/supabase/migrations/20260502110000_profiles_is_admin.sql"
+      ],
+      "recommendation": "The migration comment correctly identifies this as a one-time substrate-specific backfill. Accept the irreversibility but add an explicit comment noting that rollback requires: (1) reverting hooks.server.ts to read app_metadata, (2) a coordinated deploy. No data is lost — app_metadata remains in auth.users."
+    },
+    {
+      "id": "DMR-003",
+      "severity": "low",
+      "confidence": 0.80,
+      "title": "Column-level SELECT grant may not extend to anon role if it previously had access",
+      "description": "The migration adds `GRANT SELECT (is_admin) ON profiles TO authenticated`. The prior migration 20260417100200 revoked broad access and set column-scoped grants for authenticated only. The is_admin value is not sensitive (the migration comment agrees), and no anon-role grant was in place for profiles. This is correctly scoped. However, the profiles RLS policy 'Authenticated users can read profile summaries' uses `USING (app.current_user_id() IS NOT NULL)` which requires an identities lookup per SELECT. After Phase D (D4 rewrite), every profile read now incurs a subquery into identities. Combined with the new per-request is_admin lookup in hooks.server.ts (line 52-57), every authenticated request makes two separate Supabase round trips in hooks.server.ts: one for getUser() and one for the is_admin SELECT. This is not a data integrity issue but is a deployment-window concern: between D5 deploy and this migration, hooks.server.ts already references profiles.is_admin, so deploying application code before this migration will cause the is_admin SELECT to return no column and fall back to the `?? false` default, locking out any existing admin. Deployment order must be: migration first, then code.",
+      "affected_files": [
+        "/home/digit/dyad.berlin/src/hooks.server.ts",
+        "/home/digit/dyad.berlin/supabase/migrations/20260502110000_profiles_is_admin.sql"
+      ],
+      "recommendation": "Deploy this migration before the application code that references profiles.is_admin. If the code and migration are in the same PR/deployment unit, confirm the Cloudflare Pages build deploys migrations before the worker binary is swapped."
+    }
+  ],
+  "residual_risks": [
+    "The backfill JOIN on auth.users is not wrapped in a transaction with the ALTER TABLE and GRANT statements. A failure mid-migration leaves the column present with all false values (the DEFAULT false covers existing rows at ADD COLUMN time) but without the backfill. In a 50-user environment this is recoverable by re-running the UPDATE, but the migration should ideally be wrapped in BEGIN/COMMIT.",
+    "The profiles.is_admin RLS SELECT policy permits any authenticated user to read any other user's is_admin value (row-level policy is USING (app.current_user_id() IS NOT NULL) — all rows visible). The migration comment acknowledges this as intentionally not sensitive. Confirm this is acceptable before wider rollout."
+  ],
+  "testing_gaps": [
+    "No test covers the scenario where a user has app_metadata.role='admin' but is_admin=false after migration (i.e. backfill failure). The admin gate in hooks.server.ts would return false for that user even though they were previously an admin.",
+    "The admin RLS policies on contacts, invitations, and feedback tables are not covered by integration tests that exercise the post-migration state. A test that creates a user with is_admin=true and attempts to SELECT from contacts via the authenticated role would catch DMR-001 immediately."
+  ]
+}

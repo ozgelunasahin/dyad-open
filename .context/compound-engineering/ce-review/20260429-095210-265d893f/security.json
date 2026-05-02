@@ -1,0 +1,52 @@
+{
+  "reviewer": "security",
+  "findings": [
+    {
+      "id": "SEC-001",
+      "title": "render-body catch block is dead code — promptId never appears in error logs",
+      "severity": "low",
+      "confidence": 0.98,
+      "file": "src/lib/utils/render-body.ts",
+      "lines": "20-28",
+      "description": "renderTiptapToHtml (tiptap-html.ts:133-139) has its own internal try/catch that swallows all exceptions and returns ''. It never re-throws. The outer catch block in renderBodyHtmlOrFallback (lines 23-28) can therefore never fire. The primary stated goal of this PR — adding promptId context to the error log — is not achieved. When generateHTML throws, the log at tiptap-html.ts:137 fires ('TipTap HTML rendering failed:') without the promptId. The render-body console.error with the prompt id is unreachable dead code.",
+      "impact": "Operational: triage of rendering failures remains as hard as before the change. No XSS impact, but the stated security-adjacent goal (identifying which prompt triggered a failure) is silently unmet.",
+      "recommendation": "Either (a) remove the try/catch from renderTiptapToHtml and let it throw so render-body can catch and log with context, or (b) pass opts.promptId into renderTiptapToHtml as a context parameter and log it there. Option (a) is simpler and matches the plan's stated design intent."
+    },
+    {
+      "id": "SEC-002",
+      "title": "data:image/svg+xml (base64) passes DOMPurify and reaches {@html}",
+      "severity": "info",
+      "confidence": 0.72,
+      "file": "src/lib/utils/tiptap-html.ts",
+      "lines": "115",
+      "description": "DOMPurify with the current PURIFY_CONFIG passes data:image/svg+xml;base64,... through the img src attribute. Non-base64 data: URIs (e.g. data:image/svg+xml,<svg>...) are correctly stripped. A base64-encoded SVG containing an onload handler would survive sanitization and appear in the rendered HTML. In all modern browsers (Chrome 87+, Firefox 80+, Safari 14+), SVG loaded via an <img> tag is sandboxed and cannot execute JavaScript, so this is not practically exploitable today. However, the PURIFY_CONFIG does not add ALLOW_DATA_ATTR: false or explicitly forbid data: schemes on src. If the Image extension's allowBase64 option were ever enabled (it is not currently), this gap would widen.",
+      "impact": "Not currently exploitable in supported browsers. Risk increases if allowBase64 is later enabled on the Image extension, or if a very old browser is in scope.",
+      "recommendation": "Low priority. Optionally add FORCE_BODY: false and explicitly add 'img' to a FORBID_ATTR list for data: URIs, or add a DOMPurify BEFORE_SANITIZE_ELEMENTS hook that strips data: from img src. Document the conscious decision in a comment on PURIFY_CONFIG."
+    }
+  ],
+  "residual_risks": [
+    {
+      "id": "RR-001",
+      "description": "The editor (PromptEditor.svelte) does NOT set link: false in its StarterKit.configure call, meaning it still registers StarterKit's bundled Link alongside the custom Link.configure. The server renderer now disables StarterKit's Link and uses only the custom one. The stored document format is identical (both produce the same 'link' mark type), but the editor continues to have the duplicate-extension condition that the diff is fixing on the server side. This has no XSS impact but could cause duplicate-extension warnings in the editor that suppress marks from being stored correctly.",
+      "severity": "low"
+    },
+    {
+      "id": "RR-002",
+      "description": "data-target is allowed globally across all tags in ALLOWED_ATTR, not scoped to the 'span' element. This means a stored document with any node that has a data-target attribute (not just wikilink spans) will pass DOMPurify. There is no JS on the detail page that reads data-target, so this is not currently exploitable — but it is broader than necessary.",
+      "severity": "info"
+    }
+  ],
+  "testing_gaps": [
+    {
+      "id": "TG-001",
+      "description": "No test verifies that the promptId appears in the error log when generateHTML fails. Given SEC-001 (the catch is dead), the existing test at render-body.test.ts:418 only tests the fallback HTML output — it does not assert that console.error was called with the prompt id string. The gap would catch the dead-code bug if it asserted on the console.error spy's call arguments.",
+      "file": "src/lib/utils/render-body.test.ts",
+      "lines": "418-434"
+    },
+    {
+      "id": "TG-002",
+      "description": "No test for javascript: or data: protocol in a link mark's href attribute passing through renderTiptapToHtml. DOMPurify handles this correctly but it is not regression-locked. A test feeding a link node with href='javascript:alert(1)' and asserting the output does not contain 'javascript:' would lock in the behavior.",
+      "file": "src/lib/utils/tiptap-html.test.ts"
+    }
+  ]
+}

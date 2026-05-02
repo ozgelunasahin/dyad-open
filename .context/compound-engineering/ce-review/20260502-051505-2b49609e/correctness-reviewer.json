@@ -1,0 +1,63 @@
+{
+  "reviewer": "correctness",
+  "findings": [
+    {
+      "id": "CR-01",
+      "title": "is_admin column invisible to authenticated role: hooks query silently returns null, every user treated as non-admin",
+      "severity": "critical",
+      "confidence": 0.92,
+      "file": "/home/digit/dyad.berlin/supabase/migrations/20260502110000_profiles_is_admin.sql",
+      "details": "Migration 20260417100200 ran `REVOKE ALL ON profiles FROM authenticated` and replaced it with an explicit column-level SELECT grant covering: id, username, display_name, avatar_url, berlin_based, onboarded, created_at. The new is_admin migration then does `GRANT SELECT (is_admin) ON profiles TO authenticated`. In Postgres, a column-level GRANT on a table that has already had ALL revoked and selective columns re-granted works correctly if applied after the REVOKE — but only if the column-level GRANT is actually reaching the role, not being blocked by an existing policy. The critical issue is the SELECT policy recreated in 20260502100400: it uses `app.current_user_id() IS NOT NULL` as the USING clause, but only for the row already visible to the role via column grants. The hooks.server.ts query `.select('is_admin')` runs as the authenticated role using the anon key. If the column-level GRANT from 20260502110000 is not seen by PostgREST (PostgREST caches its schema introspection and requires a reload — a `NOTIFY pgrst, 'reload schema'` — after column grants change), the query returns `{ data: null, error: ... }`. The `?? false` fallback then sets every user's isAdmin to false, silently locking all admins out of the admin panel and the invites endpoint without any error surfaced to the server log.",
+      "reproduction": "After applying the migration without reloading PostgREST schema cache, query `SELECT is_admin FROM profiles WHERE id = '<admin-id>'` via PostgREST as authenticated role returns a column-not-found error. hooks.server.ts destructures `{ data: profile }` (ignoring the error), profile is null, `profile?.is_admin ?? false` evaluates to false.",
+      "fix": "Add `NOTIFY pgrst, 'reload schema';` at the end of the migration. Also add a `console.error` log in hooks.server.ts for the case where the profile query returns an error, so silent failures surface in Cloudflare logs."
+    },
+    {
+      "id": "CR-02",
+      "title": "hooks.server.ts ignores Supabase error on is_admin query: profile null treated identically to non-admin user",
+      "severity": "high",
+      "confidence": 0.88,
+      "file": "/home/digit/dyad.berlin/src/hooks.server.ts",
+      "lines": "52-57",
+      "details": "The query destructures only `{ data: profile }`, discarding the `error` field. If the query fails for any reason (network blip, RLS blocking the column, schema cache miss, row not yet created for a new user who hasn't completed onboarding), `profile` is null and `profile?.is_admin ?? false` silently sets isAdmin to false. For a newly registered user whose profile row hasn't been inserted yet by the trigger, this is benign. For an admin whose profile query fails transiently, they are locked out of the admin panel for the duration of that request without any log entry. The error should be destructured and logged with console.error.",
+      "reproduction": "Any transient Supabase error on the profiles table during an admin request silently demotes them to non-admin for that request.",
+      "fix": "Destructure `{ data: profile, error: profileError }` and add `if (profileError) console.error('[hooks] Failed to load is_admin:', profileError)` before the fallback assignment."
+    },
+    {
+      "id": "CR-03",
+      "title": "resetPassword action leaks Supabase error message to client in violation of API standards",
+      "severity": "medium",
+      "confidence": 0.95,
+      "file": "/home/digit/dyad.berlin/src/routes/(auth)/login/+page.server.ts",
+      "lines": "59-64",
+      "details": "The `resetPassword` action does `return fail(400, { email: email.toString(), error: error.message })`. The CLAUDE.md engineering standard explicitly states: 'Never return internal error details. error.message from Supabase or Resend can contain table names, constraint names, and query fragments.' The Supabase auth.resetPasswordForEmail error.message can contain substrate-specific detail. The `updatePassword` action has the same issue at line 80: `return fail(400, { error: error.message })`. These two actions were not touched by this PR's diff but exist in the same file — noting them here because they represent the same class of leak the diff introduced the login error handling to avoid.",
+      "reproduction": "Submit resetPassword with a malformed email; Supabase returns a detailed error message that is forwarded verbatim to the browser.",
+      "fix": "Replace `error.message` with a generic string such as 'Failed to send reset email — please try again' and log the original with console.error server-side."
+    },
+    {
+      "id": "CR-04",
+      "title": "openerBlock in renderInviteEmail interpolates already-escaped HTML into a template without re-escaping the surrounding context",
+      "severity": "low",
+      "confidence": 0.72,
+      "file": "/home/digit/dyad.berlin/src/routes/api/invites/+server.ts",
+      "lines": "47",
+      "details": "buildOpener calls escapeHtml(name.trim()), then renderInviteEmail does `<p>${params.opener}</p>`. The opener value is already HTML-escaped, so the interpolation is safe. However, the inviteUrl at line 57 is interpolated directly without escaping: `<a href=\"${params.inviteUrl}\">`. The inviteUrl is constructed from APP_ORIGIN (a constant) and a nanoid token (alphanumeric). nanoid tokens contain only URL-safe characters so no injection is possible in practice. This is a latent risk if the token generator is ever swapped — low confidence because the current nanoid alphabet makes it safe.",
+      "reproduction": "Not currently exploitable with nanoid default alphabet.",
+      "fix": "No immediate action needed but consider encodeURIComponent(token) at construction time as a defense-in-depth measure."
+    }
+  ],
+  "residual_risks": [
+    {
+      "id": "RR-01",
+      "description": "The `{} as Session` type cast in both logout handlers is intentional per the adapter contract (adapter.js line 56 confirms `invalidate(_session)` ignores its argument). This is correct today. If a future adapter requires a real Session value, both logout call sites will silently pass an empty object with no compile-time error — the `unique symbol` brand on `Session._opaque` makes the type structurally impossible to construct legitimately, so the cast suppresses what would otherwise be a useful type error. The comment in the code acknowledges this debt."
+    },
+    {
+      "id": "RR-02",
+      "description": "The backfill UPDATE in the migration joins profiles to auth.users on `profiles.id = auth.users.id` and filters `raw_app_meta_data->>'role' = 'admin'`. This is a one-time migration and is correct. However, if the app_metadata backfill was the authoritative source of admin status, any admin whose app_metadata was set after this migration runs will not be backfilled. They would need a manual `UPDATE profiles SET is_admin = true WHERE id = '...'` via service_role. This is an operational risk, not a code bug."
+    }
+  ],
+  "testing_gaps": [
+    "No test covers the hooks.server.ts is_admin query when the profiles row does not exist (new user in the middle of onboarding). The `?? false` fallback handles this correctly but there is no assertion.",
+    "No test covers the admin gate in the feedback-gate branch (lines 96-105 in hooks.server.ts): an admin user with a pending feedback form should bypass the gate — this path is exercised by the `!event.locals.isAdmin` check but there is no integration test for it.",
+    "The migration backfill (UPDATE profiles SET is_admin = true WHERE raw_app_meta_data->>'role' = 'admin') has no corresponding test to verify zero rows are left unbackfilled in the test database."
+  ]
+}
