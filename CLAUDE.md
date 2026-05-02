@@ -78,29 +78,7 @@ All authenticated routes live under `src/routes/(app)/`. The layout provides:
 | `PUBLIC_ADMIN_SUPABASE_ANON_KEY` | Yes in production | Anon key for the admin Supabase project. In local dev, falls back to `PUBLIC_SUPABASE_ANON_KEY`. |
 | `PUBLIC_ASSET_BASE_URL` | No | Override for static page imagery (e.g. `/why` hero images). Falls back to the default Supabase uploads bucket. Set this to route assets through a sovereign host without touching code. |
 
-### Admin authentication: separate Supabase project
-
-The admin plane authenticates against a **separate Supabase project** from the user-tier project. The two `auth.users` tables are physically different — there is no possibility of a user-tier identity also holding admin authorization.
-
-**Production setup:**
-
-1. Create a new Supabase project in the dashboard (e.g., `dyad-admin`)
-2. In the new project's Auth settings: disable public sign-ups
-3. Create operator accounts via the dashboard or Admin API; set `app_metadata.admin_authorized: true` on each:
-   ```sql
-   UPDATE auth.users
-   SET raw_app_meta_data = raw_app_meta_data || '{"admin_authorized": true}'::jsonb
-   WHERE email = '<operator-email>';
-   ```
-4. Set `PUBLIC_ADMIN_SUPABASE_URL` and `PUBLIC_ADMIN_SUPABASE_ANON_KEY` in Cloudflare Pages env config
-
-**Local dev:** the admin client falls back to the same local Supabase as users. Set `app_metadata.admin_authorized: true` on a seed user (e.g., `lisa@test.invalid`) to grant admin in dev. The cookie namespace separation (`sb-admin-*`) still keeps the runtime contexts isolated.
-
-**Sign in:** `/admin/login`. **Sign out:** form action on `/admin/logout`.
-
-**Revoke:** set `app_metadata.admin_authorized` to `false` or remove the claim. The next request will be denied. To remove the operator entirely, delete the auth.users row in the admin project.
-
-**Service-role client (`makeAdminClient` in `src/lib/server/supabase-admin.ts`):** still uses the **user-tier** project's service role key — that's where the application data (waitlist, invitations, feedback) lives. The admin-tier project is auth-only.
+Admin authentication uses a separate Supabase project (auth-only) — see `docs/solutions/identity-decoupling-security-tradeoffs.md` for the architectural reasoning, production setup, and revoke procedure.
 
 ## Database
 
