@@ -3,23 +3,35 @@
 	import { copy } from '$lib/copy';
 
 	let { children }: { children: any } = $props();
+
+	// Login page renders without the admin chrome (no nav, no back-link).
+	let isLoginPage = $derived($page.url.pathname === '/admin/login');
 </script>
 
-<main class="admin-main">
-	<a href="/discover" class="back-to-app">
-		<svg class="back-icon" width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M12 15l-5-5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-		{copy.admin.backToApp}
-	</a>
-	<nav class="admin-tabs">
-		<a href="/admin/waitlist" class="admin-tab" class:active={$page.url.pathname === '/admin/waitlist'}>{copy.admin.waitlist}</a>
-		<a href="/admin/invites" class="admin-tab" class:active={$page.url.pathname === '/admin/invites'}>{copy.admin.invites}</a>
-		<a href="/admin/feedback" class="admin-tab" class:active={$page.url.pathname === '/admin/feedback'}>{copy.admin.feedback}</a>
-	</nav>
+{#if isLoginPage}
+	{@render children()}
+{:else}
+	<main class="admin-main">
+		<div class="admin-header">
+			<a href="/discover" class="back-to-app">
+				<svg class="back-icon" width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M12 15l-5-5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+				{copy.admin.backToApp}
+			</a>
+			<form method="POST" action="/admin/logout" class="admin-logout-form">
+				<button type="submit" class="admin-logout">sign out</button>
+			</form>
+		</div>
+		<nav class="admin-tabs">
+			<a href="/admin/waitlist" class="admin-tab" class:active={$page.url.pathname === '/admin/waitlist'}>{copy.admin.waitlist}</a>
+			<a href="/admin/invites" class="admin-tab" class:active={$page.url.pathname === '/admin/invites'}>{copy.admin.invites}</a>
+			<a href="/admin/feedback" class="admin-tab" class:active={$page.url.pathname === '/admin/feedback'}>{copy.admin.feedback}</a>
+		</nav>
 
-	<div class="admin-content">
-		{@render children()}
-	</div>
-</main>
+		<div class="admin-content">
+			{@render children()}
+		</div>
+	</main>
+{/if}
 
 <style>
 	.admin-main {
@@ -30,16 +42,32 @@
 		padding: var(--space-6);
 	}
 
+	.admin-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: var(--space-4);
+	}
 	.back-to-app {
 		font-family: var(--font-mono);
 		font-size: var(--text-xs);
 		color: var(--text-muted);
 		text-decoration: none;
-		display: block;
-		margin-bottom: var(--space-4);
 	}
 	.back-to-app:hover { color: var(--text-primary); }
 	.back-icon { vertical-align: middle; margin-right: var(--space-1); }
+
+	.admin-logout-form { margin: 0; }
+	.admin-logout {
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+		background: none;
+		border: none;
+		padding: 0;
+		cursor: pointer;
+	}
+	.admin-logout:hover { color: var(--text-primary); }
 
 	.admin-tabs {
 		display: flex;

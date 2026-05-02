@@ -1,16 +1,24 @@
 import { createServerClient } from '@supabase/ssr';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 import { dev } from '$app/environment';
-import type { Handle } from '@sveltejs/kit';
+import { redirect, type Handle } from '@sveltejs/kit';
 import { createSupabaseAdapter } from '@prefig/upact-supabase';
-import { requireAdminAuth } from '$lib/server/admin-auth';
+import { createAdminSupabaseClient } from '$lib/server/admin-supabase';
+import { getAuthorizedAdminUser } from '$lib/server/admin-auth';
 
 export const handle: Handle = async ({ event, resolve }) => {
-	// Admin plane: gated by HTTP Basic Auth, no overlap with user identity.
-	// Returns 401 + WWW-Authenticate before any user-app logic runs.
+	// Admin plane: separate cookie namespace (sb-admin), separate auth flow.
+	// Login at /admin/login. No overlap with user identity.
 	if (event.url.pathname.startsWith('/admin')) {
-		const authResponse = requireAdminAuth(event.request);
-		if (authResponse) return authResponse;
+		// /admin/login is the only admin route accessible without an admin session.
+		if (event.url.pathname === '/admin/login' || event.url.pathname.startsWith('/admin/login/')) {
+			return resolve(event);
+		}
+		const adminSupabase = createAdminSupabaseClient(event.cookies);
+		const adminUser = await getAuthorizedAdminUser(adminSupabase);
+		if (!adminUser) {
+			redirect(302, '/admin/login');
+		}
 		return resolve(event);
 	}
 

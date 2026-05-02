@@ -1,77 +1,51 @@
 import { describe, it, expect } from 'vitest';
-import { verifyBasicAuth } from './admin-auth.js';
+import type { User } from '@supabase/supabase-js';
+import { isAdminAuthorized } from './admin-auth.js';
 
-const VALID_USER = 'admin';
-const VALID_PASS = 'correct-horse-battery-staple';
-
-function makeRequest(authHeader?: string): Request {
-	const headers = new Headers();
-	if (authHeader !== undefined) headers.set('authorization', authHeader);
-	return new Request('http://localhost/admin', { headers });
+function user(overrides: Partial<User> = {}): User {
+	return {
+		id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+		aud: 'authenticated',
+		email: 'a@b.c',
+		app_metadata: {},
+		user_metadata: {},
+		created_at: '2026-01-01T00:00:00Z',
+		...overrides
+	} as User;
 }
 
-function basicAuth(user: string, pass: string): string {
-	return `Basic ${btoa(`${user}:${pass}`)}`;
-}
-
-describe('verifyBasicAuth', () => {
-	it('returns null for valid credentials', () => {
-		const result = verifyBasicAuth(makeRequest(basicAuth(VALID_USER, VALID_PASS)), VALID_USER, VALID_PASS);
-		expect(result).toBeNull();
+describe('isAdminAuthorized', () => {
+	it('returns true when app_metadata.admin_authorized is the boolean true', () => {
+		expect(isAdminAuthorized(user({ app_metadata: { admin_authorized: true } }))).toBe(true);
 	});
 
-	it('returns 401 with WWW-Authenticate when authorization header is missing', () => {
-		const result = verifyBasicAuth(makeRequest(), VALID_USER, VALID_PASS);
-		expect(result).not.toBeNull();
-		expect(result!.status).toBe(401);
-		expect(result!.headers.get('www-authenticate')).toContain('Basic');
-		expect(result!.headers.get('www-authenticate')).toContain('realm');
+	it('returns false when admin_authorized is missing', () => {
+		expect(isAdminAuthorized(user({ app_metadata: {} }))).toBe(false);
 	});
 
-	it('returns 401 for non-Basic authorization scheme', () => {
-		const result = verifyBasicAuth(makeRequest('Bearer some-token'), VALID_USER, VALID_PASS);
-		expect(result).not.toBeNull();
-		expect(result!.status).toBe(401);
+	it('returns false when admin_authorized is false', () => {
+		expect(isAdminAuthorized(user({ app_metadata: { admin_authorized: false } }))).toBe(false);
 	});
 
-	it('returns 401 for malformed base64', () => {
-		const result = verifyBasicAuth(makeRequest('Basic !!!not-base64!!!'), VALID_USER, VALID_PASS);
-		expect(result).not.toBeNull();
-		expect(result!.status).toBe(401);
+	it('returns false when admin_authorized is the string "true" (truthy but not boolean)', () => {
+		// Strict boolean check — string truthiness must not pass.
+		expect(isAdminAuthorized(user({ app_metadata: { admin_authorized: 'true' } as never }))).toBe(false);
 	});
 
-	it('returns 401 for missing colon separator', () => {
-		const noColon = `Basic ${btoa('admincorrect-horse')}`;
-		const result = verifyBasicAuth(makeRequest(noColon), VALID_USER, VALID_PASS);
-		expect(result).not.toBeNull();
-		expect(result!.status).toBe(401);
+	it('returns false when app_metadata is missing entirely', () => {
+		expect(isAdminAuthorized(user({ app_metadata: undefined as never }))).toBe(false);
 	});
 
-	it('returns 401 for wrong username', () => {
-		const result = verifyBasicAuth(makeRequest(basicAuth('attacker', VALID_PASS)), VALID_USER, VALID_PASS);
-		expect(result).not.toBeNull();
-		expect(result!.status).toBe(401);
-	});
-
-	it('returns 401 for wrong password', () => {
-		const result = verifyBasicAuth(makeRequest(basicAuth(VALID_USER, 'wrong')), VALID_USER, VALID_PASS);
-		expect(result).not.toBeNull();
-		expect(result!.status).toBe(401);
-	});
-
-	it('returns 401 for empty credentials', () => {
-		const result = verifyBasicAuth(makeRequest(basicAuth('', '')), VALID_USER, VALID_PASS);
-		expect(result).not.toBeNull();
-		expect(result!.status).toBe(401);
-	});
-
-	it('handles credentials containing colons (only first colon is the separator)', () => {
-		const passWithColon = 'pass:with:colons';
-		const result = verifyBasicAuth(
-			makeRequest(basicAuth(VALID_USER, passWithColon)),
-			VALID_USER,
-			passWithColon
-		);
-		expect(result).toBeNull();
+	it('ignores user_metadata even when it claims admin (only app_metadata is trusted)', () => {
+		// app_metadata is set by the Admin API (immutable from client side).
+		// user_metadata is editable by the user — must not grant admin.
+		expect(
+			isAdminAuthorized(
+				user({
+					app_metadata: {},
+					user_metadata: { admin_authorized: true }
+				})
+			)
+		).toBe(false);
 	});
 });
