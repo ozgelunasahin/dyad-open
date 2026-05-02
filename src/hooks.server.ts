@@ -41,12 +41,23 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// TODO (Phase E): replace safeGetSession() with identityPort.currentUpactor(event.request)
 	// so per-request identity resolves through the port rather than calling Supabase Auth
 	// directly. Requires: (1) locals.upactor: Upactor | null added to App.Locals,
-	// (2) feedback gate uses upactor.id, (3) admin check solved without app_metadata
-	// (privacy minima deliberately exclude it — either profiles.is_admin DB check or
-	// keep locals.user as a named exception for that one callsite).
+	// (2) feedback gate uses upactor.id.
 	const { session, user } = await event.locals.safeGetSession();
 	event.locals.session = session;
 	event.locals.user = user;
+
+	// Admin status from profiles.is_admin — application-owned, substrate-agnostic.
+	// Replaces the former app_metadata.role === 'admin' check (Supabase-specific).
+	if (user) {
+		const { data: profile } = await event.locals.supabase
+			.from('profiles')
+			.select('is_admin')
+			.eq('id', user.id)
+			.single();
+		event.locals.isAdmin = profile?.is_admin ?? false;
+	} else {
+		event.locals.isAdmin = false;
+	}
 
 	// Redirect old /prompts/ URLs to /conversations/
 	if (event.url.pathname.startsWith('/prompts/')) {
@@ -82,10 +93,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			const gateStatus = await gateService.checkGate(user.id);
 
 			if (gateStatus.gated && gateStatus.feedbackFormId) {
-				// Admin bypass: check app_metadata (no DB query — from JWT)
-				const isAdmin = event.locals.user?.app_metadata?.role === 'admin';
-
-				if (!isAdmin) {
+				if (!event.locals.isAdmin) {
 					if (pathname.startsWith('/api/')) {
 						return new Response(JSON.stringify({ error: 'gated', feedbackFormId: gateStatus.feedbackFormId }), {
 							status: 403,

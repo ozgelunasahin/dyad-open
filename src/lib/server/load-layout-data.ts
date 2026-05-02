@@ -31,13 +31,11 @@ export async function loadLayoutData(locals: App.Locals) {
 		pendingFormId ? loadPendingFeedback(locals, pendingFormId) : Promise.resolve(null)
 	]);
 
-	const isAdmin = locals.user?.app_metadata?.role === 'admin';
-
 	return {
 		identity: userToUpactor(locals.user),
 		username: profile?.username ?? '',
 		attentionCount: (invitationCount ?? 0) + (feedbackCount ?? 0),
-		isAdmin,
+		isAdmin: locals.isAdmin,
 		pendingFeedback
 	};
 }

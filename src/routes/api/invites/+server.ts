@@ -19,7 +19,7 @@ async function requireAdmin(locals: App.Locals) {
 	if (!locals.user) {
 		error(401, 'Authentication required');
 	}
-	if (locals.user.app_metadata?.role !== 'admin') {
+	if (!locals.isAdmin) {
 		error(403, 'Admin access required');
 	}
 }
