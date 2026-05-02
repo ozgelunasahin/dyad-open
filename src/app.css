@@ -50,6 +50,7 @@
 
 	--line-color: #939190;
 	--line-color-active: #6a6968;
+	--border-subtle: rgba(0, 0, 0, 0.08);
 	--border-link: rgba(0, 0, 0, 0.25);
 	--border-link-hover: rgba(0, 0, 0, 0.5);
 	--border-code: rgba(0, 0, 0, 0.15);
@@ -160,6 +161,7 @@
 
 	--line-color: #767676;
 	--line-color-active: #9a9a9a;
+	--border-subtle: rgba(255, 255, 255, 0.08);
 	--border-link: rgba(255, 255, 255, 0.25);
 	--border-link-hover: rgba(255, 255, 255, 0.5);
 	--border-code: rgba(255, 255, 255, 0.15);

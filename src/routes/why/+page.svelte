@@ -109,8 +109,8 @@
 	}
 
 	.page {
-		background: #080808;
-		color: rgba(240, 236, 230, 0.75);
+		background: var(--bg-canvas);
+		color: var(--text-secondary);
 		font-family: inherit;
 	}
 
@@ -138,7 +138,7 @@
 		font-size: 1.125rem;
 		font-weight: 300;
 		line-height: 1.55;
-		color: rgba(240, 236, 230, 0.72);
+		color: var(--text-secondary);
 		margin: 0 0 28px 0;
 	}
 
@@ -199,7 +199,7 @@
 		font-size: 1.125rem;
 		font-weight: 300;
 		line-height: 1.55;
-		color: rgba(240, 236, 230, 0.72);
+		color: var(--text-secondary);
 		margin: 0 0 28px 0;
 	}
 
@@ -252,7 +252,7 @@
 		font-size: 1.125rem;
 		font-weight: 300;
 		line-height: 1.55;
-		color: rgba(240, 236, 230, 0.72);
+		color: var(--text-secondary);
 		margin: 0 0 28px 0;
 	}
 
@@ -272,7 +272,7 @@
 		font-weight: 600;
 		line-height: 1.2;
 		letter-spacing: -0.02em;
-		color: rgba(240, 236, 230, 0.95);
+		color: var(--text-primary);
 		margin: 0 0 56px 0;
 	}
 
@@ -283,7 +283,7 @@
 		font-weight: 400;
 		line-height: 1.25;
 		letter-spacing: -0.01em;
-		color: rgba(240, 236, 230, 0.9);
+		color: var(--text-primary);
 		margin: 0 0 40px 0;
 	}
 
@@ -292,7 +292,7 @@
 		font-size: 1.125rem;
 		font-weight: 300;
 		line-height: 1.55;
-		color: rgba(240, 236, 230, 0.72);
+		color: var(--text-secondary);
 		margin: 0 0 28px 0;
 	}
 
@@ -307,13 +307,13 @@
 		font-family: var(--font-serif);
 		font-size: 1.125rem !important;
 		font-weight: 400 !important;
-		color: rgba(240, 236, 230, 0.9) !important;
+		color: var(--text-primary) !important;
 		margin-bottom: 12px !important;
 	}
 
 	.thing-contrast {
 		font-style: italic;
-		color: rgba(240, 236, 230, 0.55) !important;
+		color: var(--text-muted) !important;
 		font-size: 1rem !important;
 		margin-top: -12px !important;
 	}
@@ -334,14 +334,14 @@
 	.sign-name {
 		font-size: 1rem;
 		font-weight: 300;
-		color: rgba(240, 236, 230, 0.72);
+		color: var(--text-secondary);
 		margin: 0 !important;
 	}
 
 	.sign-role {
 		font-size: 0.8rem;
 		font-weight: 300;
-		color: rgba(240, 236, 230, 0.3);
+		color: var(--text-muted);
 		letter-spacing: 0.04em;
 	}
 
@@ -349,29 +349,29 @@
 	.join-block {
 		margin-top: 64px;
 		padding-top: 48px;
-		border-top: 1px solid rgba(240, 236, 230, 0.08);
+		border-top: 1px solid var(--border-subtle);
 	}
 
 	.join-text {
 		font-size: 1rem !important;
-		color: rgba(240, 236, 230, 0.45) !important;
+		color: var(--text-muted) !important;
 		margin-bottom: 20px !important;
 	}
 
 	.join-btn {
 		display: inline-block;
 		padding: 12px 28px;
-		border: 1px solid rgba(240, 236, 230, 0.2);
+		border: 1px solid var(--border-code);
 		border-radius: 999px;
 		font-size: 0.9rem;
-		color: rgba(240, 236, 230, 0.75);
+		color: var(--text-secondary);
 		text-decoration: none;
 		transition: border-color 0.2s, color 0.2s;
 	}
 
 	.join-btn:hover {
-		border-color: rgba(240, 236, 230, 0.5);
-		color: rgba(240, 236, 230, 0.95);
+		border-color: var(--border-link);
+		color: var(--text-primary);
 	}
 
 	@media (min-width: 601px) {

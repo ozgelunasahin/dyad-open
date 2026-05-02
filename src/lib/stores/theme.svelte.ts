@@ -5,18 +5,13 @@ type Theme = 'light' | 'dark';
 function getInitialTheme(): Theme {
 	if (typeof window === 'undefined') return 'light';
 
-	// Check localStorage first
-	const stored = localStorage.getItem(STORAGE_KEY);
-	if (stored === 'light' || stored === 'dark') {
-		return stored;
-	}
-
-	// Default to dark mode
-	return 'dark';
+	// Dark mode disabled until redesigned — always light.
+	// Restore localStorage read here when dark mode is ready.
+	return 'light';
 }
 
 class ThemeStore {
-	current = $state<Theme>('dark');
+	current = $state<Theme>('light');
 
 	constructor() {
 		if (typeof window !== 'undefined') {

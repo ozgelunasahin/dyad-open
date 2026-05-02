@@ -7,6 +7,7 @@
 	import ConversationCard from '$lib/components/ConversationCard.svelte';
 	import BottomSheet from '$lib/components/BottomSheet.svelte';
 	import AuthDialog from '$lib/components/AuthDialog.svelte';
+	import RotatingHeadline from '$lib/components/RotatingHeadline.svelte';
 
 	function slotDates(slots: { start_time: string }[]): string {
 		const dates = new Set<string>();
@@ -114,7 +115,7 @@
 		</div>
 
 		<div class="hero-center">
-			<h1 class="hero-statement"><span class="left">Dyad is</span><span class="right">a network for</span><span class="right">face to face</span><span class="right">sensemaking.</span></h1>
+			<RotatingHeadline />
 		</div>
 
 		<div class="hero-bottom">
