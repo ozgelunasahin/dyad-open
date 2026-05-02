@@ -25,7 +25,15 @@ npx vitest run                      # unit tests
 npx playwright test                 # E2E tests (requires dev server running)
 ```
 
-The pre-commit hook runs secrets scanning, ESLint, svelte-check, and unit tests automatically.
+The pre-commit hook runs secrets scanning, ESLint, svelte-check, and unit tests automatically. The pre-push hook runs the E2E suite.
+
+### Test tiers
+
+Three tiers, increasing in setup cost:
+
+- **Unit** — `npm test` / `npx vitest run`. No services, no DB. Pure logic and component tests.
+- **Integration** — `npm run test:integration:local`. Hits a real local Supabase stack. Run `npx supabase start` first; `.env.local` is auto-generated from `supabase status` on the first run.
+- **E2E** — `npx playwright test`. Needs the dev server running at `localhost:5173` plus local Supabase. Tests the full user flows.
 
 ### Commit messages
 
@@ -63,7 +71,7 @@ Internal code uses "prompt" for the conversation starter. User-facing routes and
 
 ```bash
 npm install
-cp .env.example .env.local  # add your Supabase keys
+cp .env.local.example .env.local  # add your Supabase keys
 npx supabase start           # local Supabase
 npm run dev                  # starts Vite at localhost:5173
 ```
@@ -99,12 +107,4 @@ Read `CLAUDE.md` first — it covers the architecture, route structure, service 
 
 ### Testing
 
-Run the full suite before pushing:
-
-```bash
-npx svelte-check --threshold error
-npx vitest run
-npx playwright test  # needs dev server at localhost:5173
-```
-
-The pre-push hook runs the E2E suite automatically.
+Run the full suite before pushing — the same commands listed above for everyone. See *Test tiers* in the everyone section.

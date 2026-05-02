@@ -16,14 +16,17 @@ All data access goes through typed service interfaces with Supabase implementati
 
 ```
 src/lib/services/
-  prompt-command.ts    # PromptCommandService — create, update, publish, slots
-  prompt-query.ts      # PromptQueryService — discover feed, detail, my prompts
-  comment.ts           # CommentService — responses (called "comments" in DB)
-  invitation.ts        # InvitationService — create, cancel, accept
-  meeting.ts           # MeetingService — detail, cancel
-  feedback.ts          # FeedbackService — form, submit, vocabulary
-  gate.ts              # GateService — feedback gate check
-  location.ts          # Location search via Nominatim (server-side)
+  identity.ts            # IdentityService — wraps the @prefig/upact port (load-bearing)
+  prompt-command.ts      # PromptCommandService — create, update, publish, slots
+  prompt-query.ts        # PromptQueryService — discover feed, detail, my prompts
+  comment.ts             # CommentService — responses (called "comments" in DB)
+  invitation.ts          # InvitationService — create, cancel, accept
+  meeting.ts             # MeetingService — detail, cancel
+  feedback.ts            # FeedbackService — form, submit, vocabulary
+  gate.ts                # GateService — feedback gate check
+  location.ts            # Location search via Nominatim (server-side)
+  storage.ts             # StorageService — upload/serve cover images
+  cancellation-query.ts  # Read-side queries for cancellations
 ```
 
 Services are TypeScript interfaces + `Supabase*` implementation classes. Page server loaders call services directly (not internal API fetches). The test factory in `tests/helpers/db.ts` is the single swap point for portability.
@@ -37,7 +40,7 @@ All authenticated routes live under `src/routes/(app)/`. The layout provides:
 
 ### Feedback Gate
 
-`src/hooks.server.ts` checks every authenticated request for pending feedback forms. Gated users are redirected to `/feedback/{formId}`. Exempt paths: `/_app/`, `/feedback`, `/api/feedback`, `/api/auth`, `/api/vocabulary`, `/auth`, `/logout`, `/impressum`, `/datenschutz`, `.webmanifest`, `/service-worker`, `/favicon`.
+`src/hooks.server.ts` checks every authenticated request for pending feedback forms. Gated members are redirected to `/feedback/{formId}`. Exempt paths: `/_app/`, `/feedback`, `/api/feedback`, `/api/auth`, `/api/vocabulary`, `/auth`, `/logout`, `/impressum`, `/datenschutz`, `.webmanifest`, `/service-worker`, `/favicon`.
 
 ### Key Patterns
 
@@ -86,7 +89,7 @@ Schema defined in `supabase/migrations/` (source of truth). Key tables:
 - `time_slots` — Meeting slots with exact_location (private) and general_area (public)
 - `prompt_comments` — Responses to conversations (one per user per prompt)
 - `prompt_invitations` — Meeting invitations tied to slots
-- `meetings` — Scheduled meetings between two users
+- `meetings` — Scheduled meetings between two members
 - `feedback_forms` — Post-meeting feedback with simultaneous reveal
 - `adjective_vocabulary` — Rating tags for feedback
 
@@ -133,13 +136,6 @@ Schema defined in `supabase/migrations/` (source of truth). Key tables:
 5. **For copy/wording changes:** Edit `src/lib/copy.ts`. Single source for all user-facing text.
 
 6. **For CSS fixes:** Use design tokens from `src/app.css` (`--space-*`, `--text-*`, `--radius-*`). Don't hardcode pixel values. The full token catalogue is in `DESIGN.md`.
-
-### Admin operations (during alpha test)
-
-- **Invite new users:** Admin panel → Waitlist → click "Invite" next to the user
-- **View tester feedback:** Admin panel → Feedback
-- **View users:** Admin panel → Users
-- **No database access needed** for routine operations
 
 ## Engineering Standards
 

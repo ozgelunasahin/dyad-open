@@ -245,7 +245,7 @@ States: default border; selected (`border-width: 2px; border-color: var(--text-p
 ### Bottom sheets
 
 - No backdrop — map clicks pass through to allow pin switching.
-- Slides up from bottom (`fly` transition, y: 120, 240ms).
+- Slides up from bottom (`fly` transition, `y: 160, duration: 480`).
 - Fixed-positioned, 16px top corners on mobile, 12px all corners on desktop.
 - Max-width 480px (mobile), 680px (desktop). Max-height 50–60vh, scrollable.
 - Dismissed by clicking the map or tapping another pin.
@@ -309,7 +309,7 @@ For @usernames, dates, stat labels, slot areas, badges. Font `--font-mono`, size
 
 ### Animations
 
-- Bottom sheet: `fly` from y 200, 280ms.
+- Bottom sheet: `fly` from y 160, 480ms (see *Components / Bottom sheets*).
 - Hover transitions: 0.15s on backgrounds, colours, borders.
 - Theme transitions: 0.2s ease on all colour properties (global).
 - Map geolocation: instant jump, no animation (`animate: false`).
