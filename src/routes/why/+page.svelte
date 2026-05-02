@@ -349,7 +349,7 @@
 	.join-block {
 		margin-top: 64px;
 		padding-top: 48px;
-		border-top: 1px solid rgba(0, 0, 0, 0.08);
+		border-top: 1px solid var(--border-subtle);
 	}
 
 	.join-text {
@@ -361,7 +361,7 @@
 	.join-btn {
 		display: inline-block;
 		padding: 12px 28px;
-		border: 1px solid rgba(0, 0, 0, 0.15);
+		border: 1px solid var(--border-code);
 		border-radius: 999px;
 		font-size: 0.9rem;
 		color: var(--text-secondary);
@@ -370,7 +370,7 @@
 	}
 
 	.join-btn:hover {
-		border-color: rgba(0, 0, 0, 0.3);
+		border-color: var(--border-link);
 		color: var(--text-primary);
 	}
 
