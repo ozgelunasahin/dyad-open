@@ -30,13 +30,29 @@ export const handle: Handle = async ({ event, resolve }) => {
 	if (isAdminRequest) {
 		const operator = getAuthorizedAdminOperator(event.request);
 		if (!operator) {
+			// TEMPORARY: list cf-*/x-forwarded-* request header names (no values)
+			// to diagnose why the email/JWT isn't reaching origin. Revert once fixed.
+			const interesting: string[] = [];
+			event.request.headers.forEach((_value, name) => {
+				if (name.startsWith('cf-') || name.startsWith('x-forwarded-')) {
+					interesting.push(name);
+				}
+			});
+			interesting.sort();
+			const hasEmail = event.request.headers.has('cf-access-authenticated-user-email');
+			const hasJwt = event.request.headers.has('cf-access-jwt-assertion');
 			return new Response(
 				'Admin access requires Cloudflare Access authentication.\n\n' +
 					'Production: this should not be reachable — Cloudflare Access ' +
 					'gates admin.dyad.berlin and redirects unauthenticated requests ' +
 					'to its own login page before they hit the origin.\n\n' +
 					'Local dev: set ADMIN_DEV_BYPASS=1 in .env.local to allow ' +
-					'/admin/* through.',
+					'/admin/* through.\n\n' +
+					'--- diagnostic ---\n' +
+					`host: ${event.url.hostname}\n` +
+					`cf-access-authenticated-user-email present: ${hasEmail}\n` +
+					`cf-access-jwt-assertion present: ${hasJwt}\n` +
+					`cf-* / x-forwarded-* headers seen: ${interesting.join(', ') || '(none)'}\n`,
 				{ status: 401, headers: { 'Content-Type': 'text/plain' } }
 			);
 		}
