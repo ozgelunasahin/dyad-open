@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { beforeNavigate, goto, replaceState } from '$app/navigation';
+	import { beforeNavigate, goto, invalidateAll, replaceState } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
 	import type { JSONContent } from '@tiptap/core';
@@ -7,6 +7,7 @@
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import PublishSheet from '$lib/components/PublishSheet.svelte';
+	import type { SubmitSlot } from '$lib/domain/types';
 	import { copy } from '$lib/copy';
 
 	let { data }: { data: PageData } = $props();
@@ -231,6 +232,7 @@
 	// ── Publish flow ──────────────────────────────────────────────────────────
 	let showPublishSheet = $state(false);
 	let publishing = $state(false);
+	let savingSlots = $state(false);
 	let publishError = $state('');
 
 	async function handleSaveDraft() {
@@ -261,8 +263,20 @@
 		showPublishSheet = true;
 	}
 
-	async function handlePublish(slots: TimeSlotInput[]) {
+	async function handlePublish(submitted: SubmitSlot[]) {
 		publishError = '';
+
+		// Publish requires LocationRef per slot. Drop incomplete drafts (those
+		// without locations — typically existing slots whose stored location
+		// the loader had to mask via the public view; if the user wanted to
+		// republish them as-is, they need to re-pick the location to confirm).
+		const slots = submitted
+			.filter((s) => s.location)
+			.map((s) => ({
+				start_time: s.start_time,
+				duration_minutes: s.duration_minutes,
+				location: s.location
+			}));
 
 		if (slots.length === 0) {
 			publishError = 'At least one slot with a location is required.';
@@ -288,6 +302,58 @@
 			publishError = 'Network error. Please try again.';
 		} finally {
 			publishing = false;
+		}
+	}
+
+	// Save slot changes without publishing. Computes diff against the loader's
+	// initial slot set (data.slots) and sends add/edit/remove via the PATCH
+	// /slots endpoint. Lets the author stage their slots on a draft and come
+	// back later to publish, or adjust slots on a republishable archive.
+	async function handleSaveSlots(submitted: SubmitSlot[]) {
+		publishError = '';
+		savingSlots = true;
+		try {
+			const initialIds = new Set((data.slots ?? []).map((s) => s.id));
+			const submittedIds = new Set(submitted.filter((s) => s.dbId).map((s) => s.dbId as string));
+			const remove = [...initialIds].filter((id) => !submittedIds.has(id));
+			// Edit existing slots — always include start_time/duration; include
+			// location only when the user picked a new one (non-null). When
+			// null, the loader masked it (public view privacy) and editSlot
+			// leaves the stored exact_location alone.
+			const edit = submitted
+				.filter((s) => s.dbId)
+				.map((s) => {
+					const updates: Record<string, unknown> = {
+						start_time: s.start_time,
+						duration_minutes: s.duration_minutes
+					};
+					if (s.location) updates.location = s.location;
+					return { slotId: s.dbId as string, updates };
+				});
+			// New slots — must have a location. Drop incomplete drafts silently.
+			const add = submitted
+				.filter((s) => !s.dbId && s.location)
+				.map((s) => ({
+					start_time: s.start_time,
+					duration_minutes: s.duration_minutes,
+					location: s.location
+				}));
+			const res = await fetch(`/api/prompts/${promptId}/slots`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ add, edit, remove })
+			});
+			if (!res.ok) {
+				const err = await res.json().catch(() => ({}));
+				publishError = (err as { error?: string }).error ?? 'Failed to save slots.';
+				return;
+			}
+			showPublishSheet = false;
+			await invalidateAll();
+		} catch {
+			publishError = 'Network error. Please try again.';
+		} finally {
+			savingSlots = false;
 		}
 	}
 
@@ -428,7 +494,10 @@
 	<PublishSheet
 		onClose={() => showPublishSheet = false}
 		onPublish={handlePublish}
+		onSave={handleSaveSlots}
+		initialSlots={data.slots}
 		{publishing}
+		saving={savingSlots}
 		error={publishError}
 	/>
 {/if}
@@ -525,9 +594,6 @@
 	.error-text { color: var(--color-danger); font-size: var(--text-sm); }
 	.publish-error { font-size: var(--text-sm); color: var(--color-danger); margin: var(--space-3) 0; }
 
-
-	.published-actions { display: flex; gap: var(--space-4); align-items: center; margin-top: var(--space-4); }
-
 	.delete-btn {
 		font-size: var(--text-sm);
 		color: var(--color-danger);
@@ -589,17 +655,4 @@
 	.save-dot.saving { background: var(--color-saving); }
 
 	.pub-actions { display: flex; gap: var(--space-3); align-items: center; }
-
-	.continue-inline-btn {
-		font-size: var(--text-sm);
-		font-weight: 500;
-		padding: var(--space-2) var(--space-5);
-		background: var(--text-primary);
-		color: var(--bg-canvas);
-		border: none;
-		border-radius: var(--radius-pill);
-		cursor: pointer;
-		transition: opacity 0.15s;
-	}
-	.continue-inline-btn:hover { opacity: var(--opacity-hover-btn); }
 </style>
