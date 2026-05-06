@@ -1,5 +1,112 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { deriveGeneralArea, validateRegion } from './location.js';
+import { deriveGeneralArea, searchLocations, validateRegion } from './location.js';
+
+describe('searchLocations — Photon mapping and resilience', () => {
+	let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+	beforeEach(() => {
+		vi.spyOn(console, 'error').mockImplementation(() => {});
+	});
+
+	afterEach(() => {
+		fetchSpy?.mockRestore();
+	});
+
+	it('maps a Photon Feature into LocationSearchResult shape', async () => {
+		fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response(
+				JSON.stringify({
+					features: [
+						{
+							type: 'Feature',
+							geometry: { type: 'Point', coordinates: [13.39, 52.495] },
+							properties: {
+								osm_id: 12345,
+								osm_type: 'N',
+								name: 'Flying Roasters',
+								street: 'Gneisenaustraße',
+								housenumber: '85',
+								postcode: '10961',
+								city: 'Berlin',
+								district: 'Kreuzberg'
+							}
+						}
+					]
+				}),
+				{ status: 200 }
+			)
+		);
+		const results = await searchLocations('flying roast');
+		expect(results).toHaveLength(1);
+		expect(results[0]).toMatchObject({
+			place_id: 'N12345',
+			name: 'Flying Roasters',
+			lat: 52.495,
+			lng: 13.39,
+			neighbourhood: 'Kreuzberg'
+		});
+		expect(results[0].address).toContain('Gneisenaustraße 85');
+	});
+
+	it('falls back to street + housenumber when properties.name is absent', async () => {
+		fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response(
+				JSON.stringify({
+					features: [
+						{
+							type: 'Feature',
+							geometry: { type: 'Point', coordinates: [13.4, 52.5] },
+							properties: {
+								osm_id: 999,
+								osm_type: 'W',
+								street: 'Skalitzer Straße',
+								housenumber: '85a',
+								city: 'Berlin'
+							}
+						}
+					]
+				}),
+				{ status: 200 }
+			)
+		);
+		const results = await searchLocations('skalitzer');
+		expect(results[0].name).toBe('Skalitzer Straße 85a');
+		expect(results[0].place_id).toBe('W999');
+	});
+
+	it('returns [] when query is shorter than 2 chars (no fetch)', async () => {
+		fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
+		const results = await searchLocations('a');
+		expect(results).toEqual([]);
+		expect(fetchSpy).not.toHaveBeenCalled();
+	});
+
+	it('returns [] when Photon returns 500', async () => {
+		fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response('server error', { status: 500 })
+		);
+		const results = await searchLocations('flying roast');
+		expect(results).toEqual([]);
+	});
+
+	it('returns [] when fetch throws (network failure)', async () => {
+		fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('ECONNRESET'));
+		const results = await searchLocations('flying roast');
+		expect(results).toEqual([]);
+		expect(console.error).toHaveBeenCalled();
+	});
+
+	it('passes a Berlin bbox and lang=en to Photon', async () => {
+		fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response(JSON.stringify({ features: [] }), { status: 200 })
+		);
+		await searchLocations('test');
+		const calledUrl = (fetchSpy.mock.calls[0]?.[0] as string) ?? '';
+		expect(calledUrl).toContain('photon.komoot.io');
+		expect(calledUrl).toContain('lang=en');
+		expect(calledUrl).toContain('bbox=13.09%2C52.34%2C13.76%2C52.68');
+	});
+});
 
 describe('deriveGeneralArea — Nominatim resilience', () => {
 	let fetchSpy: ReturnType<typeof vi.spyOn>;
