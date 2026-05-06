@@ -389,6 +389,11 @@ export const copy = {
 		waitlist: 'Waitlist',
 		invites: 'Invites',
 		feedback: 'Feedback',
+		conversations: 'Conversations',
+		hide: 'Hide',
+		unhide: 'Unhide',
+		hidden: 'Hidden',
+		hideError: 'Could not update visibility. Try again.',
 	},
 
 	// ── App feedback ───────────────────────────────────────────────────

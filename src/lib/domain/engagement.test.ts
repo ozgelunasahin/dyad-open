@@ -13,6 +13,7 @@ function makePrompt(overrides: Partial<Prompt> = {}): Prompt {
 		region: 'berlin',
 		published_at: new Date().toISOString(),
 		archived_at: null,
+		hidden_at: null,
 		created_at: new Date().toISOString(),
 		updated_at: new Date().toISOString(),
 		...overrides

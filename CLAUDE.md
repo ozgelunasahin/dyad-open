@@ -69,6 +69,12 @@ All authenticated routes live under `src/routes/(app)/`. The layout provides:
 /impressum             — Legal notice
 /datenschutz           — Privacy policy
 /api/*                 — REST API endpoints
+
+# Admin plane (admin.dyad.berlin)
+/admin/waitlist        — Waitlist management
+/admin/invites         — Invite management
+/admin/conversations   — All conversations across all states; per-row show/hide on public discovery
+/admin/feedback        — Feedback review
 ```
 
 ## Environment Variables

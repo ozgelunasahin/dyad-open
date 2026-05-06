@@ -24,6 +24,7 @@ export interface Prompt {
 	region: string;
 	published_at: string | null;
 	archived_at: string | null;
+	hidden_at: string | null;
 	created_at: string;
 	updated_at: string;
 }

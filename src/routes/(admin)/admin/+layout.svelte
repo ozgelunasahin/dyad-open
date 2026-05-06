@@ -9,6 +9,7 @@
 	<nav class="admin-tabs">
 		<a href="/admin/waitlist" class="admin-tab" class:active={$page.url.pathname === '/admin/waitlist'}>{copy.admin.waitlist}</a>
 		<a href="/admin/invites" class="admin-tab" class:active={$page.url.pathname === '/admin/invites'}>{copy.admin.invites}</a>
+		<a href="/admin/conversations" class="admin-tab" class:active={$page.url.pathname === '/admin/conversations'}>{copy.admin.conversations}</a>
 		<a href="/admin/feedback" class="admin-tab" class:active={$page.url.pathname === '/admin/feedback'}>{copy.admin.feedback}</a>
 	</nav>
 

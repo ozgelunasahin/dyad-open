@@ -54,11 +54,15 @@ export class SupabasePromptQueryService implements PromptQueryService {
 	}): Promise<PromptSummary[]> {
 		const limit = params.limit ?? 20;
 
-		// Fetch published prompts (including own — per discover visibility policy)
+		// Fetch published prompts (including own — per discover visibility policy).
+		// Public-listing methods MUST filter `hidden_at IS NULL`. Detail / own-author
+		// methods MUST NOT — direct URL access for invitees, responders, and meeting
+		// participants stays open. See migration 20260506130000.
 		let query = this.supabase
 			.from('prompts')
 			.select('id, author_id, title, body, cover_image_url, published_at, region')
 			.eq('state', 'published')
+			.is('hidden_at', null)
 			.eq('region', params.region)
 			.order('published_at', { ascending: false })
 			.limit(limit);
@@ -133,6 +137,7 @@ export class SupabasePromptQueryService implements PromptQueryService {
 			.from('prompts')
 			.select('id, author_id, title, body, cover_image_url, published_at, region')
 			.eq('state', 'published')
+			.is('hidden_at', null)
 			.order('published_at', { ascending: false })
 			.limit(limit * 3);
 
@@ -246,6 +251,7 @@ export class SupabasePromptQueryService implements PromptQueryService {
 			.from('prompts')
 			.select('id, title, body, cover_image_url')
 			.eq('state', 'published')
+			.is('hidden_at', null)
 			.eq('region', region)
 			.order('published_at', { ascending: false })
 			.limit(200);
@@ -296,6 +302,7 @@ export class SupabasePromptQueryService implements PromptQueryService {
 			.select('id, title, cover_image_url, published_at')
 			.eq('author_id', profile.id)
 			.eq('state', 'published')
+			.is('hidden_at', null)
 			.order('published_at', { ascending: false });
 
 		return {
