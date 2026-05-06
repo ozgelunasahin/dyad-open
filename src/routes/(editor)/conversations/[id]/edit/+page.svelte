@@ -291,6 +291,19 @@
 		}
 	}
 
+	// ── Unpublish (published → draft, stays in editor) ─────────────────────────
+	async function handleUnpublish() {
+		const res = await fetch(`/api/prompts/${promptId}/unpublish`, { method: 'POST' });
+		if (res.ok) {
+			// Refresh page data so the editor's state derivations flip from
+			// published to draft and the action bar updates accordingly.
+			window.location.reload();
+		} else {
+			const e = await res.json().catch(() => ({}));
+			publishError = (e as any).error ?? copy.conversation.failedToUnpublish;
+		}
+	}
+
 	// ── Archive ────────────────────────────────────────────────────────────────
 	async function handleArchive() {
 		const res = await fetch(`/api/prompts/${promptId}/archive`, { method: 'POST' });
@@ -346,9 +359,11 @@
 				<button class="delete-btn" onclick={() => deletePublishedDialog?.open()}>{copy.editor.deleteAction}</button>
 				<button class="btn-primary btn-primary--sm" onclick={handleOpenPublish}>{copy.editor.republishAction}</button>
 			{:else}
-				<!-- Published: content edits auto-save. No publish-style action — the
-					conversation is already live. Archive takes it off the feed; Delete
-					removes it permanently. -->
+				<!-- Published: content edits auto-save. Unpublish takes it off the
+				     feed and back to draft so the author can keep working without
+				     publishing. Archive sets it aside (terminal). Delete removes
+				     it permanently. -->
+				<button class="action-btn" onclick={handleUnpublish}>{copy.editor.unpublishAction}</button>
 				<button class="action-btn" onclick={handleArchive}>{copy.editor.archiveAction}</button>
 				<button class="delete-btn" onclick={() => deletePublishedDialog?.open()}>{copy.editor.deleteAction}</button>
 			{/if}

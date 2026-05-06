@@ -191,10 +191,19 @@
 			(m) => m.state === 'scheduled' || m.state === 'awaiting_feedback'
 		)
 	);
+	let unpublishDialog = $state<ConfirmDialog | undefined>();
 	let archiveDialog = $state<ConfirmDialog | undefined>();
 	let deleteDialog = $state<ConfirmDialog | undefined>();
 	let actionError = $state('');
 	/* action-menu state now lives inside FloatingNav (variant="detail"). */
+
+	async function unpublishPrompt() {
+		try {
+			const res = await fetch(`/api/prompts/${data.prompt.id}/unpublish`, { method: 'POST' });
+			if (res.ok) goto(`/conversations/${data.prompt.id}/edit`);
+			else { const e = await res.json().catch(() => ({})); actionError = (e as any).error ?? copy.conversation.failedToUnpublish; }
+		} catch { actionError = copy.common.networkError; }
+	}
 
 	async function archivePrompt() {
 		try {
@@ -244,6 +253,13 @@
 	</div>
 
 	{#if isOwnPrompt && data.prompt.state === 'published'}
+		<ConfirmDialog
+			bind:this={unpublishDialog}
+			title={copy.conversation.unpublish}
+			message={copy.conversation.unpublishConfirm}
+			confirmLabel={copy.conversation.unpublish}
+			onConfirm={unpublishPrompt}
+		/>
 		<ConfirmDialog
 			bind:this={archiveDialog}
 			title={copy.conversation.archive}
@@ -550,6 +566,7 @@
 	actions={isOwnPrompt && data.prompt.state === 'published'
 		? [
 				{ label: copy.conversation.edit, onclick: () => goto(`/conversations/${data.prompt.id}/edit`) },
+				{ label: copy.conversation.unpublish, onclick: () => unpublishDialog?.open() },
 				{ label: copy.conversation.archive, onclick: () => archiveDialog?.open() },
 				{ label: copy.conversation.delete, onclick: () => deleteDialog?.open(), danger: true }
 			]

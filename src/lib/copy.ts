@@ -121,6 +121,9 @@ export const copy = {
 		// Edit-in-place: visible revision marker beside the published date.
 		revisedOn: (date: string) => `revised ${date}`,
 		edit: 'Edit',
+		unpublish: 'Unpublish',
+		unpublishConfirm: 'Take this off the feed and back to drafts? You can republish anytime.',
+		failedToUnpublish: 'Failed to unpublish.',
 		archive: 'Archive',
 		archiveConfirm: 'Archiving will expire pending invitations. Continue?',
 		delete: 'Delete',
@@ -155,6 +158,7 @@ export const copy = {
 		// Action-bar buttons
 		publishAction: 'Publish…',
 		republishAction: 'Republish…',
+		unpublishAction: 'Unpublish',
 		archiveAction: 'Archive',
 		deleteAction: 'Delete',
 		discardTitle: 'Discard draft',

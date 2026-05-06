@@ -112,7 +112,40 @@ describe('Prompt lifecycle', () => {
 			expect(found).toBeTruthy();
 		});
 
+		it('unpublishes a published prompt back to draft', async () => {
+			await digitServices.promptCommand.unpublish(createdPromptId, SEED_USERS.digit.id);
+
+			const prompts = await digitServices.promptQuery.getMyPrompts(SEED_USERS.digit.id);
+			const unpublished = prompts.find((p) => p.id === createdPromptId);
+			expect(unpublished?.state).toBe('draft');
+			expect(unpublished?.archived_at).toBeNull();
+		});
+
+		it('rejects unpublish on a draft prompt', async () => {
+			await expect(
+				digitServices.promptCommand.unpublish(createdPromptId, SEED_USERS.digit.id)
+			).rejects.toThrow('Can only unpublish a published conversation');
+		});
+
 		it('archives a published prompt', async () => {
+			// Bring it back to published first via the publish flow (the RPC
+			// accepts draft-state input).
+			const tomorrow = new Date();
+			tomorrow.setDate(tomorrow.getDate() + 1);
+			await digitServices.promptCommand.publish(createdPromptId, SEED_USERS.digit.id, [
+				{
+					start_time: tomorrow.toISOString(),
+					duration_minutes: 60,
+					location: {
+						place_id: 'test-3',
+						name: 'Third Place',
+						address: 'Dritte Straße 1, 10999 Berlin',
+						lat: 52.5,
+						lng: 13.43
+					}
+				}
+			]);
+
 			await digitServices.promptCommand.archive(createdPromptId, SEED_USERS.digit.id);
 
 			const prompts = await digitServices.promptQuery.getMyPrompts(SEED_USERS.digit.id);

@@ -17,6 +17,10 @@ export function canArchive(prompt: Prompt): boolean {
 	return prompt.state === 'published';
 }
 
+export function canUnpublish(prompt: Prompt): boolean {
+	return prompt.state === 'published';
+}
+
 export function canRepublish(prompt: Prompt, slots: TimeSlotInput[]): boolean {
 	return (
 		prompt.state === 'archived' &&

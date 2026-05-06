@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { JSONContent } from '@tiptap/core';
 import { nanoid } from 'nanoid';
 import type { Prompt, TimeSlotInput } from '$lib/domain/types.js';
-import { canPublish, canArchive, canRepublish } from '$lib/domain/prompt.js';
+import { canPublish, canArchive, canUnpublish, canRepublish } from '$lib/domain/prompt.js';
 import { deriveGeneralArea, validateRegion } from '$lib/services/location.js';
 import { DomainError } from '$lib/domain/errors.js';
 
@@ -27,6 +27,8 @@ export interface PromptCommandService {
 	removeSlot(slotId: string, authorId: string): Promise<void>;
 
 	archive(promptId: string, authorId: string): Promise<void>;
+
+	unpublish(promptId: string, authorId: string): Promise<void>;
 
 	republish(promptId: string, authorId: string, slots: TimeSlotInput[]): Promise<void>;
 
@@ -205,6 +207,27 @@ export class SupabasePromptCommandService implements PromptCommandService {
 			.eq('author_id', authorId);
 
 		if (error) throw new Error(`Failed to archive prompt: ${error.message}`);
+	}
+
+	async unpublish(promptId: string, authorId: string): Promise<void> {
+		const prompt = await this.getOwnPrompt(promptId, authorId);
+		if (!canUnpublish(prompt)) {
+			throw new DomainError('Can only unpublish a published conversation');
+		}
+
+		// Don't guard active meetings — they live in their own table and remain
+		// reachable by participants via /meetings/[id] regardless of prompt state.
+		// The slots become RLS-hidden from non-authors when state flips off
+		// 'published', which is correct: the conversation is off the feed.
+		// Republishing later goes through the publish_prompt RPC (same path as
+		// initial publish from draft), which the RPC already accepts.
+		const { error } = await this.supabase
+			.from('prompts')
+			.update({ state: 'draft', archived_at: null })
+			.eq('id', promptId)
+			.eq('author_id', authorId);
+
+		if (error) throw new Error(`Failed to unpublish prompt: ${error.message}`);
 	}
 
 	async republish(promptId: string, authorId: string, slots: TimeSlotInput[]): Promise<void> {

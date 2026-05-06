@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { canPublish, canArchive, canRepublish, isWithinRollingWindow } from './prompt.js';
+import { canPublish, canArchive, canUnpublish, canRepublish, isWithinRollingWindow } from './prompt.js';
 import type { Prompt, TimeSlotInput } from './types.js';
 
 function makePrompt(overrides: Partial<Prompt> = {}): Prompt {
@@ -97,6 +97,17 @@ describe('canArchive', () => {
 	it('false for draft or archived', () => {
 		expect(canArchive(makePrompt({ state: 'draft' }))).toBe(false);
 		expect(canArchive(makePrompt({ state: 'archived' }))).toBe(false);
+	});
+});
+
+describe('canUnpublish', () => {
+	it('true for published', () => {
+		expect(canUnpublish(makePrompt({ state: 'published' }))).toBe(true);
+	});
+
+	it('false for draft or archived', () => {
+		expect(canUnpublish(makePrompt({ state: 'draft' }))).toBe(false);
+		expect(canUnpublish(makePrompt({ state: 'archived' }))).toBe(false);
 	});
 });
 

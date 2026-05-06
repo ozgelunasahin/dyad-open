@@ -96,16 +96,18 @@ The platform follows the *calm technology* posture (Weiser & Brown 1996; Case 20
 - Members are inducted into platform norms organically through the interface itself.
 - Modals that keep a member in context are fine — for example, the waitlist form that appears when an anonymous visitor clicks a conversation. The principle: don't interrupt flow with demands for attention. Overlays that serve the member's current intent are not interruptions.
 
-### Three states, four verbs
+### Three states, six verbs
 
-Conversations move through three states: **draft** (pre-publication, only the author sees it), **published** (live on the feed), **archived** (off the feed, kept). Four author actions move between them.
+Conversations move through three states: **draft** (pre-publication, only the author sees it), **published** (live on the feed), **archived** (off the feed, kept). Six author actions move between them.
 
 - **Edit** revises a published conversation in place. Title, body, and cover image stay editable. The timestamp of the most recent revision (`prompts.edited_at`) appears on the read view as a quiet "revised on …" line beside the publish meta, so readers see when the prompt was changed rather than encountering silent edits.
-- **Archive** takes a conversation off the feed while keeping the record. Archived conversations remain editable in the editor, and the editor's action bar surfaces "Republish…" so the author can bring them back with fresh slots. The archive-then-republish pair fits the case where the author wants to rework privately before re-staging.
-- **Republish** moves an archived conversation back to published through the same publish flow that handles drafts. Slots are re-chosen each time; the prompt itself can be lightly or heavily reworked between archive and republish.
+- **Publish** moves a draft to published. The standard first-time-live flow with slot selection.
+- **Unpublish** takes a published conversation off the feed and back to draft. The author keeps working in the editor; nothing about the prompt is committed beyond what they choose to write next. They can republish through the standard publish flow when ready. Unpublish is the affordance that lowers the cost of publishing in the first place: an author who knows they can take it back to drafts at any time is more willing to push the button.
+- **Archive** takes a conversation off the feed while keeping it as a record. Archived conversations remain editable in the editor, and the editor's action bar surfaces "Republish…" so the author can bring them back with fresh slots. Archive is the right shape when the author considers the conversation done with its current life but wants the record kept.
+- **Republish** moves an archived conversation back to published through the same publish flow that handles drafts. Slots are re-chosen each time; the prompt itself can be lightly or heavily reworked in the meantime.
 - **Delete** removes the conversation permanently.
 
-We don't add a separate "unpublish to draft" affordance. It would do the same thing as archive then republish, just with a different state value sitting between the bookends. The semantic difference (archive feels final, draft feels reversible) is a labeling concern, addressed by how the Archive action is described in the editor, not by another state.
+Unpublish and Archive both take a conversation off the feed but answer different author intents: "I'm not done with this" vs. "I'm setting this aside." The state values they target (`draft` vs. `archived`) match the intent. Both can return to published, through different mental models: Unpublish hands the work back to draft (still being made); Archive keeps it as a closed record (re-staging is a deliberate act).
 
 ### Inclusive language
 
