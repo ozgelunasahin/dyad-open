@@ -53,6 +53,11 @@ export interface TimeSlotInput {
 	location: LocationRef;
 }
 
+// Slot submitted from the publish sheet back to the editor for diff
+// computation. dbId is set when the draft was hydrated from an existing
+// time_slots row; absent when the draft is freshly added in the sheet.
+export type SubmitSlot = TimeSlotInput & { dbId?: string };
+
 // Discover feed types
 
 export interface PromptSummary {

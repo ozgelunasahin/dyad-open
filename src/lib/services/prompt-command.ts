@@ -95,8 +95,14 @@ export class SupabasePromptCommandService implements PromptCommandService {
 
 	async addSlots(promptId: string, authorId: string, slots: TimeSlotInput[]): Promise<void> {
 		const prompt = await this.getOwnPrompt(promptId, authorId);
-		if (prompt.state !== 'published') {
-			throw new DomainError('Can only add slots to a published conversation');
+		// State guard intentionally absent. Drafts can accumulate slots inline
+		// in the editor, the publish_prompt RPC accepts existing draft slots,
+		// and editSlot/removeSlot have never had a published-only guard.
+		// Archived prompts go through Republish (which runs through the same
+		// publish flow); editing slots while in archived state is a separate
+		// concern not exercised today. The only invariant is the 3-slot ceiling.
+		if (prompt.state === 'archived') {
+			throw new DomainError('Republish before adjusting slots on an archived conversation');
 		}
 
 		// Check total future non-accepted slots won't exceed 3
@@ -121,8 +127,10 @@ export class SupabasePromptCommandService implements PromptCommandService {
 			throw new DomainError('Cannot edit a slot that has already been booked');
 		}
 
-		// Auto-expire pending invitations when slot is modified
-		await this.expirePendingInvitations(slotId);
+		const prompt = await this.getOwnPrompt(slot.prompt_id, authorId);
+		if (prompt.state === 'archived') {
+			throw new DomainError('Republish before adjusting slots on an archived conversation');
+		}
 
 		// Validate individual fields if provided
 		if (updates.start_time !== undefined) {
@@ -146,7 +154,6 @@ export class SupabasePromptCommandService implements PromptCommandService {
 		if (updates.duration_minutes !== undefined) fields.duration_minutes = updates.duration_minutes;
 
 		if (updates.location) {
-			const prompt = await this.getOwnPrompt(slot.prompt_id, authorId);
 			if (!validateRegion(updates.location, prompt.region)) {
 				throw new DomainError('Location is outside Berlin');
 			}
@@ -156,6 +163,16 @@ export class SupabasePromptCommandService implements PromptCommandService {
 			fields.general_area_lat = area.centroidLat;
 			fields.general_area_lng = area.centroidLng;
 		}
+
+		// No-op when no field actually changed. Skipping the UPDATE here also
+		// skips expirePendingInvitations — the save-on-close flow can route
+		// every persisted slot through editSlot, but only the ones that
+		// actually changed should withdraw their pending invitations.
+		if (Object.keys(fields).length === 0) {
+			return;
+		}
+
+		await this.expirePendingInvitations(slotId);
 
 		const { error } = await this.supabase
 			.from('time_slots')
@@ -169,6 +186,11 @@ export class SupabasePromptCommandService implements PromptCommandService {
 		const slot = await this.getOwnSlot(slotId, authorId);
 		if (slot.accepted) {
 			throw new DomainError('Cannot remove a slot that has already been booked');
+		}
+
+		const prompt = await this.getOwnPrompt(slot.prompt_id, authorId);
+		if (prompt.state === 'archived') {
+			throw new DomainError('Republish before adjusting slots on an archived conversation');
 		}
 
 		// Auto-expire pending invitations when slot is removed
