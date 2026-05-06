@@ -69,6 +69,14 @@ The platform follows the *calm technology* posture (Weiser & Brown 1996; Case 20
 - The inviter picks one time+place option. No negotiation. If accepted, that's the meeting.
 - Time slots where a member already has an accepted meeting are hidden — no double-booking.
 
+### Consent-free as a constraint
+
+- Any feature that would require a GDPR / ePrivacy consent modal for visitors is foreclosed by default. The consent banner is treated as a signal of architectural drift toward third-party tracking, third-party assets, or cookie-based personalisation.
+- In practice this rules out: cookie-setting analytics (Google Analytics, Mixpanel), embedded social widgets (Twitter / X, YouTube, LinkedIn), font CDNs that observe IP addresses (Google Fonts), map embeds that share request data with the host (Google Maps, Mapbox), and any third-party script that profiles visitors.
+- It rules in: cookieless EU-hosted analytics (Plausible, in use), self-hosted fonts (SangBleu Sunrise, served from `/static/fonts/`), self-hosted Leaflet tiles, pointing visitors at a third-party page (Substack signup, Stripe Checkout) rather than embedding it in dyad.
+- If a desired outcome can only be reached through a consent-requiring path, the choice is to find a consent-free alternative or to accept that the feature is foreclosed. The principle is structural, not aesthetic — it composes with the upact privacy port, the payment-opacity contract, and the calm-tech use shape.
+- The brand signal is incidental but real: visitors do not encounter a cookie wall on `dyad.berlin`.
+
 ### Cancellation symmetry
 
 - Both authors and inviters can cancel. Same tiers apply to both parties.
