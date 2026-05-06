@@ -184,6 +184,13 @@
 	}
 
 	let isOwnPrompt = $derived(data.prompt.author_id === data.user?.id);
+	// Active (non-cancelled, non-completed) meetings the author is hosting
+	// against this prompt. Drives the author summary card list.
+	let activeAuthorMeetings = $derived(
+		(data.promptMeetings ?? []).filter(
+			(m) => m.state === 'scheduled' || m.state === 'awaiting_feedback'
+		)
+	);
 	let archiveDialog = $state<ConfirmDialog | undefined>();
 	let deleteDialog = $state<ConfirmDialog | undefined>();
 	let actionError = $state('');
@@ -249,6 +256,40 @@
 			onConfirm={deletePrompt}
 		/>
 		{#if actionError}<p class="field-error" style="margin-top: var(--space-2)">{actionError}</p>{/if}
+
+		<!-- Author summary: the times they offered + any active meetings against
+		     them. Mirrors the responder-side slot/meeting blocks but read-only. -->
+		{#if data.prompt.available_slots.length > 0}
+			<section class="my-summary">
+				<p class="section-label">{copy.conversation.myOfferedTimes}</p>
+				{#each data.prompt.available_slots as slot}
+					<SlotCard
+						startTime={slot.start_time}
+						durationMinutes={slot.duration_minutes}
+						area={slot.general_area}
+						invited={slot.accepted}
+						invitedNote={slot.accepted ? copy.conversation.myOfferedTimesBooked : undefined}
+					/>
+				{/each}
+			</section>
+		{/if}
+
+		{#if activeAuthorMeetings.length > 0}
+			<section class="my-summary">
+				<p class="section-label">{copy.conversation.myScheduledMeetings}</p>
+				{#each activeAuthorMeetings as m}
+					<a href="/meetings/{m.id}" class="meeting-card-link">
+						<MeetingCard
+							partnerUsername={m.partner_username ?? copy.common.someone}
+							scheduledTime={m.scheduled_time}
+							durationMinutes={m.duration_minutes}
+							generalArea={m.general_area}
+							exactLocation={m.exact_location}
+						/>
+					</a>
+				{/each}
+			</section>
+		{/if}
 	{/if}
 
 	<!-- Response section (non-authors only) -->
@@ -543,6 +584,18 @@
 	/* Sections */
 	.slots-section { margin-top: var(--space-4); margin-bottom: var(--space-6); }
 	.response-section, .responses-received { margin-top: var(--space-6); padding-top: var(--space-6); border-top: 1px solid var(--border-link); }
+
+	/* Author summary blocks above .responses-received: list of offered times,
+	   list of scheduled meetings. Quiet typography to match the page idiom — the
+	   section label sits like the existing .meta line, the cards do the work. */
+	.my-summary { margin-top: var(--space-6); }
+	.my-summary:first-of-type { padding-top: var(--space-6); border-top: 1px solid var(--border-link); }
+	.section-label {
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+		margin: 0 0 var(--space-3);
+	}
 
 	.my-response { margin-bottom: var(--space-6); }
 	.my-response-text { font-size: var(--text-md); line-height: var(--leading-relaxed); margin: 0 0 var(--space-2); }

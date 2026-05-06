@@ -116,6 +116,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		id: string;
 		slot_id: string;
 		scheduled_time: string;
+		duration_minutes: number;
 		state: string;
 		resolved_at: string | null;
 		exact_location: { place_id: string; name: string; address: string; lat: number; lng: number } | null;
@@ -123,11 +124,16 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		cancelled_by: string | null;
 		cancelled_by_username: string | null;
 		cancellation_reason: string | null;
+		// Inviter username from meetings.participant_b. The author is participant_a;
+		// participant_b is the responder who initiated the invitation. Enriched
+		// directly from profiles rather than walking the invitation chain so a
+		// cancelled-then-replaced invitation can't break the lookup.
+		partner_username: string | null;
 	}> = [];
 	if (isAuthor) {
 		const { data: meetings } = await locals.supabase
 			.from('meetings')
-			.select('id, slot_id, scheduled_time, state, resolved_at')
+			.select('id, slot_id, scheduled_time, duration_minutes, state, resolved_at, participant_b')
 			.eq('prompt_id', params.id)
 			// Active (unresolved) meetings first, then most-recently-resolved.
 			// When a slot has both a cancelled meeting and a fresh scheduled one
@@ -141,6 +147,19 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			.map((m) => m.id);
 		const cancellers = await loadCancellersFor(locals.supabase, cancelledMeetingIds);
 
+		// Resolve partner_username for each meeting in one shared profiles query.
+		const partnerIds = [...new Set((meetings ?? []).map((m) => m.participant_b))];
+		const partnerMap = new Map<string, string>();
+		if (partnerIds.length > 0) {
+			const { data: partnerProfiles } = await locals.supabase
+				.from('profiles')
+				.select('id, username')
+				.in('id', partnerIds);
+			for (const p of partnerProfiles ?? []) {
+				partnerMap.set(p.id, p.username);
+			}
+		}
+
 		// Enrich with exact_location via SECURITY DEFINER RPC
 		for (const m of meetings ?? []) {
 			const { data: detail } = await locals.supabase.rpc('get_meeting_with_location', { p_meeting_id: m.id });
@@ -150,13 +169,15 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				id: m.id,
 				slot_id: m.slot_id,
 				scheduled_time: m.scheduled_time,
+				duration_minutes: m.duration_minutes,
 				state: m.state,
 				resolved_at: m.resolved_at ?? null,
 				exact_location: d?.exact_location ?? null,
 				general_area: d?.general_area ?? null,
 				cancelled_by: canceller?.cancelled_by ?? null,
 				cancelled_by_username: canceller?.cancelled_by_username ?? null,
-				cancellation_reason: canceller?.reason ?? null
+				cancellation_reason: canceller?.reason ?? null,
+				partner_username: partnerMap.get(m.participant_b) ?? null
 			});
 		}
 	}
