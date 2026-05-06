@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { JSONContent } from '@tiptap/core';
 import { nanoid } from 'nanoid';
 import type { Prompt, TimeSlotInput } from '$lib/domain/types.js';
-import { canPublish, canUnpublish, canRepublish } from '$lib/domain/prompt.js';
+import { canPublish, canArchive, canRepublish } from '$lib/domain/prompt.js';
 import { deriveGeneralArea, validateRegion } from '$lib/services/location.js';
 import { DomainError } from '$lib/domain/errors.js';
 
@@ -26,7 +26,7 @@ export interface PromptCommandService {
 
 	removeSlot(slotId: string, authorId: string): Promise<void>;
 
-	unpublish(promptId: string, authorId: string): Promise<void>;
+	archive(promptId: string, authorId: string): Promise<void>;
 
 	republish(promptId: string, authorId: string, slots: TimeSlotInput[]): Promise<void>;
 
@@ -180,9 +180,9 @@ export class SupabasePromptCommandService implements PromptCommandService {
 		if (error) throw new Error(`Failed to remove slot: ${error.message}`);
 	}
 
-	async unpublish(promptId: string, authorId: string): Promise<void> {
+	async archive(promptId: string, authorId: string): Promise<void> {
 		const prompt = await this.getOwnPrompt(promptId, authorId);
-		if (!canUnpublish(prompt)) {
+		if (!canArchive(prompt)) {
 			throw new DomainError('Can only archive a published conversation');
 		}
 
@@ -194,7 +194,7 @@ export class SupabasePromptCommandService implements PromptCommandService {
 			.eq('id', promptId)
 			.eq('author_id', authorId);
 
-		if (error) throw new Error(`Failed to unpublish prompt: ${error.message}`);
+		if (error) throw new Error(`Failed to archive prompt: ${error.message}`);
 	}
 
 	async republish(promptId: string, authorId: string, slots: TimeSlotInput[]): Promise<void> {

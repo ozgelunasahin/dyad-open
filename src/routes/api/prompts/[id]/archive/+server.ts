@@ -4,15 +4,15 @@ import { requireIdentity } from '$lib/services/identity.js';
 import { SupabasePromptCommandService } from '$lib/services/prompt-command.js';
 import { handleServiceError } from '$lib/server/handle-service-error.js';
 
-/** POST /api/prompts/[id]/unpublish — archive a published prompt */
+/** POST /api/prompts/[id]/archive — archive a published prompt */
 export const POST: RequestHandler = async ({ params, locals }) => {
 	const upactor = requireIdentity(locals);
 
 	const service = new SupabasePromptCommandService(locals.supabase);
 	try {
-		await service.unpublish(params.id, upactor.id);
+		await service.archive(params.id, upactor.id);
 		return json({ ok: true });
 	} catch (err) {
-		return handleServiceError(err, '[prompts/unpublish]');
+		return handleServiceError(err, '[prompts/archive]');
 	}
 };

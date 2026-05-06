@@ -112,8 +112,8 @@ describe('Prompt lifecycle', () => {
 			expect(found).toBeTruthy();
 		});
 
-		it('unpublishes to archived', async () => {
-			await digitServices.promptCommand.unpublish(createdPromptId, SEED_USERS.digit.id);
+		it('archives a published prompt', async () => {
+			await digitServices.promptCommand.archive(createdPromptId, SEED_USERS.digit.id);
 
 			const prompts = await digitServices.promptQuery.getMyPrompts(SEED_USERS.digit.id);
 			const archived = prompts.find((p) => p.id === createdPromptId);
@@ -143,8 +143,8 @@ describe('Prompt lifecycle', () => {
 			expect(republished?.state).toBe('published');
 		});
 
-		it('cleans up — delete after unpublishing', async () => {
-			await digitServices.promptCommand.unpublish(createdPromptId, SEED_USERS.digit.id);
+		it('cleans up — delete after archiving', async () => {
+			await digitServices.promptCommand.archive(createdPromptId, SEED_USERS.digit.id);
 			// Can only delete drafts, so this should fail on archived
 			await expect(
 				digitServices.promptCommand.deleteDraft(createdPromptId, SEED_USERS.digit.id)

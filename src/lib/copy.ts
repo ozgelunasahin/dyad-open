@@ -142,7 +142,6 @@ export const copy = {
 		failedToLoad: 'Failed to load editor.',
 		published: 'Published',
 		publishedDesc: 'Your conversation is live on the discover feed.',
-		unpublish: 'Unpublish',
 		saving: 'Saving...',
 		saved: 'Saved',
 		saveError: 'Error',

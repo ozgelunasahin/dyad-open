@@ -191,7 +191,7 @@
 
 	async function archivePrompt() {
 		try {
-			const res = await fetch(`/api/prompts/${data.prompt.id}/unpublish`, { method: 'POST' });
+			const res = await fetch(`/api/prompts/${data.prompt.id}/archive`, { method: 'POST' });
 			if (res.ok) goto('/profile?view=conversations');
 			else { const e = await res.json().catch(() => ({})); actionError = (e as any).error ?? copy.conversation.failedToArchive; }
 		} catch { actionError = copy.common.networkError; }

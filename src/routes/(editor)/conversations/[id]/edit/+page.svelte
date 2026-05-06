@@ -291,9 +291,9 @@
 		}
 	}
 
-	// ── Unpublish / Archive ────────────────────────────────────────────────────
-	async function handleUnpublish() {
-		const res = await fetch(`/api/prompts/${promptId}/unpublish`, { method: 'POST' });
+	// ── Archive ────────────────────────────────────────────────────────────────
+	async function handleArchive() {
+		const res = await fetch(`/api/prompts/${promptId}/archive`, { method: 'POST' });
 		if (res.ok) goto('/profile?view=conversations');
 		else { const e = await res.json().catch(() => ({})); publishError = (e as any).error ?? copy.conversation.failedToArchive; }
 	}
@@ -340,7 +340,7 @@
 		</span>
 		<div class="pub-actions">
 			{#if isDraft}
-				<button class="unpublish-btn" onclick={() => discardDialog?.open()}>{copy.editor.discard}</button>
+				<button class="action-btn" onclick={() => discardDialog?.open()}>{copy.editor.discard}</button>
 				<button class="btn-primary btn-primary--sm" onclick={handleOpenPublish}>{copy.editor.publishAction}</button>
 			{:else if isArchived}
 				<button class="delete-btn" onclick={() => deletePublishedDialog?.open()}>{copy.editor.deleteAction}</button>
@@ -349,7 +349,7 @@
 				<!-- Published: content edits auto-save. No publish-style action — the
 					conversation is already live. Archive takes it off the feed; Delete
 					removes it permanently. -->
-				<button class="unpublish-btn" onclick={handleUnpublish}>{copy.editor.archiveAction}</button>
+				<button class="action-btn" onclick={handleArchive}>{copy.editor.archiveAction}</button>
 				<button class="delete-btn" onclick={() => deletePublishedDialog?.open()}>{copy.editor.deleteAction}</button>
 			{/if}
 		</div>
@@ -578,7 +578,7 @@
 	}
 	.delete-btn:hover { opacity: var(--opacity-hover-btn); }
 
-	.unpublish-btn {
+	.action-btn {
 		font-size: var(--text-sm);
 		color: var(--text-muted);
 		background: none;
@@ -587,7 +587,7 @@
 		padding: var(--space-2) var(--space-4);
 		cursor: pointer;
 	}
-	.unpublish-btn:hover { border-color: var(--text-primary); color: var(--text-primary); }
+	.action-btn:hover { border-color: var(--text-primary); color: var(--text-primary); }
 
 	/* .btn-primary / .btn-primary--sm live in shared.css */
 

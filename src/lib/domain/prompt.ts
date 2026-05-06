@@ -13,7 +13,7 @@ export function canPublish(prompt: Prompt, slots: TimeSlotInput[]): boolean {
 	);
 }
 
-export function canUnpublish(prompt: Prompt): boolean {
+export function canArchive(prompt: Prompt): boolean {
 	return prompt.state === 'published';
 }
 
