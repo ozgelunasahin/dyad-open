@@ -8,11 +8,15 @@ const isCI = !!process.env.CI;
 const baseURL = isCI ? 'http://localhost:4173' : 'http://localhost:5173';
 
 // Env injected into the spawned dev/preview server for the duration of
-// the e2e run. The Plausible domain enables the script tag in tests
+// the e2e run. The Plausible script URL enables the script tag in tests
 // that assert on it; the dev bypass lets tests visit /admin/* without
 // Cloudflare Access (which doesn't run locally).
+//
+// .invalid is RFC-2606 reserved and the test asserts on tag presence,
+// not network behavior — the script is never actually loaded, just
+// rendered in HTML.
 const webServerEnv = {
-	PUBLIC_PLAUSIBLE_DOMAIN: 'dyad-test.invalid',
+	PUBLIC_PLAUSIBLE_SCRIPT_SRC: 'https://plausible.io/js/pa-test.invalid.js',
 	ADMIN_DEV_BYPASS: '1'
 };
 

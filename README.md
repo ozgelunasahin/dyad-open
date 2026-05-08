@@ -38,7 +38,7 @@ The pre-commit hook runs secrets scanning, ESLint, svelte-check, and unit tests.
 
 Deployed to Cloudflare Pages via `@sveltejs/adapter-cloudflare`. The admin plane lives at `admin.dyad.berlin` and is gated by Cloudflare Access — see `SECURITY.md` for the authentication model.
 
-Optionally set `PUBLIC_PLAUSIBLE_DOMAIN` to enable Plausible Analytics (privacy-friendly, EU-hosted, no cookies, no PII; GDPR-clean by design). Unset means no analytics. See `CLAUDE.md` for the full env-var reference.
+Optionally set `PUBLIC_PLAUSIBLE_SCRIPT_SRC` to enable Plausible Analytics (privacy-friendly, EU-hosted, no cookies, no PII; GDPR-clean by design). The value is the full script URL from the Plausible dashboard, e.g. `https://plausible.io/js/pa-XXXXXXXX.js`. Unset means no analytics. See `CLAUDE.md` for the full env-var reference.
 
 ```sh
 npx supabase db push         # push pending migrations to remote

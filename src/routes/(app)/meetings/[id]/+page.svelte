@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
 	import { generateICS, downloadICS } from '$lib/utils/calendar.js';
+	import { capture } from '$lib/analytics';
 	import type { PageData } from './$types';
 	import { copy } from '$lib/copy';
 
@@ -76,6 +77,7 @@
 				body: JSON.stringify(reason ? { reason } : {})
 			});
 			if (res.ok) {
+				capture('meeting_cancelled', { tier: isEarly ? 'early' : 'late' });
 				cancelDialog?.close();
 				goto('/profile');
 				return;

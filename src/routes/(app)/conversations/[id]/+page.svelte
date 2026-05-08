@@ -7,6 +7,7 @@
 	import MeetingCard from '$lib/components/MeetingCard.svelte';
 	import PublishSheet from '$lib/components/PublishSheet.svelte';
 	import type { SubmitSlot } from '$lib/domain/types';
+	import { capture } from '$lib/analytics';
 	import { copy } from '$lib/copy';
 
 	let { data }: { data: PageData } = $props();
@@ -54,6 +55,7 @@
 				body: JSON.stringify({ body: responseText.trim() })
 			});
 			if (res.ok) {
+				capture('response_sent');
 				responseStatus = 'sent';
 			} else {
 				const err = await res.json().catch(() => ({}));
@@ -84,6 +86,7 @@
 						invitationBySlotId = { ...invitationBySlotId, [selectedSlotId]: invitation.id };
 					}
 				}
+				capture('invitation_sent');
 				inviteStatus = 'sent';
 			} else {
 				const err = await res.json().catch(() => ({}));
@@ -110,6 +113,7 @@
 		try {
 			const res = await fetch(`/api/invitations/${invitationId}`, { method: 'DELETE' });
 			if (res.ok) {
+				capture('invitation_withdrawn');
 				invitedSlotIds = new Set([...invitedSlotIds].filter(id => id !== slotId));
 				const { [slotId]: _, ...rest } = invitationBySlotId;
 				invitationBySlotId = rest;
@@ -136,6 +140,7 @@
 			const res = await fetch(`/api/invitations/${invitationId}/accept`, { method: 'POST' });
 			if (res.ok) {
 				const { meetingId } = await res.json();
+				capture('invitation_accepted');
 				goto(`/meetings/${meetingId}`);
 			} else {
 				const err = await res.json().catch(() => ({}));
@@ -171,6 +176,7 @@
 				body: JSON.stringify(reason ? { reason } : {})
 			});
 			if (res.ok) {
+				capture('invitation_declined');
 				openDeclineId = null;
 				declineMessage = '';
 				await invalidateAll();
@@ -232,6 +238,11 @@
 				body: JSON.stringify({ add, edit, remove })
 			});
 			if (res.ok) {
+				capture('slots_changed', {
+					added: add.length,
+					edited: edit.length,
+					removed: remove.length
+				});
 				showChangeTimesSheet = false;
 				await invalidateAll();
 			} else {
@@ -248,16 +259,20 @@
 	async function unpublishPrompt() {
 		try {
 			const res = await fetch(`/api/prompts/${data.prompt.id}/unpublish`, { method: 'POST' });
-			if (res.ok) goto(`/conversations/${data.prompt.id}/edit`);
-			else { const e = await res.json().catch(() => ({})); actionError = (e as any).error ?? copy.conversation.failedToUnpublish; }
+			if (res.ok) {
+				capture('conversation_unpublished');
+				goto(`/conversations/${data.prompt.id}/edit`);
+			} else { const e = await res.json().catch(() => ({})); actionError = (e as any).error ?? copy.conversation.failedToUnpublish; }
 		} catch { actionError = copy.common.networkError; }
 	}
 
 	async function deletePrompt() {
 		try {
 			const res = await fetch(`/api/prompts/${data.prompt.id}`, { method: 'DELETE' });
-			if (res.ok) goto('/profile?view=conversations');
-			else { const e = await res.json().catch(() => ({})); actionError = (e as any).error ?? copy.conversation.failedToDelete; }
+			if (res.ok) {
+				capture('conversation_deleted', { origin: 'read_view' });
+				goto('/profile?view=conversations');
+			} else { const e = await res.json().catch(() => ({})); actionError = (e as any).error ?? copy.conversation.failedToDelete; }
 		} catch { actionError = copy.common.networkError; }
 	}
 </script>

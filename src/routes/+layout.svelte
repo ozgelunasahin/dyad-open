@@ -11,13 +11,17 @@
 	// Plausible analytics: load on the public + authenticated app, NOT the
 	// admin plane. Production admin lives at admin.dyad.berlin; local dev
 	// uses path-prefixed /admin/* (and the bare /admin redirect). Disabled
-	// when PUBLIC_PLAUSIBLE_DOMAIN is unset. The pathname check uses '/admin'
+	// when PUBLIC_PLAUSIBLE_SCRIPT_SRC is unset. The pathname check uses '/admin'
 	// (no trailing slash) to match src/hooks.server.ts and exclude the bare
 	// /admin path before its server-side redirect.
-	const PLAUSIBLE_DOMAIN = env.PUBLIC_PLAUSIBLE_DOMAIN;
-	const PLAUSIBLE_SRC = env.PUBLIC_PLAUSIBLE_SCRIPT_SRC || 'https://plausible.io/js/script.js';
+	//
+	// Uses Plausible's new script format: the unique site ID is encoded in
+	// the script URL (e.g. https://plausible.io/js/pa-XXXX.js), and a small
+	// inline shim queues events fired before the async script loads — events
+	// captured during initial render are flushed once the tracker arrives.
+	const PLAUSIBLE_SRC = env.PUBLIC_PLAUSIBLE_SCRIPT_SRC;
 	const plausibleEnabled = $derived(
-		!!PLAUSIBLE_DOMAIN
+		!!PLAUSIBLE_SRC
 			&& page.url.hostname !== 'admin.dyad.berlin'
 			&& !page.url.pathname.startsWith('/admin')
 	);
@@ -77,7 +81,9 @@
 	<title>dyad.</title>
 	<link rel="icon" href="/favicon.png" type="image/png" />
 	{#if plausibleEnabled}
-		<script defer data-domain={PLAUSIBLE_DOMAIN} src={PLAUSIBLE_SRC}></script>
+		<script async src={PLAUSIBLE_SRC}></script>
+		<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+		{@html `<script>window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};plausible.init()</script>`}
 	{/if}
 </svelte:head>
 

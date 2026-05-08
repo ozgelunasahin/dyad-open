@@ -8,6 +8,7 @@
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import PublishSheet from '$lib/components/PublishSheet.svelte';
 	import type { SubmitSlot } from '$lib/domain/types';
+	import { capture } from '$lib/analytics';
 	import { copy } from '$lib/copy';
 
 	let { data }: { data: PageData } = $props();
@@ -245,8 +246,10 @@
 	async function handleDiscard() {
 		if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
 		const res = await fetch(`/api/prompts/${promptId}`, { method: 'DELETE' });
-		if (res.ok) goto('/profile?view=conversations');
-		else publishError = 'Failed to discard draft.';
+		if (res.ok) {
+			capture('conversation_deleted', { origin: 'editor' });
+			goto('/profile?view=conversations');
+		} else publishError = 'Failed to discard draft.';
 	}
 
 	function handleOpenPublish() {
@@ -293,6 +296,7 @@
 				body: JSON.stringify({ slots })
 			});
 			if (res.ok) {
+				capture('conversation_published');
 				goto(`/conversations/${promptId}`);
 			} else {
 				const err = await res.json().catch(() => ({}));

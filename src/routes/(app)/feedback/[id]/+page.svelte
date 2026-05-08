@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
 	import type { FeedbackFormState, RevealedFeedback } from '$lib/domain/types';
+	import { capture } from '$lib/analytics';
 	import { copy } from '$lib/copy';
 
 	let { data }: { data: PageData } = $props();
@@ -71,6 +72,7 @@
 				})
 			});
 			if (res.ok) {
+				capture('feedback_submitted');
 				const result = await res.json();
 				if (result.state === 'locked' && result.revealed) {
 					// Both submitted — show reveal immediately
