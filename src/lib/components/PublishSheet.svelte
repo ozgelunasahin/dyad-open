@@ -97,8 +97,13 @@
 	// 09:00, 14:00, 19:00 by default rather than three identical 09:00 entries.
 	const DEFAULT_TIME_LADDER = ['09:00', '14:00', '19:00'];
 
-	function nextDefaultTime(existingCount: number): string {
-		return DEFAULT_TIME_LADDER[Math.min(existingCount, DEFAULT_TIME_LADDER.length - 1)];
+	function nextDefaultTime(date: string, existingCount: number): string {
+		const valid = timeOptionsForDate(date);
+		const ladderPick = DEFAULT_TIME_LADDER[Math.min(existingCount, DEFAULT_TIME_LADDER.length - 1)];
+		// Honor the ladder when its pick is still in the valid window for this
+		// day; otherwise fall through to the first time the day still allows.
+		if (valid.some((opt) => opt.value === ladderPick)) return ladderPick;
+		return valid[0]?.value ?? ladderPick;
 	}
 
 	// Total slots configured across all days. The 3-slot ceiling is per
@@ -129,7 +134,7 @@
 			if (totalSlotCount >= 3) return;
 			next.add(date);
 			const nextSlots = new Map(daySlots);
-			nextSlots.set(date, [makeSlot(nextDefaultTime(0))]);
+			nextSlots.set(date, [makeSlot(nextDefaultTime(date, 0))]);
 			daySlots = nextSlots;
 		}
 		selectedDays = next;
@@ -140,7 +145,7 @@
 		if (totalSlotCount >= 3) return;
 		const current = daySlots.get(date) ?? [];
 		const nextSlots = new Map(daySlots);
-		nextSlots.set(date, [...current, makeSlot(nextDefaultTime(current.length))]);
+		nextSlots.set(date, [...current, makeSlot(nextDefaultTime(date, current.length))]);
 		daySlots = nextSlots;
 		dirty = true;
 	}
@@ -284,7 +289,7 @@
 	});
 
 	// Time options (7:00 AM to 10:00 PM in 30-min increments).
-	const timeOptions = (() => {
+	const ALL_TIME_OPTIONS: { value: string; label: string }[] = (() => {
 		const options: { value: string; label: string }[] = [];
 		for (let h = 7; h <= 22; h++) {
 			for (const m of [0, 30]) {
@@ -298,6 +303,20 @@
 		}
 		return options;
 	})();
+
+	// For today, hide times that aren't at least 1 hour in the future. Mirrors
+	// the editSlot/publish service-layer guard so the UI never offers a time
+	// that would be rejected on submit. For other days, every slot is valid.
+	function timeOptionsForDate(date: string): { value: string; label: string }[] {
+		const today = new Date();
+		const todayKey = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
+		if (date !== todayKey) return ALL_TIME_OPTIONS;
+		const cutoff = new Date(Date.now() + 60 * 60 * 1000);
+		return ALL_TIME_OPTIONS.filter((opt) => {
+			const slotTime = new Date(`${date}T${opt.value}`);
+			return slotTime >= cutoff;
+		});
+	}
 
 	function formatDayHeader(date: string): string {
 		const d = new Date(date + 'T12:00:00');
@@ -329,11 +348,13 @@
 		<p class="sheet-note">{copy.editor.privacyNote}</p>
 		<div class="day-picker">
 			{#each weekDates as day}
+				{@const noValidTimes = timeOptionsForDate(day.date).length === 0}
 				<button
 					type="button"
 					class="day-cell"
 					class:selected={selectedDays.has(day.date)}
 					aria-pressed={selectedDays.has(day.date)}
+					disabled={noValidTimes}
 					onclick={() => toggleDay(day.date)}
 				>
 					<span class="day-name">{day.dayShort.toUpperCase()}</span>
@@ -360,7 +381,7 @@
 								value={slot.time}
 								onchange={(e) => updateSlot(date, i, 'time', (e.target as HTMLSelectElement).value)}
 							>
-								{#each timeOptions as opt}
+								{#each timeOptionsForDate(date) as opt}
 									<option value={opt.value}>{opt.label}</option>
 								{/each}
 							</select>
@@ -504,7 +525,12 @@
 		transition: background 0.15s, color 0.15s, border-color 0.15s;
 	}
 
-	.day-cell:hover { border-color: var(--border-link-hover); }
+	.day-cell:hover:not(:disabled) { border-color: var(--border-link-hover); }
+
+	.day-cell:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+	}
 
 	.day-cell.selected {
 		background: var(--bg-control);

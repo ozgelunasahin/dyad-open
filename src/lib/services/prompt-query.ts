@@ -215,14 +215,23 @@ export class SupabasePromptQueryService implements PromptQueryService {
 			.eq('prompt_id', id)
 			.order('start_time', { ascending: true });
 
-		if (prompt.author_id !== userId) {
-			slotsQuery = slotsQuery.eq('accepted', false);
-		}
+		// Always exclude accepted slots from the listing — the read view shows
+		// those as scheduled meetings in their own section, so listing them
+		// here would duplicate.
+		slotsQuery = slotsQuery.eq('accepted', false);
 
 		const { data: slots } = await slotsQuery;
 
 		const now = new Date();
-		const availableSlots = (slots ?? []).filter((s) => isAvailable(s as TimeSlot, now)) as TimeSlot[];
+		// Authors see every slot they offered, including past ones — the read
+		// view's author summary surfaces all of them so they can see what they
+		// committed to historically. Non-authors get only available slots
+		// (future-valid) since those are the only ones they can invite to.
+		const availableSlots = (
+			prompt.author_id === userId
+				? (slots ?? [])
+				: (slots ?? []).filter((s) => isAvailable(s as TimeSlot, now))
+		) as TimeSlot[];
 
 		const profileMap = await buildProfileMap(this.supabase, [prompt.author_id]);
 		const authorProfile = profileMap.get(prompt.author_id);

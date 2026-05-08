@@ -81,6 +81,12 @@ export class SupabasePromptCommandService implements PromptCommandService {
 
 	async publish(promptId: string, authorId: string, slots: TimeSlotInput[]): Promise<void> {
 		const prompt = await this.getOwnPrompt(promptId, authorId);
+
+		// Per-slot validation first — surfaces specific errors like "Start time
+		// must be at least 1 hour in the future" instead of the generic
+		// canPublish failure when a slot is past or near-past.
+		for (const slot of slots) this.validateSlotFields(slot);
+
 		if (!canPublish(prompt, slots)) {
 			throw new DomainError('Cannot publish: conversation must be a draft with 1–3 valid time slots');
 		}
