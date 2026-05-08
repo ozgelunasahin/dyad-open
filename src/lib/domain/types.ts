@@ -38,7 +38,11 @@ export interface TimeSlot {
 	general_area_lng: number | null;
 	accepted: boolean;
 	created_at: string;
-	// exact_location intentionally omitted from public type
+	// exact_location is omitted from non-author surfaces (public view masks it).
+	// Present (or null) only when the loader fetched via get_my_prompt_slots
+	// (author path); the RPC returns full time_slots rows where the column
+	// can be null.
+	exact_location?: LocationRef | null;
 }
 
 export interface TimeSlotWithLocation extends TimeSlot {

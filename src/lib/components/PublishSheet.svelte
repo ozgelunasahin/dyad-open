@@ -68,11 +68,19 @@
 	// Initialize daySlots and selectedDays from initialSlots on mount. The
 	// loader's slot data carries exact_location (LocationRef) so we can
 	// reconstruct the form's full state.
+	//
+	// Past slots are skipped — the form's time picker filters out times that
+	// are less than 1 hour in the future, so a past slot's "HH:MM" wouldn't
+	// match any option and the select would visually drift from state. The
+	// publish RPC's delete-and-replace semantics will clean up the orphan
+	// past rows when the author submits the next valid set.
 	function hydrateFromInitial() {
 		const map = new Map<string, SlotDraft[]>();
 		const days = new Set<string>();
+		const cutoff = new Date(Date.now() + 60 * 60 * 1000);
 		for (const slot of initialSlots) {
 			const start = new Date(slot.start_time);
+			if (start < cutoff) continue;
 			const date = start.toLocaleDateString('sv-SE');
 			const time = `${start.getHours().toString().padStart(2, '0')}:${start
 				.getMinutes()

@@ -184,13 +184,6 @@
 	}
 
 	let isOwnPrompt = $derived(data.prompt.author_id === data.user?.id);
-	// Active (non-cancelled, non-completed) meetings the author is hosting
-	// against this prompt. Drives the author summary card list.
-	let activeAuthorMeetings = $derived(
-		(data.promptMeetings ?? []).filter(
-			(m) => m.state === 'scheduled' || m.state === 'awaiting_feedback'
-		)
-	);
 	let unpublishDialog = $state<ConfirmDialog | undefined>();
 	let deleteDialog = $state<ConfirmDialog | undefined>();
 	let actionError = $state('');
@@ -267,27 +260,14 @@
 						startTime={slot.start_time}
 						durationMinutes={slot.duration_minutes}
 						area={slot.general_area}
+						exactLocation={slot.exact_location ?? null}
+						invited={slot.accepted}
+						invitedNote={slot.accepted ? copy.conversation.myOfferedTimesBooked : undefined}
 					/>
 				{/each}
 			</section>
 		{/if}
 
-		{#if activeAuthorMeetings.length > 0}
-			<section class="my-summary">
-				<p class="section-label">{copy.conversation.myScheduledMeetings}</p>
-				{#each activeAuthorMeetings as m}
-					<a href="/meetings/{m.id}" class="meeting-card-link">
-						<MeetingCard
-							partnerUsername={m.partner_username ?? copy.common.someone}
-							scheduledTime={m.scheduled_time}
-							durationMinutes={m.duration_minutes}
-							generalArea={m.general_area}
-							exactLocation={m.exact_location}
-						/>
-					</a>
-				{/each}
-			</section>
-		{/if}
 	{/if}
 
 	<!-- Response section (non-authors only) -->
