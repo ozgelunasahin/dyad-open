@@ -13,21 +13,8 @@ export function canPublish(prompt: Prompt, slots: TimeSlotInput[]): boolean {
 	);
 }
 
-export function canArchive(prompt: Prompt): boolean {
-	return prompt.state === 'published';
-}
-
 export function canUnpublish(prompt: Prompt): boolean {
 	return prompt.state === 'published';
-}
-
-export function canRepublish(prompt: Prompt, slots: TimeSlotInput[]): boolean {
-	return (
-		prompt.state === 'archived' &&
-		slots.length >= MIN_SLOTS &&
-		slots.length <= MAX_SLOTS &&
-		slots.every((s) => isWithinRollingWindow(new Date(s.start_time)))
-	);
 }
 
 export function isWithinRollingWindow(startTime: Date, now: Date = new Date()): boolean {

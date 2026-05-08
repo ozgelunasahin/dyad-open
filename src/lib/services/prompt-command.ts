@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { JSONContent } from '@tiptap/core';
 import { nanoid } from 'nanoid';
 import type { Prompt, TimeSlotInput } from '$lib/domain/types.js';
-import { canPublish, canArchive, canUnpublish, canRepublish } from '$lib/domain/prompt.js';
+import { canPublish, canUnpublish } from '$lib/domain/prompt.js';
 import { deriveGeneralArea, validateRegion } from '$lib/services/location.js';
 import { DomainError } from '$lib/domain/errors.js';
 
@@ -26,11 +26,7 @@ export interface PromptCommandService {
 
 	removeSlot(slotId: string, authorId: string): Promise<void>;
 
-	archive(promptId: string, authorId: string): Promise<void>;
-
 	unpublish(promptId: string, authorId: string): Promise<void>;
-
-	republish(promptId: string, authorId: string, slots: TimeSlotInput[]): Promise<void>;
 
 	deleteDraft(promptId: string, authorId: string): Promise<void>;
 
@@ -95,18 +91,9 @@ export class SupabasePromptCommandService implements PromptCommandService {
 
 	async addSlots(promptId: string, authorId: string, slots: TimeSlotInput[]): Promise<void> {
 		const prompt = await this.getOwnPrompt(promptId, authorId);
-		// State guard intentionally absent. Drafts can accumulate slots inline
-		// in the editor, the publish_prompt RPC accepts existing draft slots,
-		// and editSlot/removeSlot have never had a published-only guard.
-		// Archived prompts go through Republish (which runs through the same
-		// publish flow); editing slots while in archived state is a separate
-		// concern not exercised today. The only invariant is the 3-slot ceiling.
-		if (prompt.state === 'archived') {
-			throw new DomainError('Republish before adjusting slots on an archived conversation');
-		}
 
-		// Check total future non-accepted slots won't exceed 3
-		// (exclude expired slots — they're functionally dead)
+		// 3-slot ceiling: count existing future-valid non-accepted slots.
+		// "Expired" is derived from start_time alone — no separate stamp.
 		const { count } = await this.supabase
 			.from('time_slots')
 			.select('id', { count: 'exact', head: true })
@@ -128,9 +115,6 @@ export class SupabasePromptCommandService implements PromptCommandService {
 		}
 
 		const prompt = await this.getOwnPrompt(slot.prompt_id, authorId);
-		if (prompt.state === 'archived') {
-			throw new DomainError('Republish before adjusting slots on an archived conversation');
-		}
 
 		// Validate individual fields if provided
 		if (updates.start_time !== undefined) {
@@ -188,10 +172,7 @@ export class SupabasePromptCommandService implements PromptCommandService {
 			throw new DomainError('Cannot remove a slot that has already been booked');
 		}
 
-		const prompt = await this.getOwnPrompt(slot.prompt_id, authorId);
-		if (prompt.state === 'archived') {
-			throw new DomainError('Republish before adjusting slots on an archived conversation');
-		}
+		await this.getOwnPrompt(slot.prompt_id, authorId);
 
 		// Auto-expire pending invitations when slot is removed
 		await this.expirePendingInvitations(slotId);
@@ -204,52 +185,28 @@ export class SupabasePromptCommandService implements PromptCommandService {
 		if (error) throw new Error(`Failed to remove slot: ${error.message}`);
 	}
 
-	async archive(promptId: string, authorId: string): Promise<void> {
-		const prompt = await this.getOwnPrompt(promptId, authorId);
-		if (!canArchive(prompt)) {
-			throw new DomainError('Can only archive a published conversation');
-		}
-
-		await this.guardNoActiveMeetings(promptId);
-
-		const { error } = await this.supabase
-			.from('prompts')
-			.update({ state: 'archived', archived_at: new Date().toISOString() })
-			.eq('id', promptId)
-			.eq('author_id', authorId);
-
-		if (error) throw new Error(`Failed to archive prompt: ${error.message}`);
-	}
-
 	async unpublish(promptId: string, authorId: string): Promise<void> {
 		const prompt = await this.getOwnPrompt(promptId, authorId);
 		if (!canUnpublish(prompt)) {
 			throw new DomainError('Can only unpublish a published conversation');
 		}
 
-		// Don't guard active meetings — they live in their own table and remain
-		// reachable by participants via /meetings/[id] regardless of prompt state.
-		// The slots become RLS-hidden from non-authors when state flips off
-		// 'published', which is correct: the conversation is off the feed.
-		// Republishing later goes through the publish_prompt RPC (same path as
-		// initial publish from draft), which the RPC already accepts.
+		// Active meetings are not guarded — they live in their own table and
+		// stay reachable via /meetings/[id] regardless of prompt state.
+		// Pending invitations on this prompt's slots are expired below; the
+		// invitee won't see a stale invite for an off-feed conversation.
+		// Concurrent invitee-accept during this window: eventual consistency.
+		// If the accept commits before the invitation-expire UPDATE, the
+		// meeting is honored; if reversed, invitee gets "no longer available".
 		const { error } = await this.supabase
 			.from('prompts')
-			.update({ state: 'draft', archived_at: null })
+			.update({ state: 'draft' })
 			.eq('id', promptId)
 			.eq('author_id', authorId);
 
 		if (error) throw new Error(`Failed to unpublish prompt: ${error.message}`);
-	}
 
-	async republish(promptId: string, authorId: string, slots: TimeSlotInput[]): Promise<void> {
-		const prompt = await this.getOwnPrompt(promptId, authorId);
-		if (!canRepublish(prompt, slots)) {
-			throw new DomainError('Cannot republish: conversation must be archived with 1–3 valid time slots');
-		}
-
-		const derivedSlots = await this.deriveSlotRows(slots, prompt.region);
-		await this.callPublishRpc(promptId, derivedSlots);
+		await this.expirePromptInvitations(promptId);
 	}
 
 	async deleteDraft(promptId: string, authorId: string): Promise<void> {
@@ -290,7 +247,7 @@ export class SupabasePromptCommandService implements PromptCommandService {
 			.limit(1);
 
 		if (data && data.length > 0) {
-			throw new DomainError('Cannot archive or delete a conversation with a scheduled meeting.');
+			throw new DomainError('Cannot delete a conversation with a scheduled meeting.');
 		}
 	}
 
@@ -302,6 +259,14 @@ export class SupabasePromptCommandService implements PromptCommandService {
 			p_slot_id: slotId
 		});
 		if (error) throw new Error(`Failed to expire slot invitations: ${error.message}`);
+	}
+
+	/** Expire all pending invitations on a prompt's slots — called on unpublish. */
+	private async expirePromptInvitations(promptId: string): Promise<void> {
+		const { error } = await this.supabase.rpc('expire_prompt_invitations', {
+			p_prompt_id: promptId
+		});
+		if (error) throw new Error(`Failed to expire prompt invitations: ${error.message}`);
 	}
 
 	private async getOwnPrompt(promptId: string, authorId: string): Promise<Prompt> {
@@ -372,7 +337,7 @@ export class SupabasePromptCommandService implements PromptCommandService {
 		}
 	}
 
-	/** For addSlots — direct insert path on a published prompt, NOT used by publish/republish. */
+	/** For addSlots — direct insert path on a public prompt, NOT used by publish. */
 	private async validateAndInsertSlots(
 		promptId: string,
 		slots: TimeSlotInput[],

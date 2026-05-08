@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { canPublish, canArchive, canUnpublish, canRepublish, isWithinRollingWindow } from './prompt.js';
+import { canPublish, canUnpublish, isWithinRollingWindow } from './prompt.js';
 import type { Prompt, TimeSlotInput } from './types.js';
 
 function makePrompt(overrides: Partial<Prompt> = {}): Prompt {
@@ -12,9 +12,7 @@ function makePrompt(overrides: Partial<Prompt> = {}): Prompt {
 		state: 'draft',
 		region: 'berlin',
 		published_at: null,
-		archived_at: null,
 		hidden_at: null,
-		edited_at: null,
 		created_at: new Date().toISOString(),
 		updated_at: new Date().toISOString(),
 		...overrides
@@ -73,7 +71,6 @@ describe('canPublish', () => {
 
 	it('false for non-draft state', () => {
 		expect(canPublish(makePrompt({ state: 'published' }), [makeSlot()])).toBe(false);
-		expect(canPublish(makePrompt({ state: 'archived' }), [makeSlot()])).toBe(false);
 	});
 
 	it('false with 0 slots', () => {
@@ -89,40 +86,12 @@ describe('canPublish', () => {
 	});
 });
 
-describe('canArchive', () => {
-	it('true for published', () => {
-		expect(canArchive(makePrompt({ state: 'published' }))).toBe(true);
-	});
-
-	it('false for draft or archived', () => {
-		expect(canArchive(makePrompt({ state: 'draft' }))).toBe(false);
-		expect(canArchive(makePrompt({ state: 'archived' }))).toBe(false);
-	});
-});
-
 describe('canUnpublish', () => {
 	it('true for published', () => {
 		expect(canUnpublish(makePrompt({ state: 'published' }))).toBe(true);
 	});
 
-	it('false for draft or archived', () => {
+	it('false for draft', () => {
 		expect(canUnpublish(makePrompt({ state: 'draft' }))).toBe(false);
-		expect(canUnpublish(makePrompt({ state: 'archived' }))).toBe(false);
-	});
-});
-
-describe('canRepublish', () => {
-	it('true for archived with valid slots', () => {
-		expect(canRepublish(makePrompt({ state: 'archived' }), [makeSlot()])).toBe(true);
-	});
-
-	it('false for non-archived state', () => {
-		expect(canRepublish(makePrompt({ state: 'draft' }), [makeSlot()])).toBe(false);
-		expect(canRepublish(makePrompt({ state: 'published' }), [makeSlot()])).toBe(false);
-	});
-
-	it('false with 0 or 4+ slots', () => {
-		expect(canRepublish(makePrompt({ state: 'archived' }), [])).toBe(false);
-		expect(canRepublish(makePrompt({ state: 'archived' }), [makeSlot(), makeSlot(3), makeSlot(4), makeSlot(5)])).toBe(false);
 	});
 });

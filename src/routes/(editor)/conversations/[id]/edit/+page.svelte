@@ -357,20 +357,7 @@
 		}
 	}
 
-	// ── Delete (archived prompts) ──────────────────────────────────────────────
-	// The editor only renders for draft and archived states (published prompts
-	// redirect to the read view at the loader). Archived prompts can be deleted
-	// or republished via the action bar; this dialog handles the delete path.
-	let deletePublishedDialog = $state<ConfirmDialog | undefined>();
-
-	async function handleDeletePublished() {
-		const res = await fetch(`/api/prompts/${promptId}`, { method: 'DELETE' });
-		if (res.ok) goto('/profile?view=conversations');
-		else { const e = await res.json().catch(() => ({})); publishError = (e as any).error ?? copy.conversation.failedToDelete; }
-	}
-
 	let isDraft = $derived(data.prompt.state === 'draft');
-	let isArchived = $derived(data.prompt.state === 'archived');
 </script>
 
 <svelte:head>
@@ -403,9 +390,6 @@
 			{#if isDraft}
 				<button class="action-btn" onclick={() => discardDialog?.open()}>{copy.editor.discard}</button>
 				<button class="btn-primary btn-primary--sm" onclick={handleOpenPublish}>{copy.editor.publishAction}</button>
-			{:else if isArchived}
-				<button class="delete-btn" onclick={() => deletePublishedDialog?.open()}>{copy.editor.deleteAction}</button>
-				<button class="btn-primary btn-primary--sm" onclick={handleOpenPublish}>{copy.editor.republishAction}</button>
 			{/if}
 		</div>
 	</div>
@@ -479,14 +463,6 @@
 	message={copy.editor.discardConfirm}
 	confirmLabel={copy.editor.discard}
 	onConfirm={handleDiscard}
-/>
-
-<ConfirmDialog
-	bind:this={deletePublishedDialog}
-	title={copy.editor.deleteTitle}
-	message={copy.editor.deleteConfirm}
-	confirmLabel={copy.editor.deleteAction}
-	onConfirm={handleDeletePublished}
 />
 
 <!-- Publish bottom sheet -->

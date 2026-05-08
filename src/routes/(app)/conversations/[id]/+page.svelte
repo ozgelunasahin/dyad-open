@@ -192,7 +192,6 @@
 		)
 	);
 	let unpublishDialog = $state<ConfirmDialog | undefined>();
-	let archiveDialog = $state<ConfirmDialog | undefined>();
 	let deleteDialog = $state<ConfirmDialog | undefined>();
 	let actionError = $state('');
 	/* action-menu state now lives inside FloatingNav (variant="detail"). */
@@ -202,14 +201,6 @@
 			const res = await fetch(`/api/prompts/${data.prompt.id}/unpublish`, { method: 'POST' });
 			if (res.ok) goto(`/conversations/${data.prompt.id}/edit`);
 			else { const e = await res.json().catch(() => ({})); actionError = (e as any).error ?? copy.conversation.failedToUnpublish; }
-		} catch { actionError = copy.common.networkError; }
-	}
-
-	async function archivePrompt() {
-		try {
-			const res = await fetch(`/api/prompts/${data.prompt.id}/archive`, { method: 'POST' });
-			if (res.ok) goto('/profile?view=conversations');
-			else { const e = await res.json().catch(() => ({})); actionError = (e as any).error ?? copy.conversation.failedToArchive; }
 		} catch { actionError = copy.common.networkError; }
 	}
 
@@ -256,13 +247,6 @@
 			message={copy.conversation.unpublishConfirm}
 			confirmLabel={copy.conversation.unpublish}
 			onConfirm={unpublishPrompt}
-		/>
-		<ConfirmDialog
-			bind:this={archiveDialog}
-			title={copy.conversation.archive}
-			message={copy.conversation.archiveConfirm}
-			confirmLabel={copy.conversation.archive}
-			onConfirm={archivePrompt}
 		/>
 		<ConfirmDialog
 			bind:this={deleteDialog}
@@ -561,7 +545,6 @@
 	actions={isOwnPrompt && data.prompt.state === 'published'
 		? [
 				{ label: copy.conversation.unpublish, onclick: () => unpublishDialog?.open() },
-				{ label: copy.conversation.archive, onclick: () => archiveDialog?.open() },
 				{ label: copy.conversation.delete, onclick: () => deleteDialog?.open(), danger: true }
 			]
 		: []}

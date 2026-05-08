@@ -96,19 +96,26 @@ The platform follows the *calm technology* posture (Weiser & Brown 1996; Case 20
 - Members are inducted into platform norms organically through the interface itself.
 - Modals that keep a member in context are fine — for example, the waitlist form that appears when an anonymous visitor clicks a conversation. The principle: don't interrupt flow with demands for attention. Overlays that serve the member's current intent are not interruptions.
 
-### Three states, five verbs
+### Two states, three verbs
 
-Conversations move through three states: **draft** (pre-publication, only the author sees it), **published** (live on the feed), **archived** (off the feed, kept). Five author actions move between them.
+Conversations move through two states: **draft** (only the author sees it) and **public** (live on the feed). Three author actions move between them.
 
-- **Publish** moves a draft to published. The standard first-time-live flow with slot selection.
-- **Unpublish** takes a published conversation off the feed and back to draft. The author keeps working in the same editor they used to write the prompt in the first place; when ready, they Publish again. Unpublish is the affordance that lowers the cost of publishing: an author who knows they can take it back to drafts at any time is more willing to push the button.
-- **Archive** takes a conversation off the feed while keeping it as a record. Archived prompts can be republished through the editor's action bar when the author wants to bring them back. Archive is the right shape when the author considers the conversation done with its current life but wants the record kept.
-- **Republish** moves an archived conversation back to published through the same publish flow that handles drafts. Slots are re-chosen each time; the prompt itself can be lightly or heavily reworked in the meantime.
+- **Publish** takes a draft public. First-time publish requires the author to pick at least one time slot. Re-publish from an unpublished draft preserves the existing slots — slot management is a continuous concern, not part of the state transition.
+- **Unpublish** takes a public conversation off the feed and back to draft. Slots stay attached to the conversation. Pending invitations on those slots expire (the take-down's only side effect). Active scheduled meetings are unaffected — they live on `/meetings/[id]` and the participants are committed to them regardless of where the conversation sits.
 - **Delete** removes the conversation permanently.
 
-Unpublish and Archive both take a conversation off the feed but answer different author intents: "I'm not done with this" vs. "I'm setting this aside." The state values they target (`draft` vs. `archived`) match the intent.
+The author surface distinguishes two flavors of draft via UI label, derived from `published_at`:
+- **Draft** — never published. The author is still writing.
+- **Unpublished** — was public, now off-feed. The author took it down and may bring it back.
 
-There is no "edit" verb in the state machine. Editing is what happens in the editor, on a draft. To revise a published conversation, the author Unpublishes (the prompt becomes a draft), edits, and Publishes again — same flow as the first publish. This matches the platform's posture: prompts are sloppy invitations written quickly, not polished publications, and so editing-in-place is not a thing the platform encourages. Authors who feel the urge to ship a "v2" because they noticed a typo are operating on the wrong tier of stakes.
+A public conversation whose slots have all expired is still `state='public'`. It naturally falls out of the discover feed (the feed filters on slot validity), and surfaces in the author's Profile under the **Past** tab — a derived view, not a separate state. The author can revive it by adding a new slot.
+
+#### Why this shape
+
+- **No automatic state transitions.** The system never moves a conversation between states the author didn't request. Slots have a rolling 7-day window; the prompt itself does not transition.
+- **Snapshot integrity at publish.** What goes public is the version that goes public. The body cannot be edited in place. To revise, the author Unpublishes (a visible state event), edits in the editor, and Publishes again. Responders rely on this — the prompt they responded to is the prompt they'll meet about.
+- **Verb minimalism.** Three verbs cover the lifecycle: Publish, Unpublish, Delete. Every other concern (slot management, "this conversation has run its course") resolves through slot data without inventing additional state.
+- **404 over gravestone.** Direct links to draft conversations 404 for non-authors. This holds whether the draft is never-published or unpublished — there is no special "look-but-don't-engage" view for prior responders.
 
 ### Inclusive language
 

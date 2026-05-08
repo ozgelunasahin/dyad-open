@@ -1,7 +1,7 @@
 import type { JSONContent } from '@tiptap/core';
 
 // Prompt states
-export type PromptState = 'draft' | 'published' | 'archived';
+export type PromptState = 'draft' | 'published';
 
 // Location reference stored in time_slots.exact_location JSONB
 export interface LocationRef {
@@ -23,9 +23,7 @@ export interface Prompt {
 	state: PromptState;
 	region: string;
 	published_at: string | null;
-	archived_at: string | null;
 	hidden_at: string | null;
-	edited_at: string | null;
 	created_at: string;
 	updated_at: string;
 }
@@ -75,10 +73,9 @@ export interface PromptSummary {
 }
 
 export interface PromptDetail extends PromptSummary {
-	state: 'draft' | 'published' | 'archived';
+	state: PromptState;
 	body: JSONContent;
 	body_html: string; // server-rendered TipTap HTML (sanitized)
-	edited_at: string | null; // last revision while in published state, null if never edited
 }
 
 // Engagement types

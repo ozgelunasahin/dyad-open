@@ -122,7 +122,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const authoredPromptIds = prompts.map((p) => p.id);
 	const respondedPromptIds = respondedPrompts.map((rp) => rp.prompt_id);
 
-	const [responseCountsData, myInvitationsData] = await Promise.all([
+	const [responseCountsData, myInvitationsData, authoredSlotsData] = await Promise.all([
 		// Response count per authored prompt (for the Started tab).
 		authoredPromptIds.length > 0
 			? locals.supabase
@@ -139,6 +139,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 					.eq('inviter_id', userId)
 					.in('prompt_id', respondedPromptIds)
 					.order('created_at', { ascending: false })
+					.then(({ data }) => data ?? [])
+			: Promise.resolve([]),
+		// Slots for authored prompts — drives Started/Past tab segregation.
+		// A published prompt with at least one future-valid non-accepted slot
+		// is "active" (Started tab); otherwise it's Past (Archive tab).
+		authoredPromptIds.length > 0
+			? locals.supabase
+					.from('time_slots_public')
+					.select('prompt_id, start_time, accepted')
+					.in('prompt_id', authoredPromptIds)
 					.then(({ data }) => data ?? [])
 			: Promise.resolve([])
 	]);
@@ -164,6 +174,18 @@ export const load: PageServerLoad = async ({ locals }) => {
 		if (isCompleted) {
 			meetingCountByPromptId[m.prompt_id] = (meetingCountByPromptId[m.prompt_id] ?? 0) + 1;
 		}
+	}
+
+	// Per-prompt active-slot derivation. A prompt is "active" when it has at
+	// least one future-valid non-accepted slot. Drives the Started vs Past
+	// (Archive) tab segregation on the profile page — no separate archived
+	// state on the prompt itself, just slot validity.
+	const now = Date.now();
+	const hasFutureValidSlotByPromptId: Record<string, boolean> = {};
+	for (const slot of authoredSlotsData as Array<{ prompt_id: string; start_time: string; accepted: boolean }>) {
+		if (slot.accepted) continue;
+		if (new Date(slot.start_time).getTime() <= now) continue;
+		hasFutureValidSlotByPromptId[slot.prompt_id] = true;
 	}
 
 	// Canceller lookup for cancelled meetings — shared helper keeps attribution
@@ -229,6 +251,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		responseCountByPromptId,
 		myInvitationStateByPromptId,
 		meetingCountByPromptId,
+		hasFutureValidSlotByPromptId,
 		attentionCount: receivedInvitations.length + feedbackDue.length + (cancelledNotifications?.length ?? 0)
 	};
 };

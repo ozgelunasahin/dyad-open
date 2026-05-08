@@ -77,9 +77,20 @@
 	}
 
 	// ── Derived lists ───────────────────────────────────────────────────
-	let published = $derived(data.prompts.filter((p: Prompt) => p.state === 'published'));
+	// "Started" tab: published with ≥1 future-valid slot, plus drafts.
+	// "Archive" tab: published with no future-valid slots (derived from slot
+	// data, not a state column — there's no archived state on the prompt).
+	let published = $derived(
+		data.prompts.filter(
+			(p: Prompt) => p.state === 'published' && data.hasFutureValidSlotByPromptId?.[p.id]
+		)
+	);
 	let drafts = $derived(data.prompts.filter((p: Prompt) => p.state === 'draft'));
-	let archived = $derived(data.prompts.filter((p: Prompt) => p.state === 'archived'));
+	let archived = $derived(
+		data.prompts.filter(
+			(p: Prompt) => p.state === 'published' && !data.hasFutureValidSlotByPromptId?.[p.id]
+		)
+	);
 
 	type ConversationItem = {
 		type: 'published' | 'draft' | 'responded' | 'archived';
@@ -221,7 +232,7 @@
 					title: p.title || copy.common.untitled,
 					coverUrl: p.cover_image_url ?? null,
 					href: `/conversations/${p.id}`,
-					sortDate: p.archived_at ?? p.created_at,
+					sortDate: p.published_at ?? p.created_at,
 					statusText: meetingCountLabel(count) || null
 				} as ConversationItem;
 			})

@@ -12,9 +12,7 @@ function makePrompt(overrides: Partial<Prompt> = {}): Prompt {
 		state: 'published',
 		region: 'berlin',
 		published_at: new Date().toISOString(),
-		archived_at: null,
 		hidden_at: null,
-		edited_at: null,
 		created_at: new Date().toISOString(),
 		updated_at: new Date().toISOString(),
 		...overrides
@@ -63,10 +61,6 @@ describe('canComment', () => {
 
 	it('false for draft prompt', () => {
 		expect(canComment(makePrompt({ state: 'draft' }), 'user-2')).toBe(false);
-	});
-
-	it('false for archived prompt', () => {
-		expect(canComment(makePrompt({ state: 'archived' }), 'user-2')).toBe(false);
 	});
 });
 

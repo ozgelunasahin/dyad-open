@@ -242,7 +242,6 @@ export class SupabasePromptQueryService implements PromptQueryService {
 			available_slots: availableSlots,
 			soonest_slot: availableSlots[0]?.start_time ?? null,
 			published_at: prompt.published_at,
-			edited_at: prompt.edited_at ?? null,
 			region: prompt.region
 		};
 	}

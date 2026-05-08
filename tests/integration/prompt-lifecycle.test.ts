@@ -118,70 +118,16 @@ describe('Prompt lifecycle', () => {
 			const prompts = await digitServices.promptQuery.getMyPrompts(SEED_USERS.digit.id);
 			const unpublished = prompts.find((p) => p.id === createdPromptId);
 			expect(unpublished?.state).toBe('draft');
-			expect(unpublished?.archived_at).toBeNull();
+			// published_at is preserved across unpublish (set on first publish,
+			// never reset). The "Unpublished" UI label triggers off this:
+			// state='draft' AND published_at IS NOT NULL.
+			expect(unpublished?.published_at).not.toBeNull();
 		});
 
 		it('rejects unpublish on a draft prompt', async () => {
 			await expect(
 				digitServices.promptCommand.unpublish(createdPromptId, SEED_USERS.digit.id)
 			).rejects.toThrow('Can only unpublish a published conversation');
-		});
-
-		it('archives a published prompt', async () => {
-			// Bring it back to published first via the publish flow (the RPC
-			// accepts draft-state input).
-			const tomorrow = new Date();
-			tomorrow.setDate(tomorrow.getDate() + 1);
-			await digitServices.promptCommand.publish(createdPromptId, SEED_USERS.digit.id, [
-				{
-					start_time: tomorrow.toISOString(),
-					duration_minutes: 60,
-					location: {
-						place_id: 'test-3',
-						name: 'Third Place',
-						address: 'Dritte Straße 1, 10999 Berlin',
-						lat: 52.5,
-						lng: 13.43
-					}
-				}
-			]);
-
-			await digitServices.promptCommand.archive(createdPromptId, SEED_USERS.digit.id);
-
-			const prompts = await digitServices.promptQuery.getMyPrompts(SEED_USERS.digit.id);
-			const archived = prompts.find((p) => p.id === createdPromptId);
-			expect(archived?.state).toBe('archived');
-		});
-
-		it('republishes with new slots', async () => {
-			const dayAfterTomorrow = new Date();
-			dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
-
-			await digitServices.promptCommand.republish(createdPromptId, SEED_USERS.digit.id, [
-				{
-					start_time: dayAfterTomorrow.toISOString(),
-					duration_minutes: 90,
-					location: {
-						place_id: 'test-2',
-						name: 'Another Place',
-						address: 'Andere Straße 5, 10999 Berlin',
-						lat: 52.5,
-						lng: 13.43
-					}
-				}
-			]);
-
-			const prompts = await digitServices.promptQuery.getMyPrompts(SEED_USERS.digit.id);
-			const republished = prompts.find((p) => p.id === createdPromptId);
-			expect(republished?.state).toBe('published');
-		});
-
-		it('cleans up — delete after archiving', async () => {
-			await digitServices.promptCommand.archive(createdPromptId, SEED_USERS.digit.id);
-			// Can only delete drafts, so this should fail on archived
-			await expect(
-				digitServices.promptCommand.deleteDraft(createdPromptId, SEED_USERS.digit.id)
-			).rejects.toThrow('Can only discard drafts');
 		});
 	});
 
