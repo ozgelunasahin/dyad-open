@@ -5,6 +5,8 @@
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import MeetingCard from '$lib/components/MeetingCard.svelte';
+	import PublishSheet from '$lib/components/PublishSheet.svelte';
+	import type { SubmitSlot } from '$lib/domain/types';
 	import { copy } from '$lib/copy';
 
 	let { data }: { data: PageData } = $props();
@@ -187,7 +189,61 @@
 	let unpublishDialog = $state<ConfirmDialog | undefined>();
 	let deleteDialog = $state<ConfirmDialog | undefined>();
 	let actionError = $state('');
+	let showChangeTimesSheet = $state(false);
+	let savingSlots = $state(false);
 	/* action-menu state now lives inside FloatingNav (variant="detail"). */
+
+	// Add / edit / remove slots from the read-view "Change times" sheet.
+	// Mirrors the editor's handleSaveSlots diff pattern. Past slots aren't
+	// in data.prompt.available_slots (filtered by the loader), so they
+	// don't appear in the diff source — they stay untouched.
+	async function handleChangeTimes(submitted: SubmitSlot[]) {
+		const initialIds = new Set(data.prompt.available_slots.map((s) => s.id));
+		const submittedIds = new Set(
+			submitted.filter((s) => s.dbId).map((s) => s.dbId as string)
+		);
+		const remove = [...initialIds].filter((id) => !submittedIds.has(id));
+		const edit = submitted
+			.filter((s) => s.dbId)
+			.map((s) => {
+				const updates: Record<string, unknown> = {
+					start_time: s.start_time,
+					duration_minutes: s.duration_minutes
+				};
+				if (s.location) updates.location = s.location;
+				return { slotId: s.dbId as string, updates };
+			});
+		const add = submitted
+			.filter((s) => !s.dbId && s.location)
+			.map((s) => ({
+				start_time: s.start_time,
+				duration_minutes: s.duration_minutes,
+				location: s.location
+			}));
+		if (add.length === 0 && edit.length === 0 && remove.length === 0) {
+			showChangeTimesSheet = false;
+			return;
+		}
+		savingSlots = true;
+		try {
+			const res = await fetch(`/api/prompts/${data.prompt.id}/slots`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ add, edit, remove })
+			});
+			if (res.ok) {
+				showChangeTimesSheet = false;
+				await invalidateAll();
+			} else {
+				const e = await res.json().catch(() => ({}));
+				actionError = (e as { error?: string }).error ?? copy.common.genericError;
+			}
+		} catch {
+			actionError = copy.common.networkError;
+		} finally {
+			savingSlots = false;
+		}
+	}
 
 	async function unpublishPrompt() {
 		try {
@@ -220,11 +276,15 @@
 
 	<h1 class="title">{data.prompt.title}</h1>
 	<p class="meta">
-		on {formatDate(data.prompt.published_at)},
-		<a href="/users/{data.prompt.author_username}" class="meta-author">
-			{data.prompt.author_display_name ?? '@' + data.prompt.author_username}
-		</a>
-		wrote
+		{#if isOwnPrompt}
+			{copy.conversation.youWrote(formatDate(data.prompt.published_at))}
+		{:else}
+			on {formatDate(data.prompt.published_at)},
+			<a href="/users/{data.prompt.author_username}" class="meta-author">
+				{data.prompt.author_display_name ?? '@' + data.prompt.author_username}
+			</a>
+			wrote
+		{/if}
 	</p>
 
 	<div class="body">
@@ -262,7 +322,6 @@
 						area={slot.general_area}
 						exactLocation={slot.exact_location ?? null}
 						invited={slot.accepted}
-						invitedNote={slot.accepted ? copy.conversation.myOfferedTimesBooked : undefined}
 					/>
 				{/each}
 			</section>
@@ -389,7 +448,7 @@
 				{@const invitation = data.receivedInvitations.find(inv => inv.inviter_id === comment.author_id)}
 				{@const meeting = invitation ? data.promptMeetings?.find(m => m.slot_id === invitation.slot_id) : null}
 				<div class="response-card" class:has-invitation={!!invitation}>
-					<span class="response-meta">@{comment.author_username ?? 'anonymous'} · {formatDate(comment.created_at)}</span>
+					<span class="response-meta">{copy.conversation.respondedBy(comment.author_username ?? 'anonymous', formatDate(comment.created_at))}</span>
 					<p class="response-body">{comment.body}</p>
 
 					{#if invitation}
@@ -471,7 +530,7 @@
 			<!-- Invitations without a matching comment (edge case) -->
 			{#each data.receivedInvitations.filter(inv => !data.comments.some(c => c.author_id === inv.inviter_id)) as inv}
 				<div class="response-card has-invitation">
-					<span class="response-meta">@{inv.inviter_username} · {formatDate(inv.created_at)}</span>
+					<span class="response-meta">{copy.conversation.respondedBy(inv.inviter_username, formatDate(inv.created_at))}</span>
 					{#if inv.comment_body}
 						<p class="response-body">{inv.comment_body}</p>
 					{/if}
@@ -524,11 +583,23 @@
 	attentionCount={data.attentionCount ?? 0}
 	actions={isOwnPrompt && data.prompt.state === 'published'
 		? [
+				{ label: copy.conversation.changeTimes, onclick: () => (showChangeTimesSheet = true) },
 				{ label: copy.conversation.unpublish, onclick: () => unpublishDialog?.open() },
 				{ label: copy.conversation.delete, onclick: () => deleteDialog?.open(), danger: true }
 			]
 		: []}
 />
+
+{#if showChangeTimesSheet}
+	<PublishSheet
+		onClose={() => (showChangeTimesSheet = false)}
+		onPublish={handleChangeTimes}
+		initialSlots={data.prompt.available_slots}
+		publishing={savingSlots}
+		submitLabel={copy.common.save}
+		submittingLabel={copy.editor.saving}
+	/>
+{/if}
 
 <style>
 	.content { width: 100%; max-width: var(--content-standard); padding-bottom: var(--nav-clearance); }

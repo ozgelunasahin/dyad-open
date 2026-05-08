@@ -61,7 +61,9 @@
 	<div class="slot-card" class:selected class:invited class:past>
 		<div class="slot-row">
 			<span class="slot-date">{formatSlotDateFull(startTime)} · {formatSlotTimeRange(startTime, durationMinutes)}</span>
-			<span class="slot-details">{area}</span>
+			<span class="slot-details">
+				{area}{#if invitedNote}<span class="slot-status">{invitedNote}</span>{/if}
+			</span>
 		</div>
 		{#if exactLocation}
 			{#if exactLocation.lat}
@@ -75,9 +77,6 @@
 					<span class="slot-location-address">{exactLocation.address}</span>
 				</div>
 			{/if}
-		{/if}
-		{#if invited}
-			<span class="slot-status">{invitedNote ?? 'Invited'}</span>
 		{/if}
 	</div>
 {/if}
@@ -175,9 +174,11 @@
 	}
 
 	.slot-status {
-		display: block;
+		margin-left: var(--space-2);
 		font-size: var(--text-xs);
 		color: var(--text-muted);
-		line-height: var(--leading-normal);
+	}
+	.slot-status::before {
+		content: '· ';
 	}
 </style>
