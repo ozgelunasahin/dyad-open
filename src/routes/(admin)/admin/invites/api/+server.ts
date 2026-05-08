@@ -80,7 +80,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	} catch {
 		return json({ error: 'Invalid JSON body' }, { status: 400 });
 	}
-	const { email, name, message } = body;
+	const { email, name, message, scope } = body;
 
 	if (!email || typeof email !== 'string') {
 		error(400, 'Email is required');
@@ -97,6 +97,28 @@ export const POST: RequestHandler = async ({ request }) => {
 			error(400, `message must be at most ${MAX_MESSAGE_LENGTH} characters`);
 		}
 		if (candidate.length > 0) trimmedMessage = candidate;
+	}
+
+	// Validate optional scope. Must reference an existing, non-retired scope.
+	// FK enforces existence; we validate non-retired in app layer (FK doesn't
+	// cascade on retired_at).
+	let validatedScope: string | null = null;
+	if (scope !== undefined && scope !== null && scope !== '') {
+		if (typeof scope !== 'string') {
+			error(400, 'scope must be a string');
+		}
+		const { data: scopeRow } = await supabase
+			.from('scopes')
+			.select('scope, retired_at')
+			.eq('scope', scope)
+			.maybeSingle();
+		if (!scopeRow) {
+			error(400, 'scope does not exist');
+		}
+		if (scopeRow.retired_at !== null) {
+			error(400, 'scope is retired and cannot be attached to new invitations');
+		}
+		validatedScope = scope;
 	}
 
 	// Check if this email already has an unused, non-expired invitation
@@ -145,7 +167,8 @@ export const POST: RequestHandler = async ({ request }) => {
 		email: email.trim(),
 		token,
 		expires_at: expiresAt.toISOString(),
-		invited_by: null
+		invited_by: null,
+		scope: validatedScope
 	});
 
 	if (dbError) {

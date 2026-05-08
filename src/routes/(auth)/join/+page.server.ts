@@ -1,5 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { makeAdminClient } from '$lib/server/supabase-admin.js';
+import { SupabaseScopeService } from '$lib/services/scope.js';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -96,22 +97,26 @@ export const actions: Actions = {
 		// served that purpose, and we don't want signUp() to fail when Supabase
 		// auth has enable_confirmations enabled but no SMTP wired up for auth.
 		const admin = makeAdminClient();
-		const { error: signUpError } = await admin.auth.admin.createUser({
+		const { data: createUserData, error: signUpError } = await admin.auth.admin.createUser({
 			email,
 			password,
 			email_confirm: true,
 			user_metadata: { username, berlin_based: berlinBased }
 		});
 
-		if (signUpError) {
+		if (signUpError || !createUserData?.user?.id) {
 			console.error('[join] admin.createUser failed:', signUpError);
 			// Surface a safe message — the raw error can leak Postgres detail.
-			const msg = signUpError.message.toLowerCase();
+			const msg = signUpError?.message?.toLowerCase() ?? '';
 			const friendly = msg.includes('already') || msg.includes('exists')
 				? 'An account with this email already exists.'
 				: 'Could not create your account. Please try again.';
 			return fail(400, { username, error: friendly });
 		}
+
+		// identities.id mirrors auth.users.id by the D1 backfill convention,
+		// so the just-created auth user's id is the identities.id for FK targets.
+		const newIdentityId = createUserData.user.id;
 
 		// Mark the invitation as used so it can't be reused.
 		const { error: useError } = await locals.supabase.rpc('use_invitation', { invite_token: token });
@@ -120,17 +125,33 @@ export const actions: Actions = {
 			return fail(400, { username, error: 'This invitation could not be processed. Please try again.' });
 		}
 
-		// Resolve referred_by: check invitation's invited_by first, then dyad_ref cookie
+		// invitations RLS permits admin reads only; locals.supabase is still anon
+		// at this point (sign-in happens below).
 		let referredById: string | null = null;
 
-		// 1. Check if invitation has invited_by
-		const { data: invRow } = await locals.supabase
+		const { data: invRow } = await admin
 			.from('invitations')
-			.select('invited_by')
+			.select('invited_by, scope')
 			.eq('token', token)
 			.single();
 		if (invRow?.invited_by) {
 			referredById = invRow.invited_by;
+		}
+
+		if (invRow?.scope) {
+			try {
+				const scopeService = new SupabaseScopeService(admin);
+				await scopeService.autoGrantOnJoin({
+					identityId: newIdentityId,
+					scope: invRow.scope,
+					grantedBy: invRow.invited_by ?? null
+				});
+			} catch (grantError) {
+				console.error(
+					'[join] auto-grant identity_scopes failed:',
+					grantError instanceof Error ? grantError.message : String(grantError)
+				);
+			}
 		}
 
 		// 2. Fall back to dyad_ref cookie (username → resolve to user id)

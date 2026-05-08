@@ -75,6 +75,8 @@ All authenticated routes live under `src/routes/(app)/`. The layout provides:
 /admin/invites         — Invite management
 /admin/conversations   — All conversations across all states; per-row show/hide on public discovery
 /admin/members         — Per-member last-active timestamp (derived from app data; no auth.users access)
+/admin/scopes          — Corner CRUD: create, list, retire scopes; grant/revoke memberships
+/admin/scopes/[scope]  — Scope detail: members + last-active + grant/revoke
 /admin/feedback        — Feedback review
 ```
 

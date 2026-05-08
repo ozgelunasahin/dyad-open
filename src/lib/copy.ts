@@ -391,6 +391,7 @@ export const copy = {
 		waitlist: 'Waitlist',
 		invites: 'Invites',
 		members: 'Members',
+		scopes: 'Scopes',
 		feedback: 'Feedback',
 		conversations: 'Conversations',
 		hide: 'Hide',

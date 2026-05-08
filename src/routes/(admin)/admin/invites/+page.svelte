@@ -17,6 +17,7 @@
 	let directEmailsText = $state('');
 	let directName = $state('');
 	let directMessage = $state('');
+	let directScope = $state<string>('');
 	let directOpen = $state(false);
 	let directSending = $state(false);
 	type BatchStatus = 'pending' | 'sending' | 'sent' | 'resent' | 'joined' | 'failed';
@@ -104,13 +105,19 @@
 	async function sendOne(
 		email: string,
 		name: string | null,
-		message: string
+		message: string,
+		scope: string | null
 	): Promise<{ status: BatchStatus; note?: string }> {
 		try {
 			const res = await fetch('/admin/invites/api', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ email, name, message: message.trim() || undefined })
+				body: JSON.stringify({
+					email,
+					name,
+					message: message.trim() || undefined,
+					scope: scope || undefined
+				})
 			});
 			const body = await res.json();
 			if (res.ok) {
@@ -147,9 +154,10 @@
 
 		const sharedName = directName.trim() || null;
 		const sharedMessage = directMessage;
+		const sharedScope = directScope || null;
 		for (const email of valid) {
 			batchStatus = { ...batchStatus, [email]: { status: 'sending' } };
-			const outcome = await sendOne(email, sharedName, sharedMessage);
+			const outcome = await sendOne(email, sharedName, sharedMessage, sharedScope);
 			batchStatus = { ...batchStatus, [email]: outcome };
 		}
 
@@ -160,6 +168,7 @@
 		directEmailsText = '';
 		directName = '';
 		directMessage = '';
+		directScope = '';
 		batchStatus = {};
 	}
 </script>
@@ -251,6 +260,18 @@
 					disabled={directSending}
 				></textarea>
 			</label>
+
+			{#if data.activeScopes.length > 0}
+				<label class="direct-field">
+					<span>Corner <em>(optional, shared across the batch — auto-grants this scope on signup)</em></span>
+					<select bind:value={directScope} disabled={directSending}>
+						<option value="">No corner (Berlin commons only)</option>
+						{#each data.activeScopes as s (s.scope)}
+							<option value={s.scope}>{s.name}</option>
+						{/each}
+					</select>
+				</label>
+			{/if}
 
 			<button
 				type="submit"
