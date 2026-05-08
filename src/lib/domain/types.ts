@@ -24,6 +24,7 @@ export interface Prompt {
 	region: string;
 	published_at: string | null;
 	hidden_at: string | null;
+	audience_scope: string | null;
 	created_at: string;
 	updated_at: string;
 }
@@ -74,6 +75,7 @@ export interface PromptSummary {
 	soonest_slot: string | null; // ISO 8601 of earliest available slot
 	published_at: string;
 	region: string;
+	audience_scope: string | null;
 }
 
 export interface PromptDetail extends PromptSummary {

@@ -5,8 +5,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 	// Auth guard handled by (app)/+layout.server.ts
 	const service = new SupabasePromptQueryService(locals.supabase);
 	const [prompts, corpus] = await Promise.all([
-		service.getPublishedPrompts({ region: 'berlin', userId: locals.user!.id }),
-		service.getSearchCorpus('berlin')
+		service.getPublishedPrompts({
+			region: 'berlin',
+			userId: locals.user!.id,
+			scopes: locals.scopes
+		}),
+		service.getSearchCorpus('berlin', locals.scopes)
 	]);
 
 	// Enrich search corpus with username + soonest_slot from the already-fetched prompts

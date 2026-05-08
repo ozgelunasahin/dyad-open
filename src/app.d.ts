@@ -12,6 +12,13 @@ declare global {
 			user: User | null;
 			session: Session | null;
 			identityPort: IdentityPort;
+			/**
+			 * Active (non-revoked) scope memberships for the current user. Empty
+			 * array for anonymous visitors. Populated once per request in
+			 * hooks.server.ts and read by prompt-query.ts listing methods to gate
+			 * scoped prompts. See migration 20260508180000.
+			 */
+			scopes: string[];
 		}
 		// interface PageData {}
 		// interface PageState {}

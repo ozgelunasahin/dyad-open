@@ -83,6 +83,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const { session, user } = await event.locals.safeGetSession();
 	event.locals.session = session;
 	event.locals.user = user;
+	event.locals.scopes = [];
 
 	// Redirect old /prompts/ URLs to /conversations/
 	if (event.url.pathname.startsWith('/prompts/')) {
@@ -94,7 +95,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 	if (user) {
 		const pathname = event.url.pathname;
 
-		// Skip gate for static assets, auth routes, feedback routes, and admin
+		// Skip gate for static assets, auth routes, feedback routes, and admin.
+		// The same exemption list applies to the scope-membership query below —
+		// avoids running an extra DB query on every static-asset request.
 		const isExempt =
 			pathname.startsWith('/_app/') ||
 			pathname.startsWith('/feedback') ||
@@ -110,6 +113,17 @@ export const handle: Handle = async ({ event, resolve }) => {
 			pathname.startsWith('/datenschutz');
 
 		if (!isExempt) {
+			// Load active scope memberships once per request. The discover-feed
+			// query and the public profile query in prompt-query.ts read this
+			// to gate scoped prompts. See migration 20260508180000 for the
+			// scope primitive; identity_scopes RLS limits SELECT to own rows.
+			const { data: scopeRows } = await event.locals.supabase
+				.from('identity_scopes')
+				.select('scope')
+				.eq('identity_id', user.id)
+				.is('revoked_at', null);
+			event.locals.scopes = (scopeRows ?? []).map((r) => r.scope as string);
+
 			// Advance any meetings whose scheduled_time has passed — creates feedback_forms with state='due'
 			try { await event.locals.supabase.rpc('advance_scheduled_meetings'); } catch { /* fail open */ }
 

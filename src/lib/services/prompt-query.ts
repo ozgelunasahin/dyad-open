@@ -8,6 +8,25 @@ import { renderBodyHtmlOrFallback } from '$lib/utils/render-body.js';
 
 const SNIPPET_LENGTH = 200;
 
+/**
+ * Apply the audience-scope visibility filter to a prompts query. Public-listing
+ * methods MUST call this; detail / own-author paths MUST NOT (preserves direct-URL
+ * access for invitees, responders, and meeting participants via FK chain).
+ *
+ * Scoped prompts must be filtered out of public listings; do not remove or
+ * relax this without coordinating an RLS amendment on prompts. See plan
+ * docs/dyad/plans/2026-05-08-001-feat-corner-visibility-primitive-plan.md.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function applyAudienceFilter(query: any, scopes: string[]): any {
+	if (scopes.length === 0) {
+		return query.is('audience_scope', null);
+	}
+	// PostgREST .or() takes a comma-separated string of conditions.
+	const list = scopes.map((s) => s.replace(/[",()]/g, '')).join(',');
+	return query.or(`audience_scope.is.null,audience_scope.in.(${list})`);
+}
+
 export interface PublicProfile {
 	username: string;
 	display_name: string | null;
@@ -23,6 +42,7 @@ export interface PromptQueryService {
 	getPublishedPrompts(params: {
 		region: string;
 		userId: string;
+		scopes: string[];
 		limit?: number;
 		cursor?: string;
 	}): Promise<PromptSummary[]>;
@@ -39,8 +59,16 @@ export interface PromptQueryService {
 	getAvailableSlots(promptId: string, userId: string): Promise<TimeSlot[]>;
 
 	/** Returns a user's public profile (username, display name) and their
-	 *  published conversations. Null when no profile with the given username. */
-	getPublicProfile(username: string): Promise<PublicProfile | null>;
+	 *  published conversations. Null when no profile with the given username.
+	 *
+	 *  `scopes` is the viewer's active scope memberships. Pass an empty array
+	 *  for anonymous visitors. Required to gate scoped prompts on the public
+	 *  profile listing. */
+	getPublicProfile(username: string, scopes: string[]): Promise<PublicProfile | null>;
+
+	/** Returns the search corpus for a region. `scopes` is the viewer's active
+	 *  scope memberships; pass an empty array for anonymous callers. */
+	getSearchCorpus(region: string, scopes: string[]): Promise<Array<{ id: string; title: string | null; body_text: string; cover_image_url: string | null }>>;
 }
 
 export class SupabasePromptQueryService implements PromptQueryService {
@@ -49,21 +77,25 @@ export class SupabasePromptQueryService implements PromptQueryService {
 	async getPublishedPrompts(params: {
 		region: string;
 		userId: string;
+		scopes: string[];
 		limit?: number;
 		cursor?: string;
 	}): Promise<PromptSummary[]> {
 		const limit = params.limit ?? 20;
 
 		// Fetch published prompts (including own — per discover visibility policy).
-		// Public-listing methods MUST filter `hidden_at IS NULL`. Detail / own-author
-		// methods MUST NOT — direct URL access for invitees, responders, and meeting
-		// participants stays open. See migration 20260506130000.
+		// Public-listing methods MUST filter `hidden_at IS NULL` AND audience_scope.
+		// Detail / own-author methods MUST NOT — direct URL access for invitees,
+		// responders, and meeting participants stays open. See migration
+		// 20260506130000 (hidden_at) and 20260508180100 (audience_scope).
 		let query = this.supabase
 			.from('prompts')
-			.select('id, author_id, title, body, cover_image_url, published_at, region')
+			.select('id, author_id, title, body, cover_image_url, published_at, region, audience_scope')
 			.eq('state', 'published')
 			.is('hidden_at', null)
-			.eq('region', params.region)
+			.eq('region', params.region);
+		query = applyAudienceFilter(query, params.scopes);
+		query = query
 			.order('published_at', { ascending: false })
 			.limit(limit);
 
@@ -118,7 +150,8 @@ export class SupabasePromptQueryService implements PromptQueryService {
 				available_slots: slots,
 				soonest_slot: slots[0]?.start_time ?? null,
 				published_at: p.published_at,
-				region: p.region
+				region: p.region,
+				audience_scope: p.audience_scope ?? null
 			});
 		}
 
@@ -132,12 +165,15 @@ export class SupabasePromptQueryService implements PromptQueryService {
 	}): Promise<PromptSummary[]> {
 		const limit = params.limit ?? 8;
 
-		// Fetch more than needed — some will be filtered out (no available slots)
+		// Fetch more than needed — some will be filtered out (no available slots).
+		// Anon RLS already filters scoped prompts at the DB level (migration
+		// 20260508180100); the application-layer filter here is defense-in-depth.
 		let query = this.supabase
 			.from('prompts')
-			.select('id, author_id, title, body, cover_image_url, published_at, region')
+			.select('id, author_id, title, body, cover_image_url, published_at, region, audience_scope')
 			.eq('state', 'published')
 			.is('hidden_at', null)
+			.is('audience_scope', null)
 			.order('published_at', { ascending: false })
 			.limit(limit * 3);
 
@@ -186,7 +222,10 @@ export class SupabasePromptQueryService implements PromptQueryService {
 				available_slots: slots,
 				soonest_slot: slots[0]?.start_time ?? null,
 				published_at: p.published_at,
-				region: p.region
+				region: p.region,
+				// Anon path filters audience_scope IS NULL above; this is always
+				// commons. Set explicitly so the type stays exhaustive.
+				audience_scope: null
 			});
 		}
 
@@ -259,17 +298,23 @@ export class SupabasePromptQueryService implements PromptQueryService {
 			available_slots: availableSlots,
 			soonest_slot: availableSlots[0]?.start_time ?? null,
 			published_at: prompt.published_at,
-			region: prompt.region
+			region: prompt.region,
+			audience_scope: prompt.audience_scope ?? null
 		};
 	}
 
-	async getSearchCorpus(region: string): Promise<Array<{ id: string; title: string | null; body_text: string; cover_image_url: string | null }>> {
-		const { data: prompts } = await this.supabase
+	async getSearchCorpus(region: string, scopes: string[]): Promise<Array<{ id: string; title: string | null; body_text: string; cover_image_url: string | null }>> {
+		// Public-listing semantics: filter scoped prompts to the caller's
+		// granted scopes. Search must not surface prompts the caller cannot
+		// see on the discover feed.
+		let query = this.supabase
 			.from('prompts')
 			.select('id, title, body, cover_image_url')
 			.eq('state', 'published')
 			.is('hidden_at', null)
-			.eq('region', region)
+			.eq('region', region);
+		query = applyAudienceFilter(query, scopes);
+		const { data: prompts } = await query
 			.order('published_at', { ascending: false })
 			.limit(200);
 
@@ -305,7 +350,7 @@ export class SupabasePromptQueryService implements PromptQueryService {
 		return ((slots ?? []) as TimeSlot[]).filter((s) => isAvailable(s, now));
 	}
 
-	async getPublicProfile(username: string): Promise<PublicProfile | null> {
+	async getPublicProfile(username: string, scopes: string[]): Promise<PublicProfile | null> {
 		const { data: profile } = await this.supabase
 			.from('profiles')
 			.select('id, username, display_name')
@@ -314,12 +359,17 @@ export class SupabasePromptQueryService implements PromptQueryService {
 
 		if (!profile) return null;
 
-		const { data: prompts } = await this.supabase
+		// Public-listing semantics: filter scoped prompts to the caller's
+		// granted scopes. The profile shows only the prompts the caller
+		// would also see on the discover feed.
+		let query = this.supabase
 			.from('prompts')
 			.select('id, title, cover_image_url, published_at')
 			.eq('author_id', profile.id)
 			.eq('state', 'published')
-			.is('hidden_at', null)
+			.is('hidden_at', null);
+		query = applyAudienceFilter(query, scopes);
+		const { data: prompts } = await query
 			.order('published_at', { ascending: false });
 
 		return {

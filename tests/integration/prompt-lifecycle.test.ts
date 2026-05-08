@@ -93,7 +93,8 @@ describe('Prompt lifecycle', () => {
 		it('appears in discover feed for other users', async () => {
 			const feed = await otherServices.promptQuery.getPublishedPrompts({
 				region: 'berlin',
-				userId: SEED_USERS.other.id
+				userId: SEED_USERS.other.id,
+				scopes: []
 			});
 
 			const found = feed.find((p) => p.id === createdPromptId);
@@ -105,7 +106,8 @@ describe('Prompt lifecycle', () => {
 		it('appears in discover feed for the author (own conversations visible)', async () => {
 			const feed = await digitServices.promptQuery.getPublishedPrompts({
 				region: 'berlin',
-				userId: SEED_USERS.digit.id
+				userId: SEED_USERS.digit.id,
+				scopes: []
 			});
 
 			const found = feed.find((p) => p.id === createdPromptId);
@@ -149,7 +151,8 @@ describe('Prompt lifecycle', () => {
 		it('other user can read published prompts via discover', async () => {
 			const feed = await otherServices.promptQuery.getPublishedPrompts({
 				region: 'berlin',
-				userId: SEED_USERS.other.id
+				userId: SEED_USERS.other.id,
+				scopes: []
 			});
 			// Should see digit's published prompt from seed
 			const found = feed.find((p) => p.id === SEED_PROMPTS.published);

@@ -24,6 +24,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			region: 'berlin',
 			published_at: null,
 			hidden_at: null,
+			audience_scope: null,
 			created_at: now,
 			updated_at: now
 		};
