@@ -10,8 +10,17 @@ import type { PageServerLoad } from './$types';
  * Bypasses RLS via the service-role client by design (admin plane convention,
  * see src/lib/server/supabase-admin.ts).
  */
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ url }) => {
 	const supabase = makeAdminClient();
+
+	// When the admin pane is served from admin.dyad.berlin, the relative
+	// link "/conversations/X" resolves to admin.dyad.berlin/conversations/X —
+	// which is not where the user-facing app lives. Compute the apex URL so
+	// links to user routes jump to the correct origin. In local dev
+	// (localhost:5173, no subdomain) apexBase is '' and links stay relative.
+	const apexBase = url.hostname.startsWith('admin.')
+		? `${url.protocol}//${url.hostname.replace(/^admin\./, '')}`
+		: '';
 
 	const { data: prompts } = await supabase
 		.from('prompts')
@@ -41,5 +50,5 @@ export const load: PageServerLoad = async () => {
 		};
 	});
 
-	return { conversations };
+	return { conversations, apexBase };
 };

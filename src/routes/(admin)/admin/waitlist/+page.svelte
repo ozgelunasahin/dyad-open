@@ -27,13 +27,13 @@
 			if (res.ok) {
 				inviteResult = {
 					email,
-					message: body.alreadyInvited ? 'Already had a valid invite — email re-sent.' : 'Invited.',
+					message: body.alreadyInvited ? 'Already accepted — email re-sent.' : 'Accepted.',
 					url: body.inviteUrl
 				};
 			} else if (res.status === 409) {
 				inviteResult = { email, message: 'Already signed up.' };
 			} else {
-				inviteResult = { email, message: body.error ?? 'Failed to invite.' };
+				inviteResult = { email, message: body.error ?? 'Failed to accept.' };
 			}
 		} catch {
 			inviteResult = { email, message: 'Network error.' };
@@ -142,15 +142,15 @@
 							{invitingEmail === contact.email
 								? 'Sending...'
 								: contact.status === 'expired'
-									? 'Re-invite'
-									: 'Send invite'}
+									? 'Re-accept'
+									: 'Accept'}
 						</button>
 						<button class="btn-ghost" onclick={() => (expandedEmail = null)} disabled={invitingEmail === contact.email}>
 							Cancel
 						</button>
 					{:else}
 						<button class="btn-primary" onclick={() => (expandedEmail = contact.email)}>
-							{contact.status === 'expired' ? 'Re-invite' : 'Invite'}
+							{contact.status === 'expired' ? 'Re-accept' : 'Accept'}
 						</button>
 					{/if}
 				{:else if contact.status === 'signed_up'}

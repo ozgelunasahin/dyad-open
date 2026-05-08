@@ -77,7 +77,7 @@
 				<td>
 					<a
 						class="conversation-link"
-						href="/conversations/{c.id}"
+						href="{data.apexBase}/conversations/{c.id}"
 						target="_blank"
 						rel="noopener noreferrer">
 						{c.title ?? '(untitled)'}

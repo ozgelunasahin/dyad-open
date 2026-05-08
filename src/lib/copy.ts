@@ -390,6 +390,7 @@ export const copy = {
 		_description: 'Admin panel navigation and labels.',
 		waitlist: 'Waitlist',
 		invites: 'Invites',
+		members: 'Members',
 		feedback: 'Feedback',
 		conversations: 'Conversations',
 		hide: 'Hide',
