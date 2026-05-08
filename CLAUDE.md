@@ -74,6 +74,7 @@ All authenticated routes live under `src/routes/(app)/`. The layout provides:
 /admin/waitlist        — Waitlist management
 /admin/invites         — Invite management
 /admin/conversations   — All conversations across all states; per-row show/hide on public discovery
+/admin/members         — Per-member last-active timestamp (derived from app data; no auth.users access)
 /admin/feedback        — Feedback review
 ```
 
