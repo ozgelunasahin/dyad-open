@@ -203,7 +203,7 @@
 	// Mirrors the editor's handleSaveSlots diff pattern. Past slots aren't
 	// in data.prompt.available_slots (filtered by the loader), so they
 	// don't appear in the diff source — they stay untouched.
-	async function handleChangeTimes(submitted: SubmitSlot[]) {
+	async function handleChangeTimes(submitted: SubmitSlot[], _audienceScope: string | null) {
 		const initialIds = new Set(data.prompt.available_slots.map((s) => s.id));
 		const submittedIds = new Set(
 			submitted.filter((s) => s.dbId).map((s) => s.dbId as string)

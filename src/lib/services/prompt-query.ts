@@ -8,15 +8,7 @@ import { renderBodyHtmlOrFallback } from '$lib/utils/render-body.js';
 
 const SNIPPET_LENGTH = 200;
 
-/**
- * Apply the audience-scope visibility filter to a prompts query. Public-listing
- * methods MUST call this; detail / own-author paths MUST NOT (preserves direct-URL
- * access for invitees, responders, and meeting participants via FK chain).
- *
- * Scoped prompts must be filtered out of public listings; do not remove or
- * relax this without coordinating an RLS amendment on prompts. See plan
- * docs/dyad/plans/2026-05-08-001-feat-corner-visibility-primitive-plan.md.
- */
+// scopes gate visibility; never use them as a ranking or affinity input.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function applyAudienceFilter(query: any, scopes: string[]): any {
 	if (scopes.length === 0) {
@@ -25,6 +17,18 @@ function applyAudienceFilter(query: any, scopes: string[]): any {
 	// PostgREST .or() takes a comma-separated string of conditions.
 	const list = scopes.map((s) => s.replace(/[",()]/g, '')).join(',');
 	return query.or(`audience_scope.is.null,audience_scope.in.(${list})`);
+}
+
+// scopes RLS silently returns zero rows for slugs the caller does not hold.
+async function loadScopeNames(
+	supabase: SupabaseClient,
+	scopes: string[]
+): Promise<Map<string, string>> {
+	if (scopes.length === 0) return new Map();
+	const { data: rows } = await supabase.from('scopes').select('scope, name').in('scope', scopes);
+	const out = new Map<string, string>();
+	for (const r of rows ?? []) out.set(r.scope as string, r.name as string);
+	return out;
 }
 
 export interface PublicProfile {
@@ -117,9 +121,11 @@ export class SupabasePromptQueryService implements PromptQueryService {
 			.eq('accepted', false)
 			.order('start_time', { ascending: true });
 
-		// Build profile map
 		const authorIds = prompts.map((p) => p.author_id);
-		const profileMap = await buildProfileMap(this.supabase, authorIds);
+		const [profileMap, scopeNames] = await Promise.all([
+			buildProfileMap(this.supabase, authorIds),
+			loadScopeNames(this.supabase, params.scopes)
+		]);
 
 		// Filter to only available slots and group by prompt
 		const now = new Date();
@@ -151,7 +157,8 @@ export class SupabasePromptQueryService implements PromptQueryService {
 				soonest_slot: slots[0]?.start_time ?? null,
 				published_at: p.published_at,
 				region: p.region,
-				audience_scope: p.audience_scope ?? null
+				audience_scope: p.audience_scope ?? null,
+				audience_scope_name: p.audience_scope ? scopeNames.get(p.audience_scope) ?? null : null
 			});
 		}
 
@@ -225,7 +232,8 @@ export class SupabasePromptQueryService implements PromptQueryService {
 				region: p.region,
 				// Anon path filters audience_scope IS NULL above; this is always
 				// commons. Set explicitly so the type stays exhaustive.
-				audience_scope: null
+				audience_scope: null,
+				audience_scope_name: null
 			});
 		}
 
@@ -284,6 +292,16 @@ export class SupabasePromptQueryService implements PromptQueryService {
 		const authorProfile = profileMap.get(prompt.author_id);
 		const body = prompt.body as JSONContent | null;
 
+		let audienceScopeName: string | null = null;
+		if (prompt.audience_scope) {
+			const { data: scopeRow } = await this.supabase
+				.from('scopes')
+				.select('name')
+				.eq('scope', prompt.audience_scope)
+				.maybeSingle();
+			audienceScopeName = scopeRow?.name ?? null;
+		}
+
 		return {
 			id: prompt.id,
 			state: prompt.state,
@@ -299,7 +317,8 @@ export class SupabasePromptQueryService implements PromptQueryService {
 			soonest_slot: availableSlots[0]?.start_time ?? null,
 			published_at: prompt.published_at,
 			region: prompt.region,
-			audience_scope: prompt.audience_scope ?? null
+			audience_scope: prompt.audience_scope ?? null,
+			audience_scope_name: audienceScopeName
 		};
 	}
 

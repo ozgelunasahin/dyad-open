@@ -49,6 +49,7 @@
 				metaLeft={prompt.soonest_slot ? formatDate(prompt.soonest_slot) : null}
 				authorUsername={prompt.author_username}
 				anonymiseAuthor={hideAuthor}
+				audienceScopeName={prompt.audience_scope_name}
 				href={onCardClick ? undefined : `/conversations/${prompt.id}`}
 				onclick={onCardClick ? () => onCardClick(prompt.id) : undefined}
 			/>

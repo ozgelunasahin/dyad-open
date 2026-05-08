@@ -76,6 +76,7 @@ export interface PromptSummary {
 	published_at: string;
 	region: string;
 	audience_scope: string | null;
+	audience_scope_name: string | null;
 }
 
 export interface PromptDetail extends PromptSummary {

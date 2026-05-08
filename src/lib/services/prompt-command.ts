@@ -18,7 +18,12 @@ export interface PromptCommandService {
 		data: { title?: string; body?: JSONContent; coverImageUrl?: string }
 	): Promise<Prompt>;
 
-	publish(promptId: string, authorId: string, slots: TimeSlotInput[]): Promise<void>;
+	publish(
+		promptId: string,
+		authorId: string,
+		slots: TimeSlotInput[],
+		audienceScope?: string | null
+	): Promise<void>;
 
 	addSlots(promptId: string, authorId: string, slots: TimeSlotInput[]): Promise<void>;
 
@@ -79,7 +84,12 @@ export class SupabasePromptCommandService implements PromptCommandService {
 		return prompt as Prompt;
 	}
 
-	async publish(promptId: string, authorId: string, slots: TimeSlotInput[]): Promise<void> {
+	async publish(
+		promptId: string,
+		authorId: string,
+		slots: TimeSlotInput[],
+		audienceScope: string | null = null
+	): Promise<void> {
 		const prompt = await this.getOwnPrompt(promptId, authorId);
 
 		// Per-slot validation first — surfaces specific errors like "Start time
@@ -89,6 +99,17 @@ export class SupabasePromptCommandService implements PromptCommandService {
 
 		if (!canPublish(prompt, slots)) {
 			throw new DomainError('Cannot publish: conversation must be a draft with 1–3 valid time slots');
+		}
+
+		// audience_scope is set here, then publish_prompt flips state. Once
+		// published, audience_scope is immutable (no cross-scope promotion).
+		const { error: scopeError } = await this.supabase
+			.from('prompts')
+			.update({ audience_scope: audienceScope })
+			.eq('id', promptId)
+			.eq('author_id', authorId);
+		if (scopeError) {
+			throw new Error(`Failed to set audience scope: ${scopeError.message}`);
 		}
 
 		const derivedSlots = await this.deriveSlotRows(slots, prompt.region);

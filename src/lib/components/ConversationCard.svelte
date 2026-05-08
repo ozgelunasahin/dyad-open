@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { copy } from '$lib/copy';
 
 	/**
 	 * Unified card for a conversation preview. One component used across:
@@ -37,6 +38,7 @@
 		/** Muted the whole card — drafts, archived, expired items. */
 		dimmed?: boolean;
 		variant?: 'full' | 'profile' | 'compact';
+		audienceScopeName?: string | null;
 		/** Slot for nested content below the row (e.g. MeetingCard). */
 		children?: Snippet;
 	}
@@ -55,6 +57,7 @@
 		statusText = null,
 		dimmed = false,
 		variant = 'full',
+		audienceScopeName = null,
 		children
 	}: Props = $props();
 
@@ -107,6 +110,9 @@
 			{/if}
 			{#if snippet}
 				<p class="snippet" class:compact={variant === 'compact'}>{snippet}</p>
+			{/if}
+			{#if audienceScopeName}
+				<span class="audience-tag">{copy.discover.audienceTag.replace('{name}', audienceScopeName)}</span>
 			{/if}
 			{#if variant === 'compact' && (metaLeft || displayedAuthor)}
 				<div class="compact-meta">
@@ -246,6 +252,14 @@
 		color: var(--text-muted);
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
+	}
+
+	.audience-tag {
+		display: inline-block;
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+		font-style: italic;
+		margin-top: var(--space-1);
 	}
 
 	/* Free-form context line — author attribution, response count, edit time,

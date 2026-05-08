@@ -171,6 +171,7 @@
 								metaLeft={slotDates(prompt.available_slots)}
 								metaRight={uniqueAreas(prompt.available_slots)}
 								href={`/conversations/${prompt.id}`}
+								audienceScopeName={prompt.audience_scope_name}
 							/>
 						{/each}
 					</div>

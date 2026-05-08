@@ -15,9 +15,11 @@
 
 	interface Props {
 		onClose: () => void;
-		onPublish?: (slots: SubmitSlot[]) => void;
+		onPublish?: (slots: SubmitSlot[], audienceScope: string | null) => void;
 		onSave?: (slots: SubmitSlot[]) => void;
 		initialSlots?: InitialSlot[];
+		availableScopes?: Array<{ scope: string; name: string }>;
+		region?: string;
 		publishing?: boolean;
 		saving?: boolean;
 		error?: string;
@@ -33,12 +35,19 @@
 		onPublish,
 		onSave,
 		initialSlots = [],
+		availableScopes = [],
+		region = 'Berlin',
 		publishing = false,
 		saving = false,
 		error = '',
 		submitLabel,
 		submittingLabel
 	}: Props = $props();
+
+	// Empty string means commons (mapped to audience_scope=NULL upstream).
+	let audienceScope = $state<string>('');
+
+	const regionLabel = region.charAt(0).toUpperCase() + region.slice(1);
 
 	const weekDates = getWeekDates();
 	let selectedDays = $state<Set<string>>(new Set());
@@ -247,7 +256,7 @@
 	}
 
 	function handlePublish() {
-		onPublish?.(collectSlots());
+		onPublish?.(collectSlots(), audienceScope || null);
 	}
 
 	function handleSave() {
@@ -434,6 +443,18 @@
 
 		{#if error}
 			<p class="publish-error">{error}</p>
+		{/if}
+
+		{#if onPublish && availableScopes.length > 0}
+			<label class="audience-picker">
+				<span class="audience-label">{copy.editor.audiencePostingTo}</span>
+				<select bind:value={audienceScope} disabled={publishing || saving}>
+					<option value="">{copy.editor.audienceCommons.replace('{region}', regionLabel)}</option>
+					{#each availableScopes as s (s.scope)}
+						<option value={s.scope}>{copy.editor.audienceCorner.replace('{name}', s.name)}</option>
+					{/each}
+				</select>
+			</label>
 		{/if}
 
 		<div class="sheet-footer">
@@ -635,6 +656,25 @@
 		font-size: var(--text-sm);
 		color: var(--color-danger);
 		margin: var(--space-2) 0;
+	}
+
+	.audience-picker {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+		margin: var(--space-4) 0 0;
+	}
+	.audience-label {
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+	}
+	.audience-picker select {
+		font-family: inherit;
+		font-size: var(--text-sm);
+		padding: var(--space-2) var(--space-3);
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-input);
+		background: var(--bg-canvas);
 	}
 
 	.sheet-footer {

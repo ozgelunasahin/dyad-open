@@ -76,6 +76,7 @@ export const copy = {
 		_routes: ['/discover'],
 		_description: 'Main feed with list/map toggle. Shows conversation cards with filters.',
 		noConversations: 'No conversations available right now.',
+		audienceTag: 'within the {name} corner',
 		checkBackSoon: 'Check back soon, or start your own.',
 		startConversation: 'Start a conversation',
 		noMatchingFilters: 'No conversations match your filters.',
@@ -174,6 +175,9 @@ export const copy = {
 		closeDialog: 'Close',
 		setPlaceForOneSlot: 'Set a place for the time slot to publish.',
 		setPlaceForAtLeastOneSlot: 'Set a place for at least one time slot to publish.',
+		audiencePostingTo: 'Posting to',
+		audienceCommons: '{region} (everyone)',
+		audienceCorner: 'Within the {name} corner',
 	},
 
 	// ── Profile ────────────────────────────────────────────────────────

@@ -3,6 +3,7 @@ import type { PageServerLoad } from './$types';
 import { requireIdentity } from '$lib/services/identity.js';
 import type { Prompt } from '$lib/domain/types.js';
 import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
+import { SupabaseScopeService } from '$lib/services/scope.js';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const upactor = requireIdentity(locals);
@@ -12,6 +13,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	// in-memory blank prompt. No DB row is created until the user saves
 	// something. Keeps the drafts table clean of blank rows from users
 	// who clicked "+" and bailed without typing.
+	const scopeService = new SupabaseScopeService(locals.supabase);
+	const myScopes = await scopeService.listMyScopes(userId);
+
 	if (params.id === 'new') {
 		const now = new Date().toISOString();
 		const blank: Prompt = {
@@ -28,7 +32,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			created_at: now,
 			updated_at: now
 		};
-		return { prompt: blank, slots: [] };
+		return { prompt: blank, slots: [], myScopes };
 	}
 
 	const service = new SupabasePromptQueryService(locals.supabase);
@@ -91,5 +95,5 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		exact_location: s.exact_location ?? null
 	}));
 
-	return { prompt, slots };
+	return { prompt, slots, myScopes };
 };

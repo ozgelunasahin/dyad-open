@@ -266,7 +266,7 @@
 		showPublishSheet = true;
 	}
 
-	async function handlePublish(submitted: SubmitSlot[]) {
+	async function handlePublish(submitted: SubmitSlot[], audienceScope: string | null) {
 		publishError = '';
 
 		// Publish requires LocationRef per slot. Drop incomplete drafts (those
@@ -293,7 +293,7 @@
 			const res = await fetch(`/api/prompts/${promptId}/publish`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ slots })
+				body: JSON.stringify({ slots, audience_scope: audienceScope })
 			});
 			if (res.ok) {
 				capture('conversation_published');
@@ -476,6 +476,8 @@
 		onPublish={handlePublish}
 		onSave={handleSaveSlots}
 		initialSlots={data.slots}
+		availableScopes={data.myScopes}
+		region={data.prompt.region}
 		{publishing}
 		saving={savingSlots}
 		error={publishError}
