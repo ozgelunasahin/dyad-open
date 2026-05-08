@@ -21,6 +21,11 @@
 		publishing?: boolean;
 		saving?: boolean;
 		error?: string;
+		// Override the primary button text. Defaults to "Publish"/"Publishing..."
+		// Used by the read-view "Change times" mount, where Save reads better
+		// because removing times is also an option.
+		submitLabel?: string;
+		submittingLabel?: string;
 	}
 
 	let {
@@ -30,7 +35,9 @@
 		initialSlots = [],
 		publishing = false,
 		saving = false,
-		error = ''
+		error = '',
+		submitLabel,
+		submittingLabel
 	}: Props = $props();
 
 	const weekDates = getWeekDates();
@@ -445,7 +452,9 @@
 					disabled={publishing || saving || !hasPublishableSlot}
 					aria-describedby="publish-hint"
 				>
-					{publishing ? copy.editor.publishing : copy.editor.publishButton}
+					{publishing
+						? (submittingLabel ?? copy.editor.publishing)
+						: (submitLabel ?? copy.editor.publishButton)}
 				</button>
 			{/if}
 		</div>

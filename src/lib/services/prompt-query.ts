@@ -222,7 +222,13 @@ export class SupabasePromptQueryService implements PromptQueryService {
 			const { data: ownSlots } = await this.supabase.rpc('get_my_prompt_slots', {
 				p_prompt_id: id
 			});
-			availableSlots = (ownSlots ?? []) as TimeSlot[];
+			// Hide past slots — accepted past slots have meeting representation
+			// elsewhere; non-accepted past slots are functionally dead. The
+			// section reads as "what am I currently offering" rather than a
+			// historical inventory.
+			availableSlots = ((ownSlots ?? []) as TimeSlot[]).filter(
+				(s) => new Date(s.start_time) > now
+			);
 		} else {
 			const { data: publicSlots } = await this.supabase
 				.from('time_slots_public')
