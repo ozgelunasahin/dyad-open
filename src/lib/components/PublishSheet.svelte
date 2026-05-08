@@ -4,16 +4,34 @@
 	import { getWeekDates } from '$lib/utils/dates';
 	import LocationSearch from '$lib/components/LocationSearch.svelte';
 	import { copy } from '$lib/copy';
-	import type { LocationRef, TimeSlotInput } from '$lib/domain/types';
+	import type { LocationRef, SubmitSlot, TimeSlot } from '$lib/domain/types';
+
+	// initialSlots is the author-loaded slot set with full LocationRef
+	// (exact_location). Pre-fills the day-slot Map when the sheet opens, which
+	// covers the unpublish-republish case (slots stay in the DB across the
+	// state flip) and the close-then-reopen case once the parent persists via
+	// onSave.
+	type InitialSlot = TimeSlot & { exact_location?: LocationRef | null };
 
 	interface Props {
 		onClose: () => void;
-		onPublish: (slots: TimeSlotInput[]) => void;
+		onPublish?: (slots: SubmitSlot[]) => void;
+		onSave?: (slots: SubmitSlot[]) => void;
+		initialSlots?: InitialSlot[];
 		publishing?: boolean;
+		saving?: boolean;
 		error?: string;
 	}
 
-	let { onClose, onPublish, publishing = false, error = '' }: Props = $props();
+	let {
+		onClose,
+		onPublish,
+		onSave,
+		initialSlots = [],
+		publishing = false,
+		saving = false,
+		error = ''
+	}: Props = $props();
 
 	const weekDates = getWeekDates();
 	let selectedDays = $state<Set<string>>(new Set());
@@ -24,18 +42,55 @@
 		// slot's captured query state into the new position. The id is created
 		// when the draft is constructed and never reused.
 		id: number;
+		// dbId is the existing time_slots row id when this draft came from
+		// initialSlots. Submitted via SubmitSlot so the parent can compute
+		// edits vs. additions on save. New drafts created in-sheet have no dbId.
+		dbId?: string;
 		time: string;
 		duration: number;
 		location: LocationRef | null;
 	}
 
 	let nextSlotId = 0;
-	function makeSlot(time: string): SlotDraft {
-		return { id: nextSlotId++, time, duration: 60, location: null };
+	function makeSlot(time: string, init?: { dbId?: string; duration?: number; location?: LocationRef | null }): SlotDraft {
+		return {
+			id: nextSlotId++,
+			dbId: init?.dbId,
+			time,
+			duration: init?.duration ?? 60,
+			location: init?.location ?? null
+		};
 	}
 
 	// Per-day slot drafts: Map<date, SlotDraft[]>
 	let daySlots = $state<Map<string, SlotDraft[]>>(new Map());
+
+	// Initialize daySlots and selectedDays from initialSlots on mount. The
+	// loader's slot data carries exact_location (LocationRef) so we can
+	// reconstruct the form's full state.
+	function hydrateFromInitial() {
+		const map = new Map<string, SlotDraft[]>();
+		const days = new Set<string>();
+		for (const slot of initialSlots) {
+			const start = new Date(slot.start_time);
+			const date = start.toLocaleDateString('sv-SE');
+			const time = `${start.getHours().toString().padStart(2, '0')}:${start
+				.getMinutes()
+				.toString()
+				.padStart(2, '0')}`;
+			const draft = makeSlot(time, {
+				dbId: slot.id,
+				duration: slot.duration_minutes,
+				location: slot.exact_location ?? null
+			});
+			const existing = map.get(date) ?? [];
+			map.set(date, [...existing, draft]);
+			days.add(date);
+		}
+		daySlots = map;
+		selectedDays = days;
+	}
+	hydrateFromInitial();
 
 	// Default times ladder: morning, afternoon, evening. New slots draw from
 	// this list by index, so adding three slots on the same day gives
@@ -46,6 +101,21 @@
 		return DEFAULT_TIME_LADDER[Math.min(existingCount, DEFAULT_TIME_LADDER.length - 1)];
 	}
 
+	// Total slots configured across all days. The 3-slot ceiling is per
+	// conversation, not per day — gate every add path on this rather than the
+	// per-day count.
+	const totalSlotCount = $derived.by(() => {
+		let n = 0;
+		for (const drafts of daySlots.values()) n += drafts.length;
+		return n;
+	});
+
+	// Tracks whether the user has touched the sheet's slot state. Drives the
+	// save-on-close behavior: closing the sheet without explicit Save / Publish
+	// silently persists the in-progress state when dirty (so a closed-before-
+	// publish session isn't lost), and is a pure no-op when not dirty.
+	let dirty = $state(false);
+
 	function toggleDay(date: string) {
 		const next = new Set(selectedDays);
 		if (next.has(date)) {
@@ -54,20 +124,25 @@
 			nextSlots.delete(date);
 			daySlots = nextSlots;
 		} else {
+			// Selecting a new day implies adding one slot. Block when at the
+			// 3-slot conversation ceiling.
+			if (totalSlotCount >= 3) return;
 			next.add(date);
 			const nextSlots = new Map(daySlots);
 			nextSlots.set(date, [makeSlot(nextDefaultTime(0))]);
 			daySlots = nextSlots;
 		}
 		selectedDays = next;
+		dirty = true;
 	}
 
 	function addTimeSlot(date: string) {
+		if (totalSlotCount >= 3) return;
 		const current = daySlots.get(date) ?? [];
-		if (current.length >= 3) return;
 		const nextSlots = new Map(daySlots);
 		nextSlots.set(date, [...current, makeSlot(nextDefaultTime(current.length))]);
 		daySlots = nextSlots;
+		dirty = true;
 	}
 
 	function removeTimeSlot(date: string, index: number) {
@@ -86,6 +161,7 @@
 			nextSlots.set(date, updated);
 		}
 		daySlots = nextSlots;
+		dirty = true;
 	}
 
 	function updateSlot<K extends keyof SlotDraft>(
@@ -101,6 +177,7 @@
 		const nextSlots = new Map(daySlots);
 		nextSlots.set(date, updated);
 		daySlots = nextSlots;
+		dirty = true;
 	}
 
 	// Derived: at least one slot exists somewhere with a location set.
@@ -126,19 +203,49 @@
 		return count;
 	});
 
-	function handlePublish() {
-		const slots: TimeSlotInput[] = [];
+	function collectSlots(): SubmitSlot[] {
+		// Returns every draft including those without a location set. Callers
+		// decide what to do with location-less drafts:
+		// - Publish path: filter them out (publish requires LocationRef per slot)
+		// - Save path: keep them so existing-slot edits can change day/time
+		//   without re-picking location (the loader hides exact_location for
+		//   privacy, so reopened sheets show null location for stored slots).
+		//   editSlot leaves stored exact_location alone when updates.location
+		//   is falsy.
+		const slots: SubmitSlot[] = [];
 		for (const [date, drafts] of daySlots) {
 			for (const draft of drafts) {
-				if (!draft.location) continue;
 				slots.push({
 					start_time: new Date(`${date}T${draft.time}`).toISOString(),
 					duration_minutes: draft.duration,
-					location: draft.location
+					location: draft.location as LocationRef,
+					dbId: draft.dbId
 				});
 			}
 		}
-		onPublish(slots);
+		return slots;
+	}
+
+	function handlePublish() {
+		onPublish?.(collectSlots());
+	}
+
+	function handleSave() {
+		onSave?.(collectSlots());
+	}
+
+	// Close path used by the X button, the backdrop click, and Esc. When the
+	// user has touched slot state and onSave is wired, save silently before
+	// closing so a closed-before-publish session is preserved. Pure no-op when
+	// the sheet is unchanged.
+	function handleClose() {
+		// Fire save asynchronously (don't await) so the sheet closes instantly.
+		// The parent's onSave runs in the background; invalidateAll refreshes
+		// page data when it returns. The user sees no close delay.
+		if (dirty && onSave && !publishing && !saving) {
+			handleSave();
+		}
+		onClose();
 	}
 
 	// Body scroll lock + Esc to close + initial focus management.
@@ -156,7 +263,7 @@
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape' && !publishing) {
 			e.preventDefault();
-			onClose();
+			handleClose();
 		}
 	}
 
@@ -200,7 +307,7 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <!-- svelte-ignore a11y_click_events_have_key_events -->
-<div class="backdrop" onclick={onClose} transition:fade={{ duration: reducedMotion ? 1 : 200 }}>
+<div class="backdrop" onclick={handleClose} transition:fade={{ duration: reducedMotion ? 1 : 200 }}>
 	<div
 		class="sheet"
 		role="dialog"
@@ -214,17 +321,12 @@
 			bind:this={closeButton}
 			type="button"
 			class="sheet-close"
-			onclick={onClose}
+			onclick={handleClose}
 			aria-label={copy.editor.closeDialog}>&times;</button>
 
-		<h2 id="publish-sheet-title" class="sheet-title">{copy.editor.publishAsConversation}</h2>
+		<h2 id="publish-sheet-title" class="sheet-title">{copy.editor.publishHeadline}</h2>
+		<p class="sheet-subtitle">{copy.editor.dayPickerHint}</p>
 		<p class="sheet-note">{copy.editor.privacyNote}</p>
-
-		<!-- Day picker -->
-		<div class="day-picker-header">
-			<p class="label">{copy.editor.selectDays}</p>
-			<p class="window-hint">{copy.editor.publishWindowHint}</p>
-		</div>
 		<div class="day-picker">
 			{#each weekDates as day}
 				<button
@@ -245,7 +347,7 @@
 			<div class="day-section">
 				<div class="day-header">
 					<span class="day-header-text">{formatDayHeader(date)}</span>
-					{#if (daySlots.get(date)?.length ?? 0) < 3}
+					{#if totalSlotCount < 3}
 						<button type="button" class="add-time" onclick={() => addTimeSlot(date)}>{copy.editor.addTime}</button>
 					{/if}
 				</div>
@@ -306,15 +408,17 @@
 						: copy.editor.setPlaceForAtLeastOneSlot}
 				</p>
 			{/if}
-			<button
-				type="button"
-				class="btn-primary"
-				onclick={handlePublish}
-				disabled={publishing || !hasPublishableSlot}
-				aria-describedby="publish-hint"
-			>
-				{publishing ? copy.editor.publishing : copy.editor.publishButton}
-			</button>
+			{#if onPublish}
+				<button
+					type="button"
+					class="btn-primary"
+					onclick={handlePublish}
+					disabled={publishing || saving || !hasPublishableSlot}
+					aria-describedby="publish-hint"
+				>
+					{publishing ? copy.editor.publishing : copy.editor.publishButton}
+				</button>
+			{/if}
 		</div>
 	</div>
 </div>
@@ -359,38 +463,23 @@
 	.sheet-close:hover { color: var(--text-primary); }
 
 	.sheet-title {
-		font-size: var(--text-2xl);
-		font-weight: normal;
+		font-size: var(--text-lg);
+		font-weight: 500;
 		color: var(--text-primary);
-		margin: 0 0 var(--space-2);
+		line-height: var(--leading-tight);
+		margin: 0 0 var(--space-1);
 	}
+	.sheet-subtitle {
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+		margin: 0;
+	}
+
 
 	.sheet-note {
 		font-size: var(--text-xs);
 		color: var(--text-muted);
 		margin: 0 0 var(--space-5);
-		font-family: var(--font-mono);
-		letter-spacing: 0.02em;
-	}
-
-	.day-picker-header {
-		display: flex;
-		align-items: baseline;
-		justify-content: space-between;
-		gap: var(--space-3);
-		margin-bottom: var(--space-2);
-	}
-
-	.label {
-		font-size: var(--text-base);
-		color: var(--text-muted);
-		margin: 0;
-	}
-
-	.window-hint {
-		font-size: var(--text-xs);
-		color: var(--text-muted);
-		margin: 0;
 	}
 
 	.day-picker {

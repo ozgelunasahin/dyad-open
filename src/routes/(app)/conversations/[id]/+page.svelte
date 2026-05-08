@@ -241,9 +241,6 @@
 			{data.prompt.author_display_name ?? '@' + data.prompt.author_username}
 		</a>
 		wrote
-		{#if data.prompt.edited_at}
-			<span class="meta-edited">{copy.conversation.revisedOn(formatDate(data.prompt.edited_at))}</span>
-		{/if}
 	</p>
 
 	<div class="body">
@@ -563,7 +560,6 @@
 	attentionCount={data.attentionCount ?? 0}
 	actions={isOwnPrompt && data.prompt.state === 'published'
 		? [
-				{ label: copy.conversation.edit, onclick: () => goto(`/conversations/${data.prompt.id}/edit`) },
 				{ label: copy.conversation.unpublish, onclick: () => unpublishDialog?.open() },
 				{ label: copy.conversation.archive, onclick: () => archiveDialog?.open() },
 				{ label: copy.conversation.delete, onclick: () => deleteDialog?.open(), danger: true }
@@ -580,11 +576,6 @@
 	.meta { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin: 0 0 var(--space-8); }
 	.meta-author { color: var(--text-muted); text-decoration: none; }
 	.meta-author:hover { color: var(--text-primary); }
-	/* Visible revision marker — sits beside the publish meta line.
-	   Honesty about the artifact's history is the design contract;
-	   this is the visible evidence. */
-	.meta-edited { color: var(--text-muted); font-style: italic; margin-left: var(--space-1); }
-
 	.body { font-size: var(--text-md); line-height: var(--leading-relaxed); margin-bottom: var(--space-10); }
 	.body :global(p) { margin: 0 0 0.75em; }
 	.body :global(h1), .body :global(h2) { margin: 1.2em 0 0.5em; font-weight: 500; }

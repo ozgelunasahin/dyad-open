@@ -96,18 +96,19 @@ The platform follows the *calm technology* posture (Weiser & Brown 1996; Case 20
 - Members are inducted into platform norms organically through the interface itself.
 - Modals that keep a member in context are fine — for example, the waitlist form that appears when an anonymous visitor clicks a conversation. The principle: don't interrupt flow with demands for attention. Overlays that serve the member's current intent are not interruptions.
 
-### Three states, six verbs
+### Three states, five verbs
 
-Conversations move through three states: **draft** (pre-publication, only the author sees it), **published** (live on the feed), **archived** (off the feed, kept). Six author actions move between them.
+Conversations move through three states: **draft** (pre-publication, only the author sees it), **published** (live on the feed), **archived** (off the feed, kept). Five author actions move between them.
 
-- **Edit** revises a published conversation in place. Title, body, and cover image stay editable. The timestamp of the most recent revision (`prompts.edited_at`) appears on the read view as a quiet "revised on …" line beside the publish meta, so readers see when the prompt was changed rather than encountering silent edits.
 - **Publish** moves a draft to published. The standard first-time-live flow with slot selection.
-- **Unpublish** takes a published conversation off the feed and back to draft. The author keeps working in the editor; nothing about the prompt is committed beyond what they choose to write next. They can republish through the standard publish flow when ready. Unpublish is the affordance that lowers the cost of publishing in the first place: an author who knows they can take it back to drafts at any time is more willing to push the button.
-- **Archive** takes a conversation off the feed while keeping it as a record. Archived conversations remain editable in the editor, and the editor's action bar surfaces "Republish…" so the author can bring them back with fresh slots. Archive is the right shape when the author considers the conversation done with its current life but wants the record kept.
+- **Unpublish** takes a published conversation off the feed and back to draft. The author keeps working in the same editor they used to write the prompt in the first place; when ready, they Publish again. Unpublish is the affordance that lowers the cost of publishing: an author who knows they can take it back to drafts at any time is more willing to push the button.
+- **Archive** takes a conversation off the feed while keeping it as a record. Archived prompts can be republished through the editor's action bar when the author wants to bring them back. Archive is the right shape when the author considers the conversation done with its current life but wants the record kept.
 - **Republish** moves an archived conversation back to published through the same publish flow that handles drafts. Slots are re-chosen each time; the prompt itself can be lightly or heavily reworked in the meantime.
 - **Delete** removes the conversation permanently.
 
-Unpublish and Archive both take a conversation off the feed but answer different author intents: "I'm not done with this" vs. "I'm setting this aside." The state values they target (`draft` vs. `archived`) match the intent. Both can return to published, through different mental models: Unpublish hands the work back to draft (still being made); Archive keeps it as a closed record (re-staging is a deliberate act).
+Unpublish and Archive both take a conversation off the feed but answer different author intents: "I'm not done with this" vs. "I'm setting this aside." The state values they target (`draft` vs. `archived`) match the intent.
+
+There is no "edit" verb in the state machine. Editing is what happens in the editor, on a draft. To revise a published conversation, the author Unpublishes (the prompt becomes a draft), edits, and Publishes again — same flow as the first publish. This matches the platform's posture: prompts are sloppy invitations written quickly, not polished publications, and so editing-in-place is not a thing the platform encourages. Authors who feel the urge to ship a "v2" because they noticed a typo are operating on the wrong tier of stakes.
 
 ### Inclusive language
 
