@@ -128,15 +128,22 @@ INSERT INTO prompts (id, author_id, title, body, state, region, created_at, upda
    '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"We treat consistency as a virtue and revision as weakness."}]}]}'::jsonb,
    'draft', 'berlin', NOW(), NOW());
 
--- 3. Archived prompt (lisa's)
-INSERT INTO prompts (id, author_id, title, body, state, region, published_at, archived_at, created_at, updated_at) VALUES
-  ('seed-prompt-archived', '11111111-1111-1111-1111-111111111111',
+-- 3. Unpublished prompt (lisa's) — was public, now off-feed.
+-- state='draft' AND published_at IS NOT NULL → UI label "Unpublished".
+-- Preserved slots (one past, one future) let us test the publish-form
+-- pre-fill: only the future slot should hydrate; the past one is dropped
+-- and will be cleaned up by publish_prompt's delete-and-replace on republish.
+INSERT INTO prompts (id, author_id, title, body, state, region, published_at, created_at, updated_at) VALUES
+  ('seed-prompt-unpublished', '11111111-1111-1111-1111-111111111111',
    'On being a beginner again',
    '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"There is a particular humility required to be a beginner."}]}]}'::jsonb,
-   'archived', 'berlin', NOW() - interval '7 days', NOW() - interval '1 day', NOW() - interval '8 days', NOW() - interval '1 day');
+   'draft', 'berlin', NOW() - interval '7 days', NOW() - interval '8 days', NOW() - interval '1 day');
 
 INSERT INTO time_slots (id, prompt_id, start_time, duration_minutes, exact_location, general_area, general_area_lat, general_area_lng) VALUES
-  ('a0000002-0000-0000-0000-000000000001', 'seed-prompt-archived', NOW() - interval '2 days', 60,
+  ('a0000002-0000-0000-0000-000000000001', 'seed-prompt-unpublished', NOW() - interval '2 days', 60,
+   '{"place_id":"4","name":"Betahaus","address":"Rudi-Dutschke-Straße 23, 10969 Berlin","lat":52.5069,"lng":13.3918}'::jsonb,
+   'Kreuzberg', 52.4988, 13.4238),
+  ('a0000002-0000-0000-0000-000000000002', 'seed-prompt-unpublished', NOW() + interval '4 days', 60,
    '{"place_id":"4","name":"Betahaus","address":"Rudi-Dutschke-Straße 23, 10969 Berlin","lat":52.5069,"lng":13.3918}'::jsonb,
    'Kreuzberg', 52.4988, 13.4238);
 
@@ -198,7 +205,8 @@ INSERT INTO time_slots (id, prompt_id, start_time, duration_minutes, exact_locat
   ('a0000006-0000-0000-0000-000000000001', 'seed-prompt-scheduled', NOW() + interval '1 day', 75,
    '{"place_id":"8","name":"Görlitzer Park","address":"Görlitzer Str., 10997 Berlin","lat":52.4966,"lng":13.4370}'::jsonb,
    'Kreuzberg', 52.4966, 13.4370, true),
-  -- Second unaccepted slot prevents archive_stale_prompts from archiving this prompt
+  -- Second unaccepted future slot keeps this prompt in the discover feed
+  -- (a public prompt with no future-valid slots drops out naturally — Past tab on the author's profile).
   ('a0000006-0000-0000-0000-000000000002', 'seed-prompt-scheduled', NOW() + interval '3 days', 60,
    '{"place_id":"9","name":"Tempelhofer Feld","address":"Tempelhofer Damm, 12101 Berlin","lat":52.4735,"lng":13.4016}'::jsonb,
    'Tempelhof', 52.4735, 13.4016, false);

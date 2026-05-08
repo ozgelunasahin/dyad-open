@@ -207,22 +207,33 @@ export class SupabasePromptQueryService implements PromptQueryService {
 			return null;
 		}
 
-		// Defense-in-depth: non-authors only see unaccepted slots.
-		// RLS also enforces this at DB layer (20260409_fix_time_slots_rls_safeguarding).
-		let slotsQuery = this.supabase
-			.from('time_slots_public')
-			.select('id, prompt_id, start_time, duration_minutes, general_area, general_area_lat, general_area_lng, accepted, created_at')
-			.eq('prompt_id', id)
-			.order('start_time', { ascending: true });
-
-		if (prompt.author_id !== userId) {
-			slotsQuery = slotsQuery.eq('accepted', false);
-		}
-
-		const { data: slots } = await slotsQuery;
-
+		// Author and non-author take different slot-fetch paths:
+		//   - Author: SECURITY DEFINER RPC returns full time_slots rows
+		//     including exact_location (so the read view can show the venue).
+		//     Includes accepted/past slots so "Times you offered" is the
+		//     full inventory of what the author put up — the read view marks
+		//     accepted ones as booked.
+		//   - Non-author: time_slots_public view masks exact_location, and
+		//     we filter to non-accepted future-valid slots since those are
+		//     the only ones they can invite to.
 		const now = new Date();
-		const availableSlots = (slots ?? []).filter((s) => isAvailable(s as TimeSlot, now)) as TimeSlot[];
+		let availableSlots: TimeSlot[];
+		if (prompt.author_id === userId) {
+			const { data: ownSlots } = await this.supabase.rpc('get_my_prompt_slots', {
+				p_prompt_id: id
+			});
+			availableSlots = (ownSlots ?? []) as TimeSlot[];
+		} else {
+			const { data: publicSlots } = await this.supabase
+				.from('time_slots_public')
+				.select('id, prompt_id, start_time, duration_minutes, general_area, general_area_lat, general_area_lng, accepted, created_at')
+				.eq('prompt_id', id)
+				.eq('accepted', false)
+				.order('start_time', { ascending: true });
+			availableSlots = (publicSlots ?? []).filter((s) =>
+				isAvailable(s as TimeSlot, now)
+			) as TimeSlot[];
+		}
 
 		const profileMap = await buildProfileMap(this.supabase, [prompt.author_id]);
 		const authorProfile = profileMap.get(prompt.author_id);
