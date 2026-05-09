@@ -121,11 +121,12 @@
 	// Reset the BottomSheet selection whenever the filter state changes — otherwise
 	// the sheet keeps displaying conversations that are no longer on the filtered
 	// map. Per-slot pins make this gap more visible because clicks pull more items
-	// into the sheet. Reads `.size` to avoid taking a Set-instance dependency that
-	// would re-fire only on identity changes (we re-create the Set on each toggle).
+	// into the sheet.
 	$effect(() => {
-		selectedDates.size;
-		selectedAreas.size;
+		// Reactive reads: depend on filter identity (Sets are reassigned on each
+		// toggle, so reading the variable itself is the dependency we want).
+		const _filtersFingerprint = `${selectedDates.size}:${selectedAreas.size}`;
+		void _filtersFingerprint;
 		selectedPinItems = [];
 		selectedPinArea = '';
 	});
