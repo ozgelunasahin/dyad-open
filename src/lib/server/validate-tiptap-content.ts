@@ -5,7 +5,7 @@
 
 const MAX_CONTENT_SIZE = 1024 * 100; // 100KB limit
 
-const ALLOWED_NODE_TYPES = new Set([
+export const ALLOWED_NODE_TYPES = new Set([
 	'doc',
 	'paragraph',
 	'heading',
@@ -21,7 +21,7 @@ const ALLOWED_NODE_TYPES = new Set([
 	'image'
 ]);
 
-const ALLOWED_MARK_TYPES = new Set(['bold', 'italic', 'code', 'link', 'strike']);
+export const ALLOWED_MARK_TYPES = new Set(['bold', 'italic', 'code', 'link', 'strike']);
 
 const SAFE_URL_PROTOCOL = /^(https?:\/\/|mailto:|\/)/i;
 
