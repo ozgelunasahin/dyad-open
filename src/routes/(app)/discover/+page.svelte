@@ -106,6 +106,16 @@
 		);
 	});
 
+	// Slot-level predicate for the map: a Wednesday-only filter should drop the
+	// Tuesday-Mitte pin even on conversations that have a Wednesday slot
+	// elsewhere. `filteredPrompts` already narrows the conversation list; this
+	// narrows the pin set within each conversation.
+	let mapSlotFilter = $derived(
+		hasFilters
+			? (slot: TimeSlot) => slotMatchesDate(slot, selectedDates) && slotMatchesArea(slot, selectedAreas)
+			: undefined
+	);
+
 	function toggleDate(date: string) {
 		const next = new Set(selectedDates);
 		if (next.has(date)) next.delete(date);
@@ -151,6 +161,7 @@
 	<div class="map-pane">
 		<MapView
 			prompts={filteredPrompts}
+			slotFilter={mapSlotFilter}
 			onSelectPin={handlePinSelect}
 			onMapClick={closeSheet}
 			initialCenter={mapCenter}

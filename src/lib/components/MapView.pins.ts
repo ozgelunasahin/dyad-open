@@ -53,15 +53,26 @@ export function fuzzCentroid(id: string, lat: number, lng: number): [number, num
 }
 
 /**
+ * Predicate applied to each slot before per-area dedup. When undefined,
+ * every coordinate-bearing slot is eligible. When provided, slots returning
+ * `false` are skipped — e.g. the discover page passes a date/area filter so
+ * a "Wednesday only" filter does not still render the Tuesday-Mitte pin
+ * of a conversation that also has a Wednesday slot elsewhere.
+ */
+export type SlotFilter = (slot: TimeSlot) => boolean;
+
+/**
  * Build map pins from a list of prompts, one pin per (prompt, distinct
  * `general_area`). Same area + multiple slots in the same prompt → still one
  * pin (uses the earliest-starting slot's location, since `available_slots` is
  * ordered by `start_time ASC` from `prompt-query.ts`).
  *
  * Slots without coordinates are skipped. Slots with empty/whitespace-only
- * `general_area` are skipped to avoid empty-string dedup collisions.
+ * `general_area` are skipped to avoid empty-string dedup collisions. When a
+ * `slotFilter` is provided, slots that fail the predicate are skipped before
+ * dedup so the pin set reflects slot-level filters, not conversation-level.
  */
-export function buildPins(items: PromptSummary[]): MapPin[] {
+export function buildPins(items: PromptSummary[], slotFilter?: SlotFilter): MapPin[] {
 	const pins: MapPin[] = [];
 
 	for (const prompt of items) {
@@ -71,6 +82,8 @@ export function buildPins(items: PromptSummary[]): MapPin[] {
 
 			const area = slot.general_area?.trim();
 			if (!area) continue;
+
+			if (slotFilter && !slotFilter(slot)) continue;
 
 			if (seenAreas.has(area)) continue;
 			seenAreas.add(area);

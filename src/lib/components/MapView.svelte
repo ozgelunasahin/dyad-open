@@ -2,7 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import type { PromptSummary, TimeSlot } from '$lib/domain/types';
 	import type { Map as LeafletMap, LayerGroup } from 'leaflet';
-	import { buildPins, berlinDistance, FUZZ_MAX_METERS } from './MapView.pins';
+	import { buildPins, berlinDistance, FUZZ_MAX_METERS, type SlotFilter } from './MapView.pins';
 
 	interface Props {
 		prompts: PromptSummary[];
@@ -14,9 +14,13 @@
 		scrollWheelZoom?: boolean;
 		zoomControl?: boolean;
 		zoomControlPosition?: 'topleft' | 'topright' | 'bottomleft' | 'bottomright';
+		/** Optional per-slot filter — when present, only slots passing this predicate
+		 *  produce a pin. Used by the discover page so date/area filters narrow pin
+		 *  emission rather than just the conversation list. */
+		slotFilter?: SlotFilter;
 	}
 
-	let { prompts, onSelectPin, onMapClick, initialCenter, initialZoom, onMoveEnd, scrollWheelZoom = true, zoomControl = false, zoomControlPosition = 'topleft' }: Props = $props();
+	let { prompts, onSelectPin, onMapClick, initialCenter, initialZoom, onMoveEnd, scrollWheelZoom = true, zoomControl = false, zoomControlPosition = 'topleft', slotFilter }: Props = $props();
 
 	let mapContainer: HTMLElement | undefined = $state();
 	let map: LeafletMap | undefined;
@@ -30,7 +34,7 @@
 		if (!markerLayer) return;
 		markerLayer.clearLayers();
 
-		const pins = buildPins(prompts);
+		const pins = buildPins(prompts, slotFilter);
 
 		for (const pin of pins) {
 			// Cover image marker (or placeholder)
@@ -120,10 +124,17 @@
 	});
 
 	let prevPrompts: PromptSummary[] | undefined;
+	let prevSlotFilter: SlotFilter | undefined;
 	$effect(() => {
 		const currentPrompts = prompts;
-		if (leafletModule && markerLayer && currentPrompts !== prevPrompts) {
+		const currentFilter = slotFilter;
+		if (
+			leafletModule &&
+			markerLayer &&
+			(currentPrompts !== prevPrompts || currentFilter !== prevSlotFilter)
+		) {
 			prevPrompts = currentPrompts;
+			prevSlotFilter = currentFilter;
 			rebuildMarkers(leafletModule);
 		}
 	});

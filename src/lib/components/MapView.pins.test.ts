@@ -146,6 +146,66 @@ describe('buildPins — per-slot, per-area', () => {
 	});
 });
 
+describe('buildPins — slotFilter', () => {
+	it('with no slotFilter, every coordinate-bearing slot is eligible (regression)', () => {
+		const prompt = makePrompt('p1', [
+			makeSlot({ area: 'Mitte' }),
+			makeSlot({ area: 'Kreuzberg' })
+		]);
+		expect(buildPins([prompt])).toHaveLength(2);
+		expect(buildPins([prompt], undefined)).toHaveLength(2);
+	});
+
+	it('skips slots that fail the predicate before per-area dedup', () => {
+		// A "Wednesday only" filter on a conversation with Tuesday-Mitte +
+		// Wednesday-Kreuzberg should yield only the Kreuzberg pin.
+		const prompt = makePrompt('p1', [
+			makeSlot({ id: 'tue-mitte', area: 'Mitte', startTime: '2026-05-12T18:00:00Z' }),
+			makeSlot({ id: 'wed-kreuzberg', area: 'Kreuzberg', startTime: '2026-05-13T18:00:00Z' })
+		]);
+		const wednesdayOnly = (slot: TimeSlot) => slot.start_time.startsWith('2026-05-13');
+		const pins = buildPins([prompt], wednesdayOnly);
+		expect(pins).toHaveLength(1);
+		expect(pins[0].area).toBe('Kreuzberg');
+		expect(pins[0].slot.id).toBe('wed-kreuzberg');
+	});
+
+	it('returns zero pins when the filter excludes every slot', () => {
+		const prompt = makePrompt('p1', [
+			makeSlot({ area: 'Mitte', startTime: '2026-05-12T18:00:00Z' }),
+			makeSlot({ area: 'Kreuzberg', startTime: '2026-05-13T18:00:00Z' })
+		]);
+		const friday = (slot: TimeSlot) => slot.start_time.startsWith('2026-05-15');
+		expect(buildPins([prompt], friday)).toHaveLength(0);
+	});
+
+	it('filter is applied before dedup: same-area slots with one passing and one failing keep the passing slot', () => {
+		// If the only Mitte slot that matches the filter is the second one,
+		// dedup should not have already locked in the first slot's position.
+		const prompt = makePrompt('p1', [
+			makeSlot({ id: 'wrong-day', area: 'Mitte', startTime: '2026-05-12T18:00:00Z' }),
+			makeSlot({ id: 'right-day', area: 'Mitte', startTime: '2026-05-13T18:00:00Z' })
+		]);
+		const wednesdayOnly = (slot: TimeSlot) => slot.start_time.startsWith('2026-05-13');
+		const pins = buildPins([prompt], wednesdayOnly);
+		expect(pins).toHaveLength(1);
+		expect(pins[0].slot.id).toBe('right-day');
+	});
+
+	it('predicate sees only coordinate-bearing slots (post-coord-guard)', () => {
+		// Slots with null coords are skipped before the predicate runs, so a
+		// filter that returns true for everything still respects the coord guard.
+		const prompt = makePrompt('p1', [
+			makeSlot({ area: 'Mitte', lat: null }),
+			makeSlot({ area: 'Kreuzberg' })
+		]);
+		const allTrue = () => true;
+		const pins = buildPins([prompt], allTrue);
+		expect(pins).toHaveLength(1);
+		expect(pins[0].area).toBe('Kreuzberg');
+	});
+});
+
 describe('fuzzCentroid', () => {
 	it('produces a stable offset for the same slot ID', () => {
 		const a = fuzzCentroid('slot-1', 52.52, 13.405);
