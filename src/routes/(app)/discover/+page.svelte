@@ -52,9 +52,9 @@
 		restore: (value) => { mapCenter = value.center; mapZoom = value.zoom; }
 	};
 	let searchOpen = $state(false);
-	let selectedPinItems = $state<Array<{ prompt: PromptSummary; slot: TimeSlot }>>([]);
+	let selectedPinItems = $state<Array<{ prompt: PromptSummary; slots: TimeSlot[] }>>([]);
 
-	function handlePinSelect(items: Array<{ prompt: PromptSummary; slot: TimeSlot }>, _area: string) {
+	function handlePinSelect(items: Array<{ prompt: PromptSummary; slots: TimeSlot[] }>, _area: string) {
 		selectedPinItems = items;
 	}
 
