@@ -118,6 +118,18 @@
 		selectedAreas = new Set();
 	}
 
+	// Reset the BottomSheet selection whenever the filter state changes — otherwise
+	// the sheet keeps displaying conversations that are no longer on the filtered
+	// map. Per-slot pins make this gap more visible because clicks pull more items
+	// into the sheet. Reads `.size` to avoid taking a Set-instance dependency that
+	// would re-fire only on identity changes (we re-create the Set on each toggle).
+	$effect(() => {
+		selectedDates.size;
+		selectedAreas.size;
+		selectedPinItems = [];
+		selectedPinArea = '';
+	});
+
 	/** Format slot dates for display, e.g. "Fri 28 · Sat 29" */
 	/** Format a single slot's time, e.g. "7:30 PM" */
 	function formatSlotTime(slot: TimeSlot): string {
