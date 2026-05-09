@@ -33,7 +33,7 @@
 
 	let mapCenter = $state<[number, number] | null>(null);
 	let mapZoom = $state<number | null>(null);
-	type SelectedPinItem = { prompt: PromptSummary; slot: TimeSlot };
+	type SelectedPinItem = { prompt: PromptSummary; slots: TimeSlot[] };
 	let selectedPinItems = $state<SelectedPinItem[]>([]);
 	let fullscreenPinItems = $state<SelectedPinItem[]>([]);
 	let scrolledPastHero = $state(false);

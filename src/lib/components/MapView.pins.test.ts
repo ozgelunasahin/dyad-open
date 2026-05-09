@@ -51,15 +51,16 @@ describe('buildPins — per-slot, per-area', () => {
 		expect(pins.every((p) => p.prompt.id === 'p1')).toBe(true);
 	});
 
-	it('emits one pin when all slots are in the same area', () => {
+	it('emits one pin when all slots are in the same area, accumulating all slots into the pin', () => {
 		const prompt = makePrompt('p1', [
-			makeSlot({ area: 'Mitte' }),
-			makeSlot({ area: 'Mitte' }),
-			makeSlot({ area: 'Mitte' })
+			makeSlot({ id: 's1', area: 'Mitte', startTime: '2026-05-10T09:00:00Z' }),
+			makeSlot({ id: 's2', area: 'Mitte', startTime: '2026-05-11T15:00:00Z' }),
+			makeSlot({ id: 's3', area: 'Mitte', startTime: '2026-05-12T20:00:00Z' })
 		]);
 		const pins = buildPins([prompt]);
 		expect(pins).toHaveLength(1);
 		expect(pins[0].area).toBe('Mitte');
+		expect(pins[0].slots.map((s) => s.id)).toEqual(['s1', 's2', 's3']);
 	});
 
 	it('skips slots without coordinates and uses the next valid slot', () => {
@@ -69,7 +70,7 @@ describe('buildPins — per-slot, per-area', () => {
 		]);
 		const pins = buildPins([prompt]);
 		expect(pins).toHaveLength(1);
-		expect(pins[0].slot.id).toBe('s2');
+		expect(pins[0].slots[0].id).toBe('s2');
 	});
 
 	it('emits zero pins when a prompt has no slots', () => {
@@ -95,13 +96,14 @@ describe('buildPins — per-slot, per-area', () => {
 		expect(pins.map((p) => p.prompt.id).sort()).toEqual(['p1', 'p2']);
 	});
 
-	it('text-key wins: same area name with different lat/lng collapses to one pin', () => {
+	it('text-key wins: same area name with different lat/lng collapses to one pin (with both slots)', () => {
 		const prompt = makePrompt('p1', [
-			makeSlot({ area: 'Mitte', lat: 52.520, lng: 13.405 }),
-			makeSlot({ area: 'Mitte', lat: 52.521, lng: 13.408 })
+			makeSlot({ id: 'a', area: 'Mitte', lat: 52.520, lng: 13.405 }),
+			makeSlot({ id: 'b', area: 'Mitte', lat: 52.521, lng: 13.408 })
 		]);
 		const pins = buildPins([prompt]);
 		expect(pins).toHaveLength(1);
+		expect(pins[0].slots).toHaveLength(2);
 	});
 
 	it('skips slots whose general_area is empty or whitespace-only', () => {
@@ -115,9 +117,9 @@ describe('buildPins — per-slot, per-area', () => {
 		expect(pins[0].area).toBe('Mitte');
 	});
 
-	it('locks the ordering invariant: with three same-area slots, the earliest by available_slots position wins', () => {
+	it('locks the ordering invariant: with three same-area slots, slots[0] is the earliest by available_slots position', () => {
 		// available_slots is ordered start_time ASC by prompt-query.ts. The first
-		// slot in the array is the one whose fuzzed position represents the area.
+		// slot in the array seeds the fuzzed position; the rest are appended in order.
 		const earliest = makeSlot({ id: 'earliest', area: 'Mitte', startTime: '2026-05-10T09:00:00Z' });
 		const middle = makeSlot({ id: 'middle', area: 'Mitte', startTime: '2026-05-10T15:00:00Z' });
 		const latest = makeSlot({ id: 'latest', area: 'Mitte', startTime: '2026-05-10T20:00:00Z' });
@@ -126,7 +128,7 @@ describe('buildPins — per-slot, per-area', () => {
 		const pins = buildPins([prompt]);
 
 		expect(pins).toHaveLength(1);
-		expect(pins[0].slot.id).toBe('earliest');
+		expect(pins[0].slots.map((s) => s.id)).toEqual(['earliest', 'middle', 'latest']);
 	});
 
 	it('integration: mixed prompts produce the expected total pin count and area labels', () => {
@@ -168,7 +170,7 @@ describe('buildPins — slotFilter', () => {
 		const pins = buildPins([prompt], wednesdayOnly);
 		expect(pins).toHaveLength(1);
 		expect(pins[0].area).toBe('Kreuzberg');
-		expect(pins[0].slot.id).toBe('wed-kreuzberg');
+		expect(pins[0].slots[0].id).toBe('wed-kreuzberg');
 	});
 
 	it('returns zero pins when the filter excludes every slot', () => {
@@ -190,7 +192,22 @@ describe('buildPins — slotFilter', () => {
 		const wednesdayOnly = (slot: TimeSlot) => slot.start_time.startsWith('2026-05-13');
 		const pins = buildPins([prompt], wednesdayOnly);
 		expect(pins).toHaveLength(1);
-		expect(pins[0].slot.id).toBe('right-day');
+		expect(pins[0].slots).toHaveLength(1);
+		expect(pins[0].slots[0].id).toBe('right-day');
+	});
+
+	it('filter narrows the pin\'s slots[] without losing the pin entirely', () => {
+		// Three Mitte slots; filter keeps two. The pin remains, but its slots[]
+		// contains only the surviving two — the rejected one is silently dropped.
+		const prompt = makePrompt('p1', [
+			makeSlot({ id: 'pass-a', area: 'Mitte', startTime: '2026-05-13T09:00:00Z' }),
+			makeSlot({ id: 'reject', area: 'Mitte', startTime: '2026-05-12T15:00:00Z' }),
+			makeSlot({ id: 'pass-b', area: 'Mitte', startTime: '2026-05-13T20:00:00Z' })
+		]);
+		const wednesdayOnly = (slot: TimeSlot) => slot.start_time.startsWith('2026-05-13');
+		const pins = buildPins([prompt], wednesdayOnly);
+		expect(pins).toHaveLength(1);
+		expect(pins[0].slots.map((s) => s.id)).toEqual(['pass-a', 'pass-b']);
 	});
 
 	it('predicate sees only coordinate-bearing slots (post-coord-guard)', () => {

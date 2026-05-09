@@ -5,9 +5,12 @@
 
 	export interface BottomSheetItem {
 		prompt: PromptSummary;
-		/** When set (typically from a clicked map pin), the card shows this slot's
-		 *  date and area instead of falling back to `prompt.soonest_slot`. */
-		slot?: TimeSlot;
+		/** When set (typically from a clicked map pin), the card shows the dates
+		 *  and area for these specific slots instead of falling back to
+		 *  `prompt.soonest_slot`. Multiple slots in the same area are joined
+		 *  with a `·` separator; same-day slots dedupe at day granularity so
+		 *  "Tue 6pm + Tue 8pm in Mitte" reads as "Tue 12 May", not duplicated. */
+		slots?: TimeSlot[];
 	}
 
 	interface Props {
@@ -26,6 +29,23 @@
 			month: 'short',
 			day: 'numeric'
 		});
+	}
+
+	/**
+	 * Format multiple slots as a single line of distinct day labels, e.g.
+	 * "Tue 12 May · Wed 13 May". Same-day slots collapse to one label so two
+	 * times on Tuesday don't render as "Tue 12 May · Tue 12 May".
+	 */
+	function formatSlotDates(slots: TimeSlot[]): string {
+		const seen = new Set<string>();
+		const labels: string[] = [];
+		for (const s of slots) {
+			const label = formatDate(s.start_time);
+			if (seen.has(label)) continue;
+			seen.add(label);
+			labels.push(label);
+		}
+		return labels.join(' · ');
 	}
 </script>
 
@@ -48,14 +68,15 @@
 	{/if}
 	<div class="sheet-body">
 		{#each items as item}
-			{@const dateIso = item.slot?.start_time ?? item.prompt.soonest_slot}
-			{@const areaLabel = item.slot?.general_area ?? null}
+			{@const slotsLabel = item.slots && item.slots.length > 0 ? formatSlotDates(item.slots) : null}
+			{@const fallbackLabel = item.prompt.soonest_slot ? formatDate(item.prompt.soonest_slot) : null}
+			{@const areaLabel = item.slots?.[0]?.general_area ?? null}
 			<ConversationCard
 				variant="compact"
 				title={item.prompt.title ?? 'Untitled'}
 				coverUrl={item.prompt.cover_image_url}
 				snippet={item.prompt.body_snippet}
-				metaLeft={dateIso ? formatDate(dateIso) : null}
+				metaLeft={slotsLabel ?? fallbackLabel}
 				metaRight={areaLabel}
 				authorUsername={item.prompt.author_username}
 				anonymiseAuthor={hideAuthor}

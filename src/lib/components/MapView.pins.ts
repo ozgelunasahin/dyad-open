@@ -8,15 +8,17 @@ const DEG_TO_METERS = 111_320;
 const LON_SCALE = Math.cos((52.52 * Math.PI) / 180);
 
 /**
- * Pin payload: one per (prompt, distinct general_area). The `slot` field is
- * the slot whose location seeded this pin — used by the click handler so the
- * BottomSheet can show the slot-specific date and area instead of falling
- * back to `prompt.soonest_slot`.
+ * Pin payload: one per (prompt, distinct general_area). The `slots` array
+ * holds every slot of this prompt that lives in this area, ordered by
+ * `start_time ASC` (the order `prompt-query.ts` returns). `slots[0]` seeds
+ * the fuzz position. The BottomSheet card uses the full array to render
+ * every date this conversation is offered in this area, instead of silently
+ * dropping all but the first.
  */
 export interface MapPin {
 	position: [number, number];
 	prompt: PromptSummary;
-	slot: TimeSlot;
+	slots: TimeSlot[];
 	area: string;
 }
 
@@ -63,9 +65,10 @@ export type SlotFilter = (slot: TimeSlot) => boolean;
 
 /**
  * Build map pins from a list of prompts, one pin per (prompt, distinct
- * `general_area`). Same area + multiple slots in the same prompt → still one
- * pin (uses the earliest-starting slot's location, since `available_slots` is
- * ordered by `start_time ASC` from `prompt-query.ts`).
+ * `general_area`). Multiple slots of the same prompt in the same area are
+ * accumulated into the pin's `slots` array so the BottomSheet card can
+ * render every date offered in this area, not just the first. The pin's
+ * fuzzed position seeds on the earliest slot (slots[0]).
  *
  * Slots without coordinates are skipped. Slots with empty/whitespace-only
  * `general_area` are skipped to avoid empty-string dedup collisions. When a
@@ -76,7 +79,7 @@ export function buildPins(items: PromptSummary[], slotFilter?: SlotFilter): MapP
 	const pins: MapPin[] = [];
 
 	for (const prompt of items) {
-		const seenAreas = new Set<string>();
+		const pinByArea = new Map<string, MapPin>();
 		for (const slot of prompt.available_slots) {
 			if (!slot || slot.general_area_lat == null || slot.general_area_lng == null) continue;
 
@@ -85,11 +88,16 @@ export function buildPins(items: PromptSummary[], slotFilter?: SlotFilter): MapP
 
 			if (slotFilter && !slotFilter(slot)) continue;
 
-			if (seenAreas.has(area)) continue;
-			seenAreas.add(area);
+			const existing = pinByArea.get(area);
+			if (existing) {
+				existing.slots.push(slot);
+				continue;
+			}
 
 			const position = fuzzCentroid(slot.id, slot.general_area_lat, slot.general_area_lng);
-			pins.push({ position, prompt, slot, area });
+			const pin: MapPin = { position, prompt, slots: [slot], area };
+			pinByArea.set(area, pin);
+			pins.push(pin);
 		}
 	}
 
