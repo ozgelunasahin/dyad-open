@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import DOMPurify from 'isomorphic-dompurify';
 import type { JSONContent } from '@tiptap/core';
-import { renderTiptapToHtml } from './tiptap-html.js';
+import { renderTiptapToHtml, PURIFY_CONFIG } from './tiptap-html.js';
 
 function doc(...content: JSONContent[]): JSONContent {
 	return { type: 'doc', content };
@@ -124,22 +125,42 @@ describe('renderTiptapToHtml extension matrix', () => {
 		expect(html).toContain('<code>');
 	});
 
-	it('renders strike marks', () => {
+	it('renders strike marks with <s> tag', () => {
 		const html = renderTiptapToHtml(
 			doc(paragraph(text('struck out', [{ type: 'strike' }])))
 		);
 		expect(html).toContain('struck out');
+		expect(html).toContain('<s>');
 	});
 
-	it('preserves surrounding text when a horizontal rule is sanitised away', () => {
-		// `hr` is in ALLOWED_NODE_TYPES (validator) but not in DOMPurify's ALLOWED_TAGS,
-		// so the rule itself is stripped while the surrounding text is preserved. This test
-		// asserts that no content is lost across a sanitised node boundary.
+	it('renders horizontal rules and preserves surrounding text', () => {
 		const html = renderTiptapToHtml(
 			doc(paragraph(text('above')), { type: 'horizontalRule' }, paragraph(text('below')))
 		);
 		expect(html).toContain('above');
 		expect(html).toContain('below');
+		expect(html).toContain('<hr>');
+	});
+
+	it('renders a horizontal rule on its own', () => {
+		const html = renderTiptapToHtml(doc({ type: 'horizontalRule' }));
+		expect(html).toContain('<hr>');
+	});
+
+	it('strips event-handler attributes from <s> via DOMPurify', () => {
+		// Forged HTML cannot reach `generateHTML` directly, but a TipTap mark with
+		// crafted attrs could in principle propagate something dangerous. DOMPurify
+		// is the backstop. Assert that handler-style attributes never survive sanitization.
+		const dirty = '<s onclick="alert(1)">struck</s>';
+		const cleaned = DOMPurify.sanitize(dirty, PURIFY_CONFIG);
+		expect(cleaned).toContain('struck');
+		expect(cleaned).not.toContain('onclick');
+	});
+
+	it('strips event-handler attributes from <hr> via DOMPurify', () => {
+		const dirty = '<hr onload="alert(1)">';
+		const cleaned = DOMPurify.sanitize(dirty, PURIFY_CONFIG);
+		expect(cleaned).not.toContain('onload');
 	});
 
 	it('renders images with safe attrs', () => {

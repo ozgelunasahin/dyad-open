@@ -69,6 +69,9 @@ const extensions = [
 		// Including both StarterKit's Link and a separate Link triggers a tiptap duplicate-extension
 		// warning that has caused empty render output in some environments.
 		link: false,
+		// Underline is bundled by StarterKit v3 but not exposed in the editor toolbar.
+		// Disable to keep the canonical formatting set aligned with what users can produce.
+		underline: false,
 		heading: { levels: [1, 2, 3] },
 		bulletList: {},
 		orderedList: {},
@@ -93,7 +96,7 @@ const extensions = [
  * DOMPurify configuration.
  * Allow standard HTML elements plus data attributes for wikilinks.
  */
-const PURIFY_CONFIG = {
+export const PURIFY_CONFIG = {
 	ALLOWED_TAGS: [
 		'p',
 		'br',
@@ -102,6 +105,8 @@ const PURIFY_CONFIG = {
 		'h3',
 		'strong',
 		'em',
+		's',
+		'hr',
 		'code',
 		'pre',
 		'blockquote',
