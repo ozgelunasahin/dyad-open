@@ -5,7 +5,7 @@
 
 const MAX_CONTENT_SIZE = 1024 * 100; // 100KB limit
 
-const ALLOWED_NODE_TYPES = new Set([
+export const ALLOWED_NODE_TYPES = new Set([
 	'doc',
 	'paragraph',
 	'heading',
@@ -21,7 +21,7 @@ const ALLOWED_NODE_TYPES = new Set([
 	'image'
 ]);
 
-const ALLOWED_MARK_TYPES = new Set(['bold', 'italic', 'code', 'link', 'strike']);
+export const ALLOWED_MARK_TYPES = new Set(['bold', 'italic', 'code', 'link', 'strike']);
 
 const SAFE_URL_PROTOCOL = /^(https?:\/\/|mailto:|\/)/i;
 
@@ -94,6 +94,16 @@ function validateNode(node: unknown, depth = 0): string | null {
 			const src = attrs.src;
 			if (typeof src === 'string' && !SAFE_URL_PROTOCOL.test(src)) {
 				return `Unsafe image src protocol`;
+			}
+		} else if (n.type === 'heading') {
+			for (const key of Object.keys(attrs)) {
+				if (key !== 'level') {
+					return `Invalid heading attribute: "${key}"`;
+				}
+			}
+			const level = attrs.level;
+			if (typeof level !== 'number' || ![1, 2, 3].includes(level)) {
+				return `Invalid heading level: ${JSON.stringify(level)}`;
 			}
 		} else {
 			const dangerousAttrs = ['onclick', 'onerror', 'onload', 'onmouseover', 'href', 'src'];

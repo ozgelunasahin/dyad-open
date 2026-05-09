@@ -2,11 +2,9 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { createSubscriber } from 'svelte/reactivity';
 	import { Editor } from '@tiptap/core';
-	import StarterKit from '@tiptap/starter-kit';
-	import Link from '@tiptap/extension-link';
-	import Image from '@tiptap/extension-image';
 	import Placeholder from '@tiptap/extension-placeholder';
 	import type { JSONContent } from '@tiptap/core';
+	import { EDITOR_EXTENSIONS } from './PromptEditor.extensions';
 
 	interface Props {
 		content?: JSONContent;
@@ -49,12 +47,7 @@
 		editor = new Editor({
 			element,
 			extensions: [
-				StarterKit.configure({ link: false }),
-				Link.configure({
-					openOnClick: false,
-					HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' }
-				}),
-				Image.configure({ inline: false }),
+				...EDITOR_EXTENSIONS,
 				...(placeholder ? [Placeholder.configure({ placeholder })] : [])
 			],
 			content: content ?? { type: 'doc', content: [{ type: 'paragraph' }] },
