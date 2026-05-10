@@ -2,14 +2,12 @@ import type { PromptSummary, TimeSlot } from '$lib/domain/types';
 
 // ── Configuration ────────────────────────────────────────────────────────
 //
-// FUZZ_MAX_METERS is load-bearing in three places. Changing it has UX
-// consequences in all three — review all dependents before adjusting:
+// FUZZ_MAX_METERS is load-bearing in two places — review both before
+// adjusting:
 //   1. fuzzCentroid (this file): the radius of the random offset applied
 //      to every public-side coordinate. The privacy primitive.
 //   2. MapView.svelte click handler: the radius for the "nearby" filter
 //      that decides which pins join the BottomSheet on click.
-//   3. PIN_DEDUP_PROXIMITY_METERS (this file): 2 × FUZZ_MAX_METERS, the
-//      threshold for collapsing distinct slots into one pin.
 export const FUZZ_MIN_METERS = 150;
 export const FUZZ_MAX_METERS = 400;
 const DEG_TO_METERS = 111_320;
@@ -17,24 +15,26 @@ const DEG_TO_METERS = 111_320;
 const LON_SCALE = Math.cos((52.52 * Math.PI) / 180);
 
 /**
- * Threshold below which two slot centroids are treated as the same place
- * for pin emission. Derived from fuzz: under random offsets in
- * `[FUZZ_MIN_METERS, FUZZ_MAX_METERS]`, two fuzzed positions can coincide
- * iff their source centroids are within `2 * FUZZ_MAX_METERS` of each other.
- * Beyond that, the fuzz cannot make them indistinguishable, so they
- * deserve separate pins.
+ * Threshold below which two slot centroids cluster into one pin. Tuned
+ * for Berlin neighborhood scale: roughly a 5-7 minute walking distance.
+ * Below this, two locations read as the same place under typical zoom;
+ * above, they read as distinct trips a user would consider separately.
+ *
+ * Independent of fuzz radius. Privacy (how much the public-side
+ * coordinate is obscured) and clustering (how far apart two places need
+ * to be before a viewer treats them as different) answer different
+ * product questions.
  */
-export const PIN_DEDUP_PROXIMITY_METERS = 2 * FUZZ_MAX_METERS;
+export const PIN_DEDUP_PROXIMITY_METERS = 800;
 
 /**
  * Pin payload: one per (prompt, cluster of nearby slot centroids). The
  * `slots` array holds every slot of this prompt whose centroid sits within
  * `PIN_DEDUP_PROXIMITY_METERS` of `slots[0]`'s centroid, ordered by
  * `start_time ASC` (the order `prompt-query.ts` returns). `slots[0]` seeds
- * the fuzz position and provides the area label (consumers should read
- * `slots[0].general_area` rather than caching a `MapPin.area` field, since
- * different slots in the same cluster can carry slightly different area
- * strings under text drift like "Mitte" vs "Berlin Mitte").
+ * the fuzz position. Read the area label from `slots[0].general_area`
+ * directly: clustered slots can carry slightly different area strings
+ * under text drift like "Mitte" vs "Berlin Mitte".
  */
 export interface MapPin {
 	position: [number, number];
@@ -117,8 +117,7 @@ export function buildPins(items: PromptSummary[], slotFilter?: SlotFilter): MapP
 			const lng = slot.general_area_lng;
 
 			// Skip slots with a blank area label so the BottomSheet card always
-			// has something to display. No longer load-bearing for dedup safety
-			// (which is now spatial), but still load-bearing for UI clarity.
+			// has something to display.
 			if (!slot.general_area.trim()) continue;
 
 			if (slotFilter && !slotFilter(slot)) continue;

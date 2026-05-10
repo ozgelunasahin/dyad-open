@@ -45,14 +45,6 @@ function makePrompt(id: string, slots: TimeSlot[]): PromptSummary {
 	};
 }
 
-describe('PIN_DEDUP_PROXIMITY_METERS', () => {
-	it('is exactly 2 × FUZZ_MAX_METERS (load-bearing invariant — fuzz + dedup share the privacy primitive)', () => {
-		// If FUZZ_MAX_METERS changes, this assertion fails loudly so the dedup
-		// derivation is revisited deliberately rather than drifting silently.
-		expect(PIN_DEDUP_PROXIMITY_METERS).toBe(2 * FUZZ_MAX_METERS);
-	});
-});
-
 describe('buildPins — per-slot, per-area', () => {
 	it('emits one pin per distinct general_area when a prompt has slots in multiple areas', () => {
 		const prompt = makePrompt('p1', [
@@ -110,9 +102,9 @@ describe('buildPins — per-slot, per-area', () => {
 		expect(pins.map((p) => p.prompt.id).sort()).toEqual(['p1', 'p2']);
 	});
 
-	it('same area, nearby centroids (within 2 × FUZZ_MAX_METERS): one pin holding both slots', () => {
+	it('same area, nearby centroids (within PIN_DEDUP_PROXIMITY_METERS): one pin holding both slots', () => {
 		// (52.520, 13.405) → (52.521, 13.408) is roughly 230m apart in Berlin —
-		// well within the 800m dedup-proximity threshold (= 2 × FUZZ_MAX_METERS).
+		// well within the 800m dedup-proximity threshold.
 		const prompt = makePrompt('p1', [
 			makeSlot({ id: 'a', area: 'Mitte', lat: 52.520, lng: 13.405 }),
 			makeSlot({ id: 'b', area: 'Mitte', lat: 52.521, lng: 13.408 })
@@ -122,7 +114,7 @@ describe('buildPins — per-slot, per-area', () => {
 		expect(pins[0].slots).toHaveLength(2);
 	});
 
-	it('same area text, distant centroids (> 2 × FUZZ_MAX_METERS): two pins', () => {
+	it('same area text, distant centroids (> PIN_DEDUP_PROXIMITY_METERS): two pins', () => {
 		// Two slots both labeled "Kreuzberg" but at very different addresses:
 		// Kottbusser Tor area (52.499, 13.418) and Görlitzer Park area (52.494, 13.443).
 		// ~1.7km apart, far beyond the 800m proximity threshold. Each should get
@@ -153,10 +145,7 @@ describe('buildPins — per-slot, per-area', () => {
 	});
 
 	it('skips slots whose general_area is empty or whitespace-only', () => {
-		// Skipped to avoid a blank area label in the BottomSheet card. The original
-		// rationale (avoid empty-string dedup-key collisions under text-key dedup)
-		// no longer applies post-spatial-dedup, but the cosmetic skip is still
-		// load-bearing for UI correctness — keep it.
+		// Empty labels would render as blank in the BottomSheet card.
 		const prompt = makePrompt('p1', [
 			makeSlot({ area: '', lat: 52.52, lng: 13.405 }),
 			makeSlot({ area: '   ', lat: 52.50, lng: 13.40 }),
@@ -204,7 +193,7 @@ describe('buildPins — spatial-dedup edge cases', () => {
 	// enough that pure-latitude offsets are exact under berlinDistance).
 	const DEG_PER_METER_LAT = 1 / 111_320;
 
-	it('boundary: exactly 2 × FUZZ_MAX_METERS apart still collapses (predicate uses <=)', () => {
+	it('boundary: exactly PIN_DEDUP_PROXIMITY_METERS apart still collapses (predicate uses <=)', () => {
 		const lat0 = 52.520;
 		const lat1 = lat0 + PIN_DEDUP_PROXIMITY_METERS * DEG_PER_METER_LAT; // exactly at threshold
 		const prompt = makePrompt('p1', [
@@ -216,7 +205,7 @@ describe('buildPins — spatial-dedup edge cases', () => {
 		expect(pins[0].slots).toHaveLength(2);
 	});
 
-	it('boundary: just past 2 × FUZZ_MAX_METERS splits into two pins', () => {
+	it('boundary: just past PIN_DEDUP_PROXIMITY_METERS splits into two pins', () => {
 		const lat0 = 52.520;
 		const lat1 = lat0 + (PIN_DEDUP_PROXIMITY_METERS + 1) * DEG_PER_METER_LAT; // 1m beyond
 		const prompt = makePrompt('p1', [
@@ -262,9 +251,9 @@ describe('buildPins — slotFilter', () => {
 
 	it('skips slots that fail the predicate before spatial dedup', () => {
 		// A "Wednesday only" filter on a conversation with Tuesday-Mitte +
-		// Wednesday-Kreuzberg should yield only the Kreuzberg pin. Coordinates
-		// are realistic and distinct so the test is honest about the
-		// filter-then-dedup ordering instead of relying on default-coord collisions.
+		// Wednesday-Kreuzberg yields only the Kreuzberg pin. Coordinates are
+		// realistic and distinct so the assertion observes the filter-then-dedup
+		// order rather than collapsing on coincident default coordinates.
 		const prompt = makePrompt('p1', [
 			makeSlot({
 				id: 'tue-mitte',
