@@ -96,10 +96,42 @@ describe('buildPins — per-slot, per-area', () => {
 		expect(pins.map((p) => p.prompt.id).sort()).toEqual(['p1', 'p2']);
 	});
 
-	it('text-key wins: same area name with different lat/lng collapses to one pin (with both slots)', () => {
+	it('same area, nearby centroids (within 2 × FUZZ_MAX_METERS): one pin holding both slots', () => {
+		// (52.520, 13.405) → (52.521, 13.408) is roughly 230m apart in Berlin —
+		// well within the 800m dedup-proximity threshold (= 2 × FUZZ_MAX_METERS).
 		const prompt = makePrompt('p1', [
 			makeSlot({ id: 'a', area: 'Mitte', lat: 52.520, lng: 13.405 }),
 			makeSlot({ id: 'b', area: 'Mitte', lat: 52.521, lng: 13.408 })
+		]);
+		const pins = buildPins([prompt]);
+		expect(pins).toHaveLength(1);
+		expect(pins[0].slots).toHaveLength(2);
+	});
+
+	it('same area text, distant centroids (> 2 × FUZZ_MAX_METERS): two pins', () => {
+		// Two slots both labeled "Kreuzberg" but at very different addresses:
+		// Kottbusser Tor area (52.499, 13.418) and Görlitzer Park area (52.494, 13.443).
+		// ~1.7km apart, far beyond the 800m proximity threshold. Each should get
+		// its own pin so the user can see the conversation is genuinely in two
+		// different parts of Kreuzberg, not just one.
+		const prompt = makePrompt('p1', [
+			makeSlot({ id: 'kotti', area: 'Kreuzberg', lat: 52.499, lng: 13.418 }),
+			makeSlot({ id: 'goerli', area: 'Kreuzberg', lat: 52.494, lng: 13.443 })
+		]);
+		const pins = buildPins([prompt]);
+		expect(pins).toHaveLength(2);
+		expect(pins[0].slots).toHaveLength(1);
+		expect(pins[1].slots).toHaveLength(1);
+		expect(pins.map((p) => p.slots[0].id).sort()).toEqual(['goerli', 'kotti']);
+	});
+
+	it('different area text, near-identical centroids: one pin (text drift across the same place)', () => {
+		// A slot tagged "Mitte" and one tagged "Berlin Mitte" by Nominatim with
+		// near-identical centroids should not produce two pins just because the
+		// label string differs — spatial proximity wins under the new dedup.
+		const prompt = makePrompt('p1', [
+			makeSlot({ id: 'a', area: 'Mitte', lat: 52.520, lng: 13.405 }),
+			makeSlot({ id: 'b', area: 'Berlin Mitte', lat: 52.520, lng: 13.405 })
 		]);
 		const pins = buildPins([prompt]);
 		expect(pins).toHaveLength(1);
@@ -133,13 +165,13 @@ describe('buildPins — per-slot, per-area', () => {
 
 	it('integration: mixed prompts produce the expected total pin count and area labels', () => {
 		const prompts = [
-			// Multi-area: two pins
+			// Multi-area: two pins (using realistic Berlin coords so spatial dedup keeps them apart)
 			makePrompt('multi', [
-				makeSlot({ area: 'Mitte' }),
-				makeSlot({ area: 'Kreuzberg' })
+				makeSlot({ area: 'Mitte', lat: 52.520, lng: 13.405 }),
+				makeSlot({ area: 'Kreuzberg', lat: 52.499, lng: 13.418 })
 			]),
 			// Single-area: one pin
-			makePrompt('single', [makeSlot({ area: 'Neukölln' })]),
+			makePrompt('single', [makeSlot({ area: 'Neukölln', lat: 52.481, lng: 13.435 })]),
 			// No coords: zero pins
 			makePrompt('nocoord', [makeSlot({ area: 'Wedding', lat: null })])
 		];
@@ -152,8 +184,8 @@ describe('buildPins — per-slot, per-area', () => {
 describe('buildPins — slotFilter', () => {
 	it('with no slotFilter, every coordinate-bearing slot is eligible (regression)', () => {
 		const prompt = makePrompt('p1', [
-			makeSlot({ area: 'Mitte' }),
-			makeSlot({ area: 'Kreuzberg' })
+			makeSlot({ area: 'Mitte', lat: 52.520, lng: 13.405 }),
+			makeSlot({ area: 'Kreuzberg', lat: 52.499, lng: 13.418 })
 		]);
 		expect(buildPins([prompt])).toHaveLength(2);
 		expect(buildPins([prompt], undefined)).toHaveLength(2);
