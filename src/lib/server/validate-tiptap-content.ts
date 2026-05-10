@@ -2,6 +2,7 @@
  * Validate TipTap JSONContent structure to prevent XSS via malicious node injection.
  * Extracted from the legacy notes API for reuse across the prompt domain.
  */
+import { SAFE_URL_PROTOCOL } from '$lib/utils/safe-url.js';
 
 const MAX_CONTENT_SIZE = 1024 * 100; // 100KB limit
 
@@ -22,8 +23,6 @@ export const ALLOWED_NODE_TYPES = new Set([
 ]);
 
 export const ALLOWED_MARK_TYPES = new Set(['bold', 'italic', 'code', 'link', 'strike']);
-
-const SAFE_URL_PROTOCOL = /^(https?:\/\/|mailto:|\/)/i;
 
 /**
  * Validate JSONContent structure recursively.
