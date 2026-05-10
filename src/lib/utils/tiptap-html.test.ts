@@ -1,7 +1,6 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import DOMPurify from 'isomorphic-dompurify';
+import { describe, it, expect } from 'vitest';
 import type { JSONContent } from '@tiptap/core';
-import { renderTiptapToHtml, PURIFY_CONFIG } from './tiptap-html.js';
+import { renderTiptapToHtml } from './tiptap-html.js';
 
 function doc(...content: JSONContent[]): JSONContent {
 	return { type: 'doc', content };
@@ -17,11 +16,10 @@ function text(value: string, marks?: Array<{ type: string; attrs?: Record<string
 	return node;
 }
 
-describe('renderTiptapToHtml extension matrix', () => {
+describe('renderTiptapToHtml — node and mark rendering', () => {
 	it('renders paragraphs', () => {
-		const html = renderTiptapToHtml(doc(paragraph(text('hello world'))));
-		expect(html).toContain('hello world');
-		expect(html).toContain('<p>');
+		expect(renderTiptapToHtml(doc(paragraph(text('hello world')))))
+			.toBe('<p>hello world</p>');
 	});
 
 	it('renders all heading levels with their tags', () => {
@@ -37,17 +35,44 @@ describe('renderTiptapToHtml extension matrix', () => {
 		expect(html).toContain('<h3>h3 text</h3>');
 	});
 
-	it('renders bold marks with the <strong> tag', () => {
-		const html = renderTiptapToHtml(doc(paragraph(text('bold one', [{ type: 'bold' }]))));
-		expect(html).toContain('<strong>bold one</strong>');
+	it('downgrades h4-h6 to a paragraph (renderer only emits h1-h3)', () => {
+		const html = renderTiptapToHtml(
+			doc({ type: 'heading', attrs: { level: 4 }, content: [text('deep')] })
+		);
+		expect(html).toContain('<p>deep</p>');
+		expect(html).not.toContain('<h4>');
 	});
 
-	it('renders italic marks with the <em> tag', () => {
-		const html = renderTiptapToHtml(doc(paragraph(text('italic one', [{ type: 'italic' }]))));
-		expect(html).toContain('<em>italic one</em>');
+	it('renders bold marks with <strong>', () => {
+		expect(renderTiptapToHtml(doc(paragraph(text('bold one', [{ type: 'bold' }])))))
+			.toBe('<p><strong>bold one</strong></p>');
 	});
 
-	it('renders bullet lists', () => {
+	it('renders italic marks with <em>', () => {
+		expect(renderTiptapToHtml(doc(paragraph(text('italic one', [{ type: 'italic' }])))))
+			.toBe('<p><em>italic one</em></p>');
+	});
+
+	it('renders strike marks with <s>', () => {
+		expect(renderTiptapToHtml(doc(paragraph(text('struck out', [{ type: 'strike' }])))))
+			.toBe('<p><s>struck out</s></p>');
+	});
+
+	it('renders inline code marks with <code>', () => {
+		expect(renderTiptapToHtml(doc(paragraph(text('inline snippet', [{ type: 'code' }])))))
+			.toBe('<p><code>inline snippet</code></p>');
+	});
+
+	it('renders nested marks (bold + italic on the same text)', () => {
+		const html = renderTiptapToHtml(
+			doc(paragraph(text('emphatic', [{ type: 'italic' }, { type: 'bold' }])))
+		);
+		expect(html).toContain('<strong>');
+		expect(html).toContain('<em>');
+		expect(html).toContain('emphatic');
+	});
+
+	it('renders bullet lists with <ul> and <li>', () => {
 		const html = renderTiptapToHtml(
 			doc({
 				type: 'bulletList',
@@ -57,157 +82,167 @@ describe('renderTiptapToHtml extension matrix', () => {
 				]
 			})
 		);
-		expect(html).toContain('alpha');
-		expect(html).toContain('beta');
-		expect(html).toContain('<ul>');
-		expect(html).toContain('<li>');
+		expect(html).toBe('<ul><li><p>alpha</p></li><li><p>beta</p></li></ul>');
 	});
 
-	it('renders ordered lists', () => {
+	it('renders ordered lists with <ol>', () => {
 		const html = renderTiptapToHtml(
 			doc({
 				type: 'orderedList',
 				content: [{ type: 'listItem', content: [paragraph(text('first'))] }]
 			})
 		);
-		expect(html).toContain('first');
-		expect(html).toContain('<ol>');
+		expect(html).toBe('<ol><li><p>first</p></li></ol>');
 	});
 
-	it('renders blockquotes', () => {
-		const html = renderTiptapToHtml(
-			doc({ type: 'blockquote', content: [paragraph(text('quoted text'))] })
-		);
-		expect(html).toContain('quoted text');
-		expect(html).toContain('<blockquote>');
-	});
-
-	it('renders link marks with href', () => {
-		const html = renderTiptapToHtml(
-			doc(
-				paragraph(
-					text('a link', [
-						{ type: 'link', attrs: { href: 'https://example.com' } }
-					])
-				)
+	it('renders blockquotes with <blockquote>', () => {
+		expect(
+			renderTiptapToHtml(
+				doc({ type: 'blockquote', content: [paragraph(text('quoted text'))] })
 			)
-		);
-		expect(html).toContain('a link');
-		expect(html).toContain('href="https://example.com"');
+		).toBe('<blockquote><p>quoted text</p></blockquote>');
 	});
 
-	it('renders hard breaks', () => {
+	it('renders code blocks as <pre><code>', () => {
+		expect(renderTiptapToHtml(doc({ type: 'codeBlock', content: [text('const x = 1')] })))
+			.toBe('<pre><code>const x = 1</code></pre>');
+	});
+
+	it('renders hard breaks as <br>', () => {
 		const html = renderTiptapToHtml(
 			doc(paragraph(text('line one'), { type: 'hardBreak' }, text('line two')))
 		);
-		expect(html).toContain('line one');
-		expect(html).toContain('line two');
-		expect(html).toContain('<br>');
+		expect(html).toBe('<p>line one<br>line two</p>');
 	});
 
-	it('renders code blocks', () => {
-		const html = renderTiptapToHtml(
-			doc({ type: 'codeBlock', content: [text('const x = 1')] })
-		);
-		expect(html).toContain('const x = 1');
-		expect(html).toContain('<pre>');
-	});
-
-	it('renders inline code marks', () => {
-		const html = renderTiptapToHtml(
-			doc(paragraph(text('inline snippet', [{ type: 'code' }])))
-		);
-		expect(html).toContain('inline snippet');
-		expect(html).toContain('<code>');
-	});
-
-	it('renders strike marks with <s> tag', () => {
-		const html = renderTiptapToHtml(
-			doc(paragraph(text('struck out', [{ type: 'strike' }])))
-		);
-		expect(html).toContain('struck out');
-		expect(html).toContain('<s>');
-	});
-
-	it('renders horizontal rules and preserves surrounding text', () => {
+	it('renders horizontal rules as <hr>', () => {
 		const html = renderTiptapToHtml(
 			doc(paragraph(text('above')), { type: 'horizontalRule' }, paragraph(text('below')))
 		);
-		expect(html).toContain('above');
-		expect(html).toContain('below');
-		expect(html).toContain('<hr>');
+		expect(html).toBe('<p>above</p><hr><p>below</p>');
 	});
 
-	it('renders a horizontal rule on its own', () => {
-		const html = renderTiptapToHtml(doc({ type: 'horizontalRule' }));
-		expect(html).toContain('<hr>');
-	});
-
-	it('strips event-handler attributes from <s> via DOMPurify', () => {
-		// Forged HTML cannot reach `generateHTML` directly, but a TipTap mark with
-		// crafted attrs could in principle propagate something dangerous. DOMPurify
-		// is the backstop. Assert that handler-style attributes never survive sanitization.
-		const dirty = '<s onclick="alert(1)">struck</s>';
-		const cleaned = DOMPurify.sanitize(dirty, PURIFY_CONFIG);
-		expect(cleaned).toContain('struck');
-		expect(cleaned).not.toContain('onclick');
-	});
-
-	it('strips event-handler attributes from <hr> via DOMPurify', () => {
-		const dirty = '<hr onload="alert(1)">';
-		const cleaned = DOMPurify.sanitize(dirty, PURIFY_CONFIG);
-		expect(cleaned).not.toContain('onload');
-	});
-
-	it('renders images with safe attrs', () => {
+	it('renders link marks with safe href and rel="noopener noreferrer"', () => {
 		const html = renderTiptapToHtml(
-			doc({ type: 'image', attrs: { src: 'https://example.com/img.png', alt: 'caption' } })
+			doc(paragraph(text('a link', [{ type: 'link', attrs: { href: 'https://example.com' } }])))
 		);
-		expect(html).toContain('src="https://example.com/img.png"');
-		expect(html).toContain('alt="caption"');
+		expect(html).toContain('<a href="https://example.com" rel="noopener noreferrer">a link</a>');
 	});
 
-	it('strips javascript: hrefs from link marks via DOMPurify', () => {
+	it('renders images with safe src, alt, and optional title', () => {
 		const html = renderTiptapToHtml(
-			doc(
-				paragraph(
-					text('click', [{ type: 'link', attrs: { href: 'javascript:alert(1)' } }])
-				)
-			)
+			doc({
+				type: 'image',
+				attrs: { src: 'https://example.com/img.png', alt: 'caption', title: 'hover text' }
+			})
 		);
-		expect(html).not.toContain('javascript:');
+		expect(html).toBe('<img src="https://example.com/img.png" alt="caption" title="hover text">');
+	});
+
+	it('renders wikilink as a span with data-target', () => {
+		const html = renderTiptapToHtml({
+			type: 'doc',
+			content: [
+				{
+					type: 'paragraph',
+					content: [
+						{ type: 'wikilink', attrs: { target: 'some-page', display: 'see this' } }
+					]
+				}
+			]
+		});
+		expect(html).toContain('<span class="wikilink wikilink-static" data-target="some-page">see this</span>');
+	});
+
+	it('returns empty string for null/undefined', () => {
+		expect(renderTiptapToHtml(null)).toBe('');
+		expect(renderTiptapToHtml(undefined)).toBe('');
 	});
 
 	it('renders a long body without truncation', () => {
 		const longText = 'word '.repeat(500).trim();
 		const html = renderTiptapToHtml(doc(paragraph(text(longText))));
 		expect(html).toContain(longText);
-		expect(html).not.toMatch(/…\s*$/);
-	});
-
-	it('returns empty string for null', () => {
-		expect(renderTiptapToHtml(null)).toBe('');
-	});
-
-	it('returns empty string for undefined', () => {
-		expect(renderTiptapToHtml(undefined)).toBe('');
-	});
-
-	it('does not log a duplicate-extension warning', () => {
-		// If StarterKit's bundled Link were re-enabled alongside our custom Link,
-		// tiptap warns "Duplicate extension names found: ['link']" at every render.
-		// In some environments that condition correlates with empty generateHTML output.
-		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		try {
-			renderTiptapToHtml(doc(paragraph(text('any text'))));
-			const messages = warnSpy.mock.calls.map((c) => String(c[0] ?? ''));
-			expect(messages.some((m) => /duplicate/i.test(m))).toBe(false);
-		} finally {
-			warnSpy.mockRestore();
-		}
 	});
 });
 
-afterEach(() => {
-	vi.restoreAllMocks();
+describe('renderTiptapToHtml — safety', () => {
+	it('escapes HTML special characters in text content', () => {
+		const html = renderTiptapToHtml(
+			doc(paragraph(text('<script>alert("xss")</script>')))
+		);
+		expect(html).not.toContain('<script>');
+		expect(html).toContain('&lt;script&gt;');
+	});
+
+	it('escapes & in text content', () => {
+		const html = renderTiptapToHtml(doc(paragraph(text('a & b'))));
+		expect(html).toContain('a &amp; b');
+	});
+
+	it('escapes attribute values', () => {
+		const html = renderTiptapToHtml(
+			doc({
+				type: 'image',
+				attrs: { src: 'https://example.com/img.png', alt: '"quoted" alt' }
+			})
+		);
+		expect(html).toContain('alt="&quot;quoted&quot; alt"');
+	});
+
+	it('strips link marks with javascript: href (renders inner text only)', () => {
+		const html = renderTiptapToHtml(
+			doc(paragraph(text('click', [{ type: 'link', attrs: { href: 'javascript:alert(1)' } }])))
+		);
+		expect(html).toBe('<p>click</p>');
+		expect(html).not.toContain('javascript:');
+		expect(html).not.toContain('<a');
+	});
+
+	it('strips link marks with data: href', () => {
+		const html = renderTiptapToHtml(
+			doc(paragraph(text('click', [{ type: 'link', attrs: { href: 'data:text/html,<script>' } }])))
+		);
+		expect(html).toBe('<p>click</p>');
+		expect(html).not.toContain('data:');
+	});
+
+	it('drops images with unsafe src protocol', () => {
+		const html = renderTiptapToHtml(
+			doc({ type: 'image', attrs: { src: 'javascript:alert(1)', alt: 'x' } })
+		);
+		expect(html).toBe('');
+	});
+
+	it('drops unknown node types (renders inner content only)', () => {
+		const html = renderTiptapToHtml(
+			doc({
+				type: 'unknownNode',
+				content: [paragraph(text('inner text'))]
+			} as unknown as JSONContent)
+		);
+		expect(html).toBe('<p>inner text</p>');
+	});
+
+	it('passes unknown marks through (renders inner text without the mark)', () => {
+		const html = renderTiptapToHtml(
+			doc(paragraph(text('text', [{ type: 'underline' }])))
+		);
+		expect(html).toBe('<p>text</p>');
+	});
+
+	it('escapes attribute-breaking characters so injected handlers do not become real attributes', () => {
+		const html = renderTiptapToHtml(
+			doc({
+				type: 'image',
+				attrs: { src: 'https://example.com/x.png', alt: '" onerror="alert(1)' }
+			})
+		);
+		// The `"` in the alt value would close the attribute and let `onerror=`
+		// land as a real attribute. After escaping it becomes `&quot;`, so the
+		// `onerror=` substring sits harmlessly inside the alt value.
+		expect(html).toContain('alt="&quot; onerror=&quot;alert(1)"');
+		// The closing `>` of the <img> appears only at the actual tag end.
+		expect(html.match(/>/g)).toHaveLength(1);
+	});
 });

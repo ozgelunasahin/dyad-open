@@ -1,146 +1,154 @@
 /**
- * Server-side TipTap JSON → sanitized HTML renderer.
+ * Server-side TipTap JSON → HTML renderer.
  *
- * Used for rendering note content in static section previews.
- * All output MUST be passed through DOMPurify before use in {@html} blocks.
+ * Pure-JS recursive serializer. No DOM dependency: walks the JSON tree and
+ * emits HTML strings directly. Safe by construction — every emitted tag is
+ * hardcoded against a known allowlist, every text node is HTML-escaped,
+ * every attribute value is HTML-escaped, and every URL is validated against
+ * a safe-protocol regex before emission.
+ *
+ * This shape is required for Cloudflare Workers: `@tiptap/html`'s default
+ * build needs `window`, the `/server` subpath needs happy-dom (which
+ * doesn't bundle into the Workers runtime), and `isomorphic-dompurify` has
+ * the same problem. A DOM-free serializer is the only path that works in
+ * every V8 runtime.
+ *
+ * Output is intended for direct insertion via Svelte's `{@html}`. The
+ * safe-by-construction guarantees replace runtime sanitization.
  */
-// The `/server` subpath uses a happy-dom polyfill so generateHTML works in
-// every runtime (Node SSR, V8 isolates / Cloudflare Workers). The default
-// `'@tiptap/html'` export's `browser` build throws when `window` is
-// undefined, which is the case on Cloudflare Workers — so always pin the
-// server subpath here.
-import { generateHTML } from '@tiptap/html/server';
-import StarterKit from '@tiptap/starter-kit';
-import Link from '@tiptap/extension-link';
-import Image from '@tiptap/extension-image';
-import { Node, mergeAttributes } from '@tiptap/core';
 import type { JSONContent } from '@tiptap/core';
-import DOMPurify from 'isomorphic-dompurify';
+
+const SAFE_URL_PROTOCOL = /^(https?:\/\/|mailto:|\/)/i;
+
+/** Escape characters that have special meaning in HTML text content. */
+function escapeText(s: string): string {
+	return s
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;');
+}
+
+/** Escape characters dangerous inside an HTML attribute value (double-quoted). */
+function escapeAttr(s: string): string {
+	return s
+		.replace(/&/g, '&amp;')
+		.replace(/"/g, '&quot;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;');
+}
+
+interface MarkSpec {
+	type: string;
+	attrs?: Record<string, unknown>;
+}
 
 /**
- * Server-side wikilink extension (render-only, no interactive features).
- * Renders wikilinks as spans with data attributes for styling.
- * In static previews, these are non-interactive visual elements.
+ * Wrap rendered inner HTML in the appropriate inline tag for a mark.
+ * Unknown marks pass through (return inner unchanged) — the safe default
+ * is to lose the formatting rather than emit unknown markup.
  */
-const WikilinkStatic = Node.create({
-	name: 'wikilink',
-	group: 'inline',
-	inline: true,
-	atom: true,
-
-	addAttributes() {
-		return {
-			target: {
-				default: null,
-				parseHTML: (element) => element.getAttribute('data-target'),
-				renderHTML: (attributes) => ({
-					'data-target': attributes.target
-				})
-			},
-			display: {
-				default: null,
-				parseHTML: (element) => element.textContent,
-				renderHTML: () => ({})
+function applyMark(mark: MarkSpec, inner: string): string {
+	switch (mark.type) {
+		case 'bold':
+			return `<strong>${inner}</strong>`;
+		case 'italic':
+			return `<em>${inner}</em>`;
+		case 'strike':
+			return `<s>${inner}</s>`;
+		case 'code':
+			return `<code>${inner}</code>`;
+		case 'link': {
+			const href = mark.attrs?.href;
+			if (typeof href !== 'string' || !SAFE_URL_PROTOCOL.test(href)) {
+				return inner;
 			}
-		};
-	},
-
-	parseHTML() {
-		return [{ tag: 'span.wikilink[data-target]' }];
-	},
-
-	renderHTML({ node, HTMLAttributes }) {
-		const target = node.attrs.target;
-		const display = node.attrs.display || target;
-
-		return [
-			'span',
-			mergeAttributes(HTMLAttributes, {
-				class: 'wikilink wikilink-static',
-				'data-target': target
-			}),
-			display
-		];
-	}
-});
-
-/**
- * Extensions registered for server-side HTML generation.
- * Must match the extensions used in TiptapEditor.svelte.
- */
-const extensions = [
-	StarterKit.configure({
-		// Disable StarterKit's bundled Link so we can register our own with custom HTMLAttributes.
-		// Including both StarterKit's Link and a separate Link triggers a tiptap duplicate-extension
-		// warning that has caused empty render output in some environments.
-		link: false,
-		// Underline is bundled by StarterKit v3 but not exposed in the editor toolbar.
-		// Disable to keep the canonical formatting set aligned with what users can produce.
-		underline: false,
-		heading: { levels: [1, 2, 3] },
-		bulletList: {},
-		orderedList: {},
-		blockquote: {},
-		codeBlock: {},
-		code: {},
-		bold: {},
-		italic: {}
-	}),
-	Link.configure({
-		openOnClick: false,
-		HTMLAttributes: {
-			class: 'external-link',
-			rel: 'noopener noreferrer'
+			return `<a href="${escapeAttr(href)}" rel="noopener noreferrer">${inner}</a>`;
 		}
-	}),
-	WikilinkStatic,
-	Image
-];
+		default:
+			return inner;
+	}
+}
+
+function renderTextNode(node: JSONContent): string {
+	const raw = typeof node.text === 'string' ? node.text : '';
+	let html = escapeText(raw);
+	const marks = (node.marks ?? []) as MarkSpec[];
+	for (const mark of marks) {
+		html = applyMark(mark, html);
+	}
+	return html;
+}
+
+function renderChildren(node: JSONContent): string {
+	const content = node.content;
+	if (!Array.isArray(content)) return '';
+	return content.map(renderNode).join('');
+}
 
 /**
- * DOMPurify configuration.
- * Allow standard HTML elements plus data attributes for wikilinks.
+ * Render a single TipTap node to HTML. The hardcoded switch defines the
+ * complete allowlist of node types that produce visible markup; everything
+ * else is rendered as bare children (or empty) so unknown types degrade
+ * gracefully rather than emitting unsafe markup.
  */
-export const PURIFY_CONFIG = {
-	ALLOWED_TAGS: [
-		'p',
-		'br',
-		'h1',
-		'h2',
-		'h3',
-		'strong',
-		'em',
-		's',
-		'hr',
-		'code',
-		'pre',
-		'blockquote',
-		'ul',
-		'ol',
-		'li',
-		'span',
-		'img',
-		'a'
-	],
-	ALLOWED_ATTR: ['class', 'data-target', 'src', 'alt', 'title', 'href', 'target', 'rel']
-};
+function renderNode(node: JSONContent): string {
+	if (!node || typeof node !== 'object') return '';
+	if (node.type === 'text') return renderTextNode(node);
+
+	const inner = renderChildren(node);
+
+	switch (node.type) {
+		case 'doc':
+			return inner;
+		case 'paragraph':
+			return `<p>${inner}</p>`;
+		case 'heading': {
+			const level = node.attrs?.level;
+			if (level === 1) return `<h1>${inner}</h1>`;
+			if (level === 2) return `<h2>${inner}</h2>`;
+			if (level === 3) return `<h3>${inner}</h3>`;
+			return `<p>${inner}</p>`;
+		}
+		case 'blockquote':
+			return `<blockquote>${inner}</blockquote>`;
+		case 'bulletList':
+			return `<ul>${inner}</ul>`;
+		case 'orderedList':
+			return `<ol>${inner}</ol>`;
+		case 'listItem':
+			return `<li>${inner}</li>`;
+		case 'codeBlock':
+			return `<pre><code>${inner}</code></pre>`;
+		case 'hardBreak':
+			return '<br>';
+		case 'horizontalRule':
+			return '<hr>';
+		case 'image': {
+			const src = node.attrs?.src;
+			if (typeof src !== 'string' || !SAFE_URL_PROTOCOL.test(src)) return '';
+			const alt = typeof node.attrs?.alt === 'string' ? node.attrs.alt : '';
+			const title = typeof node.attrs?.title === 'string' ? node.attrs.title : '';
+			const titleAttr = title ? ` title="${escapeAttr(title)}"` : '';
+			return `<img src="${escapeAttr(src)}" alt="${escapeAttr(alt)}"${titleAttr}>`;
+		}
+		case 'wikilink': {
+			const target = typeof node.attrs?.target === 'string' ? node.attrs.target : '';
+			const display = typeof node.attrs?.display === 'string' ? node.attrs.display : target;
+			if (!target) return '';
+			return `<span class="wikilink wikilink-static" data-target="${escapeAttr(target)}">${escapeText(display)}</span>`;
+		}
+		default:
+			return inner;
+	}
+}
 
 /**
- * Convert TipTap JSONContent to sanitized HTML string.
- *
- * @param content - TipTap document JSON
- * @returns Sanitized HTML string safe for {@html} blocks
+ * Convert TipTap JSONContent to safe HTML. Output is constructed from a
+ * hardcoded tag allowlist with all text and attribute values escaped and
+ * URLs validated, so it is safe for direct `{@html}` insertion without
+ * runtime sanitization.
  */
 export function renderTiptapToHtml(content: JSONContent | null | undefined): string {
-	if (!content || typeof content !== 'object') {
-		return '';
-	}
-
-	// Ensure valid doc structure
-	const safeContent =
-		content.type === 'doc' ? content : { type: 'doc', content: [{ type: 'paragraph' }] };
-
-	// Let exceptions propagate so callers can attach context (e.g. prompt id) before logging.
-	const html = generateHTML(safeContent, extensions);
-	return DOMPurify.sanitize(html, PURIFY_CONFIG);
+	if (!content || typeof content !== 'object') return '';
+	return renderNode(content);
 }
