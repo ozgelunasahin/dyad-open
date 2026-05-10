@@ -24,7 +24,7 @@ describe('renderTiptapToHtml extension matrix', () => {
 		expect(html).toContain('<p>');
 	});
 
-	it('renders all heading levels', () => {
+	it('renders all heading levels with their tags', () => {
 		const html = renderTiptapToHtml(
 			doc(
 				{ type: 'heading', attrs: { level: 1 }, content: [text('h1 text')] },
@@ -32,23 +32,19 @@ describe('renderTiptapToHtml extension matrix', () => {
 				{ type: 'heading', attrs: { level: 3 }, content: [text('h3 text')] }
 			)
 		);
-		expect(html).toContain('h1 text');
-		expect(html).toContain('h2 text');
-		expect(html).toContain('h3 text');
+		expect(html).toContain('<h1>h1 text</h1>');
+		expect(html).toContain('<h2>h2 text</h2>');
+		expect(html).toContain('<h3>h3 text</h3>');
 	});
 
-	it('renders bold and italic marks', () => {
-		const html = renderTiptapToHtml(
-			doc(
-				paragraph(
-					text('bold one', [{ type: 'bold' }]),
-					text(' '),
-					text('italic one', [{ type: 'italic' }])
-				)
-			)
-		);
-		expect(html).toContain('bold one');
-		expect(html).toContain('italic one');
+	it('renders bold marks with the <strong> tag', () => {
+		const html = renderTiptapToHtml(doc(paragraph(text('bold one', [{ type: 'bold' }]))));
+		expect(html).toContain('<strong>bold one</strong>');
+	});
+
+	it('renders italic marks with the <em> tag', () => {
+		const html = renderTiptapToHtml(doc(paragraph(text('italic one', [{ type: 'italic' }]))));
+		expect(html).toContain('<em>italic one</em>');
 	});
 
 	it('renders bullet lists', () => {

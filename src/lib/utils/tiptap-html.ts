@@ -4,7 +4,12 @@
  * Used for rendering note content in static section previews.
  * All output MUST be passed through DOMPurify before use in {@html} blocks.
  */
-import { generateHTML } from '@tiptap/html';
+// The `/server` subpath uses a happy-dom polyfill so generateHTML works in
+// every runtime (Node SSR, V8 isolates / Cloudflare Workers). The default
+// `'@tiptap/html'` export's `browser` build throws when `window` is
+// undefined, which is the case on Cloudflare Workers — so always pin the
+// server subpath here.
+import { generateHTML } from '@tiptap/html/server';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
