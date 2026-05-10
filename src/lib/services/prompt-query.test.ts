@@ -11,8 +11,10 @@ import { SupabasePromptQueryService } from './prompt-query.js';
  *
  * These tests lock in:
  * - The fallback is gone.
- * - renderTiptapToHtml output (which routes through DOMPurify) is the only
- *   path that can populate body_html.
+ * - renderTiptapToHtml output is the only path that can populate body_html.
+ *   The renderer is safe by construction: hardcoded tag allowlist, every
+ *   text node and attribute value HTML-escaped, every URL validated against
+ *   `SAFE_URL_PROTOCOL`.
  * - Empty/error cases produce an empty string, never a raw fallback.
  */
 describe('SupabasePromptQueryService.getPromptDetail — body_html', () => {
@@ -106,9 +108,9 @@ describe('SupabasePromptQueryService.getPromptDetail — body_html', () => {
 		// emitted that would be parsed as HTML and fire the onerror handler.
 		expect(detail?.body_html).toContain('&lt;img');
 		expect(detail?.body_html).not.toMatch(/<img[\s>]/);
-		// DOMPurify whitelist does not include 'onerror' as an attribute name —
-		// if an attacker ever produces a TipTap mark that smuggles onerror into
-		// an attribute position, this assertion catches it.
+		// The renderer's hardcoded tag allowlist contains no `on*` attribute
+		// names; if a future change ever lets one through, this assertion
+		// catches it.
 		expect(detail?.body_html).not.toMatch(/<[a-z]+\s[^>]*onerror=/i);
 	});
 });

@@ -63,13 +63,30 @@ describe('renderTiptapToHtml — node and mark rendering', () => {
 			.toBe('<p><code>inline snippet</code></p>');
 	});
 
-	it('renders nested marks (bold + italic on the same text)', () => {
+	it('renders nested marks in array order: each mark wraps the previous output', () => {
+		// Marks are applied left-to-right: italic wraps text first, then bold
+		// wraps the italic. The rightmost mark in the array becomes the
+		// outermost tag — assertion locks the nesting order.
 		const html = renderTiptapToHtml(
 			doc(paragraph(text('emphatic', [{ type: 'italic' }, { type: 'bold' }])))
 		);
-		expect(html).toContain('<strong>');
-		expect(html).toContain('<em>');
-		expect(html).toContain('emphatic');
+		expect(html).toBe('<p><strong><em>emphatic</em></strong></p>');
+	});
+
+	it('renders bold-inside-link (link mark outermost when applied last)', () => {
+		const html = renderTiptapToHtml(
+			doc(
+				paragraph(
+					text('strong link', [
+						{ type: 'bold' },
+						{ type: 'link', attrs: { href: 'https://example.com' } }
+					])
+				)
+			)
+		);
+		expect(html).toBe(
+			'<p><a href="https://example.com" rel="noopener noreferrer"><strong>strong link</strong></a></p>'
+		);
 	});
 
 	it('renders bullet lists with <ul> and <li>', () => {
@@ -129,6 +146,21 @@ describe('renderTiptapToHtml — node and mark rendering', () => {
 		expect(html).toContain('<a href="https://example.com" rel="noopener noreferrer">a link</a>');
 	});
 
+	it('renders link target attribute when provided', () => {
+		const html = renderTiptapToHtml(
+			doc(
+				paragraph(
+					text('new tab', [
+						{ type: 'link', attrs: { href: 'https://example.com', target: '_blank' } }
+					])
+				)
+			)
+		);
+		expect(html).toContain('target="_blank"');
+		expect(html).toContain('href="https://example.com"');
+		expect(html).toContain('rel="noopener noreferrer"');
+	});
+
 	it('renders images with safe src, alt, and optional title', () => {
 		const html = renderTiptapToHtml(
 			doc({
@@ -137,6 +169,17 @@ describe('renderTiptapToHtml — node and mark rendering', () => {
 			})
 		);
 		expect(html).toBe('<img src="https://example.com/img.png" alt="caption" title="hover text">');
+	});
+
+	it('renders image width and height when provided', () => {
+		const html = renderTiptapToHtml(
+			doc({
+				type: 'image',
+				attrs: { src: 'https://example.com/img.png', alt: '', width: 320, height: 240 }
+			})
+		);
+		expect(html).toContain('width="320"');
+		expect(html).toContain('height="240"');
 	});
 
 	it('renders wikilink as a span with data-target', () => {
@@ -152,6 +195,30 @@ describe('renderTiptapToHtml — node and mark rendering', () => {
 			]
 		});
 		expect(html).toContain('<span class="wikilink wikilink-static" data-target="some-page">see this</span>');
+	});
+
+	it('falls back to target as the wikilink display when display is empty or absent', () => {
+		const empty = renderTiptapToHtml({
+			type: 'doc',
+			content: [
+				{
+					type: 'paragraph',
+					content: [{ type: 'wikilink', attrs: { target: 'some-page', display: '' } }]
+				}
+			]
+		});
+		expect(empty).toContain('data-target="some-page">some-page<');
+
+		const missing = renderTiptapToHtml({
+			type: 'doc',
+			content: [
+				{
+					type: 'paragraph',
+					content: [{ type: 'wikilink', attrs: { target: 'some-page' } }]
+				}
+			]
+		});
+		expect(missing).toContain('data-target="some-page">some-page<');
 	});
 
 	it('returns empty string for null/undefined', () => {
@@ -205,6 +272,28 @@ describe('renderTiptapToHtml — safety', () => {
 		);
 		expect(html).toBe('<p>click</p>');
 		expect(html).not.toContain('data:');
+	});
+
+	it('strips protocol-relative link hrefs (//evil.com would inherit page protocol)', () => {
+		const html = renderTiptapToHtml(
+			doc(paragraph(text('click', [{ type: 'link', attrs: { href: '//evil.com' } }])))
+		);
+		expect(html).toBe('<p>click</p>');
+		expect(html).not.toContain('href');
+	});
+
+	it('strips protocol-relative image src', () => {
+		const html = renderTiptapToHtml(
+			doc({ type: 'image', attrs: { src: '//evil.com/pixel.png', alt: 'x' } })
+		);
+		expect(html).toBe('');
+	});
+
+	it('preserves root-relative links (single leading slash)', () => {
+		const html = renderTiptapToHtml(
+			doc(paragraph(text('home', [{ type: 'link', attrs: { href: '/about' } }])))
+		);
+		expect(html).toContain('href="/about"');
 	});
 
 	it('drops images with unsafe src protocol', () => {

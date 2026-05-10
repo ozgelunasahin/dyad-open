@@ -2,9 +2,9 @@
  * End-to-end pipeline fidelity test.
  *
  * Walks a single TipTap document containing every supported format through
- * validator → renderer → DOMPurify, asserting that the semantic markup for
- * each format survives end-to-end. This is the regression net for the
- * four-layer-sync problem; per-layer tests live in their own files.
+ * validator → renderer, asserting that the semantic markup for each format
+ * survives end-to-end. This is the regression net for the four-layer-sync
+ * problem; per-layer tests live in their own files.
  */
 import { describe, it, expect } from 'vitest';
 import type { JSONContent } from '@tiptap/core';
@@ -53,7 +53,7 @@ const comprehensiveDoc: JSONContent = doc(
 	{ type: 'image', attrs: { src: 'https://example.com/img.png', alt: 'caption' } }
 );
 
-describe('TipTap pipeline fidelity (validator → renderer → DOMPurify)', () => {
+describe('TipTap pipeline fidelity (validator → renderer)', () => {
 	it('comprehensive doc: validator passes, renderer emits all expected tags', () => {
 		expect(validateTiptapContent(comprehensiveDoc)).toBeNull();
 
