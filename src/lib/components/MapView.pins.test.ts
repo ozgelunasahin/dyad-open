@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import type { PromptSummary, TimeSlot } from '$lib/domain/types';
-import { buildPins, fuzzCentroid, FUZZ_MIN_METERS, FUZZ_MAX_METERS } from './MapView.pins.js';
+import {
+	buildPins,
+	fuzzCentroid,
+	FUZZ_MIN_METERS,
+	FUZZ_MAX_METERS,
+	PIN_DEDUP_PROXIMITY_METERS
+} from './MapView.pins.js';
 
 // ── Fixture builders ─────────────────────────────────────────────────────
 
@@ -47,7 +53,7 @@ describe('buildPins — per-slot, per-area', () => {
 		]);
 		const pins = buildPins([prompt]);
 		expect(pins).toHaveLength(2);
-		expect(pins.map((p) => p.area).sort()).toEqual(['Kreuzberg', 'Mitte']);
+		expect(pins.map((p) => p.slots[0].general_area).sort()).toEqual(['Kreuzberg', 'Mitte']);
 		expect(pins.every((p) => p.prompt.id === 'p1')).toBe(true);
 	});
 
@@ -59,7 +65,7 @@ describe('buildPins — per-slot, per-area', () => {
 		]);
 		const pins = buildPins([prompt]);
 		expect(pins).toHaveLength(1);
-		expect(pins[0].area).toBe('Mitte');
+		expect(pins[0].slots[0].general_area).toBe('Mitte');
 		expect(pins[0].slots.map((s) => s.id)).toEqual(['s1', 's2', 's3']);
 	});
 
@@ -96,7 +102,9 @@ describe('buildPins — per-slot, per-area', () => {
 		expect(pins.map((p) => p.prompt.id).sort()).toEqual(['p1', 'p2']);
 	});
 
-	it('text-key wins: same area name with different lat/lng collapses to one pin (with both slots)', () => {
+	it('same area, nearby centroids (within PIN_DEDUP_PROXIMITY_METERS): one pin holding both slots', () => {
+		// (52.520, 13.405) → (52.521, 13.408) is roughly 230m apart in Berlin —
+		// well within the 800m dedup-proximity threshold.
 		const prompt = makePrompt('p1', [
 			makeSlot({ id: 'a', area: 'Mitte', lat: 52.520, lng: 13.405 }),
 			makeSlot({ id: 'b', area: 'Mitte', lat: 52.521, lng: 13.408 })
@@ -106,7 +114,38 @@ describe('buildPins — per-slot, per-area', () => {
 		expect(pins[0].slots).toHaveLength(2);
 	});
 
+	it('same area text, distant centroids (> PIN_DEDUP_PROXIMITY_METERS): two pins', () => {
+		// Two slots both labeled "Kreuzberg" but at very different addresses:
+		// Kottbusser Tor area (52.499, 13.418) and Görlitzer Park area (52.494, 13.443).
+		// ~1.7km apart, far beyond the 800m proximity threshold. Each should get
+		// its own pin so the user can see the conversation is genuinely in two
+		// different parts of Kreuzberg, not just one.
+		const prompt = makePrompt('p1', [
+			makeSlot({ id: 'kotti', area: 'Kreuzberg', lat: 52.499, lng: 13.418 }),
+			makeSlot({ id: 'goerli', area: 'Kreuzberg', lat: 52.494, lng: 13.443 })
+		]);
+		const pins = buildPins([prompt]);
+		expect(pins).toHaveLength(2);
+		expect(pins[0].slots).toHaveLength(1);
+		expect(pins[1].slots).toHaveLength(1);
+		expect(pins.map((p) => p.slots[0].id).sort()).toEqual(['goerli', 'kotti']);
+	});
+
+	it('different area text, near-identical centroids: one pin (text drift across the same place)', () => {
+		// A slot tagged "Mitte" and one tagged "Berlin Mitte" by Nominatim with
+		// near-identical centroids should not produce two pins just because the
+		// label string differs — spatial proximity wins under the new dedup.
+		const prompt = makePrompt('p1', [
+			makeSlot({ id: 'a', area: 'Mitte', lat: 52.520, lng: 13.405 }),
+			makeSlot({ id: 'b', area: 'Berlin Mitte', lat: 52.520, lng: 13.405 })
+		]);
+		const pins = buildPins([prompt]);
+		expect(pins).toHaveLength(1);
+		expect(pins[0].slots).toHaveLength(2);
+	});
+
 	it('skips slots whose general_area is empty or whitespace-only', () => {
+		// Empty labels would render as blank in the BottomSheet card.
 		const prompt = makePrompt('p1', [
 			makeSlot({ area: '', lat: 52.52, lng: 13.405 }),
 			makeSlot({ area: '   ', lat: 52.50, lng: 13.40 }),
@@ -114,7 +153,7 @@ describe('buildPins — per-slot, per-area', () => {
 		]);
 		const pins = buildPins([prompt]);
 		expect(pins).toHaveLength(1);
-		expect(pins[0].area).toBe('Mitte');
+		expect(pins[0].slots[0].general_area).toBe('Mitte');
 	});
 
 	it('locks the ordering invariant: with three same-area slots, slots[0] is the earliest by available_slots position', () => {
@@ -133,50 +172,120 @@ describe('buildPins — per-slot, per-area', () => {
 
 	it('integration: mixed prompts produce the expected total pin count and area labels', () => {
 		const prompts = [
-			// Multi-area: two pins
+			// Multi-area: two pins (using realistic Berlin coords so spatial dedup keeps them apart)
 			makePrompt('multi', [
-				makeSlot({ area: 'Mitte' }),
-				makeSlot({ area: 'Kreuzberg' })
+				makeSlot({ area: 'Mitte', lat: 52.520, lng: 13.405 }),
+				makeSlot({ area: 'Kreuzberg', lat: 52.499, lng: 13.418 })
 			]),
 			// Single-area: one pin
-			makePrompt('single', [makeSlot({ area: 'Neukölln' })]),
+			makePrompt('single', [makeSlot({ area: 'Neukölln', lat: 52.481, lng: 13.435 })]),
 			// No coords: zero pins
 			makePrompt('nocoord', [makeSlot({ area: 'Wedding', lat: null })])
 		];
 		const pins = buildPins(prompts);
 		expect(pins).toHaveLength(3);
-		expect(pins.map((p) => p.area).sort()).toEqual(['Kreuzberg', 'Mitte', 'Neukölln']);
+		expect(pins.map((p) => p.slots[0].general_area).sort()).toEqual(['Kreuzberg', 'Mitte', 'Neukölln']);
+	});
+});
+
+describe('buildPins — spatial-dedup edge cases', () => {
+	// Convert a metres-along-latitude offset to a degree delta (Berlin is small
+	// enough that pure-latitude offsets are exact under berlinDistance).
+	const DEG_PER_METER_LAT = 1 / 111_320;
+
+	it('boundary: exactly PIN_DEDUP_PROXIMITY_METERS apart still collapses (predicate uses <=)', () => {
+		const lat0 = 52.520;
+		const lat1 = lat0 + PIN_DEDUP_PROXIMITY_METERS * DEG_PER_METER_LAT; // exactly at threshold
+		const prompt = makePrompt('p1', [
+			makeSlot({ id: 'a', area: 'Mitte', lat: lat0, lng: 13.405 }),
+			makeSlot({ id: 'b', area: 'Mitte', lat: lat1, lng: 13.405 })
+		]);
+		const pins = buildPins([prompt]);
+		expect(pins).toHaveLength(1);
+		expect(pins[0].slots).toHaveLength(2);
+	});
+
+	it('boundary: just past PIN_DEDUP_PROXIMITY_METERS splits into two pins', () => {
+		const lat0 = 52.520;
+		const lat1 = lat0 + (PIN_DEDUP_PROXIMITY_METERS + 1) * DEG_PER_METER_LAT; // 1m beyond
+		const prompt = makePrompt('p1', [
+			makeSlot({ id: 'a', area: 'Mitte', lat: lat0, lng: 13.405 }),
+			makeSlot({ id: 'b', area: 'Mitte', lat: lat1, lng: 13.405 })
+		]);
+		const pins = buildPins([prompt]);
+		expect(pins).toHaveLength(2);
+	});
+
+	it('non-transitive clustering: cluster membership is measured against the seed only, not the whole cluster', () => {
+		// Three slots in a line, each ~700m from the next:
+		//   A → B: 700m (within 800m threshold, B joins A's pin)
+		//   A → C: 1400m (beyond threshold, C seeds new pin)
+		//   B → C: 700m (would cluster if measured pairwise — but we measure from seed A)
+		// Expected: 2 pins. {A, B} and {C}. The seed-anchored algorithm is
+		// load-bearing for predictability; pin assignment must not depend on
+		// pairwise transitivity.
+		const lat0 = 52.520;
+		const latB = lat0 + 700 * DEG_PER_METER_LAT;
+		const latC = lat0 + 1400 * DEG_PER_METER_LAT;
+		const prompt = makePrompt('p1', [
+			makeSlot({ id: 'a', area: 'Mitte', lat: lat0, lng: 13.405 }),
+			makeSlot({ id: 'b', area: 'Mitte', lat: latB, lng: 13.405 }),
+			makeSlot({ id: 'c', area: 'Mitte', lat: latC, lng: 13.405 })
+		]);
+		const pins = buildPins([prompt]);
+		expect(pins).toHaveLength(2);
+		expect(pins[0].slots.map((s) => s.id)).toEqual(['a', 'b']);
+		expect(pins[1].slots.map((s) => s.id)).toEqual(['c']);
 	});
 });
 
 describe('buildPins — slotFilter', () => {
 	it('with no slotFilter, every coordinate-bearing slot is eligible (regression)', () => {
 		const prompt = makePrompt('p1', [
-			makeSlot({ area: 'Mitte' }),
-			makeSlot({ area: 'Kreuzberg' })
+			makeSlot({ area: 'Mitte', lat: 52.520, lng: 13.405 }),
+			makeSlot({ area: 'Kreuzberg', lat: 52.499, lng: 13.418 })
 		]);
 		expect(buildPins([prompt])).toHaveLength(2);
 		expect(buildPins([prompt], undefined)).toHaveLength(2);
 	});
 
-	it('skips slots that fail the predicate before per-area dedup', () => {
+	it('skips slots that fail the predicate before spatial dedup', () => {
 		// A "Wednesday only" filter on a conversation with Tuesday-Mitte +
-		// Wednesday-Kreuzberg should yield only the Kreuzberg pin.
+		// Wednesday-Kreuzberg yields only the Kreuzberg pin. Coordinates are
+		// realistic and distinct so the assertion observes the filter-then-dedup
+		// order rather than collapsing on coincident default coordinates.
 		const prompt = makePrompt('p1', [
-			makeSlot({ id: 'tue-mitte', area: 'Mitte', startTime: '2026-05-12T18:00:00Z' }),
-			makeSlot({ id: 'wed-kreuzberg', area: 'Kreuzberg', startTime: '2026-05-13T18:00:00Z' })
+			makeSlot({
+				id: 'tue-mitte',
+				area: 'Mitte',
+				lat: 52.520,
+				lng: 13.405,
+				startTime: '2026-05-12T18:00:00Z'
+			}),
+			makeSlot({
+				id: 'wed-kreuzberg',
+				area: 'Kreuzberg',
+				lat: 52.499,
+				lng: 13.418,
+				startTime: '2026-05-13T18:00:00Z'
+			})
 		]);
 		const wednesdayOnly = (slot: TimeSlot) => slot.start_time.startsWith('2026-05-13');
 		const pins = buildPins([prompt], wednesdayOnly);
 		expect(pins).toHaveLength(1);
-		expect(pins[0].area).toBe('Kreuzberg');
+		expect(pins[0].slots[0].general_area).toBe('Kreuzberg');
 		expect(pins[0].slots[0].id).toBe('wed-kreuzberg');
 	});
 
 	it('returns zero pins when the filter excludes every slot', () => {
 		const prompt = makePrompt('p1', [
-			makeSlot({ area: 'Mitte', startTime: '2026-05-12T18:00:00Z' }),
-			makeSlot({ area: 'Kreuzberg', startTime: '2026-05-13T18:00:00Z' })
+			makeSlot({ area: 'Mitte', lat: 52.520, lng: 13.405, startTime: '2026-05-12T18:00:00Z' }),
+			makeSlot({
+				area: 'Kreuzberg',
+				lat: 52.499,
+				lng: 13.418,
+				startTime: '2026-05-13T18:00:00Z'
+			})
 		]);
 		const friday = (slot: TimeSlot) => slot.start_time.startsWith('2026-05-15');
 		expect(buildPins([prompt], friday)).toHaveLength(0);
@@ -220,7 +329,7 @@ describe('buildPins — slotFilter', () => {
 		const allTrue = () => true;
 		const pins = buildPins([prompt], allTrue);
 		expect(pins).toHaveLength(1);
-		expect(pins[0].area).toBe('Kreuzberg');
+		expect(pins[0].slots[0].general_area).toBe('Kreuzberg');
 	});
 });
 
