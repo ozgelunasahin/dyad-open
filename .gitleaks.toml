@@ -1,0 +1,67 @@
+title = "dyad.berlin gitleaks config"
+
+# Extend the default gitleaks ruleset with project-specific patterns
+# that target the failure modes we've actually had — inline password
+# literals in seed/fixture scripts and SQL `crypt()` calls.
+[extend]
+useDefault = true
+
+# ── Global path allowlist ──────────────────────────────────────────────────
+# `gitleaks dir` walks every file on disk, including build output and local
+# env files that are gitignored. Skip those — they aren't part of the repo.
+[allowlist]
+paths = [
+    '''^\.env(\..*)?$''',
+    '''^\.svelte-kit/''',
+    '''^node_modules/''',
+    '''^build/''',
+    '''^dist/''',
+    '''^playwright-report/''',
+    '''^test-results/''',
+    '''^coverage/''',
+]
+
+# ── Custom rules ────────────────────────────────────────────────────────────
+
+[[rules]]
+id = "dyad-inline-password-literal"
+description = "Inline `password: '...'` literal in TS/JS source"
+regex = '''(?i)password\s*[:=]\s*['"][^'"\s$()]{6,}['"]'''
+path = '''\.(ts|js|mjs|cjs|svelte)$'''
+tags = ["secret", "credential"]
+[rules.allowlist]
+# UI copy registry — `password: 'Password'` is a form-field label, not a credential.
+paths = ['''^src/lib/copy\.ts$''']
+# Field on Supabase auth API shapes — we sign in WITH these, not declare them.
+regexes = [
+    '''signInWithPassword\(\s*\{\s*email[^}]*password\s*:\s*\w+''',
+    '''signUp\(\s*\{\s*email[^}]*password\s*:\s*\w+''',
+    '''password\s*:\s*process\.env\.''',
+    '''password\s*:\s*config\.''',
+    '''password\s*:\s*(SEED_PASSWORD|user\.password|password)\b''',
+    '''(?i)password\s*[:=]\s*['"]local-fixture-not-a-secret['"]''',
+]
+
+[[rules]]
+id = "dyad-sql-crypt-literal"
+description = "SQL `crypt('plaintext', ...)` call — plaintext password baked into a migration or seed"
+regex = '''crypt\(\s*['"][^'"]{4,}['"]'''
+path = '''\.sql$'''
+tags = ["secret", "credential"]
+[rules.allowlist]
+# Allow the local fixture explicitly — it's documented as not-a-secret.
+regexes = ['''crypt\(\s*'local-fixture-not-a-secret''']
+
+[[rules]]
+id = "dyad-supabase-service-role-key"
+description = "Supabase service-role JWT pattern (eyJ... .eyJ... .* with role:service_role somewhere)"
+regex = '''eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}'''
+path = '''\.(ts|js|mjs|cjs|svelte|sql|env|json|ya?ml|md)$'''
+tags = ["secret", "jwt"]
+[rules.allowlist]
+# Local Supabase demo keys are publicly known and harmless.
+description = "Allow the local Supabase demo JWT (anon + service-role) — these are documented public values."
+regexes = [
+    # Local demo keys end with these distinctive suffixes; safe to whitelist.
+    '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.''',
+]
