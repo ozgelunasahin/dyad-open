@@ -4,11 +4,15 @@ Dyad is a social platform intended to provide just enough surface area for peopl
 
 A cycle looks like this:
 
-A member writes a conversation prompt (a poem, a question, an essay, anything) and suggests up to 3 times in the coming week and places within Berlin (-for now) when and where they would be open to meet. Another member can write a single response, see the meeting times and approximate location, and if they want to, invite to meet at one of those times. If the author accepts, the exact location is shared and they (can) meet. Both leave feedback before either can use the platform again.
+1. A member writes a conversation prompt (a poem, a question, an essay, anything) and suggests up to 3 times in the coming week and places within Berlin (-for now) when and where they would be open to meet.
+2. Another member, finding this prompt in the list or map view, can write a single response.
+3. After responding, they see the meeting times and approximate location. If they want to, they can invite the author to meet at one of their available times.
+4. If the author accepts, the exact location is shared and they can meet.
+5. After meeting (or not) both leave feedback before either can use the platform again.
 
 We are a two-person team (and claude, who didn't write this intro but did work on the rest of the repo) based in Berlin, trying to understand (and practice) what it looks like to build social technologies as civic infrastructure. We have deliberately not built in messaging, recommenders, engagement metrics, or user tracking, and we have tried to make it hard for ourselves to add them later (see [DESIGN.md#structural-commitments](DESIGN.md#structural-commitments)).
 
-We are in a private/public(ask us!) beta, we are working toward steward ownership, and are looking for funding and support. `https://dyad.berlin`. -- fiore and luna
+We are in a private/public(ask us!) beta, we are working toward steward ownership, and are looking for funding and support -- fiore and luna
 
 ## What this repository contains
 
