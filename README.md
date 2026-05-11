@@ -1,8 +1,8 @@
 # dyad
 
-Dyad is a social platform intended to provide just enough surface area for people to find one another and coordinate a conversation, before getting out of the way. A cycle looks like this:
+Dyad is a social platform intended to provide just enough surface area for people to find one another and coordinate a meeting. The goal is to enable discovery and bridging between filter bubbles, to support diverse and interconnected urban communities, one conversation ata time. A cycle looks like this:
 
-A member writes a conversation prompt (a poem, a question, an essay, anything in between) and suggests up to 3 times (within the coming week) and places (within Berlin -for now) when and where they would be up to meet. Another member can write a response, see the meeting times and rough areas, and if they want to, invite to meet at one of those slots. If the author accepts, the exact location is shared and they meet (if they want to). Both leave feedback before either can use it again.
+A member writes a conversation prompt (a poem, a question, an essay, anything) and suggests up to 3 times in the coming week and places within Berlin (-for now) when and where they would be open to meet. Another member can write a response, see the meeting times and rough areas, and if they want to, invite to meet at one of those slots. If the author accepts, the exact location is shared and they (can) meet. Both leave feedback before either can use it again.
 
 We are a two-person team (and claude, who didn't write this intro but did work on the rest of the repo) based in Berlin, trying to understand (and practice) what it looks like to build social technologies as civic infrastructure. We have deliberately not built in messaging, recommenders, engagement metrics, or user tracking, and we have tried to make it hard for ourselves to add them later (see [DESIGN.md#structural-commitments](DESIGN.md#structural-commitments)).
 
