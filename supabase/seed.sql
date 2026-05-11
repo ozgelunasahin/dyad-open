@@ -1,15 +1,19 @@
 -- Seed data for local development and E2E testing.
 -- Run with: npx supabase db reset
 --
--- Test users:
---   lisa@test.invalid / local-fixture-not-a-secret       (UUID: 11111111-...) — admin, prompt author
---   marco@test.invalid / local-fixture-not-a-secret      (UUID: 22222222-...) — second user
---   sophie@test.invalid / local-fixture-not-a-secret      (UUID: 33333333-...) — Playwright tester (FREE, no gate)
---   tom@test.invalid / local-fixture-not-a-secret         (UUID: 44444444-...) — Playwright tester (FREE, no gate)
---   ava@test.invalid / local-fixture-not-a-secret        (UUID: 55555555-...) — feedback-gated user (has due form)
---   ben@test.invalid / local-fixture-not-a-secret        (UUID: 66666666-...) — feedback-gated user (has due form)
---   nina@test.invalid / local-fixture-not-a-secret       (UUID: 77777777-...) — meeting lifecycle scenarios
---   kai@test.invalid / local-fixture-not-a-secret        (UUID: 88888888-...) — meeting lifecycle scenarios
+-- LOCAL ONLY. All emails use @test.invalid (RFC 2606 — guaranteed undeliverable).
+-- The hardcoded password below is a fixture, not a secret. It must NEVER be
+-- reused for any account on a deployed Supabase project.
+--
+-- Test users (all use the same local fixture password):
+--   lisa@test.invalid    (UUID: 11111111-...) — admin, prompt author
+--   marco@test.invalid   (UUID: 22222222-...) — second user
+--   sophie@test.invalid  (UUID: 33333333-...) — Playwright tester (FREE, no gate)
+--   tom@test.invalid     (UUID: 44444444-...) — Playwright tester (FREE, no gate)
+--   ava@test.invalid     (UUID: 55555555-...) — feedback-gated user (has due form)
+--   ben@test.invalid     (UUID: 66666666-...) — feedback-gated user (has due form)
+--   nina@test.invalid    (UUID: 77777777-...) — meeting lifecycle scenarios
+--   kai@test.invalid     (UUID: 88888888-...) — meeting lifecycle scenarios
 --
 -- Sophie and Tom are FREE to test all flows (browse, respond, invite, accept).
 -- Ava and Ben are GATED — they have a past meeting with due feedback forms.
@@ -21,56 +25,56 @@
 
 DO $$
 DECLARE
-  v_pw_dev TEXT := crypt('local-fixture-not-a-secret', gen_salt('bf'));
-  v_pw_test TEXT := crypt('local-fixture-not-a-secret', gen_salt('bf'));
+  -- Single fixture password for every local test user. Not a secret; never reuse on a deployed project.
+  v_pw_local TEXT := crypt('local-fixture-not-a-secret', gen_salt('bf'));
   v_now TIMESTAMPTZ := NOW();
   v_meta_email JSONB := '{"provider":"email","providers":["email"]}'::jsonb;
 BEGIN
   -- lisa (admin — has role: admin in app_metadata)
   INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, last_sign_in_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, email_change, email_change_token_new, email_change_token_current, recovery_token)
-  VALUES ('11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'lisa@test.invalid', v_pw_dev, v_now, v_now, '{"provider":"email","providers":["email"],"role":"admin"}'::jsonb, '{"username":"lisa"}'::jsonb, v_now, v_now, '', '', '', '', '');
+  VALUES ('11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'lisa@test.invalid', v_pw_local, v_now, v_now, '{"provider":"email","providers":["email"],"role":"admin"}'::jsonb, '{"username":"lisa"}'::jsonb, v_now, v_now, '', '', '', '', '');
   INSERT INTO auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
   VALUES ('11111111-1111-1111-1111-111111111111', '11111111-1111-1111-1111-111111111111', '11111111-1111-1111-1111-111111111111', 'email', jsonb_build_object('sub','11111111-1111-1111-1111-111111111111','email','lisa@test.invalid'), v_now, v_now, v_now);
 
   -- marco
   INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, last_sign_in_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, email_change, email_change_token_new, email_change_token_current, recovery_token)
-  VALUES ('22222222-2222-2222-2222-222222222222', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'marco@test.invalid', v_pw_dev, v_now, v_now, v_meta_email, '{"username":"marco"}'::jsonb, v_now, v_now, '', '', '', '', '');
+  VALUES ('22222222-2222-2222-2222-222222222222', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'marco@test.invalid', v_pw_local, v_now, v_now, v_meta_email, '{"username":"marco"}'::jsonb, v_now, v_now, '', '', '', '', '');
   INSERT INTO auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
   VALUES ('22222222-2222-2222-2222-222222222222', '22222222-2222-2222-2222-222222222222', '22222222-2222-2222-2222-222222222222', 'email', jsonb_build_object('sub','22222222-2222-2222-2222-222222222222','email','marco@test.invalid'), v_now, v_now, v_now);
 
   -- sophie (Playwright — FREE, no gate)
   INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, last_sign_in_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, email_change, email_change_token_new, email_change_token_current, recovery_token)
-  VALUES ('33333333-3333-3333-3333-333333333333', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'sophie@test.invalid', v_pw_test, v_now, v_now, v_meta_email, '{"username":"sophie"}'::jsonb, v_now, v_now, '', '', '', '', '');
+  VALUES ('33333333-3333-3333-3333-333333333333', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'sophie@test.invalid', v_pw_local, v_now, v_now, v_meta_email, '{"username":"sophie"}'::jsonb, v_now, v_now, '', '', '', '', '');
   INSERT INTO auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
   VALUES ('33333333-3333-3333-3333-333333333333', '33333333-3333-3333-3333-333333333333', '33333333-3333-3333-3333-333333333333', 'email', jsonb_build_object('sub','33333333-3333-3333-3333-333333333333','email','sophie@test.invalid'), v_now, v_now, v_now);
 
   -- tom (Playwright — FREE, no gate)
   INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, last_sign_in_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, email_change, email_change_token_new, email_change_token_current, recovery_token)
-  VALUES ('44444444-4444-4444-4444-444444444444', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'tom@test.invalid', v_pw_test, v_now, v_now, v_meta_email, '{"username":"tom"}'::jsonb, v_now, v_now, '', '', '', '', '');
+  VALUES ('44444444-4444-4444-4444-444444444444', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'tom@test.invalid', v_pw_local, v_now, v_now, v_meta_email, '{"username":"tom"}'::jsonb, v_now, v_now, '', '', '', '', '');
   INSERT INTO auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
   VALUES ('44444444-4444-4444-4444-444444444444', '44444444-4444-4444-4444-444444444444', '44444444-4444-4444-4444-444444444444', 'email', jsonb_build_object('sub','44444444-4444-4444-4444-444444444444','email','tom@test.invalid'), v_now, v_now, v_now);
 
   -- ava (feedback-gated)
   INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, last_sign_in_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, email_change, email_change_token_new, email_change_token_current, recovery_token)
-  VALUES ('55555555-5555-5555-5555-555555555555', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'ava@test.invalid', v_pw_dev, v_now, v_now, v_meta_email, '{"username":"ava"}'::jsonb, v_now, v_now, '', '', '', '', '');
+  VALUES ('55555555-5555-5555-5555-555555555555', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'ava@test.invalid', v_pw_local, v_now, v_now, v_meta_email, '{"username":"ava"}'::jsonb, v_now, v_now, '', '', '', '', '');
   INSERT INTO auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
   VALUES ('55555555-5555-5555-5555-555555555555', '55555555-5555-5555-5555-555555555555', '55555555-5555-5555-5555-555555555555', 'email', jsonb_build_object('sub','55555555-5555-5555-5555-555555555555','email','ava@test.invalid'), v_now, v_now, v_now);
 
   -- ben (feedback-gated)
   INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, last_sign_in_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, email_change, email_change_token_new, email_change_token_current, recovery_token)
-  VALUES ('66666666-6666-6666-6666-666666666666', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'ben@test.invalid', v_pw_dev, v_now, v_now, v_meta_email, '{"username":"ben"}'::jsonb, v_now, v_now, '', '', '', '', '');
+  VALUES ('66666666-6666-6666-6666-666666666666', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'ben@test.invalid', v_pw_local, v_now, v_now, v_meta_email, '{"username":"ben"}'::jsonb, v_now, v_now, '', '', '', '', '');
   INSERT INTO auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
   VALUES ('66666666-6666-6666-6666-666666666666', '66666666-6666-6666-6666-666666666666', '66666666-6666-6666-6666-666666666666', 'email', jsonb_build_object('sub','66666666-6666-6666-6666-666666666666','email','ben@test.invalid'), v_now, v_now, v_now);
 
   -- nina (meeting lifecycle scenarios)
   INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, last_sign_in_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, email_change, email_change_token_new, email_change_token_current, recovery_token)
-  VALUES ('77777777-7777-7777-7777-777777777777', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'nina@test.invalid', v_pw_dev, v_now, v_now, v_meta_email, '{"username":"nina"}'::jsonb, v_now, v_now, '', '', '', '', '');
+  VALUES ('77777777-7777-7777-7777-777777777777', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'nina@test.invalid', v_pw_local, v_now, v_now, v_meta_email, '{"username":"nina"}'::jsonb, v_now, v_now, '', '', '', '', '');
   INSERT INTO auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
   VALUES ('77777777-7777-7777-7777-777777777777', '77777777-7777-7777-7777-777777777777', '77777777-7777-7777-7777-777777777777', 'email', jsonb_build_object('sub','77777777-7777-7777-7777-777777777777','email','nina@test.invalid'), v_now, v_now, v_now);
 
   -- kai (meeting lifecycle scenarios)
   INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, last_sign_in_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, email_change, email_change_token_new, email_change_token_current, recovery_token)
-  VALUES ('88888888-8888-8888-8888-888888888888', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'kai@test.invalid', v_pw_dev, v_now, v_now, v_meta_email, '{"username":"kai"}'::jsonb, v_now, v_now, '', '', '', '', '');
+  VALUES ('88888888-8888-8888-8888-888888888888', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'kai@test.invalid', v_pw_local, v_now, v_now, v_meta_email, '{"username":"kai"}'::jsonb, v_now, v_now, '', '', '', '', '');
   INSERT INTO auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
   VALUES ('88888888-8888-8888-8888-888888888888', '88888888-8888-8888-8888-888888888888', '88888888-8888-8888-8888-888888888888', 'email', jsonb_build_object('sub','88888888-8888-8888-8888-888888888888','email','kai@test.invalid'), v_now, v_now, v_now);
 END $$;
