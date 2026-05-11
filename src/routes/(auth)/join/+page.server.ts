@@ -70,12 +70,19 @@ export const actions: Actions = {
 			return fail(400, { username, error: 'Password must be at most 128 characters' });
 		}
 
-		// Re-validate the token
+		// Re-validate the token and bind the account to the token-derived email.
+		// The form's email input is informational only — we never trust it server-side,
+		// or any leaked token could be used to create accounts under attacker-controlled emails.
 		const { data: validation } = await locals.supabase.rpc('validate_invitation', {
 			invite_token: token
 		});
 
 		if (!validation || validation.length === 0 || !validation[0].valid) {
+			return fail(400, { username, error: 'This invitation is no longer valid' });
+		}
+
+		const validatedEmail = validation[0].email;
+		if (!validatedEmail) {
 			return fail(400, { username, error: 'This invitation is no longer valid' });
 		}
 
@@ -98,7 +105,7 @@ export const actions: Actions = {
 		// auth has enable_confirmations enabled but no SMTP wired up for auth.
 		const admin = makeAdminClient();
 		const { data: createUserData, error: signUpError } = await admin.auth.admin.createUser({
-			email,
+			email: validatedEmail,
 			password,
 			email_confirm: true,
 			user_metadata: { username, berlin_based: berlinBased }
@@ -169,7 +176,7 @@ export const actions: Actions = {
 
 		// Sign in immediately so we can update the profile
 		const { error: signInError } = await locals.supabase.auth.signInWithPassword({
-			email,
+			email: validatedEmail,
 			password
 		});
 
