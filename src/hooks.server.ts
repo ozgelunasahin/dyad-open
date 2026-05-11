@@ -31,12 +31,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		const operator = await getAuthorizedAdminOperator(event.request);
 		if (!operator) {
 			return new Response(
-				'Admin access requires Cloudflare Access authentication.\n\n' +
-					'Production: this should not be reachable — Cloudflare Access ' +
-					'gates admin.dyad.berlin and redirects unauthenticated requests ' +
-					'to its own login page before they hit the origin.\n\n' +
-					'Local dev: set ADMIN_DEV_BYPASS=1 in .env.local to allow ' +
-					'/admin/* through.',
+				'Admin access requires Cloudflare Access authentication.',
 				{ status: 401, headers: { 'Content-Type': 'text/plain' } }
 			);
 		}
