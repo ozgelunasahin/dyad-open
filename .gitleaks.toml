@@ -6,9 +6,11 @@ title = "dyad.berlin gitleaks config"
 [extend]
 useDefault = true
 
-# ── Global path allowlist ──────────────────────────────────────────────────
-# `gitleaks dir` walks every file on disk, including build output and local
-# env files that are gitignored. Skip those — they aren't part of the repo.
+# ── Global allowlist ───────────────────────────────────────────────────────
+# Skip build output and local env files. Also whitelist the publicly
+# documented local Supabase demo JWT — every Supabase install ships with
+# this exact value, it's not a real secret, and it appears in our E2E
+# test helpers that talk to the local stack.
 [allowlist]
 paths = [
     '''^\.env(\..*)?$''',
@@ -19,6 +21,13 @@ paths = [
     '''^playwright-report/''',
     '''^test-results/''',
     '''^coverage/''',
+]
+regexes = [
+    # Local Supabase demo JWTs (anon + service-role). The header is the
+    # base64 of `{"alg":"HS256","typ":"JWT"}` and the body starts with
+    # base64 of `{"iss":"supabase-demo` — a value every Supabase install
+    # ships with publicly, not a real secret.
+    '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJpc3MiOiJzdXBhYmFzZS1kZW1v[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+''',
 ]
 
 # ── Custom rules ────────────────────────────────────────────────────────────
