@@ -8,26 +8,23 @@ People in Berlin who want to meet across social categories have no coordination 
 
 ## Structural commitments
 
-These are encoded in the data model, the API surface, and the UI. Changing them changes what the platform is.
+These are encoded in the data model, the API surface, and the UI.
 
 ### Coordination, not communication
 
 The platform helps members find a time and place to meet in person. It does not mediate contact between them before the meeting. The encounter is where the conversation happens; the app is the coordination layer that gets two people to the same place at the same time.
 
-- The meeting is analogue. Members agree on a time and place through the app, then they show up. Like the old days.
+- The meeting is analogue. Members agree on a time and place through the app, then they show up.
 - No contact details exchanged through the platform. Free-text fields may need stripping enforcement.
 - Responses are allowed without inviting. A member can leave one response on a conversation without sending an invitation. This is a single message to the author, not a messaging channel. Responses are editable (with an "edited" indicator). One response per member per conversation.
 - No threading, no replies, no back-and-forth. A response is a one-way message. If the responder later decides to invite, the invitation flow picks up from there.
+- A member must write a response before they can invite to meet. The response is the meeting context.
 - No-show is a valid outcome. Reported in the post-meeting feedback form. No-shows trigger moderator review.
 - If members meet and exchange contact info in person — great. The platform's job ends at getting them to the same place at the same time.
 
-### Response-first invitation
-
-A member must write a response before they can invite to meet. The response *is* the meeting context. This is enforced in the data model: invitations are tied to responses, not to bare prompt IDs.
-
 ### Calm technology
 
-The platform follows the *calm technology* posture (Weiser & Brown 1996; Case 2015) — minimal demand on attention, app-as-surface rather than push-as-channel.
+We have tried to make the app ask very little of members' attention. Notifications and prompts appear when there's something specific to act on.
 
 - Notifications are opt-in (email, push) and minimal by design.
 - The app itself is the primary surface. Feedback prompts and meeting updates appear in-app, not as pings demanding attention.
@@ -38,16 +35,16 @@ The platform follows the *calm technology* posture (Weiser & Brown 1996; Case 20
 
 - No interest matching. No personality tests. No "people like you" recommendations.
 - The discover page is a commons, not a feed.
-- People become visible through their writing and their meeting feedback — not through profiles or bios.
-- If "following" is ever introduced, it must not influence discover ordering. Following without anti-sorting guardrails contradicts the platform's reason for existing.
+- Members see each other through their writing and through the feedback others have left them. There are no separate profile bios.
+- If "following" is ever introduced, it must not influence discover ordering.
 
-### Reputation through structure, not score
+### Reputation
 
 - Reputation is profile-visible, not numerical. Expressed through feedback, testimonials, and behavioural signals.
 - Cancellation history, no-show history, and feedback quality contribute to what others see.
 - The member controls which received feedback to display; cancellation/no-show signals may not be hideable.
 - Marks are associated with the email address. Deleting an account to escape bad reputation is not viable.
-- Not a blacklist. Bad behaviour reduces attractiveness, doesn't hard-block.
+- The platform doesn't ban members for bad behaviour. Their reputation makes them less attractive to others, and members decide for themselves whether to engage.
 
 ### Anonymity and identity
 
@@ -57,8 +54,8 @@ The platform follows the *calm technology* posture (Weiser & Brown 1996; Case 20
 ### Privacy by structure: location and time
 
 - The author sets 1–3 time slots at publish time, each with start time, duration, and location.
-- Time slots use a rolling 7-day window. Without active future slots, the prompt is auto-archived.
-- The exact location is private. The system generates a general area (neighbourhood-level) from the exact location. The inviter sees only the general area; exact location is revealed after acceptance.
+- Time slots use a rolling 7-day window. A prompt with no future slots falls out of the discover feed but stays in the author's profile under Past.
+- The exact location is private. The inviter sees only a general area (neighbourhood-level, derived from the exact location); the exact location is revealed after acceptance.
 - Confirmed time slots are hidden from non-participants (RLS-enforced).
 - The inviter picks one time+place option. No negotiation. If accepted, that's the meeting.
 - Time slots where a member already has an accepted meeting are hidden — no double-booking.
@@ -66,10 +63,8 @@ The platform follows the *calm technology* posture (Weiser & Brown 1996; Case 20
 ### Consent-free as a constraint
 
 - Any feature that would require a GDPR / ePrivacy consent modal for visitors is foreclosed by default. The consent banner is treated as a signal of architectural drift toward third-party tracking, third-party assets, or cookie-based personalisation.
-- In practice this rules out: cookie-setting analytics (Google Analytics, Mixpanel), embedded social widgets (Twitter / X, YouTube, LinkedIn), font CDNs that observe IP addresses (Google Fonts), map embeds that share request data with the host (Google Maps, Mapbox), and any third-party script that profiles visitors.
-- It rules in: cookieless EU-hosted analytics (Plausible, in use), self-hosted fonts (SangBleu Sunrise, served from `/static/fonts/`), self-hosted Leaflet tiles, pointing visitors at a third-party page (Substack signup, Stripe Checkout) rather than embedding it in dyad.
-- If a desired outcome can only be reached through a consent-requiring path, the choice is to find a consent-free alternative or to accept that the feature is foreclosed. The principle is structural, not aesthetic — it composes with the upact privacy port, the payment-opacity contract, and the calm-tech use shape.
-- The brand signal is incidental but real: visitors do not encounter a cookie wall on `dyad.berlin`.
+- If a desired outcome can only be reached through a consent-requiring path, the choice is to find a consent-free alternative or to accept that the feature is foreclosed.
+- Current setup: Plausible (cookieless, EU-hosted) for analytics, self-hosted SangBleu Sunrise fonts, Leaflet with OpenStreetMap tiles, Stripe Checkout instead of embedded Stripe Elements.
 
 ### Cancellation symmetry
 
@@ -82,13 +77,6 @@ The platform follows the *calm technology* posture (Weiser & Brown 1996; Case 20
 
 - Admins can see everything. All conversations, invitations, feedback, profiles.
 - Members should assume admins can read anything they upload. The platform does not collect private or confidential details beyond what members agree to share.
-- Admins can: edit/remove conversations, suspend members, force-cancel meetings, see "share with platform" feedback, manage moderation.
-
-### No interrupting modals
-
-- Onboarding is not a guided tour with modals highlighting UI elements.
-- Members are inducted into platform norms organically through the interface itself.
-- Modals that keep a member in context are fine — for example, the waitlist form that appears when an anonymous visitor clicks a conversation. The principle: don't interrupt flow with demands for attention. Overlays that serve the member's current intent are not interruptions.
 
 ### Two states, three verbs
 
@@ -102,20 +90,7 @@ The author surface distinguishes two flavors of draft via UI label, derived from
 - **Draft** — never published. The author is still writing.
 - **Unpublished** — was public, now off-feed. The author took it down and may bring it back.
 
-A public conversation whose slots have all expired is still `state='public'`. It naturally falls out of the discover feed (the feed filters on slot validity), and surfaces in the author's Profile under the **Past** tab — a derived view, not a separate state. The author can revive it by adding a new slot.
-
-#### Why this shape
-
-- **No automatic state transitions.** The system never moves a conversation between states the author didn't request. Slots have a rolling 7-day window; the prompt itself does not transition.
-- **Snapshot integrity at publish.** What goes public is the version that goes public. The body cannot be edited in place. To revise, the author Unpublishes (a visible state event), edits in the editor, and Publishes again. Responders rely on this — the prompt they responded to is the prompt they'll meet about.
-- **Verb minimalism.** Three verbs cover the lifecycle: Publish, Unpublish, Delete. Every other concern (slot management, "this conversation has run its course") resolves through slot data without inventing additional state.
-- **404 over gravestone.** Direct links to draft conversations 404 for non-authors. This holds whether the draft is never-published or unpublished — there is no special "look-but-don't-engage" view for prior responders.
-
-### Inclusive language
-
-- Avoid intellectualism signals. Phrases like "independent thinkers" or "meet through writing" create invisible barriers.
-- Test copy against the question: would a nurse, a barista, a retiree feel addressed by this language?
-- Curiosity, not expertise. Prompts should invite exploration, not signal that being well-read is a prerequisite.
+A published conversation whose slots have all expired remains in `state='published'`. It falls out of the discover feed (which filters on slot validity) and surfaces in the author's Profile under the Past tab. The author revives it by adding a new slot. Direct links to drafts (whether never-published or unpublished) 404 for non-authors.
 
 ## Domain language
 
@@ -133,7 +108,6 @@ The internal model uses precise technical terms; user-facing copy uses everyday 
 | `body` (TipTap JSON) | *(not named)* | Members write; they don't "create a body". |
 | `state: draft` | **draft** | Passes through as-is. |
 | `state: published` | **published** / **live** | "Your conversation is live on the discover feed." |
-| `state: archived` | **archived** / **past** | "past" is acceptable for softer language. |
 | `feedback_form` | **feedback** | "How did it go?" not "complete your feedback form". |
 | `meeting`, `invitation` | same | Pass through — natural words. |
 | `region` | **city** / *(implicit)* | Berlin is implicit; don't force members to choose. |
@@ -246,81 +220,21 @@ Two fonts. Serif is the primary voice; monospace is for metadata and system labe
 
 ## Components
 
-### FloatingNav
+Authoritative specs live in each component file under `src/lib/components/`. Notable patterns:
 
-Pill-shaped, fixed, glassmorphic. Two variants.
-
-**Discover variant** (top): `[Map] [Calendar] [Search…] [+] [Profile]`. Search is an expanding pill (`flex: 1`, `rgba(0,0,0,0.07)` bg). `backdrop-filter: blur(12px)`. Shadow `0 4px 24px rgba(0,0,0,0.15)`. z-index 800. Max-width 360px, centred.
-
-**Editor variant** (top): `[← Back] [• Saved] [...] [Continue]`. Continue is a dark pill (`--text-primary` bg, `--bg-canvas` text, `--radius-pill`). Saved indicator is a green dot + "Saved".
-
-**Date filter panel**: appears below FloatingNav, same glassmorphic style, 7-day picker with round day cells.
-
-### SlotCard
-
-Reusable time-slot card. Full-width, `--radius-card` corners, 1px `--border-link` border, `--space-4` padding. Two-line layout:
-
-- Line 1: hybrid date + time — "Today at 15:00" / "Tomorrow at 10:00" / "Saturday at 15:00" / "29 Mar at 15:00".
-- Line 2: duration + area — monospace, `--text-xs`, muted, uppercase — "1 hour · Kreuzberg".
-
-States: default border; selected (`border-width: 2px; border-color: var(--text-primary)`); invited (`opacity: 0.5` + "Invited" badge); tappable when `onclick` is provided. Used in conversation detail (slot selection + invitation display) and on the author's received-invitations view.
-
-### Bottom sheets
-
-- No backdrop — map clicks pass through to allow pin switching.
-- Slides up from bottom (`fly` transition, `y: 160, duration: 480`).
-- Fixed-positioned, 16px top corners on mobile, 12px all corners on desktop.
-- Max-width 480px (mobile), 680px (desktop). Max-height 50–60vh, scrollable.
-- Dismissed by clicking the map or tapping another pin.
-- Desktop (≥ 768px): centred at bottom with 24px inset.
-
-### Cards
-
-**Profile conversation list** (unified): single list combining authored (published, draft, archived) and responded conversations, sorted by recency. First 3 visible, "See all N conversations →" expands with staggered fade-in (200ms, 50ms delay per item). Published-with-meeting shows an inline sub-card with a warm green tint (`rgba(61,158,90,0.06)`), partner @username, date/time, area. Drafts dimmed (`--opacity-hover-card`) with "continue editing →". Archived dimmed (`--opacity-disabled`). Empty state is a large dashed-border CTA.
-
-**Discover feed rows**: 88×96px thumbnail with `--radius-input` corners; title (`--text-lg`, weight 500); date (`--text-sm`, muted); snippet (`--text-md`, 2-line clamp); area (uppercase monospace); @author. Divider is 1px `--border-link`.
-
-### Buttons
-
-| Variant | Use | Style |
-|---------|-----|-------|
-| `.btn-primary` | Publish, Send, Create, Invite | `--text-primary` bg, `--bg-canvas` text, `--radius-input`, padding `--space-3` `--space-6`, hover opacity 0.85 |
-| `.btn-secondary` | Cancel, Unpublish, Select slot | Transparent bg, `--border-link` border, hover fills dark |
-| `.btn-text` | Edit, Change cover, Add slot | `--text-muted`, underline, hover `--text-primary` |
-
-### Inputs
-
-`--text-base` font size; padding `--space-3`; `--border-link` border; `--radius-input` corners; transparent background. Focus: `outline: none`, border-color `--text-muted`. Placeholder colour `--text-muted`.
-
-### Cover images
-
-- **Placeholder (editor):** dashed border (`1.5px dashed rgba(0,0,0,0.12)`), `--radius-card` corners, centred icon + "Add a cover photo" + "Required. Click or drag an image." Warm bg (`rgba(0,0,0,0.025)`).
-- **Preview (editor):** full-width, `--radius-card`, max-height 280px, `object-fit: cover`. "Change cover" overlay bottom-right.
-- **Detail page:** full-width, max-height 400px, `--radius-card`.
-- **Map pins:** 44×44px circular, 2px white border, subtle shadow. Cover image or dark circle with initial letter.
+- **FloatingNav** — pill-shaped, fixed, glassmorphic. Renders different button subsets per page context via `variant` prop.
+- **SlotCard** — reusable time-slot card. Single-row layout: hybrid date + time on the left, area on the right.
+- **BottomSheet** — slides up from bottom on mobile, centred at bottom on desktop. Opaque (`--bg-canvas`).
+- **MeetingCard** — inline sub-card for a scheduled or past meeting. Background tinted by state.
+- **Button variants** (`shared.css`): `.btn-primary`, `.btn-secondary`, `.btn-text`, `.btn-danger`.
+- **Inputs**: `--text-base` font, `--space-3` padding, `--border-link` border, `--radius-input` corners, transparent background.
+- **Cover images**: editor placeholder + preview, conversation detail full-width, map pins as 44×44px circular fallbacks.
 
 ## UI patterns
 
 ### Guidance through placeholders
 
-The app uses placeholder text as its primary guidance mechanism — no tutorial modals, no persistent labels, no instruction paragraphs above form fields. Grey placeholder text tells a member what to do; once they type, the instructions disappear and the interface is clean.
-
-Examples:
-
-- Editor title: "Title" (large, light serif).
-- Editor body: "Start writing..."
-- Response textarea: "Write your response — once sent, you'll see available times to meet"
-- Invitation message: "Add a note (optional)"
-- Search input: "Search" (large, centred)
-
-Rules:
-
-- Default placeholder text is short — a verb phrase, not a question or sentence.
-- At key transition points in the journey, a flow-guiding placeholder may describe what happens next (one line). The placeholder *is* the guidance — there is no surrounding explainer copy.
-- No labels above inputs that duplicate the placeholder meaning.
-- No persistent hint text below inputs (exception: privacy notes like "Only visible to you and the author").
-- Section titles are minimal or absent — the placeholder *is* the affordance.
-- Use `--text-muted` at reduced opacity so placeholders feel like whispers, not instructions.
+The app uses placeholder text as its primary guidance mechanism. No tutorial modals, no persistent labels, no instruction paragraphs above form fields. Once a member types, the placeholder disappears and the interface is clean. At key transition points, a flow-guiding placeholder may describe what happens next; that is the guidance, with no surrounding explainer copy. Use `--text-muted` so placeholders feel like whispers, not instructions.
 
 ### Monospace metadata
 
@@ -332,12 +246,15 @@ For @usernames, dates, stat labels, slot areas, badges. Font `--font-mono`, size
 
 ### Animations
 
-- Bottom sheet: `fly` from y 160, 480ms (see *Components / Bottom sheets*).
-- Hover transitions: 0.15s on backgrounds, colours, borders.
-- Theme transitions: 0.2s ease on all colour properties (global).
-- Map geolocation: instant jump, no animation (`animate: false`).
-- RotatingHeadline: 2800ms interval, 420ms fade+slide per word.
-- City dot pulse: 2.5s ease-in-out infinite, opacity 1 → 0.4 → 1.
+Hover transitions are quick (~150ms); theme transitions are slower (~400ms with an eased curve). The bottom sheet flies up from y:160 over ~480ms. Specific durations live in `--duration-*` tokens in `src/app.css`; refer to those when adding new animations rather than hardcoding values.
+
+### Modals
+
+The first-arrival onboarding modal is a 4-step intro on the discover page. Members can skip at any step. After that, members find their way through the interface itself. Other modals are fine when they serve the member's current task, like the waitlist form that appears when a visitor clicks a conversation. The line is whether the overlay helps with what the member is doing or interrupts it.
+
+### Inclusive language
+
+Avoid intellectualism signals like "independent thinkers" or "meet through writing". These address a specific kind of reader and can feel like exclusion to others. Test copy against the question: would a nurse, a barista, a retiree feel addressed? Prompts should invite exploration; they shouldn't signal that being well-read is a prerequisite.
 
 ## Style guide alignment
 
