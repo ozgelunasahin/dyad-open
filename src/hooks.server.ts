@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 import { dev } from '$app/environment';
+import { env } from '$env/dynamic/private';
 import type { Handle } from '@sveltejs/kit';
 import { createSupabaseAdapter } from '@prefig/upact-supabase';
 import { getAuthorizedAdminOperator } from '$lib/server/admin-auth';
@@ -11,8 +12,12 @@ const APEX_HOSTNAME = 'dyad.berlin';
 const PAGES_PREVIEW_HOSTNAME = 'dyad-berlin.pages.dev';
 
 export const handle: Handle = async ({ event, resolve }) => {
+	// E2E_LOOPBACK admits localhost when running production builds (`vite preview`)
+	// for Playwright integration. Distinct from ADMIN_DEV_BYPASS so the two
+	// concerns can't be conflated by a single env var leak.
+	const loopbackAdmitted = dev || env.E2E_LOOPBACK === '1';
 	const kind = routeKind(event.url, {
-		devMode: dev,
+		devMode: loopbackAdmitted,
 		apexHostname: APEX_HOSTNAME,
 		adminHostname: ADMIN_HOSTNAME,
 		previewHostname: PAGES_PREVIEW_HOSTNAME
