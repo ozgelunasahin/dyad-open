@@ -6,7 +6,7 @@ dyad.berlin is a SvelteKit app for facilitating in-person conversations in Berli
 
 **Stack:** SvelteKit, Svelte 5 (runes), Supabase (auth + DB + storage), TipTap/ProseMirror (rich text editor), Leaflet (map), Cloudflare Pages.
 
-**Domain vocabulary:** The internal model uses "prompt" for the written conversation starter. User-facing copy uses "conversation." See the *Domain language* section of `DESIGN.md` for the full mapping.
+**Domain vocabulary:** The internal model uses "prompt" for the written conversation starter. User-facing copy uses "conversation." See the *Domain language* section below for the full mapping.
 
 ## Architecture
 
@@ -26,6 +26,7 @@ src/lib/services/
   gate.ts                # GateService — feedback gate check
   location.ts            # Location search via Nominatim (server-side)
   storage.ts             # StorageService — upload/serve cover images
+  scope.ts               # ScopeService — corner/scope CRUD + membership
   cancellation-query.ts  # Read-side queries for cancellations
 ```
 
@@ -33,16 +34,15 @@ Most services follow `interface XxxService` + `class SupabaseXxxService implemen
 
 Page server loaders call services directly (not via internal API fetches). The upact port is resolved in `hooks.server.ts` and `identity.ts`; the resulting substrate ID is passed to services as a plain `userId: string` parameter. Services do not see the `Upactor` abstraction. The test factory in `tests/helpers/db.ts` is the single swap point for portability.
 
-### (app) Layout Group
+### Route groups
 
-All authenticated routes live under `src/routes/(app)/`. The layout provides:
-- Auth guard (redirect to `/login` if not authenticated)
-- Username loading from profiles
-- Sidebar nav (Discover, Profile) + mobile hamburger
+Most authenticated routes live under `src/routes/(app)/`. The conversation editor is its own group at `src/routes/(editor)/conversations/[id]/edit/`. The admin plane is at `src/routes/(admin)/admin/`. Auth flows (`login`, `signup`, `join`, `waitlist`) live in `src/routes/(auth)/`. The `(app)` layout provides the auth guard (redirect to `/login` if not authenticated) and loads the member's username from `profiles`.
+
+Navigation is via `FloatingNav` on every page that needs it; there is no shared sidebar in the current implementation. `src/lib/components/Sidebar.svelte` exists as a draft component but is not mounted.
 
 ### Feedback Gate
 
-`src/hooks.server.ts` checks every authenticated request for pending feedback forms. Gated members are redirected to `/feedback/{formId}`. Exempt paths: `/_app/`, `/feedback`, `/api/feedback`, `/api/auth`, `/api/vocabulary`, `/auth`, `/logout`, `/impressum`, `/datenschutz`, `.webmanifest`, `/service-worker`, `/favicon`.
+`src/hooks.server.ts` checks every authenticated request for pending feedback forms. For page navigation it sets `event.locals.pendingFeedbackFormId`, and the `(app)` layout renders `MeetingFeedbackModal` over the page. For `/api/*` requests the gate returns a 403 JSON `{ error: 'gated' }`. Exempt paths: `/_app/`, `/feedback`, `/api/feedback`, `/api/auth`, `/api/vocabulary`, `/auth`, `/logout`, `/impressum`, `/datenschutz`, `.webmanifest`, `/service-worker`, `/favicon`.
 
 ### Key Patterns
 
@@ -99,7 +99,7 @@ Admin authentication is gated by Cloudflare Access at the edge — operator iden
 ## Database
 
 Schema defined in `supabase/migrations/` (source of truth). Key tables:
-- `prompts` — Conversations with state machine (draft → published → archived)
+- `prompts` — Conversations. Two states (`draft`, `published`); three actions (publish, unpublish, delete). See `DESIGN.md` § *Conversation states*.
 - `time_slots` — Meeting slots with exact_location (private) and general_area (public)
 - `prompt_comments` — Responses to conversations (one per user per prompt)
 - `prompt_invitations` — Meeting invitations tied to slots
@@ -126,7 +126,7 @@ Schema defined in `supabase/migrations/` (source of truth). Key tables:
 
 - PWA workbox errors about oversized upload files are pre-existing and harmless.
 - `svelte-check` has pre-existing errors (Supabase type widening).
-- `DOMPurify` import: use `import DOMPurify from 'isomorphic-dompurify'` (default import).
+- TipTap → HTML rendering is in `src/lib/utils/tiptap-html.ts`. The renderer is safe-by-construction: a fixed tag/attribute allowlist plus a protocol allowlist (`http:`, `https:`, `mailto:`) for URLs. No runtime DOMPurify dependency.
 - Leaflet CSS and icons self-hosted in `static/leaflet/`.
 
 ## Design References
@@ -180,7 +180,7 @@ The internal model uses precise technical terms; user-facing copy uses everyday 
 
 5. **For copy/wording changes:** Edit `src/lib/copy.ts`. Single source for all user-facing text.
 
-6. **For CSS fixes:** Use design tokens from `src/app.css` (`--space-*`, `--text-*`, `--radius-*`). Don't hardcode pixel values. The full token catalogue is in `DESIGN.md`.
+6. **For CSS fixes:** Use design tokens from `src/app.css` (`--space-*`, `--text-*`, `--radius-*`). Don't hardcode pixel values. The token catalogue lives in `src/app.css`.
 
 ## Engineering Standards
 
@@ -239,7 +239,7 @@ try {
 
 **If a new data use would need to be disclosed in `/datenschutz`, treat that as a strong signal to reconsider collecting it at all.** The Datenschutz page is our honest record of what we do with people's data. Every addition to it is a surface we commit to maintaining — consent flows, retention policy, Art 30 records, possibly cross-border transfer paperwork. Before adding a disclosure, ask: do we need this data, or can we achieve the same goal by pointing users at a third party that acts as the controller themselves? Example: newsletter collection was removed (migration 20260417110000_drop_newsletter_subscribers.sql) because pointing users at a Substack signup directly makes Substack the controller — we don't touch the email. Same outcome, no GDPR surface on our side.
 
-**If a feature would require a GDPR / ePrivacy consent banner for visitors, treat that as a hard signal not to ship it as designed.** Cookies set before consent, third-party trackers, embedded third-party assets that observe visitors (Google Fonts, Mapbox, YouTube/Twitter embeds), and analytics that require consent all share a common shape: they push the data-handling boundary outward. The architectural posture of dyad — privacy port, payment opacity, calm-tech use shape — depends on that boundary staying tight. The consent banner is the visible evidence of drift; refusing to add the banner is how the drift is structurally prevented. Examples in the current stack: Plausible (cookieless, EU-hosted) is fine; Google Analytics would not be. Self-hosted Leaflet tiles instead of an embedded Mapbox/Google Maps widget. Self-hosted SangBleu Sunrise fonts instead of Google Fonts. Stripe Checkout (full-page redirect that satisfies Stripe's own privacy disclosure) instead of an embedded Stripe Element that observes visitors before consent. If a feature only works via a consent-requiring path, find a consent-free alternative or skip it. See `DESIGN.md` § *Consent-free as a constraint* for the design-level statement.
+**If a feature would require a GDPR / ePrivacy consent banner for visitors, treat that as a hard signal not to ship it as designed.** Cookies set before consent, third-party trackers, embedded third-party assets that observe visitors (Google Fonts, Mapbox, YouTube/Twitter embeds), and analytics that require consent all share a common shape: they push the data-handling boundary outward. The architectural posture of dyad — privacy port, payment opacity, calm-tech use shape — depends on that boundary staying tight. The consent banner is the visible evidence of drift; refusing to add the banner is how the drift is structurally prevented. Examples in the current stack: Plausible (cookieless, EU-hosted) is fine; Google Analytics would not be. Leaflet library, CSS, and marker icons self-hosted in `static/leaflet/`; tiles fetched from OpenStreetMap (no Mapbox/Google Maps embed). Self-hosted SangBleu Sunrise fonts instead of Google Fonts. Stripe Checkout (full-page redirect that satisfies Stripe's own privacy disclosure) instead of an embedded Stripe Element that observes visitors before consent. If a feature only works via a consent-requiring path, find a consent-free alternative or skip it. See `DESIGN.md` § *Consent-free as a constraint* for the design-level statement.
 
 ### Constants and Configuration
 
