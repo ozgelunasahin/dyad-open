@@ -4,13 +4,11 @@ Dyad's structural commitments.
 
 ## Why dyad is shaped this way
 
-Most platforms that claim to help strangers meet are doing something else underneath. Dating apps optimise for matching: their core function is similarity-based sorting, and the entire experience pulls toward the affinity gradient. Meetup and adjacent tools cluster people around interests, which sounds neutral but reproduces existing categories — a Berlin photography group is a photography group of people already mostly alike on a dozen other axes. Social feeds optimise for engagement, which means showing people more of what they already react to, which is more of what's already familiar. None of these is incidental. Each is the natural consequence of what the platform measures success by.
-
 People in Berlin who want to meet across social categories have no coordination layer for that. Every available digital tool routes them toward affinity-based sorting, which feels like connection but reproduces the clustering that left them isolated in the first place. The crux: making stranger-meeting "easier" almost always means reducing friction through similarity matching, which accelerates the very isolation the user came in trying to address.
 
 ## Structural commitments
 
-These are encoded in the data model, the RLS policies, schema constraints, or the deliberate absence of features. Each bullet names *how*; the bullets without a parenthetical enforcement note are commitments held by review and team discipline, listed honestly so the line between what the system enforces and what we keep ourselves to is visible.
+These are encoded in the data model, the API surface, and the UI. Some by direct enforcement (DB constraints, RLS, the absence of a feature); others by team discipline. Enforcement notes are inline where applicable.
 
 ### Coordination, not communication
 
@@ -18,7 +16,7 @@ The platform helps members find a time and place to meet in person. It does not 
 
 - The meeting is analogue. Members agree on a time and place through the app, then they show up.
 - One response per member per conversation. *(DB UNIQUE constraint on `prompt_comments(prompt_id, author_id)`)*
-- No threading, no replies, no back-and-forth. A response is a one-way message. *(Schema absence: `prompt_comments` has no `parent_id` column.)*
+- A response is a one-way message. *(Schema absence: `prompt_comments` has no `parent_id` column.)*
 - Responses are editable, with an "edited" indicator surfaced to the author.
 - A member must write a response before they can invite to meet. The response is the meeting context. *(UI- and service-layer only; `prompt_invitations.comment_id` is nullable.)*
 - No contact details exchanged through the platform. *(Held by review; no server-side stripping of phone numbers or emails in free-text fields today.)*
@@ -27,9 +25,7 @@ The platform helps members find a time and place to meet in person. It does not 
 
 ### Calm technology
 
-The app should make minimal demands on members' attention. The framing draws on the calm-technology tradition (Weiser & Brown 1995, Amber Case): a tool should be available when needed and recede otherwise.
-
-What that means by what we deliberately did not build: no streaks, no daily digest emails, no "you have unread X" badges, no engagement-driven push, no "users active now" surface, no re-engagement campaigns. Notifications appear when there is something specific to act on, not on a schedule.
+We have tried to make the app ask very little of members' attention. Notifications and prompts appear when there's something specific to act on.
 
 - Notifications are opt-in (email, push) and minimal by design.
 - No reminder cadence. The feedback gate prevents access to the rest of the app until minimum feedback ("did the meeting happen?") is submitted, and stays in place until both members have submitted.
@@ -37,10 +33,10 @@ What that means by what we deliberately did not build: no streaks, no daily dige
 
 ### Anti-sorting
 
-- No interest matching. No personality tests. No "people like you" recommendations.
-- The discover page is a commons, not a feed. *(Discover queries order by `published_at DESC` only — no engagement signals, no decay, no personalisation. See `src/lib/services/prompt-query.ts`.)*
+- Discovery is not based on interests, personality matching, or "people like you" recommendations.
+- The discover page is a commons, not a feed. *(Discover queries order by `published_at DESC` only. See `src/lib/services/prompt-query.ts`.)*
 - Members see each other through their prompts. There are no separate profile bios. *(Schema absence: no `bio` column on `profiles`.)*
-- No follower graph. *(Schema absence: no `follows` table. Held by review — a future PR adding one would need to be caught.)*
+- No follower graph. *(Schema absence: no `follows` table. A future PR adding one would need to be caught by review.)*
 
 ### Meeting cycle
 
@@ -53,21 +49,13 @@ What that means by what we deliberately did not build: no streaks, no daily dige
 
 ### Consent-free as a constraint
 
-Any feature that would require a GDPR / ePrivacy consent modal for visitors is foreclosed by default. The consent banner is treated as a signal of architectural drift toward third-party tracking, third-party assets, or cookie-based personalisation — not as a UI element to add.
+Any feature that would require a GDPR / ePrivacy consent modal for visitors is foreclosed by default. The consent banner is treated as a signal of drift toward third-party tracking, third-party assets, or cookie-based personalisation.
 
-The constraint composes. Each downstream choice is an instance of the same posture:
-
-- **Analytics:** Plausible (cookieless, EU-hosted), not Google Analytics or Mixpanel.
-- **Fonts:** SangBleu Sunrise self-hosted, not Google Fonts (which observes every visitor's IP).
-- **Map tiles:** Leaflet with OpenStreetMap, not Mapbox (which observes pan/zoom data).
-- **Payments:** Stripe Checkout (separate page), not embedded Stripe Elements (which run trackers before consent).
-- **Social embeds:** none. No YouTube, Twitter/X, Instagram, or LinkedIn share buttons.
-
-What this constraint opens up: deployment in contexts where consent-banner-dependent tools are non-starters — schools, civic organisations, care contexts, EU public-sector partners. Once dyad doesn't need to ask, the question of who has the legal capacity to consent stops being a feature gate.
+Current setup: Plausible (cookieless, EU-hosted) for analytics, self-hosted SangBleu Sunrise fonts, Leaflet with OpenStreetMap tiles, Stripe Checkout instead of embedded Stripe Elements, no social embeds.
 
 ### Admin visibility
 
-- Members should assume admins can read anything they upload. The platform does not collect private or confidential details beyond what members agree to share. *(Service-role Supabase client bypasses RLS by design; this is the honest disclosure, not a flaw to fix.)*
+- Members should assume admins can read anything they upload. The platform does not collect private or confidential details beyond what members agree to share. *(Service-role Supabase client bypasses RLS by design.)*
 
 ### Conversation states
 
