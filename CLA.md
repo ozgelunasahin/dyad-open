@@ -1,7 +1,5 @@
 # dyad Contributor License Agreement
 
-> **Document status (2026-05-09): working draft.** This text follows the Harmony 1.0 (HA-CLA-I) Individual Contributor License Agreement, license-grant variant. It should be reviewed by counsel before being made publicly active via `cla-assistant.io`. Open items are listed at the end of this file.
-
 ## Preamble
 
 Thank you for your interest in contributing to dyad ("We" or "Us").
@@ -94,13 +92,12 @@ You accept and agree to the terms of this Agreement by signing in via `cla-assis
 
 ---
 
-## Open items for review (2026-05-09)
+## Items to revisit
 
-Before this CLA is activated via `cla-assistant.io`, the following should be confirmed:
+Substantive changes will be communicated via release notes and trigger a re-sign request. Known future updates:
 
-- **Entity attribution.** "We"/"Us" currently refers to the dyad cofounders. Once a steward entity (Verantwortungseigentum or equivalent) is incorporated, this should be updated to name that entity, with assignment language for pre-incorporation contributions.
-- **Governing-law choice.** Germany is set as governing law to align with the cofounders' jurisdiction. Confirm appropriate for the eventual steward entity's seat.
-- **Series-of-versions wording.** The "Different Open Source License" choice is intended to preserve relicensing optionality across OSI-approved licenses. Confirm this is the intended scope (vs. narrower "Subsequent Versions" of AGPL only).
-- **Counsel review.** Recommended once before public activation; cost estimate ~€200–500 for a one-hour consultation with a German IP attorney.
+- **Entity attribution.** "We"/"Us" currently refers to the dyad cofounders. Once a steward entity (Verantwortungseigentum or equivalent) is incorporated, this will be updated to name that entity, with assignment language for pre-incorporation contributions.
+- **Governing-law choice.** Germany is set as governing law to align with the cofounders' jurisdiction. Revisit once the steward entity's seat is settled.
+- **Series-of-versions wording.** The "Different Open Source License" choice preserves relicensing optionality across OSI-approved licenses, rather than the narrower "Subsequent Versions of AGPL only" alternative.
 
 Source template: Harmony 1.0 HA-CLA-I, license-grant variant, released 2011-07-04. <https://harmonyagreements.org/agreements.html>.

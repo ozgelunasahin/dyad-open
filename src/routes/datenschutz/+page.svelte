@@ -54,6 +54,22 @@
 			Dieser Eintrag bleibt nach Annahme der Einladung als Nachweis erhalten;
 			eine L&ouml;schung erfolgt auf Anfrage.
 		</p>
+		<p>
+			Zus&auml;tzlich erfassen wir bei der Registrierung:
+		</p>
+		<ul>
+			<li>
+				die Empfehlungsbeziehung (intern: <code>referred_by</code>) &mdash; wer ein
+				Mitglied zur Plattform gef&uuml;hrt hat. Rechtsgrundlage Art. 6 Abs. 1
+				lit. b DSGVO.
+			</li>
+			<li>
+				eine optionale Beitrittsmotivation (intern: <code>join_motivation</code>) &mdash;
+				kurzer Freitext, den Mitglieder beim Anmelden angeben k&ouml;nnen. Dient
+				der Kuratierung der Mitgliederbasis. Wird f&uuml;r die Dauer des Kontos
+				gespeichert und mit dem Konto gel&ouml;scht.
+			</li>
+		</ul>
 	</section>
 
 	<section>
@@ -61,7 +77,7 @@
 		<p>
 			Wir verwenden technisch notwendige Cookies f&uuml;r die Authentifizierung sowie
 			localStorage f&uuml;r Benutzereinstellungen (z.B. Theme-Auswahl). Es werden keine
-			Tracking-Cookies eingesetzt.
+			verhaltensbezogenen oder seiten&uuml;bergreifenden Tracking-Cookies eingesetzt.
 		</p>
 	</section>
 

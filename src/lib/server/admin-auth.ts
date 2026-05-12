@@ -6,14 +6,18 @@ import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
  * Admin authentication via Cloudflare Access.
  *
  * Production: Cloudflare Zero Trust gates `admin.dyad.berlin` at the edge.
- * Operators authenticate via Cloudflare's identity layer BEFORE the request
- * reaches dyad. Cloudflare attaches the signed identity JWT to the request:
- *   - Cf-Access-Jwt-Assertion              (signed JWT — always present)
- *   - Cf-Access-Authenticated-User-Email   (convenience header — sometimes missing)
+ * Operators authenticate against Cloudflare's identity layer BEFORE the
+ * request reaches dyad. Cloudflare attaches two artefacts:
+ *   - Cf-Access-Authenticated-User-Email   (convenience header)
+ *   - Cf-Access-Jwt-Assertion              (signed JWT)
  *
- * We verify the JWT against Cloudflare's published JWKS and read the email
- * from the JWT claims. The convenience email header is consulted first as
- * a fast path when present, but the JWT is the authoritative source.
+ * The email header is trusted because the only path to the origin is
+ * through Cloudflare Access. We read it first; the JWT verification path
+ * is a fallback that fires when the header is missing. If the origin ever
+ * becomes reachable directly — a different deployment target, or the
+ * underlying *.pages.dev URL not gated by CF Access — the header is
+ * spoofable and the precedence would need to invert (JWT first). See
+ * SECURITY.md for the deployment assumption this code relies on.
  *
  * Env vars (required in production):
  *   CF_ACCESS_TEAM_DOMAIN  e.g. dyad-berlin.cloudflareaccess.com
