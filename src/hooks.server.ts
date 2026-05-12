@@ -1,18 +1,34 @@
 import { createServerClient } from '@supabase/ssr';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 import { dev } from '$app/environment';
+import { env } from '$env/dynamic/private';
 import type { Handle } from '@sveltejs/kit';
 import { createSupabaseAdapter } from '@prefig/upact-supabase';
 import { getAuthorizedAdminOperator } from '$lib/server/admin-auth';
+import { routeKind } from '$lib/server/route-kind';
 
 const ADMIN_HOSTNAME = 'admin.dyad.berlin';
 const APEX_HOSTNAME = 'dyad.berlin';
+const PAGES_PREVIEW_HOSTNAME = 'dyad-berlin.pages.dev';
 
 export const handle: Handle = async ({ event, resolve }) => {
-	// Backwards compat: dyad.berlin/admin/* redirects to admin.dyad.berlin/*
-	// so the admin plane is reachable only via its own hostname. Old bookmarks
-	// keep working but land in the right place.
-	if (event.url.hostname === APEX_HOSTNAME && event.url.pathname.startsWith('/admin')) {
+	// E2E_LOOPBACK admits localhost when running production builds (`vite preview`)
+	// for Playwright integration. Distinct from ADMIN_DEV_BYPASS so the two
+	// concerns can't be conflated by a single env var leak.
+	const loopbackAdmitted = dev || env.E2E_LOOPBACK === '1';
+	const kind = routeKind(event.url, {
+		devMode: loopbackAdmitted,
+		apexHostname: APEX_HOSTNAME,
+		adminHostname: ADMIN_HOSTNAME,
+		previewHostname: PAGES_PREVIEW_HOSTNAME
+	});
+
+	if (kind === 'reject') {
+		return new Response(null, { status: 404 });
+	}
+
+	// Backwards compat: old apex /admin/* bookmarks redirect to the admin host.
+	if (kind === 'apex-redirect') {
 		const adminPath = event.url.pathname.replace(/^\/admin/, '') || '/';
 		return new Response(null, {
 			status: 301,
@@ -20,14 +36,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		});
 	}
 
-	// Admin plane: gated by Cloudflare Access at admin.dyad.berlin. The reroute
-	// hook (src/hooks.ts) maps admin.dyad.berlin/foo → /admin/foo internally so
-	// existing route files keep working. We authorize based on hostname (production)
-	// or /admin/* path (local dev, where there's no subdomain).
-	const isAdminRequest =
-		event.url.hostname === ADMIN_HOSTNAME || event.url.pathname.startsWith('/admin');
-
-	if (isAdminRequest) {
+	if (kind === 'admin') {
 		const operator = await getAuthorizedAdminOperator(event.request);
 		if (!operator) {
 			return new Response(

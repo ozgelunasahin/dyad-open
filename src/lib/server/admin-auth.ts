@@ -3,28 +3,14 @@ import { env } from '$env/dynamic/private';
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
 
 /**
- * Admin authentication via Cloudflare Access.
- *
- * Production: Cloudflare Zero Trust gates `admin.dyad.berlin` at the edge.
- * Operators authenticate against Cloudflare's identity layer BEFORE the
- * request reaches dyad. Cloudflare attaches two artefacts:
- *   - Cf-Access-Authenticated-User-Email   (convenience header)
- *   - Cf-Access-Jwt-Assertion              (signed JWT)
- *
- * The email header is trusted because the only path to the origin is
- * through Cloudflare Access. We read it first; the JWT verification path
- * is a fallback that fires when the header is missing. If the origin ever
- * becomes reachable directly — a different deployment target, or the
- * underlying *.pages.dev URL not gated by CF Access — the header is
- * spoofable and the precedence would need to invert (JWT first). See
- * SECURITY.md for the deployment assumption this code relies on.
+ * Admin authentication via Cloudflare Access. See SECURITY.md for the layered
+ * model (routing-layer hostname allowlist + JWT-first verification here).
  *
  * Env vars (required in production):
  *   CF_ACCESS_TEAM_DOMAIN  e.g. dyad-berlin.cloudflareaccess.com
- *   CF_ACCESS_AUD          per-application audience tag from the Access dashboard
+ *   CF_ACCESS_AUD          per-application audience tag
  *
- * Local dev: Cloudflare Access doesn't run locally. Set ADMIN_DEV_BYPASS=1 in
- * .env.local to allow /admin/* through with a synthetic operator.
+ * Local dev: set ADMIN_DEV_BYPASS=1 in .env.local for a synthetic operator.
  */
 
 export interface AdminOperator {
@@ -79,9 +65,9 @@ export async function getAuthorizedAdminOperator(request: Request): Promise<Admi
 }
 
 /**
- * Pure variant: takes the dev/bypass flags and JWT verifier as parameters.
- * Used by getAuthorizedAdminOperator with real values, and by tests with
- * controlled inputs.
+ * Pure variant. JWT-first: present JWT is authoritative (fails → reject
+ * regardless of any header). Header only consulted when no JWT was emitted,
+ * and the path is logged as a misconfiguration signal.
  */
 export async function resolveAdminOperator(
 	request: Request,
@@ -91,15 +77,25 @@ export async function resolveAdminOperator(
 		verifyJwt?: JwtVerifier;
 	}
 ): Promise<AdminOperator | null> {
-	const headerEmail = request.headers.get('cf-access-authenticated-user-email');
-	if (headerEmail && headerEmail.length > 0) {
-		return { email: headerEmail };
+	// Header *presence* (even empty value) signals "JWT was emitted" — a
+	// proxy stripping the value must not enable silent header fallback.
+	const jwtHeader = request.headers.get('cf-access-jwt-assertion');
+	if (jwtHeader !== null) {
+		if (jwtHeader.length === 0) return null;
+		// Reject rather than fall through to header trust — a JWT was emitted
+		// and we can't verify it. Falling through would silently regress.
+		if (!flags.verifyJwt) return null;
+		const claims = await flags.verifyJwt(jwtHeader);
+		return claims ?? null;
 	}
 
-	const jwt = request.headers.get('cf-access-jwt-assertion');
-	if (jwt && flags.verifyJwt) {
-		const claims = await flags.verifyJwt(jwt);
-		if (claims) return claims;
+	const headerEmail = request.headers.get('cf-access-authenticated-user-email');
+	if (headerEmail && headerEmail.length > 0) {
+		console.error('[admin-auth] JWT absent; falling back to header trust', {
+			path: new URL(request.url).pathname,
+			at: new Date().toISOString()
+		});
+		return { email: headerEmail };
 	}
 
 	if (flags.devMode && flags.bypassEnabled) {

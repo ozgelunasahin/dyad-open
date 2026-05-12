@@ -8,16 +8,18 @@ const isCI = !!process.env.CI;
 const baseURL = isCI ? 'http://localhost:4173' : 'http://localhost:5173';
 
 // Env injected into the spawned dev/preview server for the duration of
-// the e2e run. The Plausible script URL enables the script tag in tests
-// that assert on it; the dev bypass lets tests visit /admin/* without
-// Cloudflare Access (which doesn't run locally).
-//
-// .invalid is RFC-2606 reserved and the test asserts on tag presence,
-// not network behavior — the script is never actually loaded, just
-// rendered in HTML.
+// the e2e run.
+//   - PUBLIC_PLAUSIBLE_SCRIPT_SRC: enables the script tag in tests that
+//     assert on it. .invalid is RFC-2606 reserved; the test checks tag
+//     presence, not network behavior.
+//   - ADMIN_DEV_BYPASS: lets tests visit /admin/* without Cloudflare Access.
+//   - E2E_LOOPBACK: admits localhost through the routing-layer hostname
+//     allowlist in production builds (`vite preview`). Without this the
+//     preview server 404s on the localhost host header.
 const webServerEnv = {
 	PUBLIC_PLAUSIBLE_SCRIPT_SRC: 'https://plausible.io/js/pa-test.invalid.js',
-	ADMIN_DEV_BYPASS: '1'
+	ADMIN_DEV_BYPASS: '1',
+	E2E_LOOPBACK: '1'
 };
 
 export default defineConfig({
