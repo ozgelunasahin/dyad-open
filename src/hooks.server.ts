@@ -4,15 +4,33 @@ import { dev } from '$app/environment';
 import type { Handle } from '@sveltejs/kit';
 import { createSupabaseAdapter } from '@prefig/upact-supabase';
 import { getAuthorizedAdminOperator } from '$lib/server/admin-auth';
+import { routeKind } from '$lib/server/route-kind';
 
 const ADMIN_HOSTNAME = 'admin.dyad.berlin';
 const APEX_HOSTNAME = 'dyad.berlin';
+const PAGES_PREVIEW_HOSTNAME = 'dyad-berlin.pages.dev';
 
 export const handle: Handle = async ({ event, resolve }) => {
+	const kind = routeKind(event.url, {
+		devMode: dev,
+		apexHostname: APEX_HOSTNAME,
+		adminHostname: ADMIN_HOSTNAME,
+		previewHostname: PAGES_PREVIEW_HOSTNAME
+	});
+
+	// Non-canonical hostnames have nothing to say. Closes the admin-bypass
+	// surface demonstrated in tests/security-poc/admin-bypass-hostname.test.ts:
+	// without this guard, any deployment hostname not enrolled in the
+	// production Cloudflare Access application could be admitted to the admin
+	// plane by setting Cf-Access-Authenticated-User-Email.
+	if (kind === 'reject') {
+		return new Response(null, { status: 404 });
+	}
+
 	// Backwards compat: dyad.berlin/admin/* redirects to admin.dyad.berlin/*
 	// so the admin plane is reachable only via its own hostname. Old bookmarks
 	// keep working but land in the right place.
-	if (event.url.hostname === APEX_HOSTNAME && event.url.pathname.startsWith('/admin')) {
+	if (kind === 'apex-redirect') {
 		const adminPath = event.url.pathname.replace(/^\/admin/, '') || '/';
 		return new Response(null, {
 			status: 301,
@@ -20,14 +38,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 		});
 	}
 
-	// Admin plane: gated by Cloudflare Access at admin.dyad.berlin. The reroute
-	// hook (src/hooks.ts) maps admin.dyad.berlin/foo → /admin/foo internally so
-	// existing route files keep working. We authorize based on hostname (production)
-	// or /admin/* path (local dev, where there's no subdomain).
-	const isAdminRequest =
-		event.url.hostname === ADMIN_HOSTNAME || event.url.pathname.startsWith('/admin');
-
-	if (isAdminRequest) {
+	// Admin plane: gated by Cloudflare Access at admin.dyad.berlin.
+	if (kind === 'admin') {
 		const operator = await getAuthorizedAdminOperator(event.request);
 		if (!operator) {
 			return new Response(

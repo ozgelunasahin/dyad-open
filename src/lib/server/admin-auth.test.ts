@@ -1,5 +1,12 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { resolveAdminOperator, type JwtVerifier } from './admin-auth.js';
+
+beforeEach(() => {
+	vi.spyOn(console, 'error').mockImplementation(() => {});
+});
+afterEach(() => {
+	vi.restoreAllMocks();
+});
 
 const PROD_FLAGS = { devMode: false, bypassEnabled: false } as const;
 const DEV_BYPASS_FLAGS = { devMode: true, bypassEnabled: true } as const;
@@ -45,7 +52,7 @@ describe('resolveAdminOperator', () => {
 		expect(op).toEqual({ email: 'a@b.c' });
 	});
 
-	it('falls back to JWT verification when the email header is missing', async () => {
+	it('admits the JWT-claimed identity when a JWT is present and verifies', async () => {
 		const op = await resolveAdminOperator(
 			makeRequest({ 'cf-access-jwt-assertion': 'signed.jwt.value' }),
 			{ ...PROD_FLAGS, verifyJwt: goodJwtVerifier }
@@ -70,17 +77,95 @@ describe('resolveAdminOperator', () => {
 		expect(verifier).toHaveBeenCalledWith('abc.def.ghi');
 	});
 
-	it('does not call the JWT verifier when the email header is already present', async () => {
+	it('JWT-first: rejects when a JWT is present and fails, even if the header is also set', async () => {
+		// Inverse of the header-only-trust precedent: a tampered JWT cannot
+		// be bypassed by attaching a convenience email header. The
+		// cryptographic artefact wins over the convenience artefact.
+		const verifier = vi.fn(failingJwtVerifier);
+		const op = await resolveAdminOperator(
+			makeRequest({
+				'cf-access-authenticated-user-email': 'attacker@example.com',
+				'cf-access-jwt-assertion': 'tampered.jwt.value'
+			}),
+			{ ...PROD_FLAGS, verifyJwt: verifier }
+		);
+		expect(op).toBeNull();
+		expect(verifier).toHaveBeenCalled();
+	});
+
+	it('JWT-first: uses the JWT identity when JWT verifies, ignoring a disagreeing header', async () => {
 		const verifier = vi.fn(goodJwtVerifier);
+		const op = await resolveAdminOperator(
+			makeRequest({
+				'cf-access-authenticated-user-email': 'attacker@example.com',
+				'cf-access-jwt-assertion': 'valid.jwt.for.someone.else'
+			}),
+			{ ...PROD_FLAGS, verifyJwt: verifier }
+		);
+		expect(op).toEqual({ email: 'jwt-user@example.com' });
+		expect(verifier).toHaveBeenCalled();
+	});
+
+	it('rejects when a JWT is present but no verifier is wired (defensive)', async () => {
+		// If env-config is missing (CF_ACCESS_TEAM_DOMAIN/AUD not set), the
+		// production verifier returns null synchronously without a verifier
+		// reference. We reject rather than fall through to header trust:
+		// a JWT was emitted and we have no way to validate it.
 		const op = await resolveAdminOperator(
 			makeRequest({
 				'cf-access-authenticated-user-email': 'real@example.com',
 				'cf-access-jwt-assertion': 'abc.def.ghi'
 			}),
+			PROD_FLAGS
+		);
+		expect(op).toBeNull();
+	});
+
+	it('rejects when the JWT header is present but its value is empty (proxy-stripped value)', async () => {
+		// Proxies that strip the value but not the name would leave an empty
+		// header. We must not silently fall through to header trust on this path.
+		const verifier = vi.fn(goodJwtVerifier);
+		const op = await resolveAdminOperator(
+			makeRequest({
+				'cf-access-authenticated-user-email': 'attacker@example.com',
+				'cf-access-jwt-assertion': ''
+			}),
 			{ ...PROD_FLAGS, verifyJwt: verifier }
 		);
-		expect(op).toEqual({ email: 'real@example.com' });
+		expect(op).toBeNull();
+		// Verifier is not called for empty-value JWT; we reject before invocation.
 		expect(verifier).not.toHaveBeenCalled();
+	});
+
+	it('emits a structured console.error on the header-fallback path', async () => {
+		// The error log is the only observability signal for the
+		// JWT-absent-but-header-present path. Pin its existence and shape.
+		const errorSpy = console.error as unknown as ReturnType<typeof vi.fn>;
+		errorSpy.mockClear();
+		await resolveAdminOperator(
+			makeRequest({ 'cf-access-authenticated-user-email': 'op@example.com' }),
+			PROD_FLAGS
+		);
+		expect(errorSpy).toHaveBeenCalledWith(
+			'[admin-auth] JWT absent; falling back to header trust',
+			expect.objectContaining({
+				path: expect.any(String),
+				at: expect.any(String)
+			})
+		);
+	});
+
+	it('does NOT emit the header-fallback log when a JWT is present and verifies', async () => {
+		const errorSpy = console.error as unknown as ReturnType<typeof vi.fn>;
+		errorSpy.mockClear();
+		await resolveAdminOperator(
+			makeRequest({ 'cf-access-jwt-assertion': 'signed.jwt.value' }),
+			{ ...PROD_FLAGS, verifyJwt: goodJwtVerifier }
+		);
+		expect(errorSpy).not.toHaveBeenCalledWith(
+			expect.stringContaining('[admin-auth] JWT absent'),
+			expect.anything()
+		);
 	});
 
 	it('dev bypass returns synthetic operator only when both devMode AND bypassEnabled', async () => {
