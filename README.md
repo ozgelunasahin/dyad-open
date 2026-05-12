@@ -10,7 +10,7 @@ A cycle looks like this:
 4. If the author accepts, the exact location is shared and they can meet.
 5. After meeting (or not) both leave feedback before either can use the platform again.
 
-We are a two-person team (and claude, who didn't write this intro but did work on the rest of the repo) based in Berlin, trying to understand (and practice) what it looks like to build social technologies as civic infrastructure. We have deliberately not built in messaging, recommenders, engagement metrics, or user tracking, and we have tried to make it hard for ourselves to add them later (see [DESIGN.md#structural-commitments](DESIGN.md#structural-commitments)).
+We are a two-person team (and claude, who didn't write this intro but did work on the rest of the repo) based in Berlin, trying to understand (and practice) what it looks like to build social technologies as civic infrastructure. We have deliberately not built in messaging, recommenders, engagement metrics, or user tracking, and we have tried to make it hard for ourselves to add them later.
 
 We are in a private/public(ask us!) beta, we are working toward steward ownership, and are looking for funding and support -- fiore and luna
 
@@ -65,4 +65,4 @@ Report vulnerabilities privately. See [SECURITY.md](SECURITY.md).
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md).

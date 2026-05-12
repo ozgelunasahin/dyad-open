@@ -51,7 +51,7 @@ Keep them concise. The commit body should explain *why*, not *what* (the diff sh
 
 ### CSS: design tokens only
 
-Every CSS value must reference a design token from `src/app.css`. No hardcoded pixel values, colours, or font sizes. See the *Visual system* section of `DESIGN.md` for the catalogue.
+Every CSS value must reference a design token from `src/app.css`. No hardcoded pixel values, colours, or font sizes. The token catalogue lives in `src/app.css`.
 
 ```css
 /* Yes */
@@ -69,7 +69,7 @@ All user-facing text lives in `src/lib/copy.ts`. Don't scatter string literals i
 
 ### Domain language
 
-Internal code uses "prompt" for the conversation starter. User-facing routes and copy use "conversation." See the *Domain language* section of `DESIGN.md` for the full mapping.
+Internal code uses "prompt" for the conversation starter. User-facing routes and copy use "conversation." See the *Domain language* section of `CLAUDE.md` for the full mapping.
 
 ---
 
@@ -88,8 +88,8 @@ npm run dev                  # starts Vite at localhost:5173
 
 | File | Purpose |
 |------|---------|
-| `CLAUDE.md` | Architecture guide, route structure, patterns |
-| `DESIGN.md` | Design philosophy, structural commitments, domain language, visual system |
+| `CLAUDE.md` | Architecture guide, route structure, patterns, domain language |
+| `DESIGN.md` | Structural commitments |
 | `src/lib/copy.ts` | All user-facing text, organised by route |
 
 ---
@@ -110,7 +110,7 @@ Read `CLAUDE.md` first — it covers the architecture, route structure, service 
 
 ### What to check before UI changes
 
-1. Read the *Visual system* and *Components* sections of `DESIGN.md` for tokens and component specs.
+1. Reference `src/app.css` for tokens and `src/lib/components/` for component specs.
 2. Use design tokens — never hardcode CSS values.
 
 ### Testing
