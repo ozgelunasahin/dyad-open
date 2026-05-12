@@ -131,7 +131,38 @@ Schema defined in `supabase/migrations/` (source of truth). Key tables:
 
 ## Design References
 
-- `DESIGN.md` — Consolidated design reference: philosophy, structural commitments (coordination not communication, calm technology, feedback gate, anti-sorting), domain language, visual system, components.
+- `DESIGN.md` — Dyad's structural commitments.
+- Visual tokens live in `src/app.css`. Component implementations in `src/lib/components/`.
+
+## Domain language
+
+The internal model uses precise technical terms; user-facing copy uses everyday language. Members should never encounter domain vocabulary.
+
+| Internal (code/API/DB) | User-facing | Notes |
+|------------------------|-------------|-------|
+| `prompt` | **conversation** | A "prompt" is the written starting point. A "conversation" is the whole flow — writing, meeting, talking. Members see "conversation" because that is the human experience. |
+| `prompt_comments` (DB) / `comment` | **response** | Writing a response is intentional engagement with the conversation, not a casual comment. The response is the gateway to the invitation. |
+| `time_slot` | **time** / **available time** | "Pick a time", not "select a slot". |
+| `LocationRef` | **location** / **place** | Natural language. |
+| `general_area` | **neighbourhood** | The area shown to the inviter before acceptance. |
+| `exact_location` | **location** / **where to meet** | Only shown after acceptance. |
+| `author_id` | **you** / **the author** | No IDs surfaced. |
+| `body` (TipTap JSON) | *(not named)* | Members write; they don't "create a body". |
+| `state: draft` | **draft** | Passes through as-is. |
+| `state: published` | **published** / **live** | "Your conversation is live on the discover feed." |
+| `feedback_form` | **feedback** | "How did it go?" not "complete your feedback form". |
+| `meeting`, `invitation` | same | Pass through — natural words. |
+| `region` | **city** / *(implicit)* | Berlin is implicit; don't force members to choose. |
+
+**Boundary discipline.** Map domain → user-facing at the service/component boundary. A frontend component must never display raw API field names. Error messages from the API may surface domain words ("Failed to create prompt"); catch and rephrase at the UI layer.
+
+**URL paths use `/conversations/`**; `/api/prompts/` retains the internal name.
+
+## UI conventions
+
+- **Placeholders are the guidance.** No tutorial modals, no persistent labels, no instruction paragraphs above form fields. Once a member types, the placeholder disappears. At key transition points a placeholder may describe what happens next; that is the guidance.
+- **Onboarding is a 4-step modal** on the discover page. After that, members find their way through the interface itself.
+- **Casing** — headings in Title Case, buttons and actions in lowercase, badges and labels in Sentence case.
 
 ## Ways of Working
 
