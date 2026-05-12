@@ -1,21 +1,7 @@
 /**
- * Acceptance test — Finding 2: JWT-vs-header precedence.
- *
- * Pre-fix shape (committed 2026-05-12): documented that `resolveAdminOperator`
- * trusted the email header without ever consulting the JWT when both were
- * present — making a forged header authoritative over a real JWT.
- *
- * Post-fix shape (this file): asserts the inverted precedence —
- *   1. JWT present + verifies → admit the JWT-claimed identity.
- *   2. JWT present + fails → reject, regardless of any email header.
- *   3. JWT absent + header present → fall back to header trust (and log).
- *
- * The PoC's pre-fix assertions are removed — this file is now the durable
- * regression test for the protection rather than a snapshot of the
- * vulnerability.
- *
- * Run via the standalone vitest config:
- *   npx vitest run --config tests/security-poc/vitest.config.ts
+ * Regression test for JWT-vs-header precedence (Finding 2). See
+ * `tests/security-poc/README.md` for context. Runs via the standalone
+ * vitest config in this directory.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -43,9 +29,6 @@ const honestJwtVerifier: JwtVerifier = async () => ({
 
 describe('PoC #2 — JWT-first precedence (regression test)', () => {
 	it('rejects when JWT is present but fails verification, even with a header set', async () => {
-		// The vulnerable shape (pre-fix) admitted the header verbatim and
-		// never called the verifier. After fix: the cryptographic artefact
-		// is authoritative; the failing JWT rejects the request.
 		const verifier = vi.fn(rejectingJwtVerifier);
 		const request = makeRequest({
 			'cf-access-authenticated-user-email': 'attacker@example.com',
@@ -93,9 +76,6 @@ describe('PoC #2 — JWT-first precedence (regression test)', () => {
 
 		expect(operator).toEqual({ email: 'real@dyad.berlin' });
 		expect(verifier).not.toHaveBeenCalled();
-		// The observability hook the design relies on — if this assertion
-		// breaks, we have lost the only production signal for "Cloudflare is
-		// no longer emitting JWTs."
 		expect(errorSpy).toHaveBeenCalledWith(
 			'[admin-auth] JWT absent; falling back to header trust',
 			expect.objectContaining({ path: expect.any(String), at: expect.any(String) })

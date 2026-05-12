@@ -1,20 +1,7 @@
 /**
- * Acceptance test — Finding 1: non-canonical hostname admin bypass.
- *
- * Pre-fix shape (committed 2026-05-12): this file documented the vulnerable
- * behaviour by replicating the gating decision locally and asserting that
- * spoofed Cf-Access-Authenticated-User-Email headers were admitted on
- * non-canonical hostnames.
- *
- * Post-fix shape (this file): imports the production `routeKind` helper
- * (`src/lib/server/route-kind.ts`) and asserts that requests to
- * non-canonical hostnames are rejected before any admin-auth code runs.
- * The PoC's pre-fix assertions are removed — the file is now the durable
- * regression test for the protection rather than a snapshot of the
- * vulnerability.
- *
- * Run via the standalone vitest config:
- *   npx vitest run --config tests/security-poc/vitest.config.ts
+ * Regression test for the non-canonical-hostname admin bypass (Finding 1).
+ * See `tests/security-poc/README.md` for context. Runs via the standalone
+ * vitest config in this directory.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -64,15 +51,11 @@ describe('PoC #1 — non-canonical hostname admin bypass (regression test)', () 
 		).toBe('user');
 	});
 
-	// The admin-auth resolver still admits a spoofed email header. That's not
-	// a vulnerability in isolation — the routing layer's `reject` outcome
-	// short-circuits before admin-auth is consulted on non-canonical hosts.
-	// This test pins the defence-in-depth boundary: if routing ever regresses
-	// (e.g., someone reintroduces a path-prefix-only admin gate), the spoofed
-	// header would once again be admitted. Treat any change that flips this
-	// expectation as a security-relevant regression worth review.
+	// Defence-in-depth canary: admin-auth still admits a spoofed header when
+	// called without the routing layer. If this flips, the routing-layer
+	// gate is the only thing standing between an attacker and admission.
 	it.each(NON_CANONICAL_ADMIN_URLS)(
-		'admin-auth still trusts the email header in isolation (kept under routing-layer protection): %s',
+		'admin-auth admits spoofed header in isolation (canary; protected by routing layer): %s',
 		async (href) => {
 			const request = makeRequest(href, {
 				'cf-access-authenticated-user-email': SPOOFED_EMAIL

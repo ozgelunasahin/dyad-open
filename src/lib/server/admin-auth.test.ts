@@ -78,9 +78,6 @@ describe('resolveAdminOperator', () => {
 	});
 
 	it('JWT-first: rejects when a JWT is present and fails, even if the header is also set', async () => {
-		// Inverse of the header-only-trust precedent: a tampered JWT cannot
-		// be bypassed by attaching a convenience email header. The
-		// cryptographic artefact wins over the convenience artefact.
 		const verifier = vi.fn(failingJwtVerifier);
 		const op = await resolveAdminOperator(
 			makeRequest({
@@ -106,11 +103,7 @@ describe('resolveAdminOperator', () => {
 		expect(verifier).toHaveBeenCalled();
 	});
 
-	it('rejects when a JWT is present but no verifier is wired (defensive)', async () => {
-		// If env-config is missing (CF_ACCESS_TEAM_DOMAIN/AUD not set), the
-		// production verifier returns null synchronously without a verifier
-		// reference. We reject rather than fall through to header trust:
-		// a JWT was emitted and we have no way to validate it.
+	it('rejects when a JWT is present but no verifier is wired (env-config missing)', async () => {
 		const op = await resolveAdminOperator(
 			makeRequest({
 				'cf-access-authenticated-user-email': 'real@example.com',
@@ -121,9 +114,7 @@ describe('resolveAdminOperator', () => {
 		expect(op).toBeNull();
 	});
 
-	it('rejects when the JWT header is present but its value is empty (proxy-stripped value)', async () => {
-		// Proxies that strip the value but not the name would leave an empty
-		// header. We must not silently fall through to header trust on this path.
+	it('rejects empty-value JWT header (proxy stripped value, name remains)', async () => {
 		const verifier = vi.fn(goodJwtVerifier);
 		const op = await resolveAdminOperator(
 			makeRequest({
@@ -133,13 +124,10 @@ describe('resolveAdminOperator', () => {
 			{ ...PROD_FLAGS, verifyJwt: verifier }
 		);
 		expect(op).toBeNull();
-		// Verifier is not called for empty-value JWT; we reject before invocation.
 		expect(verifier).not.toHaveBeenCalled();
 	});
 
 	it('emits a structured console.error on the header-fallback path', async () => {
-		// The error log is the only observability signal for the
-		// JWT-absent-but-header-present path. Pin its existence and shape.
 		const errorSpy = console.error as unknown as ReturnType<typeof vi.fn>;
 		errorSpy.mockClear();
 		await resolveAdminOperator(

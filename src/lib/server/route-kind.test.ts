@@ -44,7 +44,6 @@ describe('routeKind — Pages preview admission (D1)', () => {
 	});
 
 	it('canonical project preview (no branch prefix) + non-admin → user', () => {
-		// Some Pages deployments use `<project>.pages.dev` directly.
 		expect(routeKind(new URL('https://dyad-berlin.pages.dev/discover'), PROD_OPTS)).toBe('user');
 	});
 
@@ -68,9 +67,6 @@ describe('routeKind — non-canonical hostnames are rejected', () => {
 	});
 
 	it('other-account Pages project → reject (project-scoped allowlist)', () => {
-		// A Pages project owned by a different Cloudflare account has a
-		// different `<project>.pages.dev` hostname; scoping to the project
-		// name (not a generic *.pages.dev suffix) excludes it.
 		expect(routeKind(new URL('https://attacker.pages.dev/admin/members'), PROD_OPTS)).toBe('reject');
 		expect(routeKind(new URL('https://attacker.pages.dev/discover'), PROD_OPTS)).toBe('reject');
 		expect(routeKind(new URL('https://malicious.different-project.pages.dev/admin/members'), PROD_OPTS)).toBe('reject');
@@ -97,24 +93,17 @@ describe('routeKind — dev mode allowances', () => {
 	});
 
 	it('IPv6 loopback [::1] in dev → admin or user by path', () => {
-		// Vite binds to IPv6 loopback on some platforms; URL.hostname returns
-		// the bracketed form for IPv6 addresses.
 		expect(routeKind(new URL('http://[::1]:5173/admin/members'), DEV_OPTS)).toBe('admin');
 		expect(routeKind(new URL('http://[::1]:5173/discover'), DEV_OPTS)).toBe('user');
 	});
 
 	it('localhost + /admin/* in PROD → reject (dev allowance gated off)', () => {
-		// Critical: even if a request reaches the origin on localhost in prod
-		// (e.g. via SSRF or misconfigured forwarding), the dev allowance must
-		// not apply. Mirrors the admin-auth.ts dev-bypass discipline.
 		expect(routeKind(new URL('http://localhost/admin/members'), PROD_OPTS)).toBe('reject');
 	});
 });
 
 describe('routeKind — hostname normalization and boundary safety', () => {
 	it('trailing FQDN dot on canonical admin hostname normalises and admits', () => {
-		// RFC 1034 valid notation. Node URL preserves the trailing dot in hostname.
-		// Without normalisation, this 404s legitimate canonical traffic.
 		expect(routeKind(new URL('https://admin.dyad.berlin./members'), PROD_OPTS)).toBe('admin');
 	});
 
@@ -127,10 +116,7 @@ describe('routeKind — hostname normalization and boundary safety', () => {
 		expect(routeKind(new URL('https://feature-x.dyad-berlin.pages.dev./discover'), PROD_OPTS)).toBe('user');
 	});
 
-	it('suffix-confusion attack: similarly-named hostname must not match preview allowlist', () => {
-		// The dot-prefix anchor (`.endsWith('.' + previewHostname)`) ensures
-		// label-boundary matching. Without it, `evil-dyad-berlin.pages.dev` would
-		// match `dyad-berlin.pages.dev` via substring.
+	it('suffix-confusion: label-boundary match — `evil-dyad-berlin.pages.dev` must not match', () => {
 		expect(routeKind(new URL('https://evil-dyad-berlin.pages.dev/discover'), PROD_OPTS)).toBe('reject');
 		expect(routeKind(new URL('https://evil-dyad-berlin.pages.dev/admin/members'), PROD_OPTS)).toBe('reject');
 		expect(routeKind(new URL('https://dyad-berlin-evil.pages.dev/discover'), PROD_OPTS)).toBe('reject');

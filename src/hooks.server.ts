@@ -18,18 +18,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 		previewHostname: PAGES_PREVIEW_HOSTNAME
 	});
 
-	// Non-canonical hostnames have nothing to say. Closes the admin-bypass
-	// surface demonstrated in tests/security-poc/admin-bypass-hostname.test.ts:
-	// without this guard, any deployment hostname not enrolled in the
-	// production Cloudflare Access application could be admitted to the admin
-	// plane by setting Cf-Access-Authenticated-User-Email.
 	if (kind === 'reject') {
 		return new Response(null, { status: 404 });
 	}
 
-	// Backwards compat: dyad.berlin/admin/* redirects to admin.dyad.berlin/*
-	// so the admin plane is reachable only via its own hostname. Old bookmarks
-	// keep working but land in the right place.
+	// Backwards compat: old apex /admin/* bookmarks redirect to the admin host.
 	if (kind === 'apex-redirect') {
 		const adminPath = event.url.pathname.replace(/^\/admin/, '') || '/';
 		return new Response(null, {
@@ -38,7 +31,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 		});
 	}
 
-	// Admin plane: gated by Cloudflare Access at admin.dyad.berlin.
 	if (kind === 'admin') {
 		const operator = await getAuthorizedAdminOperator(event.request);
 		if (!operator) {
