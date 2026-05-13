@@ -27,10 +27,20 @@ function getJwks(teamDomain: string) {
 	return _jwks;
 }
 
+/**
+ * Trim + non-empty check. Treats whitespace-only values as absent so a
+ * copy-paste artefact like `CF_ACCESS_TEAM_DOMAIN='   '` doesn't pass the
+ * configured-env check and leave the header path unguarded. Exported for
+ * test access; not part of the auth contract.
+ */
+export function isConfigured(value: string | undefined): value is string {
+	return typeof value === 'string' && value.trim().length > 0;
+}
+
 const productionJwtVerifier: JwtVerifier = async (jwt) => {
 	const teamDomain = env.CF_ACCESS_TEAM_DOMAIN;
 	const audience = env.CF_ACCESS_AUD;
-	if (!teamDomain || !audience) {
+	if (!isConfigured(teamDomain) || !isConfigured(audience)) {
 		console.error('[admin-auth] CF_ACCESS_TEAM_DOMAIN or CF_ACCESS_AUD not configured');
 		return null;
 	}
@@ -57,10 +67,16 @@ function extractEmail(payload: JWTPayload): { email: string } | null {
  * request is not authorized for the admin plane.
  */
 export async function getAuthorizedAdminOperator(request: Request): Promise<AdminOperator | null> {
+	// Only wire the verifier when the env vars it needs are present. With env
+	// missing, `verifyJwt` is undefined and both the JWT and header-fallback
+	// paths in resolveAdminOperator hard-reject — admin admission requires a
+	// working cryptographic check. `isConfigured` treats whitespace-only
+	// values as absent (see its docstring).
+	const envConfigured = isConfigured(env.CF_ACCESS_TEAM_DOMAIN) && isConfigured(env.CF_ACCESS_AUD);
 	return resolveAdminOperator(request, {
 		devMode: dev,
 		bypassEnabled: env.ADMIN_DEV_BYPASS === '1',
-		verifyJwt: productionJwtVerifier
+		verifyJwt: envConfigured ? productionJwtVerifier : undefined
 	});
 }
 
@@ -91,6 +107,17 @@ export async function resolveAdminOperator(
 
 	const headerEmail = request.headers.get('cf-access-authenticated-user-email');
 	if (headerEmail && headerEmail.length > 0) {
+		// Header-fallback requires the verifier to be wired. With env vars
+		// missing AND Cloudflare stopping JWT emission, the email header is
+		// our only signal — and we have nothing to verify it against. Reject
+		// rather than silently admit.
+		if (!flags.verifyJwt) {
+			console.error('[admin-auth] header-only request rejected; CF Access env not configured', {
+				path: new URL(request.url).pathname,
+				at: new Date().toISOString()
+			});
+			return null;
+		}
 		console.error('[admin-auth] JWT absent; falling back to header trust', {
 			path: new URL(request.url).pathname,
 			at: new Date().toISOString()
