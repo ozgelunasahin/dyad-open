@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest';
-import { resolveAdminOperator, type JwtVerifier } from './admin-auth.js';
+import { resolveAdminOperator, isConfigured, type JwtVerifier } from './admin-auth.js';
 
 let errorSpy: MockInstance<typeof console.error>;
 beforeEach(() => {
@@ -9,7 +9,15 @@ afterEach(() => {
 	vi.restoreAllMocks();
 });
 
-const PROD_FLAGS = { devMode: false, bypassEnabled: false } as const;
+const goodJwtVerifier: JwtVerifier = async () => ({ email: 'jwt-user@example.com' });
+const failingJwtVerifier: JwtVerifier = async () => null;
+
+// PROD_FLAGS represents healthy production: env vars set, so the verifier is
+// wired. The header-fallback path is admissible because we *have* a verifier
+// to fall back FROM, not because the verifier is exercised on the fallback.
+const PROD_FLAGS = { devMode: false, bypassEnabled: false, verifyJwt: goodJwtVerifier } as const;
+// Env-missing production: verifyJwt is undefined. Header fallback rejects.
+const PROD_NO_VERIFIER_FLAGS = { devMode: false, bypassEnabled: false } as const;
 const DEV_BYPASS_FLAGS = { devMode: true, bypassEnabled: true } as const;
 const DEV_NO_BYPASS_FLAGS = { devMode: true, bypassEnabled: false } as const;
 const PROD_BYPASS_SET_FLAGS = { devMode: false, bypassEnabled: true } as const;
@@ -19,9 +27,6 @@ function makeRequest(headers: Record<string, string> = {}): Request {
 	for (const [k, v] of Object.entries(headers)) h.set(k, v);
 	return new Request('http://localhost/admin/waitlist', { headers: h });
 }
-
-const goodJwtVerifier: JwtVerifier = async () => ({ email: 'jwt-user@example.com' });
-const failingJwtVerifier: JwtVerifier = async () => null;
 
 describe('resolveAdminOperator', () => {
 	it('returns the operator when Cloudflare Access set the email header', async () => {
@@ -110,9 +115,33 @@ describe('resolveAdminOperator', () => {
 				'cf-access-authenticated-user-email': 'real@example.com',
 				'cf-access-jwt-assertion': 'abc.def.ghi'
 			}),
-			PROD_FLAGS
+			PROD_NO_VERIFIER_FLAGS
 		);
 		expect(op).toBeNull();
+	});
+
+	it('rejects header-only request when no verifier is wired (env-config missing fail-closed)', async () => {
+		// The protection that closes the env-missing fail-closed gap: when CF
+		// env vars are absent AND Cloudflare stops emitting JWTs, the email
+		// header alone must not admit. Without this, a forged header in that
+		// degraded state silently re-opens the admin plane.
+		const op = await resolveAdminOperator(
+			makeRequest({ 'cf-access-authenticated-user-email': 'attacker@example.com' }),
+			PROD_NO_VERIFIER_FLAGS
+		);
+		expect(op).toBeNull();
+	});
+
+	it('emits a distinct console.error when rejecting on the env-missing header-only path', async () => {
+		errorSpy.mockClear();
+		await resolveAdminOperator(
+			makeRequest({ 'cf-access-authenticated-user-email': 'op@example.com' }),
+			PROD_NO_VERIFIER_FLAGS
+		);
+		expect(errorSpy).toHaveBeenCalledWith(
+			'[admin-auth] header-only request rejected; CF Access env not configured',
+			expect.objectContaining({ path: expect.any(String), at: expect.any(String) })
+		);
 	});
 
 	it('rejects empty-value JWT header (proxy stripped value, name remains)', async () => {
@@ -171,10 +200,10 @@ describe('resolveAdminOperator', () => {
 		expect(await resolveAdminOperator(makeRequest(), DEV_NO_BYPASS_FLAGS)).toBeNull();
 	});
 
-	it('Cloudflare header takes precedence over dev bypass', async () => {
+	it('Cloudflare header takes precedence over dev bypass (when verifier is wired)', async () => {
 		const op = await resolveAdminOperator(
 			makeRequest({ 'cf-access-authenticated-user-email': 'real-op@example.com' }),
-			DEV_BYPASS_FLAGS
+			{ ...DEV_BYPASS_FLAGS, verifyJwt: goodJwtVerifier }
 		);
 		expect(op).toEqual({ email: 'real-op@example.com' });
 	});
@@ -185,5 +214,36 @@ describe('resolveAdminOperator', () => {
 			{ ...DEV_BYPASS_FLAGS, verifyJwt: goodJwtVerifier }
 		);
 		expect(op).toEqual({ email: 'jwt-user@example.com' });
+	});
+});
+
+describe('isConfigured (env presence check used by production wiring)', () => {
+	it('returns false for undefined', () => {
+		expect(isConfigured(undefined)).toBe(false);
+	});
+
+	it('returns false for empty string', () => {
+		expect(isConfigured('')).toBe(false);
+	});
+
+	it('returns false for whitespace-only strings (avoids the bypass-via-whitespace footgun)', () => {
+		// If this returned true, `CF_ACCESS_TEAM_DOMAIN='   '` would wire the
+		// verifier with an unusable domain, the header-fallback path would
+		// admit forged emails, and the env-missing fail-closed property
+		// would silently regress.
+		expect(isConfigured('   ')).toBe(false);
+		expect(isConfigured('\t')).toBe(false);
+		expect(isConfigured('\n')).toBe(false);
+	});
+
+	it('returns true for a normal hostname-shaped value', () => {
+		expect(isConfigured('dyad-berlin.cloudflareaccess.com')).toBe(true);
+	});
+
+	it('returns true for a value with leading/trailing whitespace but non-empty content', () => {
+		// We accept this (the value is functionally usable after trim by jose,
+		// or it'll fail loudly on JWKS fetch). The protection is against
+		// values that are *only* whitespace.
+		expect(isConfigured(' dyad.example ')).toBe(true);
 	});
 });

@@ -6,7 +6,14 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { routeKind } from '../../src/lib/server/route-kind.js';
-import { resolveAdminOperator } from '../../src/lib/server/admin-auth.js';
+import { resolveAdminOperator, type JwtVerifier } from '../../src/lib/server/admin-auth.js';
+
+// Healthy production wiring: env vars are set, so a verifier is present.
+// The canary case below pins that admin-auth still admits a spoofed header
+// in this wired-but-isolated state — routing is what blocks it. Wrapped in
+// `vi.fn` so the canary asserts the verifier was not called (i.e. the
+// admission really came via the header-fallback path, not via JWT).
+const wiredVerifierImpl: JwtVerifier = async () => ({ email: 'never-called@example.com' });
 
 // Suppress the header-fallback console.error fired by the canary cases —
 // the log is intentional and pinned by admin-bypass-jwt-precedence.test.ts.
@@ -61,20 +68,24 @@ describe('PoC #1 — non-canonical hostname admin bypass (regression test)', () 
 	});
 
 	// Defence-in-depth canary: admin-auth admits a spoofed header when called
-	// in isolation; the routing layer is what blocks the attacker in production.
-	// If admin-auth is ever hardened to reject in isolation, this canary flips —
-	// keep the routing layer regardless. Two locks beat one.
+	// in isolation with a wired verifier — the routing layer is what blocks
+	// the attacker in production. If admin-auth is ever hardened to reject
+	// even in this wired state, keep the routing layer regardless. Two locks.
 	it.each(NON_CANONICAL_ADMIN_URLS)(
 		'admin-auth admits spoofed header in isolation (canary; protected by routing layer): %s',
 		async (href) => {
+			const wiredVerifier = vi.fn(wiredVerifierImpl);
 			const request = makeRequest(href, {
 				'cf-access-authenticated-user-email': SPOOFED_EMAIL
 			});
 			const operator = await resolveAdminOperator(request, {
 				devMode: false,
-				bypassEnabled: false
+				bypassEnabled: false,
+				verifyJwt: wiredVerifier
 			});
 			expect(operator).toEqual({ email: SPOOFED_EMAIL });
+			// Admission must come via header-fallback, not JWT verification.
+			expect(wiredVerifier).not.toHaveBeenCalled();
 		}
 	);
 });
