@@ -84,6 +84,16 @@ describe('renderInviteEmail — opener and message', () => {
 		expect(html).not.toContain('<script>alert(1)</script>');
 	});
 
+	it('escapes script tags in the opener', () => {
+		const html = renderInviteEmail({
+			inviteUrl: INVITE_URL,
+			opener: '<script>alert(1)</script>',
+			expiryDays: EXPIRY
+		});
+		expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
+		expect(html).not.toContain('<script>alert(1)</script>');
+	});
+
 	it('preserves message line breaks as <br> tags', () => {
 		const html = renderInviteEmail({
 			inviteUrl: INVITE_URL,

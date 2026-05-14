@@ -2,7 +2,6 @@ import { json, error } from '@sveltejs/kit';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { makeAdminClient } from '$lib/server/supabase-admin';
 import { sendEmail } from '$lib/server/email.js';
-import { escapeHtml } from '$lib/utils/escape-html.js';
 import { nanoid } from 'nanoid';
 import { copy } from '$lib/copy';
 import { renderInviteEmail } from './render-invite-email.js';
@@ -29,15 +28,19 @@ const INVITE_EXPIRY_DAYS = 14;
 const MAX_MESSAGE_LENGTH = 2000;
 const MAX_SIGNATURE_FIELD_LENGTH = 80;
 
-/** Build the escaped opener line from the admin's `name` input. Undefined when blank. */
+/** Return the trimmed opener line from the admin's `name` input. Undefined when blank.
+ *  Returns raw text — `renderInviteEmail` escapes at the interpolation point. */
 function buildOpener(name: unknown): string | undefined {
 	if (typeof name === 'string' && name.trim()) {
-		return escapeHtml(name.trim());
+		return name.trim();
 	}
 	return undefined;
 }
 
-/** Validate an optional short text field (signature override). Returns trimmed value or undefined. */
+/** Validate an optional short text field (signature override).
+ *  Returns the trimmed value, or `undefined` when omitted/empty/whitespace.
+ *  Throws an `error(400, …)` HttpError when the input is the wrong type or
+ *  exceeds `MAX_SIGNATURE_FIELD_LENGTH` — those branches never return. */
 function validateShortText(value: unknown, fieldName: string): string | undefined {
 	if (value === undefined || value === null || value === '') return undefined;
 	if (typeof value !== 'string') error(400, `${fieldName} must be a string`);
@@ -177,11 +180,13 @@ export const POST: RequestHandler = async ({ request }) => {
 		to: email.trim(),
 		subject: copy.email.inviteSubject,
 		html: renderInviteEmail({
-				opener: buildOpener(name),
-				inviteUrl,
-				message: trimmedMessage,
-				expiryDays: INVITE_EXPIRY_DAYS
-			})
+			opener: buildOpener(name),
+			inviteUrl,
+			message: trimmedMessage,
+			expiryDays: INVITE_EXPIRY_DAYS,
+			signatureClosing: validatedSignatureClosing,
+			signatureNames: validatedSignatureNames
+		})
 	});
 
 	return json({ ok: true, inviteUrl, delivered });

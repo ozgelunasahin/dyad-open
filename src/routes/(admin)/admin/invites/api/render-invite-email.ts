@@ -54,8 +54,8 @@ function renderSignedFooter(closing: string, names: string): string {
  * lines in the footer. Both default to copy.email.signature.* when omitted.
  * The brand line ("dyad · berlin") is not overridable.
  *
- * All four optional text fields are HTML-escaped before interpolation;
- * line breaks in the message are preserved as <br> tags.
+ * All four optional text fields are HTML-escaped inside this function;
+ * callers pass raw text. Line breaks in the message are preserved as <br> tags.
  */
 export function renderInviteEmail(params: {
 	opener?: string;
@@ -65,7 +65,9 @@ export function renderInviteEmail(params: {
 	signatureClosing?: string;
 	signatureNames?: string;
 }): string {
-	const openerBlock = params.opener ? `\n\t\t\t\t<p>${params.opener}</p>` : '';
+	const openerBlock = params.opener
+		? `\n\t\t\t\t<p>${escapeHtml(params.opener)}</p>`
+		: '';
 	const personalBlock = params.message
 		? `
 				<blockquote style="margin: 0 0 ${space[6]}; padding: ${space[3]} ${space[4]}; background: #f7f4ee; border-left: 3px solid #c8c2b6; font-style: italic; color: ${color.textSecondary}; white-space: pre-wrap;">${escapeHtml(

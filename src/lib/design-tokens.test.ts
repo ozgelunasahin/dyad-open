@@ -1,13 +1,21 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { tokens } from './design-tokens.js';
 
-const appCss = readFileSync(resolve(__dirname, '../app.css'), 'utf8');
+const appCssPath = fileURLToPath(new URL('../app.css', import.meta.url));
+const appCss = readFileSync(appCssPath, 'utf8');
+
+// Tokens are declared in both `:root` (light) and `[data-theme='dark']`.
+// Match against the :root block only so dark-mode reordering can't silently
+// flip which declaration the test verifies.
+const rootBlockMatch = appCss.match(/:root\s*\{([\s\S]*?)\n\}/);
+if (!rootBlockMatch) throw new Error(':root block not found in src/app.css');
+const rootBlock = rootBlockMatch[1];
 
 function readToken(name: string): string {
-	const match = appCss.match(new RegExp(`--${name}:\\s*([^;]+);`));
-	if (!match) throw new Error(`Token --${name} not found in src/app.css`);
+	const match = rootBlock.match(new RegExp(`--${name}:\\s*([^;]+);`));
+	if (!match) throw new Error(`Token --${name} not found in src/app.css :root`);
 	return match[1].trim();
 }
 
