@@ -99,3 +99,77 @@ describe('renderInviteEmail — opener and message', () => {
 		expect(html).toContain(`href="${url}"`);
 	});
 });
+
+describe('renderInviteEmail — signature overrides', () => {
+	it('uses the override closing when provided', () => {
+		const html = renderInviteEmail({
+			inviteUrl: INVITE_URL,
+			expiryDays: EXPIRY,
+			signatureClosing: 'Yours,'
+		});
+		expect(html).toContain('Yours,');
+		expect(html).not.toContain('With care and joy,');
+		// Names still default
+		expect(html).toContain('Luna and Fiore');
+	});
+
+	it('uses the override names when provided', () => {
+		const html = renderInviteEmail({
+			inviteUrl: INVITE_URL,
+			expiryDays: EXPIRY,
+			signatureNames: 'Theodore'
+		});
+		expect(html).toContain('Theodore');
+		expect(html).not.toContain('Luna and Fiore');
+		// Closing still default
+		expect(html).toContain('With care and joy,');
+	});
+
+	it('uses both overrides when both provided', () => {
+		const html = renderInviteEmail({
+			inviteUrl: INVITE_URL,
+			expiryDays: EXPIRY,
+			signatureClosing: 'Until soon,',
+			signatureNames: 'Fiore'
+		});
+		expect(html).toContain('Until soon,');
+		expect(html).toContain('Fiore');
+		expect(html).not.toContain('With care and joy,');
+		expect(html).not.toContain('Luna and Fiore');
+	});
+
+	it('falls back to defaults when overrides are empty strings', () => {
+		const html = renderInviteEmail({
+			inviteUrl: INVITE_URL,
+			expiryDays: EXPIRY,
+			signatureClosing: '',
+			signatureNames: '   '
+		});
+		expect(html).toContain('With care and joy,');
+		expect(html).toContain('Luna and Fiore');
+	});
+
+	it('escapes script tags in signature overrides', () => {
+		const html = renderInviteEmail({
+			inviteUrl: INVITE_URL,
+			expiryDays: EXPIRY,
+			signatureClosing: '<script>alert(1)</script>',
+			signatureNames: '<img src=x onerror=alert(2)>'
+		});
+		expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
+		expect(html).toContain('&lt;img src=x onerror=alert(2)&gt;');
+		expect(html).not.toContain('<script>alert(1)</script>');
+		expect(html).not.toContain('<img src=x onerror=alert(2)>');
+	});
+
+	it('never lets the brand line be overridden', () => {
+		// brand is not part of the params; confirm it always renders the canonical value
+		const html = renderInviteEmail({
+			inviteUrl: INVITE_URL,
+			expiryDays: EXPIRY,
+			signatureClosing: 'Anything,',
+			signatureNames: 'Anyone'
+		});
+		expect(html).toContain('dyad · berlin');
+	});
+});

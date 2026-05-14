@@ -27,18 +27,20 @@ const SIGNATURE_FONT_FACE = `
 
 // Table layout because Outlook does not reliably render flex/grid.
 // border-collapse + mso-* are Outlook hygiene; without them Outlook injects stray whitespace and borders.
-const EMAIL_SIGNED_FOOTER = `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 0; border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt;">
+function renderSignedFooter(closing: string, names: string): string {
+	return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 0; border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt;">
 					<tr>
 						<td style="vertical-align: middle; padding: 0 ${space[5]} 0 0;">
 							<a href="https://dyad.berlin" style="display: inline-block; text-decoration: none;"><img src="https://dyad.berlin/images/logo-dark.png" alt="dyad" style="height: 48px; width: auto; display: block; border: 0;" /></a>
 						</td>
 						<td style="vertical-align: middle; padding: 0 0 0 ${space[5]}; border-left: 1px solid ${color.borderSubtle};">
-							<p style="font-family: ${SERIF}; font-weight: 300; font-size: ${textSize.base}; line-height: ${leading.tight}; color: ${color.textSecondary}; margin: 0 0 2px;">${copy.email.signature.closing}</p>
-							<p style="font-family: ${SERIF}; font-weight: 400; font-size: ${textSize.lg}; line-height: ${leading.tight}; color: ${color.textPrimary}; margin: 0 0 ${space[2]};">${copy.email.signature.names}</p>
+							<p style="font-family: ${SERIF}; font-weight: 300; font-size: ${textSize.base}; line-height: ${leading.tight}; color: ${color.textSecondary}; margin: 0 0 2px;">${closing}</p>
+							<p style="font-family: ${SERIF}; font-weight: 400; font-size: ${textSize.lg}; line-height: ${leading.tight}; color: ${color.textPrimary}; margin: 0 0 ${space[2]};">${names}</p>
 							<p style="font-family: ${SERIF}; font-weight: 300; font-size: ${textSize.xs}; line-height: ${leading.tight}; color: ${color.textMuted}; letter-spacing: ${letterSpacing.label}; margin: 0;">${copy.email.signature.brand}</p>
 						</td>
 					</tr>
 				</table>`;
+}
 
 /**
  * Render the invitation email body.
@@ -48,14 +50,20 @@ const EMAIL_SIGNED_FOOTER = `<table role="presentation" cellpadding="0" cellspac
  *
  * `message` (when non-empty) is a quoted block beneath the opener.
  *
- * Both fields are escaped before interpolation; line breaks in the message
- * are preserved as <br> tags.
+ * `signatureClosing` and `signatureNames` override the two voice-bearing
+ * lines in the footer. Both default to copy.email.signature.* when omitted.
+ * The brand line ("dyad · berlin") is not overridable.
+ *
+ * All four optional text fields are HTML-escaped before interpolation;
+ * line breaks in the message are preserved as <br> tags.
  */
 export function renderInviteEmail(params: {
 	opener?: string;
 	inviteUrl: string;
 	message?: string;
 	expiryDays: number;
+	signatureClosing?: string;
+	signatureNames?: string;
 }): string {
 	const openerBlock = params.opener ? `\n\t\t\t\t<p>${params.opener}</p>` : '';
 	const personalBlock = params.message
@@ -65,12 +73,15 @@ export function renderInviteEmail(params: {
 				).replace(/\n/g, '<br>')}</blockquote>`
 		: '';
 
+	const closing = escapeHtml(params.signatureClosing?.trim() || copy.email.signature.closing);
+	const names = escapeHtml(params.signatureNames?.trim() || copy.email.signature.names);
+
 	return `${SIGNATURE_FONT_FACE}
 			<div style="font-family: Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 40px 20px; color: ${color.textPrimary}; line-height: ${leading.relaxed};">${openerBlock}${personalBlock}
 				<p><a href="${params.inviteUrl}" style="color: ${color.textPrimary}; font-weight: bold; text-decoration: underline;">Join dyad</a></p>
 				<p style="font-size: ${textSize.base}; color: ${color.textMuted};">This link expires in ${params.expiryDays} days.</p>
 				<hr style="border: none; border-top: 1px solid ${color.borderSubtle}; margin: ${space[8]} 0 ${space[4]};" />
-				${EMAIL_SIGNED_FOOTER}
+				${renderSignedFooter(closing, names)}
 			</div>
 		`;
 }

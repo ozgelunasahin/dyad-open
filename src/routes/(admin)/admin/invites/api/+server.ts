@@ -27,6 +27,7 @@ const APP_ORIGIN =
 
 const INVITE_EXPIRY_DAYS = 14;
 const MAX_MESSAGE_LENGTH = 2000;
+const MAX_SIGNATURE_FIELD_LENGTH = 80;
 
 /** Build the escaped opener line from the admin's `name` input. Undefined when blank. */
 function buildOpener(name: unknown): string | undefined {
@@ -34,6 +35,18 @@ function buildOpener(name: unknown): string | undefined {
 		return escapeHtml(name.trim());
 	}
 	return undefined;
+}
+
+/** Validate an optional short text field (signature override). Returns trimmed value or undefined. */
+function validateShortText(value: unknown, fieldName: string): string | undefined {
+	if (value === undefined || value === null || value === '') return undefined;
+	if (typeof value !== 'string') error(400, `${fieldName} must be a string`);
+	const trimmed = value.trim();
+	if (trimmed.length === 0) return undefined;
+	if (trimmed.length > MAX_SIGNATURE_FIELD_LENGTH) {
+		error(400, `${fieldName} must be at most ${MAX_SIGNATURE_FIELD_LENGTH} characters`);
+	}
+	return trimmed;
 }
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -46,7 +59,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	} catch {
 		return json({ error: 'Invalid JSON body' }, { status: 400 });
 	}
-	const { email, name, message, scope } = body;
+	const { email, name, message, scope, signatureClosing, signatureNames } = body;
 
 	if (!email || typeof email !== 'string') {
 		error(400, 'Email is required');
@@ -64,6 +77,11 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 		if (candidate.length > 0) trimmedMessage = candidate;
 	}
+
+	// Validate optional signature overrides. Both default to copy.email.signature.*
+	// in the renderer when omitted; empty strings are treated as omitted.
+	const validatedSignatureClosing = validateShortText(signatureClosing, 'signatureClosing');
+	const validatedSignatureNames = validateShortText(signatureNames, 'signatureNames');
 
 	// Validate optional scope. Must reference an existing, non-retired scope.
 	// FK enforces existence; we validate non-retired in app layer (FK doesn't
@@ -109,7 +127,9 @@ export const POST: RequestHandler = async ({ request }) => {
 				opener: buildOpener(name),
 				inviteUrl,
 				message: trimmedMessage,
-				expiryDays: INVITE_EXPIRY_DAYS
+				expiryDays: INVITE_EXPIRY_DAYS,
+				signatureClosing: validatedSignatureClosing,
+				signatureNames: validatedSignatureNames
 			})
 		});
 		return json({ ok: true, alreadyInvited: true, inviteUrl, delivered });

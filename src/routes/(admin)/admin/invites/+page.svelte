@@ -1,22 +1,31 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import { copy } from '$lib/copy';
 
 	let { data }: { data: PageData } = $props();
 
-	// Per-row compose state for re-send. Opener + message keyed by email so
-	// drafts don't collide across rows.
+	const SIGNATURE_DEFAULTS = copy.email.signature;
+
+	// Per-row compose state for re-send. Opener + message + signature overrides
+	// keyed by email so drafts don't collide across rows.
 	let expandedEmail = $state<string | null>(null);
 	let openerByEmail = $state<Record<string, string>>({});
 	let messageByEmail = $state<Record<string, string>>({});
+	let signatureClosingByEmail = $state<Record<string, string>>({});
+	let signatureNamesByEmail = $state<Record<string, string>>({});
 	let resendingEmail = $state<string | null>(null);
 	let result = $state<{ email: string; message: string; url?: string } | null>(null);
 
 	// Direct-invite (batch) form state. Emails are entered as free text
 	// (one per line or comma-separated) and parsed into a normalised list
-	// on the fly. Opener + message are shared across the batch.
+	// on the fly. Opener + message + signature overrides are shared across
+	// the batch. Signature fields are prefilled with copy.email.signature.*
+	// defaults; operator can edit per send.
 	let directEmailsText = $state('');
 	let directName = $state('');
 	let directMessage = $state('');
+	let directSignatureClosing = $state(SIGNATURE_DEFAULTS.closing);
+	let directSignatureNames = $state(SIGNATURE_DEFAULTS.names);
 	let directScope = $state<string>('');
 	let directOpen = $state(false);
 	let directSending = $state(false);
@@ -24,7 +33,32 @@
 	let batchStatus = $state<Record<string, { status: BatchStatus; note?: string }>>({});
 
 	const MESSAGE_MAX = 2000;
+	const SIGNATURE_MAX = 80;
 	const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+	/** Return the value if it differs from the default, otherwise undefined.
+	 *  This keeps the API contract clean: no override is sent when the
+	 *  operator left the prefilled defaults alone. */
+	function overrideOrUndefined(value: string, fallback: string): string | undefined {
+		const trimmed = value.trim();
+		if (!trimmed) return undefined;
+		if (trimmed === fallback) return undefined;
+		return trimmed;
+	}
+
+	/** Open the per-row compose with signature inputs prefilled to defaults. */
+	function openCompose(email: string) {
+		expandedEmail = email;
+		if (signatureClosingByEmail[email] === undefined) {
+			signatureClosingByEmail = {
+				...signatureClosingByEmail,
+				[email]: SIGNATURE_DEFAULTS.closing
+			};
+		}
+		if (signatureNamesByEmail[email] === undefined) {
+			signatureNamesByEmail = { ...signatureNamesByEmail, [email]: SIGNATURE_DEFAULTS.names };
+		}
+	}
 
 	/** Normalise the textarea into a deduped, lowercased list of plausibly-valid emails. */
 	function parseEmails(text: string): { valid: string[]; invalid: string[] } {
@@ -59,6 +93,8 @@
 	async function resend(email: string) {
 		const opener = openerByEmail[email] ?? '';
 		const message = messageByEmail[email] ?? '';
+		const closing = signatureClosingByEmail[email] ?? SIGNATURE_DEFAULTS.closing;
+		const names = signatureNamesByEmail[email] ?? SIGNATURE_DEFAULTS.names;
 		resendingEmail = email;
 		result = null;
 		try {
@@ -68,7 +104,9 @@
 				body: JSON.stringify({
 					email,
 					name: opener.trim() || undefined,
-					message: message.trim() || undefined
+					message: message.trim() || undefined,
+					signatureClosing: overrideOrUndefined(closing, SIGNATURE_DEFAULTS.closing),
+					signatureNames: overrideOrUndefined(names, SIGNATURE_DEFAULTS.names)
 				})
 			});
 			const body = await res.json();
@@ -85,8 +123,12 @@
 				result = { email, message, url: body.inviteUrl };
 				const { [email]: _o, ...restOpeners } = openerByEmail;
 				const { [email]: _m, ...restMessages } = messageByEmail;
+				const { [email]: _sc, ...restClosings } = signatureClosingByEmail;
+				const { [email]: _sn, ...restNames } = signatureNamesByEmail;
 				openerByEmail = restOpeners;
 				messageByEmail = restMessages;
+				signatureClosingByEmail = restClosings;
+				signatureNamesByEmail = restNames;
 				expandedEmail = null;
 			} else if (res.status === 409) {
 				result = { email, message: 'This person has already signed up.' };
@@ -106,7 +148,9 @@
 		email: string,
 		name: string | null,
 		message: string,
-		scope: string | null
+		scope: string | null,
+		signatureClosing: string | undefined,
+		signatureNames: string | undefined
 	): Promise<{ status: BatchStatus; note?: string }> {
 		try {
 			const res = await fetch('/admin/invites/api', {
@@ -116,7 +160,9 @@
 					email,
 					name,
 					message: message.trim() || undefined,
-					scope: scope || undefined
+					scope: scope || undefined,
+					signatureClosing,
+					signatureNames
 				})
 			});
 			const body = await res.json();
@@ -155,9 +201,24 @@
 		const sharedName = directName.trim() || null;
 		const sharedMessage = directMessage;
 		const sharedScope = directScope || null;
+		const sharedSignatureClosing = overrideOrUndefined(
+			directSignatureClosing,
+			SIGNATURE_DEFAULTS.closing
+		);
+		const sharedSignatureNames = overrideOrUndefined(
+			directSignatureNames,
+			SIGNATURE_DEFAULTS.names
+		);
 		for (const email of valid) {
 			batchStatus = { ...batchStatus, [email]: { status: 'sending' } };
-			const outcome = await sendOne(email, sharedName, sharedMessage, sharedScope);
+			const outcome = await sendOne(
+				email,
+				sharedName,
+				sharedMessage,
+				sharedScope,
+				sharedSignatureClosing,
+				sharedSignatureNames
+			);
 			batchStatus = { ...batchStatus, [email]: outcome };
 		}
 
@@ -168,6 +229,8 @@
 		directEmailsText = '';
 		directName = '';
 		directMessage = '';
+		directSignatureClosing = SIGNATURE_DEFAULTS.closing;
+		directSignatureNames = SIGNATURE_DEFAULTS.names;
 		directScope = '';
 		batchStatus = {};
 	}
@@ -261,6 +324,30 @@
 				></textarea>
 			</label>
 
+			<div class="signature-pair">
+				<label class="direct-field">
+					<span>Closing <em>(shared across the batch — replaces the footer sign-off)</em></span>
+					<input
+						type="text"
+						bind:value={directSignatureClosing}
+						maxlength={SIGNATURE_MAX}
+						placeholder={SIGNATURE_DEFAULTS.closing}
+						disabled={directSending}
+					/>
+				</label>
+
+				<label class="direct-field">
+					<span>Sign as <em>(shared across the batch — names in the footer)</em></span>
+					<input
+						type="text"
+						bind:value={directSignatureNames}
+						maxlength={SIGNATURE_MAX}
+						placeholder={SIGNATURE_DEFAULTS.names}
+						disabled={directSending}
+					/>
+				</label>
+			</div>
+
 			{#if data.activeScopes.length > 0}
 				<label class="direct-field">
 					<span>Corner <em>(optional, shared across the batch — auto-grants this scope on signup)</em></span>
@@ -347,6 +434,28 @@
 								disabled={resendingEmail === inv.email}
 							></textarea>
 						</label>
+						<div class="signature-pair">
+							<label class="compose">
+								<span>Closing <em>(footer sign-off)</em></span>
+								<input
+									type="text"
+									bind:value={signatureClosingByEmail[inv.email]}
+									maxlength={SIGNATURE_MAX}
+									placeholder={SIGNATURE_DEFAULTS.closing}
+									disabled={resendingEmail === inv.email}
+								/>
+							</label>
+							<label class="compose">
+								<span>Sign as <em>(names in the footer)</em></span>
+								<input
+									type="text"
+									bind:value={signatureNamesByEmail[inv.email]}
+									maxlength={SIGNATURE_MAX}
+									placeholder={SIGNATURE_DEFAULTS.names}
+									disabled={resendingEmail === inv.email}
+								/>
+							</label>
+						</div>
 					{/if}
 				</div>
 
@@ -370,7 +479,7 @@
 							Cancel
 						</button>
 					{:else}
-						<button class="btn-primary" onclick={() => (expandedEmail = inv.email)}>
+						<button class="btn-primary" onclick={() => openCompose(inv.email)}>
 							{inv.status === 'expired' ? 'Re-send (new link)' : 'Re-send'}
 						</button>
 					{/if}
@@ -427,6 +536,14 @@
 	.direct-field { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--text-sm); }
 	.direct-field > span { color: var(--text-secondary); display: flex; align-items: baseline; gap: var(--space-2); }
 	.direct-field em { font-style: normal; color: var(--text-muted); font-size: var(--text-xs); }
+
+	/* Signature override pair (closing + names). Stacks on narrow widths,
+	 * splits to two columns on wider, signaling their logical grouping
+	 * without making them feel like one input. */
+	.signature-pair { display: grid; grid-template-columns: 1fr; gap: var(--space-3); }
+	@media (min-width: 520px) {
+		.signature-pair { grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+	}
 
 	.parsed-count { margin-left: auto; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
 	.parsed-invalid { margin: var(--space-1) 0 0; font-size: var(--text-xs); color: var(--color-danger); }
