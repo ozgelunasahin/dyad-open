@@ -12,7 +12,7 @@ const DEFAULT_MAILPIT_URL = 'http://localhost:54324/api/v1/send';
 
 function resolveProvider(): EmailProvider {
 	const from = env.EMAIL_FROM || DEFAULT_FROM;
-	const name = env.EMAIL_PROVIDER ?? 'mailpit';
+	const name = env.EMAIL_PROVIDER || 'mailpit';
 
 	switch (name) {
 		case 'resend':
@@ -40,7 +40,7 @@ export async function sendEmail(message: EmailMessage): Promise<boolean> {
 	try {
 		return await provider.send(message);
 	} catch (err) {
-		console.error('[email] send failed:', err);
+		console.error('[email] Failed to send:', err);
 		return false;
 	}
 }

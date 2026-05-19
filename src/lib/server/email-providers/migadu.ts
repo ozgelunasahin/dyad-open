@@ -1,8 +1,5 @@
 import type { EmailMessage, EmailProvider } from './index.js';
 
-// Transport unimplemented: Cloudflare Workers does not support nodemailer's net/tls
-// path, so the cutover requires either worker-mailer over cloudflare:sockets or a
-// MailChannels HTTPS relay. Adapter currently logs and drops.
 export class MigaduEmailProvider implements EmailProvider {
 	readonly name = 'migadu';
 
