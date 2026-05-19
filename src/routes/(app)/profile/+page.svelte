@@ -12,6 +12,31 @@
 
 	let { data }: { data: PageData } = $props();
 
+	let emailNotifications = $state(data.emailNotifications);
+	let prefSaving = $state(false);
+
+	async function togglePref(event: Event) {
+		const target = event.target as HTMLInputElement;
+		const next = target.checked;
+		prefSaving = true;
+		try {
+			const res = await fetch('/api/profile/preferences', {
+				method: 'PATCH',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ email_notifications: next })
+			});
+			if (res.ok) {
+				emailNotifications = next;
+			} else {
+				target.checked = !next;
+			}
+		} catch {
+			target.checked = !next;
+		} finally {
+			prefSaving = false;
+		}
+	}
+
 	// Unseen-response tracking is intentionally kept in the data model (via
 	// localStorage) even though we don't surface it as a visible dot — dots
 	// were too anxiety-inducing. The signal is available if we later want to
@@ -441,6 +466,20 @@
 			</div>
 		{/if}
 	{/if}
+
+	<section class="preferences">
+		<p class="section-label">{copy.profile.preferencesHeading}</p>
+		<label class="pref-row">
+			<input
+				type="checkbox"
+				checked={emailNotifications}
+				disabled={prefSaving}
+				onchange={togglePref}
+			/>
+			<span>{copy.profile.emailNotificationsLabel}</span>
+		</label>
+		<p class="pref-hint">{copy.profile.emailNotificationsHint}</p>
+	</section>
 </div>
 
 <FloatingNav variant="profile" attentionCount={data.attentionCount} />
@@ -637,5 +676,37 @@
 	.conversation-list {
 		display: flex;
 		flex-direction: column;
+	}
+
+	.preferences {
+		margin-top: var(--space-8);
+		padding-top: var(--space-6);
+		border-top: 1px solid var(--border-subtle);
+	}
+
+	.pref-row {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		font-size: var(--text-base);
+		color: var(--text-primary);
+		cursor: pointer;
+	}
+
+	.pref-row input[type='checkbox'] {
+		width: var(--space-4);
+		height: var(--space-4);
+		accent-color: var(--text-primary);
+		cursor: pointer;
+	}
+
+	.pref-row input[type='checkbox']:disabled {
+		cursor: progress;
+	}
+
+	.pref-hint {
+		margin: var(--space-2) 0 0 calc(var(--space-4) + var(--space-3));
+		font-size: var(--text-sm);
+		color: var(--text-muted);
 	}
 </style>

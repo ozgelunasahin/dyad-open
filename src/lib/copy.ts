@@ -227,6 +227,10 @@ export const copy = {
 		// Attention-card sentence: "@marco cancelled this meeting on Fri, 20 Apr"
 		cancellationAttention: (username: string, date: string) =>
 			`@${username} cancelled this meeting on ${date}`,
+		preferencesHeading: 'Preferences',
+		emailNotificationsLabel: 'Email me about my conversations and meetings',
+		emailNotificationsHint:
+			'Sends an email when you receive an invitation, when one of your invitations is accepted or declined, or when a meeting is cancelled.',
 	},
 
 	// ── Meeting detail ─────────────────────────────────────────────────
