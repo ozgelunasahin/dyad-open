@@ -4,10 +4,10 @@ import { requireIdentity } from '$lib/services/identity.js';
 import { parseJsonBody } from '$lib/server/parse-body.js';
 import { SupabaseMeetingService } from '$lib/services/meeting.js';
 import { handleServiceError } from '$lib/server/handle-service-error.js';
-import { notifyMeetingCancelled } from '$lib/server/notification-emails.js';
+import { deferEmail, notifyMeetingCancelled } from '$lib/server/notification-emails.js';
 
 /** POST /api/meetings/[id]/cancel — cancel with optional reason */
-export const POST: RequestHandler = async ({ params, request, locals }) => {
+export const POST: RequestHandler = async ({ params, request, locals, platform }) => {
 	const upactor = requireIdentity(locals);
 
 	const [body, errorResponse] = await parseJsonBody<{ reason?: string }>(request);
@@ -32,11 +32,14 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		if (meeting) {
 			const other =
 				meeting.participant_a === upactor.id ? meeting.participant_b : meeting.participant_a;
-			void notifyMeetingCancelled({
-				remainingParticipantUserId: other,
-				meetingId: params.id,
-				reason: body.reason ?? null
-			});
+			deferEmail(
+				platform,
+				notifyMeetingCancelled({
+					remainingParticipantUserId: other,
+					meetingId: params.id,
+					reason: body.reason ?? null
+				})
+			);
 		}
 
 		return json({ ok: true, tier });

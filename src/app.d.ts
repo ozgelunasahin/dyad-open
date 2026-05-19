@@ -27,6 +27,9 @@ declare global {
 				PUBLIC_SUPABASE_URL: string;
 				PUBLIC_SUPABASE_ANON_KEY: string;
 			};
+			context?: {
+				waitUntil(promise: Promise<unknown>): void;
+			};
 		}
 	}
 }

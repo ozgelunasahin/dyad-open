@@ -54,6 +54,27 @@ function renderShell(bodyHtml: string): string {
 		`;
 }
 
+/**
+ * Defer an email-sending promise to the platform's request-extension hook.
+ * On Cloudflare Workers the runtime can reap the isolate as soon as the
+ * Response returns; `ctx.waitUntil` keeps it alive until the promise settles.
+ * On other runtimes (dev, Node adapter) it falls back to fire-and-forget
+ * with errors swallowed — dispatch() already logs.
+ */
+export function deferEmail(
+	platform: App.Platform | undefined,
+	promise: Promise<unknown>
+): void {
+	const waitUntil = platform?.context?.waitUntil?.bind(platform.context);
+	if (waitUntil) {
+		waitUntil(promise);
+	} else {
+		promise.catch(() => {
+			// dispatch() already logs; nothing useful to do here.
+		});
+	}
+}
+
 export interface NotificationRecipient {
 	userId: string;
 	email: string;

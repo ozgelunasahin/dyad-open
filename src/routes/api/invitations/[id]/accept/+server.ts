@@ -4,12 +4,13 @@ import { requireIdentity } from '$lib/services/identity.js';
 import { SupabaseInvitationService } from '$lib/services/invitation.js';
 import { handleServiceError } from '$lib/server/handle-service-error.js';
 import {
+	deferEmail,
 	notifyInvitationAccepted,
 	notifyMultiInviteCourtesy
 } from '$lib/server/notification-emails.js';
 
 /** POST /api/invitations/[id]/accept — accept invitation, create meeting atomically */
-export const POST: RequestHandler = async ({ params, locals }) => {
+export const POST: RequestHandler = async ({ params, locals, platform }) => {
 	// Auth guard: throws 401 if not signed in. Identity itself is unused
 	// here — RLS enforces ownership on the underlying RPC call.
 	const _upactor = requireIdentity(locals);
@@ -24,7 +25,10 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 				.eq('id', params.id)
 				.maybeSingle();
 			if (invitation?.inviter_id) {
-				void notifyInvitationAccepted({ inviterUserId: invitation.inviter_id, meetingId });
+				deferEmail(
+					platform,
+					notifyInvitationAccepted({ inviterUserId: invitation.inviter_id, meetingId })
+				);
 
 				const { data: otherMeetings } = await locals.supabase
 					.from('meetings')
@@ -34,10 +38,13 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 					.in('state', ['scheduled', 'awaiting_feedback']);
 				const others = (otherMeetings ?? []).map((m) => m.participant_b);
 				if (others.length > 0) {
-					void notifyMultiInviteCourtesy({
-						existingParticipantUserIds: others,
-						meetingId
-					});
+					deferEmail(
+						platform,
+						notifyMultiInviteCourtesy({
+							existingParticipantUserIds: others,
+							meetingId
+						})
+					);
 				}
 			}
 			return json({ ok: true, meetingId });

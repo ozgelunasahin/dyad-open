@@ -3,12 +3,12 @@ import type { RequestHandler } from './$types';
 import { requireIdentity } from '$lib/services/identity.js';
 import { SupabaseInvitationService } from '$lib/services/invitation.js';
 import { handleServiceError } from '$lib/server/handle-service-error.js';
-import { notifyInvitationDeclined } from '$lib/server/notification-emails.js';
+import { deferEmail, notifyInvitationDeclined } from '$lib/server/notification-emails.js';
 
 const MAX_REASON_LENGTH = 2000;
 
 /** POST /api/invitations/[id]/decline — invitee declines a pending invitation */
-export const POST: RequestHandler = async ({ params, request, locals }) => {
+export const POST: RequestHandler = async ({ params, request, locals, platform }) => {
 	const upactor = requireIdentity(locals);
 
 	let body: unknown = {};
@@ -50,11 +50,14 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 			.eq('id', params.id)
 			.maybeSingle();
 		if (invitation?.inviter_id && invitation.prompt_id) {
-			void notifyInvitationDeclined({
-				inviterUserId: invitation.inviter_id,
-				promptId: invitation.prompt_id,
-				reason
-			});
+			deferEmail(
+				platform,
+				notifyInvitationDeclined({
+					inviterUserId: invitation.inviter_id,
+					promptId: invitation.prompt_id,
+					reason
+				})
+			);
 		}
 
 		return json({ ok: true });
