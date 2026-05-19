@@ -32,6 +32,8 @@ src/lib/services/
 
 Most services follow `interface XxxService` + `class SupabaseXxxService implements XxxService`. The exception is `identity.ts`, which is a thin functional module wrapping `@prefig/upact-supabase` — it's the boundary where the upact port is consumed.
 
+The same port pattern applies to email at `src/lib/server/email-providers/`: an `EmailProvider` interface with `ResendEmailProvider`, `MailpitEmailProvider`, and `MigaduEmailProvider` adapters. `src/lib/server/email.ts` resolves an adapter from `EMAIL_PROVIDER` and exposes a single `sendEmail()` that callers use.
+
 Page server loaders call services directly (not via internal API fetches). The upact port is resolved in `hooks.server.ts` and `identity.ts`; the resulting substrate ID is passed to services as a plain `userId: string` parameter. Services do not see the `Upactor` abstraction. The test factory in `tests/helpers/db.ts` is the single swap point for portability.
 
 ### Route groups
@@ -86,7 +88,11 @@ Navigation is via `FloatingNav` on every page that needs it; there is no shared 
 |----------|----------|---------|
 | `PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
 | `PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon key (public, works with RLS) |
-| `RESEND_API_KEY` | Yes | Email delivery (invites, notifications) |
+| `EMAIL_PROVIDER` | No | Selects the email adapter: `mailpit` (default, local dev), `resend`, or `migadu`. See `src/lib/server/email-providers/`. |
+| `RESEND_API_KEY` | When `EMAIL_PROVIDER=resend` | Resend API key. |
+| `MIGADU_SMTP_HOST` / `MIGADU_SMTP_USER` / `MIGADU_SMTP_PASS` | When `EMAIL_PROVIDER=migadu` | Migadu SMTP credentials. Adapter is currently a stub — see `src/lib/server/email-providers/migadu.ts`. |
+| `EMAIL_FROM` | No | Sender address. Default `hello@dyad.berlin`. |
+| `EMAIL_API_URL` | No | Mailpit HTTP send URL. Default `http://localhost:54324/api/v1/send`. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes (for admin plane) | Service-role client for the admin plane to access the user-tier database. |
 | `ADMIN_DEV_BYPASS` | No (dev only) | Set to `1` in `.env.local` to allow `/admin/*` through without Cloudflare Access. Has no effect in production builds. |
 | `PUBLIC_ASSET_BASE_URL` | No | Override for static page imagery (e.g. `/why` hero images). Falls back to the default Supabase uploads bucket. Set this to route assets through a sovereign host without touching code. |
