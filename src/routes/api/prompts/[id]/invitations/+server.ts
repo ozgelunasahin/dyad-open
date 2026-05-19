@@ -5,6 +5,7 @@ import { parseJsonBody } from '$lib/server/parse-body.js';
 import { SupabaseInvitationService } from '$lib/services/invitation.js';
 import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
 import { handleServiceError } from '$lib/server/handle-service-error.js';
+import { notifyInvitationReceived } from '$lib/server/notification-emails.js';
 
 /** POST /api/prompts/[id]/invitations — create invitation (select slot + message) */
 export const POST: RequestHandler = async ({ params, request, locals }) => {
@@ -62,6 +63,18 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 			commentId: body.commentId,
 			message: body.message
 		});
+
+		const { data: inviterProfile } = await locals.supabase
+			.from('profiles')
+			.select('username')
+			.eq('id', upactor.id)
+			.maybeSingle();
+		void notifyInvitationReceived({
+			authorUserId: prompt.author_id,
+			inviterUsername: inviterProfile?.username,
+			promptId: params.id
+		});
+
 		return json(invitation, { status: 201 });
 	} catch (err) {
 		return handleServiceError(err, '[prompts/invitations]');

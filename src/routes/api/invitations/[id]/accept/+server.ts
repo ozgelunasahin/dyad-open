@@ -3,6 +3,10 @@ import type { RequestHandler } from './$types';
 import { requireIdentity } from '$lib/services/identity.js';
 import { SupabaseInvitationService } from '$lib/services/invitation.js';
 import { handleServiceError } from '$lib/server/handle-service-error.js';
+import {
+	notifyInvitationAccepted,
+	notifyMultiInviteCourtesy
+} from '$lib/server/notification-emails.js';
 
 /** POST /api/invitations/[id]/accept — accept invitation, create meeting atomically */
 export const POST: RequestHandler = async ({ params, locals }) => {
@@ -14,6 +18,28 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 	try {
 		const meetingId = await service.accept(params.id);
 		if (meetingId) {
+			const { data: invitation } = await locals.supabase
+				.from('prompt_invitations')
+				.select('inviter_id, slot_id')
+				.eq('id', params.id)
+				.maybeSingle();
+			if (invitation?.inviter_id) {
+				void notifyInvitationAccepted({ inviterUserId: invitation.inviter_id, meetingId });
+
+				const { data: otherMeetings } = await locals.supabase
+					.from('meetings')
+					.select('participant_b')
+					.eq('slot_id', invitation.slot_id)
+					.neq('id', meetingId)
+					.in('state', ['scheduled', 'awaiting_feedback']);
+				const others = (otherMeetings ?? []).map((m) => m.participant_b);
+				if (others.length > 0) {
+					void notifyMultiInviteCourtesy({
+						existingParticipantUserIds: others,
+						meetingId
+					});
+				}
+			}
 			return json({ ok: true, meetingId });
 		} else {
 			return json(
