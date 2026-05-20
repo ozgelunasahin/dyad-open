@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { requireIdentity } from '$lib/services/identity.js';
 import { SupabaseInvitationService } from '$lib/services/invitation.js';
 import { handleServiceError } from '$lib/server/handle-service-error.js';
+import { makeAdminClient } from '$lib/server/supabase-admin.js';
 import {
 	deferEmail,
 	notifyInvitationAccepted,
@@ -11,9 +12,7 @@ import {
 
 /** POST /api/invitations/[id]/accept — accept invitation, create meeting atomically */
 export const POST: RequestHandler = async ({ params, locals, platform }) => {
-	// Auth guard: throws 401 if not signed in. Identity itself is unused
-	// here — RLS enforces ownership on the underlying RPC call.
-	const _upactor = requireIdentity(locals);
+	const upactor = requireIdentity(locals);
 
 	const service = new SupabaseInvitationService(locals.supabase);
 	try {
@@ -30,13 +29,19 @@ export const POST: RequestHandler = async ({ params, locals, platform }) => {
 					notifyInvitationAccepted({ inviterUserId: invitation.inviter_id, meetingId })
 				);
 
-				const { data: otherMeetings } = await locals.supabase
+				// Service-role read: the acceptor is not a participant in the *other*
+				// meetings on this slot, so locals.supabase would return nothing.
+				const admin = makeAdminClient();
+				const { data: otherMeetings } = await admin
 					.from('meetings')
-					.select('participant_b')
+					.select('participant_a, participant_b')
 					.eq('slot_id', invitation.slot_id)
 					.neq('id', meetingId)
 					.in('state', ['scheduled', 'awaiting_feedback']);
-				const others = (otherMeetings ?? []).map((m) => m.participant_b);
+				const acceptor = upactor.id;
+				const others = (otherMeetings ?? [])
+					.flatMap((m) => [m.participant_a, m.participant_b])
+					.filter((id) => id !== acceptor);
 				if (others.length > 0) {
 					deferEmail(
 						platform,
