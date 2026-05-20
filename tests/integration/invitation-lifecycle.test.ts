@@ -158,12 +158,14 @@ describe('Invitation lifecycle', () => {
 			expect(meetingId).toBeTruthy();
 			expect(typeof meetingId).toBe('string');
 
-			// Slot should now be marked as accepted
+			// Under multi-invite the slot stays available to other potential inviters
+			// after an accept; getAvailableSlots returns it because it is still on a
+			// future date and the timing-derived state is 'available'.
 			const slots = await otherServices.promptQuery.getAvailableSlots(
 				promptId,
 				SEED_USERS.other.id
 			);
-			expect(slots.length).toBe(0); // no available slots left
+			expect(slots.length).toBe(1);
 		});
 
 		it('accept inserts a meeting_response notification for the inviter', async () => {
