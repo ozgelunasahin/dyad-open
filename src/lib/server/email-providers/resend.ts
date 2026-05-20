@@ -1,5 +1,7 @@
 import type { EmailMessage, EmailProvider } from './index.js';
 
+const SEND_TIMEOUT_MS = 10_000;
+
 export class ResendEmailProvider implements EmailProvider {
 	readonly name = 'resend';
 
@@ -14,19 +16,26 @@ export class ResendEmailProvider implements EmailProvider {
 			return false;
 		}
 
-		const res = await fetch('https://api.resend.com/emails', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${this.apiKey}`
-			},
-			body: JSON.stringify({
-				from: `Dyad <${this.from}>`,
-				to: [message.to],
-				subject: message.subject,
-				html: message.html
-			})
-		});
+		let res: Response;
+		try {
+			res = await fetch('https://api.resend.com/emails', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					Authorization: `Bearer ${this.apiKey}`
+				},
+				body: JSON.stringify({
+					from: `Dyad <${this.from}>`,
+					to: [message.to],
+					subject: message.subject,
+					html: message.html
+				}),
+				signal: AbortSignal.timeout(SEND_TIMEOUT_MS)
+			});
+		} catch (err) {
+			console.error('[email] Resend fetch failed:', err);
+			return false;
+		}
 
 		if (!res.ok) {
 			console.error('[email] Resend error:', res.status, await res.text());
