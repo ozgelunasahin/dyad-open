@@ -24,7 +24,28 @@ DECLARE
   v_meeting_id UUID;
   v_caller UUID := app.current_user_id();
   v_existing_meeting_id UUID;
+  v_existing_state TEXT;
+  v_existing_invitee UUID;
 BEGIN
+  -- Gate A: idempotent return-existing-meeting branch for sequential retries
+  -- after a successful accept (double-tap, flaky network). Returns the same
+  -- meeting_id without re-inserting the meeting or notification rows.
+  SELECT state, invitee_id INTO v_existing_state, v_existing_invitee
+  FROM prompt_invitations
+  WHERE id = p_invitation_id;
+
+  IF v_existing_state = 'accepted' THEN
+    IF v_existing_invitee != v_caller THEN
+      RAISE EXCEPTION 'Not authorized';
+    END IF;
+    SELECT id INTO v_existing_meeting_id
+    FROM meetings WHERE invitation_id = p_invitation_id;
+    IF v_existing_meeting_id IS NULL THEN
+      RAISE EXCEPTION 'Accepted invitation has no meeting';
+    END IF;
+    RETURN v_existing_meeting_id;
+  END IF;
+
   SELECT slot_id, invitee_id, inviter_id, prompt_id
     INTO v_slot_id, v_invitee_id, v_inviter_id, v_prompt_id
   FROM prompt_invitations
@@ -32,6 +53,23 @@ BEGIN
   FOR UPDATE;
 
   IF NOT FOUND THEN
+    -- Gate B: race-safe re-check. A concurrent accept may have landed between
+    -- Gate A's read and the FOR UPDATE here. Re-lock the row and resolve as
+    -- idempotent if the caller is the same invitee.
+    SELECT state, invitee_id INTO v_existing_state, v_existing_invitee
+    FROM prompt_invitations
+    WHERE id = p_invitation_id
+    FOR UPDATE;
+
+    IF v_existing_state = 'accepted' AND v_existing_invitee = v_caller THEN
+      SELECT id INTO v_existing_meeting_id
+      FROM meetings WHERE invitation_id = p_invitation_id;
+      IF v_existing_meeting_id IS NULL THEN
+        RAISE EXCEPTION 'Accepted invitation has no meeting';
+      END IF;
+      RETURN v_existing_meeting_id;
+    END IF;
+
     RAISE EXCEPTION 'Invitation not found or not pending';
   END IF;
 
