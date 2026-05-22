@@ -80,6 +80,7 @@ Navigation is via `FloatingNav` on every page that needs it; there is no shared 
 /admin/scopes          — Corner CRUD: create, list, retire scopes; grant/revoke memberships
 /admin/scopes/[scope]  — Scope detail: members + last-active + grant/revoke
 /admin/feedback        — Feedback review
+/admin/settings        — Global runtime settings (currently: transactional email notifications kill switch)
 ```
 
 ## Environment Variables
@@ -112,6 +113,7 @@ Schema defined in `supabase/migrations/` (source of truth). Key tables:
 - `meetings` — Scheduled meetings between two members
 - `feedback_forms` — Post-meeting feedback with simultaneous reveal
 - `adjective_vocabulary` — Rating tags for feedback
+- `app_settings` — Global runtime config (key/JSONB value). Service-role-only. Read/written by the admin plane (`/admin/settings`) and the notification dispatch gate. Default seed: `email_notifications_enabled = false`.
 
 ## Key Files
 

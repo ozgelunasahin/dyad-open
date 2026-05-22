@@ -13,12 +13,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const upactor = requireIdentity(locals);
 	const userId = upactor.id;
 
-	const { data: profilePrefs } = await locals.supabase
-		.from('profiles')
-		.select('email_notifications')
-		.eq('id', userId)
-		.maybeSingle();
-
 	const [prompts, meetings, receivedInvitations, respondedPrompts, feedbackDue, cancelledNotifications] = await Promise.all([
 		new SupabasePromptQueryService(locals.supabase).getMyPrompts(userId),
 		new SupabaseMeetingService(locals.supabase).getMyMeetings(userId),
@@ -258,7 +252,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 		myInvitationStateByPromptId,
 		meetingCountByPromptId,
 		hasFutureValidSlotByPromptId,
-		emailNotifications: profilePrefs?.email_notifications ?? true,
 		attentionCount: receivedInvitations.length + feedbackDue.length + (cancelledNotifications?.length ?? 0)
 	};
 };
