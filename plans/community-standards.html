@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>dyad. — Community Standards</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink:       #1a1a1a;
+    --ink-mid:   #444;
+    --ink-light: #777;
+    --rule:      rgba(0,0,0,0.15);
+    --tint:      #f5f3f0;
+    --serif:     'Georgia', 'Times New Roman', serif;
+    --sans:      -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    --mono:      'Courier New', Courier, monospace;
+    --col:       640px;
+  }
+
+  html { font-size: 11pt; }
+
+  body {
+    font-family: var(--serif);
+    color: var(--ink);
+    background: #fff;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  @media print {
+    html { font-size: 10pt; }
+    .no-print { display: none !important; }
+    a { color: inherit; text-decoration: none; }
+  }
+
+  .doc-nav {
+    position: sticky;
+    top: 0;
+    background: #fff;
+    border-bottom: 1px solid var(--rule);
+    z-index: 100;
+  }
+  .doc-nav-inner {
+    max-width: var(--col);
+    margin: 0 auto;
+    padding: 10px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+  }
+  .doc-nav-brand {
+    font-family: var(--sans);
+    font-size: 13pt;
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .doc-nav-links {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .doc-nav-links a {
+    font-family: var(--mono);
+    font-size: 7pt;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-light);
+    text-decoration: none;
+  }
+  .doc-nav-links a:hover { color: var(--ink); }
+  .doc-nav-links a.active {
+    color: var(--ink);
+    border-bottom: 1px solid var(--ink);
+    padding-bottom: 1px;
+  }
+  .doc-nav-all {
+    border-left: 1px solid var(--rule);
+    padding-left: 20px;
+    color: var(--ink-mid) !important;
+  }
+  .doc-nav-all:hover { color: var(--ink) !important; }
+
+  .page {
+    max-width: var(--col);
+    margin: 0 auto;
+    padding: 60px 40px 80px;
+  }
+
+  .doc-section { padding: 0; }
+
+  .doc-label {
+    font-family: var(--mono);
+    font-size: 7pt;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-light);
+    margin-bottom: 8px;
+  }
+
+  h1 {
+    font-family: var(--serif);
+    font-size: 22pt;
+    font-weight: normal;
+    line-height: 1.15;
+    color: var(--ink);
+    margin-bottom: 8px;
+  }
+
+  .doc-subtitle {
+    font-family: var(--sans);
+    font-size: 9.5pt;
+    color: var(--ink-light);
+    font-style: italic;
+    margin-bottom: 40px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .lede {
+    font-size: 12pt;
+    line-height: 1.65;
+    color: var(--ink);
+    margin-bottom: 16px;
+  }
+
+  p {
+    font-size: 10.5pt;
+    line-height: 1.72;
+    color: var(--ink-mid);
+    margin-bottom: 12px;
+  }
+
+  h2 {
+    font-family: var(--sans);
+    font-size: 10pt;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--ink);
+    margin: 36px 0 12px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+  }
+
+  h3 {
+    font-family: var(--sans);
+    font-size: 9.5pt;
+    font-weight: 600;
+    color: var(--ink);
+    margin: 24px 0 8px;
+  }
+
+  em { font-style: italic; }
+  strong { font-weight: bold; color: var(--ink); }
+  a { color: var(--ink); }
+
+  .block-list {
+    margin: 16px 0;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .block-item {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--rule);
+    font-size: 10pt;
+  }
+
+  .block-item:last-child { border-bottom: none; }
+
+  .block-item p {
+    font-size: 9.5pt;
+    line-height: 1.6;
+    color: var(--ink-mid);
+    margin: 0;
+  }
+
+  .outcome-label {
+    font-family: var(--mono);
+    font-size: 7pt;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-light);
+    margin-bottom: 6px;
+  }
+
+  .doc-meta {
+    margin-top: 48px;
+    padding-top: 16px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 7.5pt;
+    letter-spacing: 0.05em;
+    color: var(--ink-light);
+  }
+  .doc-meta p { font-size: 7.5pt; color: var(--ink-light); margin-bottom: 4px; }
+
+  .doc-nav-bottom {
+    max-width: var(--col);
+    margin: 0 auto;
+    padding: 32px 40px 64px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--rule);
+  }
+  .doc-nav-bottom a {
+    font-family: var(--mono);
+    font-size: 7.5pt;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-light);
+    text-decoration: none;
+  }
+  .doc-nav-bottom a:hover { color: var(--ink); }
+</style>
+</head>
+<body>
+
+<nav class="doc-nav no-print">
+  <div class="doc-nav-inner">
+    <a href="community-docs-draft.html" class="doc-nav-brand">dyad.</a>
+    <div class="doc-nav-links">
+      <a href="charter.html">Charter</a>
+      <a href="curation.html">Curation</a>
+      <a href="membership-agreement.html">Membership</a>
+      <a href="community-standards.html" class="active">Standards</a>
+      <a href="governance.html">Governance</a>
+      <a href="community-docs-draft.html" class="doc-nav-all">Full document →</a>
+    </div>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="doc-section">
+    <div class="doc-label">Document 04 / 05</div>
+    <h1>Community Standards</h1>
+    <p class="doc-subtitle">How we agree to be with one another.</p>
+
+    <p class="lede">The premise of dyad is that you are agreeing to meet a real person in a physical place. Everything here flows from that. The person across the table trusted this platform enough to show up. They are owed honesty, good faith, and the basic respect that makes a real encounter possible.</p>
+
+    <h2>Community-authored, not platform-imposed</h2>
+    <p>These standards are not rules handed down by a platform to a user base. They are agreements a community makes with itself, maintained and revised by the People's Assembly. The distinction matters: community-authored standards have legitimacy that platform-imposed rules do not. If you disagree with a standard, the Assembly is the right place to bring that.</p>
+    <p>Some standards are floors that cannot be lowered regardless of what the Assembly votes. They are marked below. The Assembly can strengthen them. It cannot weaken them.</p>
+
+    <h2>What we ask of everyone</h2>
+    <h3>Show up</h3>
+    <p>If you agree to a meeting, show up. Cancellations with more than 12 hours' notice are the least consequential. Less than 12 hours carries more weight. No-shows - agreeing to meet and not appearing without notice - are treated as a serious breach and are prominently reflected in your reputation.</p>
+    <h3>Be honest</h3>
+    <p>Be who you say you are. Not your most polished version. Do not misrepresent your background, intentions, or situation in ways that affect another person's decision to meet you.</p>
+    <h3>Engage in good faith</h3>
+    <p>You do not have to like the other person or agree with them. The conversation does not have to be comfortable. But it has to be a genuine attempt - both people actually trying to be in conversation.</p>
+    <h3>Complete the feedback form</h3>
+    <p>After every meeting, you complete a feedback form before accessing the platform again. This is a hard gate. The feedback system is how the community maintains accountability over time. You cannot skip it. There is no bypass.</p>
+    <h3>One account</h3>
+    <p>One person, one account. Creating additional accounts to escape a reputation, avoid a suspension, or start fresh is grounds for permanent removal. The right path for reputation issues is the appeals process.</p>
+
+    <h2>What is not allowed</h2>
+
+    <h3>Harassment — floor protection</h3>
+    <p>Any behaviour intended to intimidate, threaten, or cause distress to another member - before, during, or after a meeting - results in immediate removal. No warning. This standard cannot be weakened by the Assembly.</p>
+
+    <h3>Sexual exploitation and coercion — floor protection</h3>
+    <p>Using the platform to proposition, coerce, or exploit other members sexually results in immediate permanent removal and, where appropriate, will be reported to relevant authorities. This standard cannot be weakened by the Assembly.</p>
+
+    <h3>Intersectional and identity-based abuse — floor protection</h3>
+    <p>Targeting someone for the combination of their identities — as a Black woman, as a trans woman of colour, as any person targeted for who they are as a whole person — is covered explicitly. Our community standards do not require you to prove which single category of harm applies. If you are targeted for who you are as a whole, that is a violation. This standard cannot be weakened by the Assembly.</p>
+    <p>This provision was informed by our partnership with <strong>Glitch</strong> (UK charity No. 1187714), whose research on digital misogynoir — the specific targeting of Black women online, rooted in both racism and misogyny simultaneously — shows that standard single-axis moderation systems regularly miss abuse at the intersection. Research by Gabriela de Oliveira and Dr Julia Slupska found that approximately 10% of content flagged as 'toxic' is not abuse at all: it is discussion of harmful tropes by those most affected. Our approach is designed to protect those discussions, not suppress them.</p>
+
+    <h3>Commercial exploitation</h3>
+    <p>Dyad is not a networking platform, sales channel, or recruitment tool. Using it to find clients, sell products, or recruit violates the community standards regardless of how admission was obtained.</p>
+
+    <h3>Deception that affects safety</h3>
+    <p>Misrepresenting your identity or intentions in ways that affect another person's safety or their decision to meet you is a serious violation.</p>
+
+    <h3>Feedback system abuse</h3>
+    <p>Using the feedback system to punish someone for a meeting that simply did not go well - where no standard was violated - undermines the system for everyone. Reviewers look for disproportionate feedback. Patterns of this kind are treated as a violation.</p>
+
+    <h3>Ban evasion</h3>
+    <p>Returning under a different identity after a ban is grounds for permanent removal on discovery. If you believe your ban was unjust, the appeals process is the right mechanism.</p>
+
+    <h2>What happens when something goes wrong</h2>
+
+    <div class="block-list">
+      <div class="block-item">
+        <div class="outcome-label">First instance, less severe violations</div>
+        <p>A written warning explaining which standard was violated. You are required to acknowledge it in writing before regaining full access. Noted in your moderation record, visible to you but not to other members.</p>
+      </div>
+      <div class="block-item">
+        <div class="outcome-label">Repeated violations or severe first instances</div>
+        <p>A temporary suspension - typically 7 to 30 days. A second violation of the same kind after returning escalates to a permanent ban.</p>
+      </div>
+      <div class="block-item">
+        <div class="outcome-label">Harassment, sexual exploitation, ban evasion, safety deception</div>
+        <p>Immediate permanent removal. No warning. No suspension period. Where appropriate, reported to relevant authorities.</p>
+      </div>
+    </div>
+
+    <h2>Your right to respond</h2>
+    <p>If you receive a warning or suspension you believe is unjust, you have 72 hours to submit a written response. A different reviewer - not the person who made the original decision - will review both the report and your response. You will always know which standard you are alleged to have violated.</p>
+
+    <h2>How these standards evolve</h2>
+    <p>The community standards are living documents maintained by the People's Assembly. Any member can propose a change. Standard changes require a supermajority and a 14-day minimum deliberation period. The floor protections cannot be removed or weakened. The Assembly can only expand them.</p>
+
+    <h2>Partnership: Glitch</h2>
+    <p>We work with <strong>Glitch</strong> (UK charity No. 1187714), an award-winning charity committed to ending online abuse and making the internet a safer place for everyone, unapologetically centring Black women. Glitch is recognised internationally for mainstreaming the conversation on online abuse and digital citizenship, and for transforming how tech companies build social media platforms with women's safety and joy in mind.</p>
+    <p>The floor protection on intersectional and identity-based abuse in these standards, and our approach to content moderation that distinguishes abuse from discussion of abuse, draws directly on Glitch research — in particular calls to action for tech companies co-authored by <strong>Gabriela de Oliveira</strong> and <strong>Dr Julia Slupska</strong>.</p>
+    <p>Their analysis makes the point that ending digital misogynoir requires both institutional and grassroots action, and that the work should not fall on those most affected. Men and white people can and should be allies — listening to what Black women have written about allyship, and avoiding familiar pitfalls. As a platform, we can and should do better: in how we design enforcement, in how we distinguish harm from resistance to harm, and in how we build the conditions that make genuine safety possible rather than merely claiming it.</p>
+    <p><em>Full Glitch research and calls to action: <a href="https://glitchcharity.co.uk">glitchcharity.co.uk</a></em></p>
+
+    <h2>Reference: Blacksky moderation labels</h2>
+    <p>Blacksky is a Black-led community on Bluesky that built its own moderation label system — annotations applied to users and content across the network, configurable by each user (Off / Warn / Hide). Their seven categories include labels that no major platform has adopted as defaults:</p>
+    <div class="block-list">
+      <div class="block-item"><div class="outcome-label">Synthetic Media</div><p>Content generated or manipulated to appear as though based on reality. Includes deepfakes.</p></div>
+      <div class="block-item"><div class="outcome-label">Violence</div><p>Content expressing threats of physical or sexual violence targeting Black people.</p></div>
+      <div class="block-item"><div class="outcome-label">White Supremacy or Antiblack Rhetoric</div><p>Statements rooted in white supremacy and antiblackness, including internalized antiblackness. Distinct from targeted harassment.</p></div>
+      <div class="block-item"><div class="outcome-label">Doxxing</div><p>Disclosing personal, non-public information without consent — name, address, phone number, or any identifying data.</p></div>
+      <div class="block-item"><div class="outcome-label">Non-Consensual Intimate Imagery</div><p>Creating, publishing, or sharing intimate images or video without the consent of those visible in it.</p></div>
+      <div class="block-item"><div class="outcome-label">Misogynoir</div><p>Content expressing hatred, bias, or prejudice against Black women specifically where racism, sexism, and/or transphobia intersect. Includes sexual harassment, objectification, and targeted attacks on Black women's identity or appearance.</p></div>
+      <div class="block-item"><div class="outcome-label">Antiblack Harassment</div><p>Content targeting individuals or groups based on their Black identity with derogatory, hateful, or dehumanizing language or imagery — perpetuating harmful stereotypes, slurs, or direct harassment.</p></div>
+    </div>
+    <p>The Misogynoir label is the clearest example of what community-authored moderation makes possible. The word was coined in 2008 by Moya Bailey to name anti-Black misogyny — harm that is simultaneously racist and sexist, and that single-axis systems cannot see. No major platform has ever used it as a moderation category. Blacksky created it. Users decide their own threshold. The label puts a lever in the hands of the people most affected.</p>
+    <p>Our floor protection on intersectional and identity-based abuse is shaped by the same insight: compound targeting requires compound recognition. We do not require members to prove which single axis applies. We name the thing as a whole, and we hold it.</p>
+
+    <div class="doc-meta">
+      <p>Document 04 / 05 — Adopted May 2026 — Version 1.0 — Working draft</p>
+      <p>hello@dyad.berlin — dyad.berlin/community</p>
+    </div>
+  </div>
+</div>
+
+<div class="doc-nav-bottom no-print">
+  <a href="membership-agreement.html">← 03 Membership Agreement</a>
+  <a href="governance.html">05 Governance →</a>
+</div>
+
+<div class="no-print" style="position:fixed;bottom:24px;right:24px;background:#1a1a1a;color:#f5f3f0;padding:12px 20px;border-radius:6px;font-family:system-ui,sans-serif;font-size:13px;cursor:pointer;" onclick="window.print()">Print / Save as PDF</div>
+
+</body>
+</html>
