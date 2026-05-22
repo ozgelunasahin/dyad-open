@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>dyad. — Community Documents — May 2026</title>
+<title>dyad. — Working Draft — May 2026</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -28,7 +28,6 @@
     color: var(--ink);
   }
 
-  /* ── Spread ── */
   .spread {
     width: 100vw;
     height: 100vh;
@@ -48,7 +47,6 @@
     position: relative;
   }
 
-  /* ── Nav arrows ── */
   .mag-nav {
     position: fixed;
     bottom: 28px;
@@ -89,7 +87,6 @@
     text-align: center;
   }
 
-  /* ── Page ── */
   .pg {
     background: #fff;
     overflow: hidden;
@@ -101,7 +98,6 @@
   .pg--tint { background: var(--tint); }
   .pg--ink  { background: var(--ink); color: #f5f3f0; }
 
-  /* ── Folio ── */
   .folio-wrap {
     margin-top: auto;
     padding: 10px 0 18px;
@@ -123,10 +119,8 @@
   }
   .pg--ink .folio { color: rgba(255,255,255,0.25); }
 
-  /* ── Page body ── */
   .pg-body { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
 
-  /* ── Page number ── */
   .pg-num {
     font-family: var(--mono);
     font-size: 8.5px;
@@ -136,7 +130,6 @@
   }
   .pg--ink .pg-num { color: rgba(255,255,255,0.25); }
 
-  /* ── Typography ── */
   .label {
     font-family: var(--mono);
     font-size: 7.5px;
@@ -228,7 +221,6 @@
 
   .section-rule { border: none; border-top: 1px solid var(--rule); margin: 9px 0; }
 
-  /* ── Display type ── */
   .display-type {
     font-family: var(--sans);
     font-weight: 800;
@@ -243,7 +235,6 @@
   .pg--tint .display-type { color: var(--ink); }
   .display-type--sm { font-size: clamp(20px, 3vw, 40px); }
 
-  /* ── Wordmark ── */
   .wordmark-xl {
     font-family: var(--sans);
     font-weight: 200;
@@ -253,7 +244,6 @@
     color: #fff;
   }
 
-  /* ── About note ── */
   .about-note {
     border-left: 2px solid var(--ink);
     background: var(--tint);
@@ -264,7 +254,6 @@
     color: var(--ink-mid);
   }
 
-  /* ── Block list ── */
   .block-list { border: 1px solid var(--rule); margin: 7px 0; }
   .pg--ink .block-list { border-color: rgba(255,255,255,0.1); }
 
@@ -289,7 +278,6 @@
   }
   .pg--ink .block-label { color: rgba(255,255,255,0.8); }
 
-  /* ── Numbered list ── */
   .numbered-list { margin: 7px 0; }
 
   .numbered-item {
@@ -314,7 +302,6 @@
   }
   .pg--ink .item-num { color: rgba(255,255,255,0.25); }
 
-  /* ── Two-col cards ── */
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin: 7px 0; }
 
   .col-card { border: 1px solid var(--rule); padding: 8px; }
@@ -334,7 +321,6 @@
   .pg--ink .col-card-title { color: #fff; }
   .col-card p { font-size: 9.5px; margin-bottom: 3px; }
 
-  /* ── Pricing ── */
   .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 7px 0; }
 
   .pricing-card { border: 1px solid var(--rule); padding: 8px; }
@@ -351,7 +337,6 @@
   .pricing-amount { font-family: var(--sans); font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
   .pricing-card p { font-size: 9.5px; margin: 0; line-height: 1.45; }
 
-  /* ── TOC (preface) ── */
   .toc-item {
     display: flex;
     justify-content: space-between;
@@ -363,50 +348,9 @@
   .toc-item-title { font-weight: 600; }
   .toc-item-sub { font-size: 9px; color: var(--ink-light); font-style: italic; }
 
-  /* ── TOC spread (Subvert-style grid) ── */
-  .toc-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    margin-top: 8px;
-    flex: 1;
-  }
-
-  .toc-entry {
-    padding: 16px 12px 16px 0;
-    border-top: 1px solid rgba(255,255,255,0.12);
-  }
-
-  .toc-entry:nth-child(even) { padding-left: 16px; border-left: 1px solid rgba(255,255,255,0.08); }
-
-  .toc-entry-num {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: rgba(255,255,255,0.35);
-    margin-bottom: 6px;
-    letter-spacing: 0.06em;
-  }
-
-  .toc-entry-title {
-    font-family: var(--mono);
-    font-size: 15px;
-    color: rgba(255,255,255,0.8);
-    margin-bottom: 6px;
-    letter-spacing: -0.01em;
-    line-height: 1.2;
-  }
-
-  .toc-entry-pages {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: rgba(255,255,255,0.3);
-    letter-spacing: 0.04em;
-  }
-
-  /* ── Callout ── */
   .callout { margin: 8px 0; padding: 9px 11px; border-left: 2px solid var(--ink); background: var(--tint); }
   .callout p { font-size: 10.5px; font-style: italic; color: var(--ink); margin: 0; line-height: 1.55; }
 
-  /* ── Indented list ── */
   .indented-list { margin: 6px 0; }
 
   .indented-item {
@@ -418,19 +362,9 @@
     line-height: 1.45;
   }
 
-  /* ── Doc meta / outcome label ── */
   .doc-meta { font-family: var(--mono); font-size: 7px; color: var(--ink-light); letter-spacing: 0.06em; margin-top: 10px; }
   .doc-meta p { font-size: 7px; color: var(--ink-light); margin-bottom: 2px; }
   .pg--ink .doc-meta p { color: rgba(255,255,255,0.2); }
-
-  .outcome-label {
-    font-family: var(--mono);
-    font-size: 7px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--ink-light);
-    margin-bottom: 2px;
-  }
 </style>
 </head>
 <body>
@@ -443,33 +377,30 @@
   <div class="pg pg--ink">
     <div class="pg-body">
       <div class="pg-num">(01)</div>
-      <div class="label">Community Documents · Working Draft · May 2026</div>
+      <div class="label">Editorial Prospectus · Working Draft · May 2026</div>
       <div class="wordmark-xl">dyad.</div>
-      <p style="margin-top: 20px; color: rgba(255,255,255,0.5); font-size: 7.5px; line-height: 1.6;">A network for face-to-face conversations in Berlin. These documents make the decisions behind it legible — about ownership, governance, incentives, and the kind of infrastructure real human connection requires.</p>
-      <p style="color: rgba(255,255,255,0.25); font-family: var(--mono); font-size: 6px; letter-spacing: 0.06em; margin-top: 6px;">hello@dyad.berlin · dyad.berlin/community</p>
+      <p style="margin-top: 20px; color: rgba(255,255,255,0.5); font-size: 7.5px; line-height: 1.6;">A proposal for rebuilding the social infrastructure through which people encounter one another — outside the logic of feeds, extraction, and algorithmic mediation. Sixteen essays. One city to start.</p>
+      <p style="color: rgba(255,255,255,0.25); font-family: var(--mono); font-size: 6px; letter-spacing: 0.06em; margin-top: 6px;">hello@dyad.berlin · dyad.berlin</p>
     </div>
     <div class="folio-wrap">
       <hr class="folio-rule">
-      <div class="folio"><span>Berlin · May 2026</span><span>Version 1.0</span></div>
+      <div class="folio"><span>Berlin · May 2026</span><span>Working Draft 1.0</span></div>
     </div>
   </div>
 
   <div class="pg">
     <div class="pg-body">
       <div class="pg-num">(02)</div>
-      <div class="label">Five Documents</div>
-      <div class="pg-heading pg-heading--lg" style="margin-bottom: 14px;">A manifesto, a set of commitments, and a governance framework for a platform owned by the community it serves.</div>
+      <div class="label">A working document</div>
+      <div class="pg-heading pg-heading--lg" style="margin-bottom: 14px;">Sixteen essays on what was lost, what broke it, and what rebuilding looks like.</div>
       <hr class="section-rule">
-      <div class="toc-item"><span class="toc-item-title">01 — Charter</span><span class="toc-item-sub">Manifesto, commitments, and vision</span></div>
-      <div class="toc-item"><span class="toc-item-title">02 — Membership Agreement</span><span class="toc-item-sub">Rights, responsibilities, and pricing</span></div>
-      <div class="toc-item"><span class="toc-item-title">03 — Acceptance Criteria</span><span class="toc-item-sub">Who joins, how, and why curation matters</span></div>
-      <div class="toc-item"><span class="toc-item-title">04 — Community Standards</span><span class="toc-item-sub">How we agree to be with one another</span></div>
-      <div class="toc-item"><span class="toc-item-title">05 — Governance</span><span class="toc-item-sub">Steward ownership, dual voting, People's Assembly</span></div>
-      <div class="display-type">Community<br/>Documents<br/>Working<br/>Draft</div>
+      <p>This is the editorial brief for <em>dyad.</em> — a publication about rebuilding the social infrastructure through which people encounter one another, outside the logic of engagement, extraction, and algorithmic mediation. It is also the founding document of a platform built on the same principles.</p>
+      <p>This document is sent to potential contributors, collaborators, and founding members. It is a working draft. Its purpose is to be legible enough that the people who read it can say yes or no.</p>
+      <div class="display-type">Sixteen<br/>essays.</div>
     </div>
     <div class="folio-wrap">
       <hr class="folio-rule">
-      <div class="folio"><span>dyad. Community Documents</span><span>01 / 12</span></div>
+      <div class="folio"><span>dyad. — Working Draft</span><span>01 / 19</span></div>
     </div>
   </div>
 
@@ -480,82 +411,127 @@
 ══════════════════════════════ -->
 <section class="spread">
 
-  <!-- Left: abstract visual page -->
   <div class="pg pg--ink" style="position: relative; overflow: hidden; padding: 0;">
-    <!-- Light bloom background -->
-    <div style="
-      position: absolute;
-      inset: 0;
-      background:
-        radial-gradient(ellipse 60% 50% at 28% 38%, rgba(255,255,255,0.13) 0%, transparent 70%),
-        radial-gradient(ellipse 45% 40% at 72% 68%, rgba(255,255,255,0.07) 0%, transparent 65%),
-        radial-gradient(ellipse 30% 25% at 55% 20%, rgba(255,255,255,0.05) 0%, transparent 60%);
+    <div style="position: absolute; inset: 0; background:
+      radial-gradient(ellipse 60% 50% at 28% 38%, rgba(255,255,255,0.13) 0%, transparent 70%),
+      radial-gradient(ellipse 45% 40% at 72% 68%, rgba(255,255,255,0.07) 0%, transparent 65%),
+      radial-gradient(ellipse 30% 25% at 55% 20%, rgba(255,255,255,0.05) 0%, transparent 60%);
     "></div>
-    <!-- Bottom metadata -->
     <div style="position: absolute; bottom: 46px; left: 30px; right: 30px; z-index: 1;">
       <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; display: flex; justify-content: space-between; font-family: var(--mono); font-size: 7.5px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.2);">
-        <span>Community Documents</span>
-        <span>Berlin · May 2026</span>
+        <span>dyad. — Working Draft</span><span>Berlin · May 2026</span>
       </div>
     </div>
-    <div style="position: absolute; bottom: 18px; left: 30px; right: 30px; z-index: 1; font-family: var(--mono); font-size: 6.5px; color: rgba(255,255,255,0.12); letter-spacing: 0.06em;">
-      dyad. — 2026
-    </div>
+    <div style="position: absolute; bottom: 18px; left: 30px; right: 30px; z-index: 1; font-family: var(--mono); font-size: 6.5px; color: rgba(255,255,255,0.12); letter-spacing: 0.06em;">dyad. — 2026</div>
   </div>
 
-  <!-- Right: TOC grid -->
   <div class="pg pg--ink" style="padding: 26px 30px 18px;">
     <div class="pg-body">
-      <div style="font-family: var(--mono); font-size: 10px; color: rgba(255,255,255,0.4); line-height: 1.6; padding-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.15);">
-        dyad. Community Documents<br/>Working Draft · 01–22
+      <div style="font-family: var(--mono); font-size: 10px; color: rgba(255,255,255,0.4); line-height: 1.6; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.15);">
+        dyad. — Contents · Working Draft · Pages 01–38
       </div>
-
-      <!-- TOC rows — flex children fill remaining height equally -->
-      <div style="flex: 1; display: flex; flex-direction: column; margin-top: 0;">
-
-        <!-- Row 1 -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; flex: 1; border-top: 1px solid rgba(255,255,255,0.15);">
-          <div style="padding: 16px 16px 16px 0; display: flex; flex-direction: column; justify-content: space-between;">
-            <div style="font-family: var(--mono); font-size: 9.5px; color: rgba(255,255,255,0.3); letter-spacing: 0.08em;">About</div>
-            <div style="font-family: var(--mono); font-size: 20px; color: rgba(255,255,255,0.82); line-height: 1.05; letter-spacing: -0.01em;">Preface</div>
-            <div style="font-family: var(--mono); font-size: 9.5px; color: rgba(255,255,255,0.22); letter-spacing: 0.04em;">05–06</div>
+      <div style="flex: 1; display: flex; flex-direction: column;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; flex: 1; border-top: 1px solid rgba(255,255,255,0.12);">
+          <div style="padding: 7px 10px 7px 0; display: flex; flex-direction: column; justify-content: space-between;">
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.28);">I.</div>
+            <div style="font-family: var(--mono); font-size: 12px; color: rgba(255,255,255,0.82); line-height: 1.05;">Natural History</div>
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.2);">07–08</div>
           </div>
-          <div style="padding: 16px 0 16px 16px; display: flex; flex-direction: column; justify-content: space-between; border-left: 1px solid rgba(255,255,255,0.08);">
-            <div style="font-family: var(--mono); font-size: 9.5px; color: rgba(255,255,255,0.3); letter-spacing: 0.08em;">I.</div>
-            <div style="font-family: var(--mono); font-size: 20px; color: rgba(255,255,255,0.82); line-height: 1.05; letter-spacing: -0.01em;">Charter</div>
-            <div style="font-family: var(--mono); font-size: 9.5px; color: rgba(255,255,255,0.22); letter-spacing: 0.04em;">07–12</div>
+          <div style="padding: 7px 0 7px 10px; display: flex; flex-direction: column; justify-content: space-between; border-left: 1px solid rgba(255,255,255,0.07);">
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.28);">II.</div>
+            <div style="font-family: var(--mono); font-size: 12px; color: rgba(255,255,255,0.82); line-height: 1.05;">The Rupture</div>
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.2);">09–10</div>
           </div>
         </div>
-
-        <!-- Row 2 -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; flex: 1; border-top: 1px solid rgba(255,255,255,0.15);">
-          <div style="padding: 16px 16px 16px 0; display: flex; flex-direction: column; justify-content: space-between;">
-            <div style="font-family: var(--mono); font-size: 9.5px; color: rgba(255,255,255,0.3); letter-spacing: 0.08em;">II.</div>
-            <div style="font-family: var(--mono); font-size: 20px; color: rgba(255,255,255,0.82); line-height: 1.05; letter-spacing: -0.01em;">Membership</div>
-            <div style="font-family: var(--mono); font-size: 9.5px; color: rgba(255,255,255,0.22); letter-spacing: 0.04em;">13–14</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; flex: 1; border-top: 1px solid rgba(255,255,255,0.12);">
+          <div style="padding: 7px 10px 7px 0; display: flex; flex-direction: column; justify-content: space-between;">
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.28);">III.</div>
+            <div style="font-family: var(--mono); font-size: 12px; color: rgba(255,255,255,0.82); line-height: 1.05;">Pathology</div>
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.2);">11–12</div>
           </div>
-          <div style="padding: 16px 0 16px 16px; display: flex; flex-direction: column; justify-content: space-between; border-left: 1px solid rgba(255,255,255,0.08);">
-            <div style="font-family: var(--mono); font-size: 9.5px; color: rgba(255,255,255,0.3); letter-spacing: 0.08em;">III.</div>
-            <div style="font-family: var(--mono); font-size: 20px; color: rgba(255,255,255,0.82); line-height: 1.05; letter-spacing: -0.01em;">Governance</div>
-            <div style="font-family: var(--mono); font-size: 9.5px; color: rgba(255,255,255,0.22); letter-spacing: 0.04em;">15–20</div>
+          <div style="padding: 7px 0 7px 10px; display: flex; flex-direction: column; justify-content: space-between; border-left: 1px solid rgba(255,255,255,0.07);">
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.28);">IV.</div>
+            <div style="font-family: var(--mono); font-size: 12px; color: rgba(255,255,255,0.82); line-height: 1.05;">Epidemiology</div>
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.2);">13–14</div>
           </div>
         </div>
-
-        <!-- Row 3 -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; flex: 1; border-top: 1px solid rgba(255,255,255,0.15);">
-          <div style="padding: 16px 16px 16px 0; display: flex; flex-direction: column; justify-content: space-between;">
-            <div style="font-family: var(--mono); font-size: 9.5px; color: rgba(255,255,255,0.3); letter-spacing: 0.08em;">IV.</div>
-            <div style="font-family: var(--mono); font-size: 20px; color: rgba(255,255,255,0.82); line-height: 1.05; letter-spacing: -0.01em;">Possibilities</div>
-            <div style="font-family: var(--mono); font-size: 9.5px; color: rgba(255,255,255,0.22); letter-spacing: 0.04em;">21–22</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; flex: 1; border-top: 1px solid rgba(255,255,255,0.12);">
+          <div style="padding: 7px 10px 7px 0; display: flex; flex-direction: column; justify-content: space-between;">
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.28);">V.</div>
+            <div style="font-family: var(--mono); font-size: 12px; color: rgba(255,255,255,0.82); line-height: 1.05;">Limits of Reform</div>
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.2);">15–16</div>
           </div>
-          <div style="border-left: 1px solid rgba(255,255,255,0.08);"></div>
+          <div style="padding: 7px 0 7px 10px; display: flex; flex-direction: column; justify-content: space-between; border-left: 1px solid rgba(255,255,255,0.07);">
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.28);">VI.</div>
+            <div style="font-family: var(--mono); font-size: 12px; color: rgba(255,255,255,0.82); line-height: 1.05;">Alternative-Making</div>
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.2);">17–18</div>
+          </div>
         </div>
-
+        <div style="display: grid; grid-template-columns: 1fr 1fr; flex: 1; border-top: 1px solid rgba(255,255,255,0.12);">
+          <div style="padding: 7px 10px 7px 0; display: flex; flex-direction: column; justify-content: space-between;">
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.28);">VII.</div>
+            <div style="font-family: var(--mono); font-size: 12px; color: rgba(255,255,255,0.82); line-height: 1.05;">Intervention</div>
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.2);">19–20</div>
+          </div>
+          <div style="padding: 7px 0 7px 10px; display: flex; flex-direction: column; justify-content: space-between; border-left: 1px solid rgba(255,255,255,0.07);">
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.28);">VIII.</div>
+            <div style="font-family: var(--mono); font-size: 12px; color: rgba(255,255,255,0.82); line-height: 1.05;">The Dyad Model</div>
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.2);">21–22</div>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; flex: 1; border-top: 1px solid rgba(255,255,255,0.12);">
+          <div style="padding: 7px 10px 7px 0; display: flex; flex-direction: column; justify-content: space-between;">
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.28);">IX.</div>
+            <div style="font-family: var(--mono); font-size: 12px; color: rgba(255,255,255,0.82); line-height: 1.05;">Protocols for Public Life</div>
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.2);">23–24</div>
+          </div>
+          <div style="padding: 7px 0 7px 10px; display: flex; flex-direction: column; justify-content: space-between; border-left: 1px solid rgba(255,255,255,0.07);">
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.28);">X.</div>
+            <div style="font-family: var(--mono); font-size: 12px; color: rgba(255,255,255,0.82); line-height: 1.05;">Membership</div>
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.2);">25–26</div>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; flex: 1; border-top: 1px solid rgba(255,255,255,0.12);">
+          <div style="padding: 7px 10px 7px 0; display: flex; flex-direction: column; justify-content: space-between;">
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.28);">XI.</div>
+            <div style="font-family: var(--mono); font-size: 12px; color: rgba(255,255,255,0.82); line-height: 1.05;">Governance</div>
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.2);">27–28</div>
+          </div>
+          <div style="padding: 7px 0 7px 10px; display: flex; flex-direction: column; justify-content: space-between; border-left: 1px solid rgba(255,255,255,0.07);">
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.28);">XII.</div>
+            <div style="font-family: var(--mono); font-size: 12px; color: rgba(255,255,255,0.82); line-height: 1.05;">Economic Model</div>
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.2);">29–30</div>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; flex: 1; border-top: 1px solid rgba(255,255,255,0.12);">
+          <div style="padding: 7px 10px 7px 0; display: flex; flex-direction: column; justify-content: space-between;">
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.28);">XIII.</div>
+            <div style="font-family: var(--mono); font-size: 12px; color: rgba(255,255,255,0.82); line-height: 1.05;">Berlin</div>
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.2);">31–32</div>
+          </div>
+          <div style="padding: 7px 0 7px 10px; display: flex; flex-direction: column; justify-content: space-between; border-left: 1px solid rgba(255,255,255,0.07);">
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.28);">XIV.</div>
+            <div style="font-family: var(--mono); font-size: 12px; color: rgba(255,255,255,0.82); line-height: 1.05;">Action</div>
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.2);">33–34</div>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; flex: 1; border-top: 1px solid rgba(255,255,255,0.12);">
+          <div style="padding: 7px 10px 7px 0; display: flex; flex-direction: column; justify-content: space-between;">
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.28);">XV.</div>
+            <div style="font-family: var(--mono); font-size: 12px; color: rgba(255,255,255,0.82); line-height: 1.05;">Possibilities</div>
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.2);">35–36</div>
+          </div>
+          <div style="padding: 7px 0 7px 10px; display: flex; flex-direction: column; justify-content: space-between; border-left: 1px solid rgba(255,255,255,0.07);">
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.28);">XVI.</div>
+            <div style="font-family: var(--mono); font-size: 12px; color: rgba(255,255,255,0.82); line-height: 1.05;">Documents</div>
+            <div style="font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.2);">37–38</div>
+          </div>
+        </div>
       </div>
     </div>
     <div class="folio-wrap">
       <hr class="folio-rule">
-      <div class="folio"><span>Contents</span><span>02 / 11</span></div>
+      <div class="folio"><span>Contents</span><span>02 / 19</span></div>
     </div>
   </div>
 
@@ -568,64 +544,15 @@
 
   <div class="pg">
     <div class="pg-body">
-      <div class="pg-num">(03)</div>
+      <div class="pg-num">(05)</div>
       <div class="label">Preface</div>
       <div class="pg-heading">About This Document</div>
-      <div class="pg-subtitle">What this is, what it is not, and how to use it.</div>
+      <div class="pg-subtitle">What this document is, what it is not, and why it exists.</div>
       <div class="about-note">
-        <strong>Working draft.</strong> This document represents our current thinking, commitments, and understanding of what we are building and why. It will change. It is not a contract or a guarantee of specific future actions. It is an honest account, written to be held up against what we actually do. If there is a gap between this document and our behaviour, that gap is the accountability mechanism.
+        <strong>Working draft.</strong> This is the editorial brief for <em>dyad.</em> — a publication about rebuilding the social infrastructure of cities, and the founding document of a platform built on the same principles. The two are connected: the publication argues the case; the platform builds it. This document will change. Its purpose is to be legible enough that the people who read it can say yes or no.
       </div>
-      <p class="lede">Dyad is a network for face-to-face conversations in Berlin. Behind that simple sentence is a long set of decisions — about ownership, governance, incentives, and the kind of infrastructure real human connection requires. These documents make those decisions legible.</p>
-      <p>This is more than an operational document. It is a blueprint and a manifesto for a different way of building a platform — one that treats the people who use it as co-owners of what it becomes, not as the product being sold.</p>
-      <p>Artists and culture workers, community organisers, and platform users often shy away from conversations about governance structures and ownership models. That discomfort is understandable. But if we want to build different kinds of platforms, we have to demystify the structures that shape them. These documents are an attempt at that.</p>
-    </div>
-    <div class="folio-wrap">
-      <hr class="folio-rule">
-      <div class="folio"><span>Berlin · May 2026</span><span>dyad. — 2026</span></div>
-    </div>
-  </div>
-
-  <div class="pg pg--tint">
-    <div class="pg-body">
-      <div class="pg-num">(04)</div>
-      <div class="label">Preface — Contents</div>
-      <h2>What is in here</h2>
-      <div class="toc-item"><span class="toc-item-title">Charter</span><span class="toc-item-sub">Manifesto, commitments, and vision</span></div>
-      <div class="toc-item"><span class="toc-item-title">Membership Agreement</span><span class="toc-item-sub">Rights, responsibilities, pricing</span></div>
-      <div class="toc-item"><span class="toc-item-title">Acceptance Criteria</span><span class="toc-item-sub">Who joins, how, and why curation matters</span></div>
-      <div class="toc-item"><span class="toc-item-title">Community Standards</span><span class="toc-item-sub">How we agree to be with one another</span></div>
-      <div class="toc-item"><span class="toc-item-title">Governance</span><span class="toc-item-sub">Steward ownership, dual voting, People's Assembly</span></div>
-      <h2>How this document changes</h2>
-      <p>Amendments to individual sections go through the People's Assembly — the community governance body described in the Governance document. The Assembly can propose changes, deliberate, and vote. Some commitments are foundational and will be permanently locked in the legal structure of the company when we complete our transition to steward ownership. Until then, they are binding public obligations.</p>
-      <p>The stewards — currently the founders — can also propose changes, but those proposals go through the same Assembly process. No one has unilateral authority to rewrite the framework.</p>
-      <div class="doc-meta">
-        <p>Adopted May 2026 — Version 1.0 — Working draft</p>
-        <p>hello@dyad.berlin — dyad.berlin/community</p>
-      </div>
-    </div>
-    <div class="folio-wrap">
-      <hr class="folio-rule">
-      <div class="folio"><span>Preface</span><span>02 / 12</span></div>
-    </div>
-  </div>
-
-</section>
-
-<!-- ══════════════════════════════
-     S3 · CHARTER I
-══════════════════════════════ -->
-<section class="spread">
-
-  <div class="pg">
-    <div class="pg-body">
-      <div class="pg-num">(05)</div>
-      <div class="section-num">01</div>
-      <div class="label">Document 01 / 05</div>
-      <div class="pg-heading">Our Charter</div>
-      <div class="pg-subtitle">A manifesto, a set of commitments, and an invitation.</div>
-      <p class="lede">The platforms we use to meet, organise, and make sense of the world have become engines of extraction. Not by accident. By design. The March 2026 verdicts against Meta and YouTube confirmed what years of research had already made plain: platform design is intentional, and it is liable to its effects. Attention economies are attention economies on purpose.</p>
-      <p class="lede" style="color: var(--ink-mid);">The typical response to this is ethical commitment. Companies publish values pages. Then they take equity investment, which obligates growth, which requires engagement optimisation, which means the values page was always a marketing document. Bandcamp was beloved. Then it was sold — twice, in eighteen months — and the community it served was not in the room when those decisions were made.</p>
-      <p>Dyad exists because we believe the structural problem requires a structural answer. This charter is that answer stated plainly.</p>
+      <p class="lede">The social infrastructure of public life — the spaces where strangers can gradually become real to one another — has been systematically replaced by its digital simulation. This document is an attempt to understand why that happened, name what was lost, and propose what rebuilding looks like.</p>
+      <p>These sixteen essays form a diagnostic sequence and a constructive proposal. The first five chapters name the problem. Chapter VI defines what alternative-making actually means. The remaining ten build the case for what dyad is, why it is structured the way it is, and what it could become.</p>
     </div>
     <div class="folio-wrap">
       <hr class="folio-rule">
@@ -636,39 +563,54 @@
   <div class="pg pg--tint">
     <div class="pg-body">
       <div class="pg-num">(06)</div>
-      <div class="label">Charter — The Problem &amp; What Dyad Is</div>
-      <h2>The problem we are responding to</h2>
-      <p>Social platforms are built to maximise time-on-screen. This is not a side effect — it is the revenue model. Advertising pays for attention; platforms compete to capture it; every feed, notification, and recommendation system reflects this competition. The result is platforms optimised to make you feel connected while systematically replacing the conditions for real connection with their simulacra.</p>
-      <p>Cory Doctorow coined "enshittification" to describe how platforms decline: first they serve users, then business customers, then extract maximum value from both. The community has no say. It was never in the ownership structure.</p>
-      <h2>What dyad is</h2>
-      <p>A place to find someone to talk to, in person. You write a question or a subject you want to explore. Someone reads it and writes back. If both of you want to meet, you agree on a time and a place. Then you show up. That is the whole thing.</p>
-      <p>The technology exists to make this as safe, trustworthy, and low-friction as possible — not to grow, not to engage, not to retain. Dyad gets out of the way once it has done its job of getting two people into the same room. The absence of feeds, algorithms, social graphs, and engagement mechanics is not a missing feature set. It is a deliberate structural decision.</p>
-      <div class="display-type display-type--sm">Encounter<br/>is the<br/>whole point.</div>
+      <div class="label">Preface — Structure &amp; Contribution</div>
+      <h2 style="margin-top: 0; padding-top: 0; border-top: none;">Five thematic arcs</h2>
+      <div class="toc-item"><span class="toc-item-title">Diagnosis (I–V)</span><span class="toc-item-sub">What broke and why</span></div>
+      <div class="toc-item"><span class="toc-item-title">Response (VI)</span><span class="toc-item-sub">What alternative-making means</span></div>
+      <div class="toc-item"><span class="toc-item-title">Intervention (VII–IX)</span><span class="toc-item-sub">How dyad works and what it asks</span></div>
+      <div class="toc-item"><span class="toc-item-title">Community (X–XII)</span><span class="toc-item-sub">Participation, governance, economics</span></div>
+      <div class="toc-item"><span class="toc-item-title">From Berlin to institution (XIII–XVI)</span><span class="toc-item-sub">Prototype, action, possibilities, documents</span></div>
+      <h2>Possible contribution</h2>
+      <div class="block-list">
+        <div class="block-item">
+          <div class="block-label">Aaron Tanaka / Austin Robey — Subvert</div>
+          Why institutional imagination matters — the case that governance structure is not a legal technicality but a creative act.
+        </div>
+      </div>
+      <div class="doc-meta">
+        <p>Working Draft — Version 1.0 — May 2026</p>
+        <p>hello@dyad.berlin — dyad.berlin</p>
+      </div>
     </div>
     <div class="folio-wrap">
       <hr class="folio-rule">
-      <div class="folio"><span>Charter — 01</span><span>03 / 12</span></div>
+      <div class="folio"><span>Preface</span><span>03 / 19</span></div>
     </div>
   </div>
 
 </section>
 
 <!-- ══════════════════════════════
-     S4 · CHARTER II — COMMITMENTS
+     S4 · CHAPTER I — NATURAL HISTORY
 ══════════════════════════════ -->
 <section class="spread">
 
   <div class="pg">
     <div class="pg-body">
       <div class="pg-num">(07)</div>
-      <div class="label">Charter — Something to say yes to</div>
-      <div class="pg-heading" style="margin-bottom: 9px;">Something to say yes to</div>
-      <div class="block-list">
-        <div class="block-item"><div class="block-label">Ownership by the people who use it</div>Dyad is committed to transitioning to steward ownership — a legal structure in which voting control stays with the people who operate the platform, not external investors. Our pre-seed funding instrument is designed explicitly to make this transition possible.</div>
-        <div class="block-item"><div class="block-label">Aligned incentives, not managed conflicts</div>Subscription funding means dyad succeeds when members value the platform enough to pay for it — not when they cannot stop scrolling. No advertising. No data sales. No engagement optimisation.</div>
-        <div class="block-item"><div class="block-label">Governance by the community</div>Active members govern this platform through the People's Assembly — a real decision-making body, not an advisory board. Community standards, acceptance criteria, and platform policy are set and changed by the members who live by them.</div>
-        <div class="block-item"><div class="block-label">Transparency as practice, not performance</div>We publish the financials. We explain the decisions. When we change course, we say so and explain why. Annual financial reports are available to all members.</div>
-        <div class="block-item"><div class="block-label">Connection as the endpoint, not the product</div>Two people in a room having a real conversation is not a means to a platform metric. It is the thing itself. Dyad is designed around the quality of that encounter, not the quantity of time spent on screen before it.</div>
+      <div class="section-num">01</div>
+      <div class="label">Chapter I</div>
+      <div class="pg-heading">Natural History</div>
+      <div class="pg-subtitle">How the Internet Lost Its Social Nervous System</div>
+      <p class="lede">Before the feed, the internet was participatory. Forums, blogs, comment sections, early social discovery — people making things and finding each other across them. This chapter traces how that changed: how a web built around connection was progressively redesigned for prediction, advertising, and behavioral management.</p>
+      <p>The shift was not inevitable. It was a series of decisions — about business models, about measurement, about what counts as success. Understanding those decisions is the first step toward making different ones.</p>
+      <h2>Key themes</h2>
+      <div class="indented-list">
+        <div class="indented-item">Forums, blogs, and early social discovery</div>
+        <div class="indented-item">The participatory web: making versus watching</div>
+        <div class="indented-item">How advertising became the dominant revenue model</div>
+        <div class="indented-item">Algorithmic feeds and the replacement of participation by spectatorship</div>
+        <div class="indented-item">What was lost when attention became the product</div>
       </div>
     </div>
     <div class="folio-wrap">
@@ -677,121 +619,53 @@
     </div>
   </div>
 
-  <div class="pg pg--ink">
+  <div class="pg pg--tint">
     <div class="pg-body">
       <div class="pg-num">(08)</div>
-      <div class="label">Charter — Our real competition</div>
-      <h2>Our real competition</h2>
-      <p>Our competition is not another app. It is cynicism — the well-earned belief that structural change in how platforms are built and owned is not actually possible. That collective governance doesn't scale. That mission statements always give way to investor returns.</p>
-      <p>We understand this position. Cynicism is a rational response to repeated betrayal. But it is also an obstacle. We are competing against:</p>
-      <div class="indented-list">
-        <div class="indented-item" style="border-color: rgba(255,255,255,0.12); color: rgba(255,255,255,0.5);">The notion that platforms inevitably extract value from the communities they serve</div>
-        <div class="indented-item" style="border-color: rgba(255,255,255,0.12); color: rgba(255,255,255,0.5);">The assumption that investment requires surrendering governance to investors</div>
-        <div class="indented-item" style="border-color: rgba(255,255,255,0.12); color: rgba(255,255,255,0.5);">The belief that social connection cannot be supported by infrastructure that does not exploit it</div>
-        <div class="indented-item" style="border-color: rgba(255,255,255,0.12); color: rgba(255,255,255,0.5);">The comfort of the status quo, even when it is clearly not working</div>
+      <div class="label">Chapter I — Possible contributions</div>
+      <h2 style="margin-top: 0; padding-top: 0; border-top: none;">Possible contributions</h2>
+      <div class="block-list">
+        <div class="block-item">
+          <div class="block-label">Robin Berjon</div>
+          The web we inherited vs. the web we built — a technical and political history of how the open web became the attention economy.
+        </div>
+        <div class="block-item">
+          <div class="block-label">Cory Doctorow</div>
+          Platform decay and what it looks like from the inside — why platforms that start well reliably end the same way.
+        </div>
       </div>
-      <div class="display-type">No ad.<br/>No algo.<br/>No exit.</div>
+      <div class="display-type display-type--sm">What we<br/>lost first.</div>
     </div>
     <div class="folio-wrap">
       <hr class="folio-rule">
-      <div class="folio"><span>Charter — 01</span><span>04 / 12</span></div>
+      <div class="folio"><span>Chapter I — Natural History</span><span>04 / 19</span></div>
     </div>
   </div>
 
 </section>
 
 <!-- ══════════════════════════════
-     S5 · CHARTER III → MEMBERSHIP I
+     S5 · CHAPTER II — THE RUPTURE
 ══════════════════════════════ -->
 <section class="spread">
 
   <div class="pg">
     <div class="pg-body">
       <div class="pg-num">(09)</div>
-      <div class="label">Charter — Commitments &amp; Asks</div>
-      <div class="two-col-text">
-        <h2 style="margin-top: 0; padding-top: 0; border-top: none;">What we commit to you</h2>
-        <h3>Your data is yours</h3>
-        <p>We collect only what is necessary to run the platform. We do not sell it, analyse it for advertising, or share it with third parties for commercial purposes.</p>
-        <h3>No advertising, ever</h3>
-        <p>Not now, not later, not under different leadership, not through a subsidiary. This will be encoded in the legal form of the company.</p>
-        <h3>Radical transparency</h3>
-        <p>We publish the financials. We explain our decisions. Annual financial reports are available to all members.</p>
-        <h3>Real governance, not advisory theatre</h3>
-        <p>The People's Assembly is not a focus group. Active members vote. Decisions bind us.</p>
-        <h3>A path to structural ownership</h3>
-        <p>Steward ownership transition within eighteen months, conditional on community activation.</p>
-        <h2>What we ask of you</h2>
-        <h3>Show up</h3>
-        <p>If you agree to meet someone, be there. The trust is the infrastructure. No-shows corrode it.</p>
-        <h3>Be honest</h3>
-        <p>Not polished. Honest. The person across the table is taking the same risk. They deserve the real version of you.</p>
-        <h3>Engage in good faith</h3>
-        <p>The encounter does not have to be easy or end in agreement. It has to be genuine.</p>
-        <h3>Participate in governance</h3>
-        <p>Once active — five or more meetings completed — you have a vote in the People's Assembly. Use it.</p>
-      </div>
-      <div class="doc-meta"><p>Document 01 / 05 — Adopted May 2026 — Version 1.0 — Working draft</p></div>
-    </div>
-    <div class="folio-wrap">
-      <hr class="folio-rule">
-      <div class="folio"><span>Charter — 01 / 05</span><span>05 / 12</span></div>
-    </div>
-  </div>
-
-  <div class="pg pg--tint">
-    <div class="pg-body">
-      <div class="pg-num">(10)</div>
       <div class="section-num">02</div>
-      <div class="label">Document 02 / 05</div>
-      <div class="pg-heading">Membership Agreement</div>
-      <div class="pg-subtitle">What it means to be a member of dyad, and what we owe each other.</div>
-      <p class="lede">Membership is not a purchase. It is an entry into a mutual relationship — one that carries rights, responsibilities, and a real say in how this community governs itself. Governance rights are earned through participation, not purchased through subscription.</p>
-      <h2>What membership is</h2>
-      <p>Full access to the platform: writing conversation prompts, responding to others', sending and receiving meeting invitations, and participating in the feedback cycle that follows every meeting.</p>
-      <p>Active members — those who have completed at least five meetings — have the right to participate in the People's Assembly and vote on community governance decisions. This is not a passive entitlement. It is a responsibility that comes with the platform.</p>
-      <div class="display-type display-type--sm" style="margin-top: auto;">Not a user.<br/>A member.</div>
-    </div>
-    <div class="folio-wrap">
-      <hr class="folio-rule">
-      <div class="folio"><span>Membership — 02</span><span>05 / 12</span></div>
-    </div>
-  </div>
-
-</section>
-
-<!-- ══════════════════════════════
-     S6 · MEMBERSHIP II
-══════════════════════════════ -->
-<section class="spread">
-
-  <div class="pg">
-    <div class="pg-body">
-      <div class="pg-num">(11)</div>
-      <div class="label">Membership — Pricing &amp; Access</div>
-      <h2 style="margin-top: 0; padding-top: 0; border-top: none;">Pricing</h2>
-      <p style="margin-bottom: 8px;">Three tiers. Identical access. The difference is your relationship to the commons.</p>
-      <div class="pricing-grid">
-        <div class="pricing-card">
-          <div class="pricing-name">Community rate</div>
-          <div class="pricing-amount">3–5€/mo</div>
-          <p>For members who need it. No justification required.</p>
-        </div>
-        <div class="pricing-card">
-          <div class="pricing-name">Sustaining rate</div>
-          <div class="pricing-amount">7–9€/mo</div>
-          <p>What it actually costs per member to run dyad.</p>
-        </div>
-        <div class="pricing-card">
-          <div class="pricing-name">Solidarity rate</div>
-          <div class="pricing-amount">12–15€/mo</div>
-          <p>Your contribution subsidises someone on community rate.</p>
-        </div>
+      <div class="label">Chapter II</div>
+      <div class="pg-heading">The Rupture</div>
+      <div class="pg-subtitle">What Happens When People Can No Longer Metabolize Reality Together</div>
+      <p class="lede">The collapse of spaces where strangers can gradually become real to one another has consequences beyond loneliness. When encounter is replaced by spectacle — when we watch rather than meet — we lose the capacity to make sense of a shared world together. This chapter names what that loss actually looks like.</p>
+      <p>Parallel realities, performative identity, conversational exhaustion — these are not individual pathologies. They are structural effects of platforms designed to keep people engaged without ever requiring them to truly encounter anyone.</p>
+      <h2>Key themes</h2>
+      <div class="indented-list">
+        <div class="indented-item">Parallel realities and the collapse of shared ground</div>
+        <div class="indented-item">Performative identity versus the self you bring to a room</div>
+        <div class="indented-item">Conversational exhaustion and the cost of mediated sociality</div>
+        <div class="indented-item">What it means to encounter someone versus to observe them</div>
+        <div class="indented-item">The collapse of public encounter and what replaces it</div>
       </div>
-      <p>We do not ask you to justify your tier. We publish the financials so you can see exactly what the numbers mean and where the money goes.</p>
-      <h2>What you get</h2>
-      <p>Access to the full platform for as long as your subscription is active. The ability to write, respond, invite, and meet. The ability to build a meeting history and a reputation that others can see when considering whether to meet you.</p>
-      <p>For active members (five or more completed meetings): the right to participate in the People's Assembly and vote on community governance. Transparent financials, published annually.</p>
     </div>
     <div class="folio-wrap">
       <hr class="folio-rule">
@@ -801,47 +675,217 @@
 
   <div class="pg pg--tint">
     <div class="pg-body">
-      <div class="pg-num">(12)</div>
-      <div class="label">Membership — Commitments &amp; Endings</div>
-      <h2 style="margin-top: 0; padding-top: 0; border-top: none;">What you commit to</h2>
-      <h3>The community standards</h3>
-      <p>By becoming a member, you agree to the community standards. These are not fine print. Read them.</p>
-      <h3>Showing up</h3>
-      <p>If you agree to meet someone, show up. No-shows are taken seriously and affect the reputation others see when they consider meeting you.</p>
-      <h3>Completing the feedback form</h3>
-      <p>After every meeting, you complete a feedback form before accessing the platform again. This is a hard gate. The feedback system is how the community maintains accountability over time. There is no bypass.</p>
-      <h3>Your identity</h3>
-      <p>One person, one account. A pseudonym is fine. But creating multiple accounts to escape a reputation, circumvent a suspension, or game the system is grounds for permanent removal.</p>
-      <h2>Your data</h2>
-      <p>We collect the minimum necessary to run the platform. We do not sell your data. We do not use it for advertising. You can request a full export at any time and delete your account at any time.</p>
-      <h2>How membership ends</h2>
-      <p><strong>If you choose to leave:</strong> Cancel at any time. No penalty, no exit fee. If you delete your account, the other party in any pending meetings is notified and released.</p>
-      <p><strong>If dyad ends your membership:</strong> For violations of the community standards. Most cases begin with a warning. Serious violations — harassment, sexual exploitation, ban evasion — result in immediate removal without warning.</p>
-      <div class="doc-meta"><p>Document 02 / 05 — Adopted May 2026 — Version 1.0 — Working draft</p></div>
+      <div class="pg-num">(10)</div>
+      <div class="label">Chapter II — Possible contributions</div>
+      <h2 style="margin-top: 0; padding-top: 0; border-top: none;">Possible contributions</h2>
+      <div class="block-list">
+        <div class="block-item">
+          <div class="block-label">Jenny Odell</div>
+          Attention, presence, and public life — what we give up when attention becomes a commodity and what we have to do to reclaim it.
+        </div>
+        <div class="block-item">
+          <div class="block-label">Sherry Turkle</div>
+          Conversation and technological mediation — why the difference between talking and messaging matters more than we want to admit.
+        </div>
+      </div>
+      <div class="display-type display-type--sm">No room<br/>left for<br/>strangers.</div>
     </div>
     <div class="folio-wrap">
       <hr class="folio-rule">
-      <div class="folio"><span>Membership — 02 / 05</span><span>06 / 12</span></div>
+      <div class="folio"><span>Chapter II — The Rupture</span><span>05 / 19</span></div>
     </div>
   </div>
 
 </section>
 
 <!-- ══════════════════════════════
-     S8 · GOVERNANCE I
+     S6 · CHAPTER III — PATHOLOGY
+══════════════════════════════ -->
+<section class="spread">
+
+  <div class="pg">
+    <div class="pg-body">
+      <div class="pg-num">(11)</div>
+      <div class="section-num">03</div>
+      <div class="label">Chapter III</div>
+      <div class="pg-heading">Pathology</div>
+      <div class="pg-subtitle">Systems Optimized for Engagement, Extraction, and Behavioral Prediction</div>
+      <p class="lede">This is not an argument about bad intentions. It is an argument about bad design. When profit depends on attention, every system — every feed, notification, and recommendation — is optimised to capture it. Surveillance capitalism, engagement loops, parasociality, black-box ranking: these are not side effects. They are the product.</p>
+      <p>Understanding the incentive structure of the platforms we live inside is not optional. It is the prerequisite for imagining anything different.</p>
+      <h2>Key themes</h2>
+      <div class="indented-list">
+        <div class="indented-item">Surveillance capitalism as a business model</div>
+        <div class="indented-item">Engagement loops and the design of compulsion</div>
+        <div class="indented-item">Parasociality: intimacy without reciprocity</div>
+        <div class="indented-item">Black-box ranking systems and invisible governance</div>
+        <div class="indented-item">Extraction architectures and what they optimize for</div>
+      </div>
+    </div>
+    <div class="folio-wrap">
+      <hr class="folio-rule">
+      <div class="folio"><span>Berlin · May 2026</span><span>dyad. — 2026</span></div>
+    </div>
+  </div>
+
+  <div class="pg pg--ink">
+    <div class="pg-body">
+      <div class="pg-num">(12)</div>
+      <div class="label">Chapter III — Possible contributions</div>
+      <h2 style="margin-top: 0; padding-top: 0; border-top: none;">Possible contributions</h2>
+      <div class="block-list">
+        <div class="block-item">
+          <div class="block-label">Tristan Harris / Center for Humane Technology</div>
+          The incentives behind engagement systems — why the people who built these platforms often understood exactly what they were doing.
+        </div>
+        <div class="block-item">
+          <div class="block-label">Safiya Umoja Noble</div>
+          Algorithmic power and social consequences — whose interests ranking systems serve and whose they erase.
+        </div>
+      </div>
+      <div class="display-type display-type--sm">Designed<br/>to capture,<br/>not connect.</div>
+    </div>
+    <div class="folio-wrap">
+      <hr class="folio-rule">
+      <div class="folio"><span>Chapter III — Pathology</span><span>06 / 19</span></div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ══════════════════════════════
+     S7 · CHAPTER IV — EPIDEMIOLOGY
+══════════════════════════════ -->
+<section class="spread">
+
+  <div class="pg">
+    <div class="pg-body">
+      <div class="pg-num">(13)</div>
+      <div class="section-num">04</div>
+      <div class="label">Chapter IV</div>
+      <div class="pg-heading">Epidemiology</div>
+      <div class="pg-subtitle">How Platform Architectures Reorganize Human Behavior and Public Life</div>
+      <p class="lede">The effects of engagement-optimised platforms do not stay inside the app. They spread: into politics, institutions, relationships, and the texture of everyday life. This chapter traces how digital architectures propagate behaviors across culture — and what it looks like when an entire society reorganizes itself around the logic of the feed.</p>
+      <p>Social fragmentation, polarization, distrust, civic fatigue — these are not individual choices. They are the downstream effects of systems that were optimised, at enormous scale, for something else entirely.</p>
+      <h2>Key themes</h2>
+      <div class="indented-list">
+        <div class="indented-item">Social fragmentation at scale</div>
+        <div class="indented-item">Polarization as a structural output, not an accident</div>
+        <div class="indented-item">Distrust and the erosion of shared epistemic ground</div>
+        <div class="indented-item">Civic fatigue and the collapse of collective agency</div>
+        <div class="indented-item">Behavioral normalization: how the strange becomes ordinary</div>
+      </div>
+    </div>
+    <div class="folio-wrap">
+      <hr class="folio-rule">
+      <div class="folio"><span>Berlin · May 2026</span><span>dyad. — 2026</span></div>
+    </div>
+  </div>
+
+  <div class="pg pg--tint">
+    <div class="pg-body">
+      <div class="pg-num">(14)</div>
+      <div class="label">Chapter IV — Possible contributions</div>
+      <h2 style="margin-top: 0; padding-top: 0; border-top: none;">Possible contributions</h2>
+      <div class="block-list">
+        <div class="block-item">
+          <div class="block-label">Daniel Schmachtenberger</div>
+          Sensemaking under networked systems — how the information environment shapes our capacity to think collectively about complex problems.
+        </div>
+        <div class="block-item">
+          <div class="block-label">Renée DiResta</div>
+          Information systems and collective reality — how narratives spread, how they compound, and what it takes to share a world with people who have different ones.
+        </div>
+      </div>
+      <div class="display-type display-type--sm">The app<br/>didn't stay<br/>inside.</div>
+    </div>
+    <div class="folio-wrap">
+      <hr class="folio-rule">
+      <div class="folio"><span>Chapter IV — Epidemiology</span><span>07 / 19</span></div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ══════════════════════════════
+     S8 · CHAPTER V — LIMITS OF REFORM
+══════════════════════════════ -->
+<section class="spread">
+
+  <div class="pg">
+    <div class="pg-body">
+      <div class="pg-num">(15)</div>
+      <div class="section-num">05</div>
+      <div class="label">Chapter V</div>
+      <div class="pg-heading">The Limits of Reform</div>
+      <div class="pg-subtitle">Why Better Feeds Cannot Repair Social Fragmentation</div>
+      <p class="lede">Moderation tweaks, healthier feeds, and ethical branding have a ceiling. The problem is not that platforms are run by bad people — it is that they are structured by bad incentives. Structural problems require structural solutions. Better intentions inside broken incentive systems produce the same outcomes.</p>
+      <p>Platform lock-in, optimization logic, incentive incompatibility: this chapter makes the case that reform fails not because reformers lack sincerity, but because the systems they are trying to reform are working exactly as designed — for someone else's purposes.</p>
+      <h2>Key themes</h2>
+      <div class="indented-list">
+        <div class="indented-item">Why platform lock-in makes reform from within nearly impossible</div>
+        <div class="indented-item">Optimization logic and why it always wins against stated values</div>
+        <div class="indented-item">Incentive incompatibility: what it means when good intentions aren't enough</div>
+        <div class="indented-item">The history of failed platform reform efforts</div>
+        <div class="indented-item">What an infrastructural critique requires that a product critique cannot provide</div>
+      </div>
+    </div>
+    <div class="folio-wrap">
+      <hr class="folio-rule">
+      <div class="folio"><span>Berlin · May 2026</span><span>dyad. — 2026</span></div>
+    </div>
+  </div>
+
+  <div class="pg pg--tint">
+    <div class="pg-body">
+      <div class="pg-num">(16)</div>
+      <div class="label">Chapter V — Possible contributions</div>
+      <h2 style="margin-top: 0; padding-top: 0; border-top: none;">Possible contributions</h2>
+      <div class="block-list">
+        <div class="block-item">
+          <div class="block-label">Aya Jaff</div>
+          From digital agency to social sovereignty — why individual choices about platform use cannot substitute for structural change.
+        </div>
+        <div class="block-item">
+          <div class="block-label">Audrey Tang</div>
+          Participation beyond platforms — what genuine democratic digital infrastructure looks like when it is designed as infrastructure rather than a product.
+        </div>
+      </div>
+      <div class="display-type display-type--sm">Better feeds<br/>fix nothing.</div>
+    </div>
+    <div class="folio-wrap">
+      <hr class="folio-rule">
+      <div class="folio"><span>Chapter V — Limits of Reform</span><span>08 / 19</span></div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ══════════════════════════════
+     S9 · CHAPTER VI — ALTERNATIVE-MAKING
 ══════════════════════════════ -->
 <section class="spread">
 
   <div class="pg pg--ink">
     <div class="pg-body">
       <div class="pg-num">(17)</div>
-      <div class="section-num">05</div>
-      <div class="label">Document 05 / 05</div>
-      <div class="pg-heading" style="color: #fff;">Governance</div>
-      <div class="pg-subtitle">Steward ownership, dual voting, and why investors don't run this.</div>
-      <p class="lede">A platform is not corrupted by bad people. It is corrupted by a structure that makes bad outcomes inevitable. When a company is financed through equity, it is obligated to grow. When growth plateaus, it extracts. This is not a story about founders losing their way — it is a structure doing exactly what it was designed to do.</p>
-      <p>Dyad is built to be different in structure, not just in intention. This document explains that structure: where we are now, what we have committed to, how governance works, and what it will mean for members when the transition to steward ownership is complete.</p>
-      <div class="display-type">Structure<br/>over<br/>intention.</div>
+      <div class="section-num">06</div>
+      <div class="label">Chapter VI</div>
+      <div class="pg-heading">Alternative-Making</div>
+      <div class="pg-subtitle">Rethinking the Systems Social Platforms Operate Within</div>
+      <p class="lede">Building an alternative does not mean building a better version of the same thing. This chapter defines what dyad means by "alternative" — and why the distinction matters.</p>
+      <h2>Not this</h2>
+      <div class="indented-list">
+        <div class="indented-item" style="border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.45);">Building a European TikTok</div>
+        <div class="indented-item" style="border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.45);">Reproducing Silicon Valley incentives with better branding</div>
+        <div class="indented-item" style="border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.45);">Creating another engagement platform with a mission statement</div>
+      </div>
+      <h2>But this</h2>
+      <div class="indented-list">
+        <div class="indented-item" style="border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7);">Redesigning the incentive structure itself</div>
+        <div class="indented-item" style="border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7);">Redesigning governance so communities control what they build</div>
+        <div class="indented-item" style="border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7);">Redesigning ownership so platforms cannot be captured or sold</div>
+        <div class="indented-item" style="border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7);">Redesigning the social architecture — not just the interface</div>
+      </div>
     </div>
     <div class="folio-wrap">
       <hr class="folio-rule">
@@ -852,45 +896,54 @@
   <div class="pg">
     <div class="pg-body">
       <div class="pg-num">(18)</div>
-      <div class="label">Governance — Model objectives</div>
-      <div class="pg-heading" style="margin-bottom: 8px;">What this model is trying to achieve</div>
-      <p style="margin-bottom: 9px;">Five things simultaneously — not as aspirations, but as structural properties encoded into the form of the company itself.</p>
-      <div class="numbered-list">
-        <div class="numbered-item"><span class="item-num">01</span><div><strong>No investor governance, ever.</strong> People who provide capital have no say in how the platform is run, what it optimises for, or who it can be sold to. Guaranteed by the steward ownership structure — not by good intentions that can be revised when they become inconvenient.</div></div>
-        <div class="numbered-item"><span class="item-num">02</span><div><strong>Profit serves purpose, not the reverse.</strong> Surplus generated by the platform is reinvested into the platform, distributed to workers as reasonable compensation, or used to subsidise the community pricing tier. Investor returns are capped and defined before capital is received.</div></div>
-        <div class="numbered-item"><span class="item-num">03</span><div><strong>Community governs community affairs.</strong> Standards, criteria, and policy are set by the People's Assembly — not by the platform's founders or its investors.</div></div>
-        <div class="numbered-item"><span class="item-num">04</span><div><strong>No sale without community consent.</strong> After the steward ownership transition, any acquisition requires consent of the Purpose Foundation anchor and the People's Assembly.</div></div>
-        <div class="numbered-item"><span class="item-num">05</span><div><strong>Sustainable without exploitation.</strong> Success is measured by whether members value the platform enough to pay for it — not by time-on-screen, data value, or advertising revenue.</div></div>
+      <div class="label">Chapter VI — Possible contributions</div>
+      <h2 style="margin-top: 0; padding-top: 0; border-top: none;">Possible contributions</h2>
+      <div class="block-list">
+        <div class="block-item">
+          <div class="block-label">Sebastian Vogelsang — Eurosky</div>
+          What it means to build social infrastructure the European way — values, regulatory context, and the specific opportunities that come from not being Silicon Valley.
+        </div>
+        <div class="block-item">
+          <div class="block-label">Rudy Fraser — Blacksky</div>
+          Community self-governance and protocol ecosystems — what it looks like when a community builds its own infrastructure rather than renting someone else's.
+        </div>
+        <div class="block-item">
+          <div class="block-label">Robin Berjon</div>
+          From platforms to digital public infrastructure — the case for treating social media as infrastructure rather than product.
+        </div>
       </div>
+      <div class="display-type display-type--sm">Not a<br/>better version.<br/>A different<br/>thing.</div>
     </div>
     <div class="folio-wrap">
       <hr class="folio-rule">
-      <div class="folio"><span>Governance — 05</span><span>09 / 12</span></div>
+      <div class="folio"><span>Chapter VI — Alternative-Making</span><span>09 / 19</span></div>
     </div>
   </div>
 
 </section>
 
 <!-- ══════════════════════════════
-     S10 · GOVERNANCE II
+     S10 · CHAPTER VII — INTERVENTION
 ══════════════════════════════ -->
 <section class="spread">
 
   <div class="pg">
     <div class="pg-body">
       <div class="pg-num">(19)</div>
-      <div class="label">Governance — The structural problem</div>
-      <div class="two-col">
-        <div class="col-card"><div class="col-card-label">Problem</div><div class="col-card-title">Misaligned incentives</div><p>Equity-financed platforms are structurally obligated to prioritise investor returns. When users and investors want different things, investors win. This is governance working as designed.</p></div>
-        <div class="col-card"><div class="col-card-label">Problem</div><div class="col-card-title">Governance without accountability</div><p>Platform communities generate enormous value — content, data, trust, time. But they have no formal claim on the decisions that affect them.</p></div>
-        <div class="col-card"><div class="col-card-label">Problem</div><div class="col-card-title">Value extraction</div><p>Platforms serve users, then business customers, then extract maximum value from both. The community has no structural recourse.</p></div>
-        <div class="col-card"><div class="col-card-label">The design challenge</div><div class="col-card-title">Capital + control</div><p>Combining cooperative control with functional capital access, without surrendering governance to investors in exchange. This is the problem dyad's structure is built to solve.</p></div>
+      <div class="section-num">07</div>
+      <div class="label">Chapter VII</div>
+      <div class="pg-heading">Intervention</div>
+      <div class="pg-subtitle">Designing for Encounter Instead of Engagement</div>
+      <p class="lede">The introduction of dyad's core mechanism. You write a question or a subject you want to explore. Someone reads it and writes back. If both of you want to meet, you agree on a time and a place. Then you show up. The goal is not to keep you on the platform — it is to get you off it, into a room with another person, as quickly as possible.</p>
+      <p>Optimising for time-to-offline is a different goal than any engagement platform has ever tried to achieve. This chapter explains the design logic behind it — and why minimizing mediation is a feature, not a missing feature set.</p>
+      <h2>Key themes</h2>
+      <div class="indented-list">
+        <div class="indented-item">Prompts as conversation starters, not content</div>
+        <div class="indented-item">Bounded interaction: what you can and cannot do on dyad</div>
+        <div class="indented-item">Minimizing mediation as a design principle</div>
+        <div class="indented-item">Designing for reciprocity rather than asymmetric attention</div>
+        <div class="indented-item">Optimizing for time-to-offline</div>
       </div>
-      <h2>Why existing alternatives fall short</h2>
-      <h3>Traditional cooperatives</h3>
-      <p>Co-ops solve the governance problem but struggle with capital access. They cannot issue equity, limiting external investment. Platforms — where network effects reward the first mover — are a particularly difficult environment for co-op formation.</p>
-      <h3>Equity crowdfunding</h3>
-      <p>Extends ownership to more people, but governance rights track money, not engagement. This reproduces the same fundamental alignment problem: governance stake accumulates to capital, not participation.</p>
     </div>
     <div class="folio-wrap">
       <hr class="folio-rule">
@@ -901,51 +954,49 @@
   <div class="pg pg--tint">
     <div class="pg-body">
       <div class="pg-num">(20)</div>
-      <div class="label">Governance — Alternatives &amp; Where We Are</div>
-      <h3 style="margin-top: 0;">Tokens and DAOs</h3>
-      <p>Token-based governance promised community ownership but largely delivered governance theatre. Most token holders have no meaningful mechanism to exercise governance, and the structures that exist tend to be captured by large holders who acquired stakes financially rather than through participation.</p>
-      <h3>Profit sharing</h3>
-      <p>Distributing returns to workers or users addresses the distribution problem without addressing the control problem. A platform can pay out profits while remaining fully controlled by its equity holders. Profit sharing does not give recipients a voice in how the platform is run. It is better than nothing. It is not governance.</p>
-      <p>Steward ownership is the structure that attempts to solve both capital access and cooperative control simultaneously. It is not a complete solution. It is the best available one.</p>
-      <h2>Where we are now</h2>
-      <p>Dyad is currently raising pre-seed funding. Investors accept from the outset that the company will transition to a steward-owned structure. They do not hold traditional equity. They will have no governance claim after the transition. This is agreed before capital is received — not asked for afterwards.</p>
-      <p>We plan to complete the legal transition within approximately eighteen months, conditional on community activation proving the model works. The People's Assembly is being built now — as a real governance body, not a feature placeholder.</p>
-      <h2>Steward ownership explained</h2>
-      <p>In a steward-owned company, voting control stays permanently with the people who operate it. It does not transfer to investors. Profits are not extracted through equity — investors receive capped returns, and their financial claim then ends. The legal structure makes this binding. Reference companies: Ecosia, Einhorn, and Waschbär — all operating under the German <em>Verantwortungseigentum</em> framework.</p>
+      <div class="label">Chapter VII — Possible contributions</div>
+      <h2 style="margin-top: 0; padding-top: 0; border-top: none;">Possible contributions</h2>
+      <div class="block-list">
+        <div class="block-item">
+          <div class="block-label">Anab Jain / Superflux</div>
+          Designing social futures — what it means to design not for the user in front of you but for the social fabric they are part of.
+        </div>
+        <div class="block-item">
+          <div class="block-label">Priya Parker</div>
+          The architecture of gathering — what makes a meeting meaningful, and the design choices — before anyone arrives — that determine whether it will be.
+        </div>
+      </div>
+      <div class="display-type display-type--sm">Optimize<br/>for time-<br/>to-offline.</div>
     </div>
     <div class="folio-wrap">
       <hr class="folio-rule">
-      <div class="folio"><span>Governance — 05</span><span>10 / 12</span></div>
+      <div class="folio"><span>Chapter VII — Intervention</span><span>10 / 19</span></div>
     </div>
   </div>
 
 </section>
 
 <!-- ══════════════════════════════
-     S11 · GOVERNANCE III
+     S11 · CHAPTER VIII — THE DYAD MODEL
 ══════════════════════════════ -->
 <section class="spread">
 
   <div class="pg">
     <div class="pg-body">
       <div class="pg-num">(21)</div>
-      <div class="label">Governance — Funding &amp; Dual Voting</div>
-      <div class="callout"><p>Steward ownership is not a values statement. It is a legal constraint. The distinction matters: values can be revised; legal structures require a structural act to undo. Our commitment is to make these things the same — to encode our values into the structure so that no future change in personnel or investor composition can override them.</p></div>
-      <h2>How we are funded</h2>
-      <p>Pre-seed capital through a funding instrument designed specifically for companies on the steward ownership path. Investors enter knowing and agreeing to the transition. No traditional equity. Capped returns. No ongoing governance claim. No veto over operational decisions.</p>
-      <h2>Dual voting</h2>
-      <p>Dyad operates two parallel governance tracks. Both exclude investors. Together they constitute the full governance of the platform.</p>
-      <div class="two-col">
-        <div class="col-card">
-          <div class="col-card-label">Track One</div>
-          <div class="col-card-title">Steward governance</div>
-          <p>Corporate structure, financial decisions, major strategic changes, stewardship succession. Voting held by the stewards — currently the founders. Investors have no vote here. Guaranteed by the legal structure. Decisions communicated to the People's Assembly within 30 days.</p>
-        </div>
-        <div class="col-card">
-          <div class="col-card-label">Track Two</div>
-          <div class="col-card-title">People's Assembly</div>
-          <p>Community standards, acceptance criteria, membership policy, platform features that affect community life. Voting belongs to active members. Investors have no vote here either. One active member, one vote.</p>
-        </div>
+      <div class="section-num">08</div>
+      <div class="label">Chapter VIII</div>
+      <div class="pg-heading">The Dyad Model</div>
+      <div class="pg-subtitle">Conversation as Social Infrastructure</div>
+      <p class="lede">Dyad understood not as an app but as a relational layer for cities and communities. What it means to treat a conversation platform as civic infrastructure — local, human-scale, designed to integrate with the fabric of public life rather than replace it.</p>
+      <p>Local social fabric, hybrid online/offline systems, civic infrastructure, community scopes, encounter systems: this chapter maps the territory of what dyad is trying to be — and what the word "infrastructure" means when it is applied to the way people relate to one another.</p>
+      <h2>Key themes</h2>
+      <div class="indented-list">
+        <div class="indented-item">Local social fabric and the city as a relational unit</div>
+        <div class="indented-item">Hybrid online/offline systems: technology that points toward the physical</div>
+        <div class="indented-item">Civic infrastructure: what it means to build for public rather than private benefit</div>
+        <div class="indented-item">Community scopes: neighborhoods, scenes, institutions</div>
+        <div class="indented-item">Encounter systems: designing for the conditions of meeting</div>
       </div>
     </div>
     <div class="folio-wrap">
@@ -957,52 +1008,423 @@
   <div class="pg pg--tint">
     <div class="pg-body">
       <div class="pg-num">(22)</div>
-      <div class="label">Governance — People's Assembly</div>
-      <h2 style="margin-top: 0; padding-top: 0; border-top: none;">The People's Assembly</h2>
-      <p>The People's Assembly is not appointed by us. It is constituted by any active member who chooses to participate. Showing up to the Assembly is itself an act of governance.</p>
-      <h3>What the Assembly does</h3>
-      <p>Reviews and votes on proposed changes to community standards, acceptance criteria, and the membership agreement. Proposes and votes on new policies. Reviews appeals of governance decisions. Monitors enforcement. Holds stewards accountable through public record.</p>
-      <h3>How it works</h3>
-      <p>Asynchronous, in writing, via a structured deliberation space accessible to all active members. Any active member can submit a proposal — requires a second before entering deliberation. Standard proposals: 7-day minimum deliberation. Major proposals: 14-day minimum. Standard decisions: simple majority. Major decisions: supermajority (two-thirds).</p>
-      <h3>Participation as governance stake</h3>
-      <p>Governance rights are earned through active participation — completing meetings — not through financial contribution. Someone who pays the solidarity rate has the same Assembly vote as someone who pays the community rate. An investor has no Assembly vote at all. Governance tracks participation, not capital — by design, and after the steward ownership transition, by legal constraint.</p>
-      <h3>Three tiers of decision-making</h3>
-      <p>Rather than requiring all members to vote on every issue, governance separates decisions by consequence and reversibility.</p>
-      <p><strong>Operational</strong> — Day-to-day platform operations: moderation, customer support, feature development within existing policy. Handled by the team. Communicated in monthly updates to the Assembly.</p>
-      <p><strong>Strategic</strong> — Pricing changes, expansion to new cities, partnerships, significant product direction. Proposed by Stewards with a 14-day Assembly response window. The Assembly can call a full vote if 10% of active members request it.</p>
-      <p><strong>Foundational</strong> — Core commitments, governance structure, legal form. Some require Assembly supermajority. Others — no advertising, no data sales, steward ownership itself — are permanently locked in the legal structure after transition. No vote can change them.</p>
+      <div class="label">Chapter VIII — Possible contributions</div>
+      <h2 style="margin-top: 0; padding-top: 0; border-top: none;">Possible contributions</h2>
+      <div class="block-list">
+        <div class="block-item">
+          <div class="block-label">Ezra Klein</div>
+          Why democracies depend on encounter — the argument that democratic culture is not a byproduct of good institutions but a condition for them, and that it requires strangers to actually meet.
+        </div>
+        <div class="block-item">
+          <div class="block-label">Parker Palmer</div>
+          The social conditions for civic trust — what it takes for people to remain in genuine contact with those who see the world differently.
+        </div>
+      </div>
+      <div class="display-type display-type--sm">Conversation<br/>as civic<br/>infrastructure.</div>
     </div>
     <div class="folio-wrap">
       <hr class="folio-rule">
-      <div class="folio"><span>Governance — 05</span><span>11 / 12</span></div>
+      <div class="folio"><span>Chapter VIII — The Dyad Model</span><span>11 / 19</span></div>
     </div>
   </div>
 
 </section>
 
 <!-- ══════════════════════════════
-     S12 · GOVERNANCE IV · APPENDIX
+     S12 · CHAPTER IX — PROTOCOLS FOR PUBLIC LIFE
 ══════════════════════════════ -->
 <section class="spread">
 
   <div class="pg">
     <div class="pg-body">
       <div class="pg-num">(23)</div>
-      <div class="label">Governance — Commitments &amp; Transparency</div>
-      <div class="pg-heading" style="margin-bottom: 8px;">What we have committed to — and what will be locked</div>
-      <div class="block-list">
-        <div class="block-item"><div class="block-label">No advertising, ever.</div>Not now, not under different leadership, not through a subsidiary. Commitment today, legal constraint after transition.</div>
-        <div class="block-item"><div class="block-label">No sale of member data.</div>Cannot be sold, licensed for commercial use, or used for advertising targeting. Commitment today, legal constraint after transition.</div>
-        <div class="block-item"><div class="block-label">Steward ownership completed and preserved.</div>We will complete the transition within eighteen months, conditional on community activation. Once complete, the company cannot revert to traditional equity structure.</div>
-        <div class="block-item"><div class="block-label">No platform sale to a conflicting acquirer.</div>After transition, any acquisition requires consent of the Purpose Foundation anchor and the People's Assembly.</div>
-        <div class="block-item"><div class="block-label">Community governance preserved.</div>The People's Assembly cannot be dissolved, suspended, or replaced by an appointed body.</div>
+      <div class="section-num">09</div>
+      <div class="label">Chapter IX</div>
+      <div class="pg-heading">Protocols for Public Life</div>
+      <div class="pg-subtitle">Conditions for Trust, Disagreement, and Human Encounter</div>
+      <p class="lede">Community standards reconceived as civic infrastructure rather than moderation policy. The norms that make real conversation possible — reciprocity, accountability, conversational courage, and the willingness to remain in a room with someone who sees the world differently — do not arise naturally. They have to be designed for.</p>
+      <p>This chapter argues that community standards are not rules imposed on a community from outside. They are the community's agreement about what kind of encounter it wants to make possible — and they require the same care as any other piece of civic infrastructure.</p>
+      <h2>Key themes</h2>
+      <div class="indented-list">
+        <div class="indented-item">Disagreement as a feature, not a failure mode</div>
+        <div class="indented-item">Reciprocity as the basis of trust</div>
+        <div class="indented-item">Accountability structures that serve the community, not the platform</div>
+        <div class="indented-item">Conversational courage: what it takes to stay present</div>
+        <div class="indented-item">Relational norms as infrastructure</div>
       </div>
-      <h2>Transparency</h2>
-      <p>Annual financial reports: revenue by pricing tier, operating costs, surplus allocation, summary of investor terms — available to all members. Steward governance decisions: communicated to the People's Assembly within 30 days. Full governance charter including conflict resolution, succession plan, and voting thresholds: available to members on request.</p>
-      <div class="doc-meta">
-        <p>Document 05 / 05 — Adopted May 2026 — Version 1.0 — Working draft</p>
-        <p>Full governance charter on request: hello@dyad.berlin</p>
-        <p>Purpose Foundation: purpose-economy.org</p>
+    </div>
+    <div class="folio-wrap">
+      <hr class="folio-rule">
+      <div class="folio"><span>Berlin · May 2026</span><span>dyad. — 2026</span></div>
+    </div>
+  </div>
+
+  <div class="pg pg--tint">
+    <div class="pg-body">
+      <div class="pg-num">(24)</div>
+      <div class="label">Chapter IX — Possible contributions</div>
+      <h2 style="margin-top: 0; padding-top: 0; border-top: none;">Possible contributions</h2>
+      <div class="block-list">
+        <div class="block-item">
+          <div class="block-label">adrienne maree brown</div>
+          Emergent strategy and relational practice — how communities develop the capacity to be in genuine relationship with one another, including in conflict.
+        </div>
+        <div class="block-item">
+          <div class="block-label">Otto Scharmer</div>
+          Listening systems and collective awareness — the conditions under which groups can think together rather than past each other.
+        </div>
+      </div>
+      <div class="display-type display-type--sm">Courage<br/>to stay<br/>in the room.</div>
+    </div>
+    <div class="folio-wrap">
+      <hr class="folio-rule">
+      <div class="folio"><span>Chapter IX — Protocols for Public Life</span><span>12 / 19</span></div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ══════════════════════════════
+     S13 · CHAPTER X — MEMBERSHIP
+══════════════════════════════ -->
+<section class="spread">
+
+  <div class="pg">
+    <div class="pg-body">
+      <div class="pg-num">(25)</div>
+      <div class="section-num">10</div>
+      <div class="label">Chapter X</div>
+      <div class="pg-heading">Membership</div>
+      <div class="pg-subtitle">Participation, Stewardship, and Responsibility</div>
+      <p class="lede">How people enter, participate in, and shape dyad. An account of what membership means when governance rights are earned through participation — not purchased through subscription — and when belonging comes with genuine responsibility as well as access.</p>
+      <p>Onboarding, invitations, stewardship, reflection systems, participation culture: this chapter describes what it means to be a member of something rather than a user of something — and what that distinction requires in practice.</p>
+      <h2>Key themes</h2>
+      <div class="indented-list">
+        <div class="indented-item">Onboarding as orientation, not just activation</div>
+        <div class="indented-item">Invitation systems and why curation matters</div>
+        <div class="indented-item">Stewardship: the responsibility that comes with access</div>
+        <div class="indented-item">Reflection systems and the feedback cycle after every meeting</div>
+        <div class="indented-item">What participation culture looks like when it is built in from the start</div>
+      </div>
+    </div>
+    <div class="folio-wrap">
+      <hr class="folio-rule">
+      <div class="folio"><span>Berlin · May 2026</span><span>dyad. — 2026</span></div>
+    </div>
+  </div>
+
+  <div class="pg pg--tint">
+    <div class="pg-body">
+      <div class="pg-num">(26)</div>
+      <div class="label">Chapter X — Possible contributions</div>
+      <h2 style="margin-top: 0; padding-top: 0; border-top: none;">Possible contributions</h2>
+      <div class="block-list">
+        <div class="block-item">
+          <div class="block-label">Yancey Strickler</div>
+          Belonging and cultural coordination — how communities form around shared values, and what it takes to keep them coherent as they grow.
+        </div>
+      </div>
+      <div class="display-type">Earned<br/>by showing<br/>up.</div>
+    </div>
+    <div class="folio-wrap">
+      <hr class="folio-rule">
+      <div class="folio"><span>Chapter X — Membership</span><span>13 / 19</span></div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ══════════════════════════════
+     S14 · CHAPTER XI — GOVERNANCE
+══════════════════════════════ -->
+<section class="spread">
+
+  <div class="pg pg--ink">
+    <div class="pg-body">
+      <div class="pg-num">(27)</div>
+      <div class="section-num">11</div>
+      <div class="label">Chapter XI</div>
+      <div class="pg-heading">Governance</div>
+      <div class="pg-subtitle">How Decisions Are Made and Power Is Distributed</div>
+      <p class="lede">The legal form of a platform is not a technical detail. It determines what the platform can become — and what it cannot. This chapter explains the governance structures behind dyad: steward ownership, dual voting, the People's Assembly. Not as aspirations, but as legal constraints.</p>
+      <p>A platform is not corrupted by bad people. It is corrupted by a structure that makes bad outcomes inevitable. This is a chapter about structure: where it comes from, why it matters, and how to build it so that good intentions do not need to carry the weight alone.</p>
+      <h2>Key themes</h2>
+      <div class="indented-list">
+        <div class="indented-item" style="border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.6);">Steward ownership: voting control stays with operators, not investors</div>
+        <div class="indented-item" style="border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.6);">Transparency: decisions documented, financials published</div>
+        <div class="indented-item" style="border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.6);">Democratic participation through the People's Assembly</div>
+        <div class="indented-item" style="border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.6);">Modular governance: operational, strategic, and foundational decisions separated</div>
+        <div class="indented-item" style="border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.6);">Public accountability as a legal constraint, not a promise</div>
+      </div>
+    </div>
+    <div class="folio-wrap">
+      <hr class="folio-rule">
+      <div class="folio"><span>Berlin · May 2026</span><span>dyad. — 2026</span></div>
+    </div>
+  </div>
+
+  <div class="pg">
+    <div class="pg-body">
+      <div class="pg-num">(28)</div>
+      <div class="label">Chapter XI — Possible contributions</div>
+      <h2 style="margin-top: 0; padding-top: 0; border-top: none;">Possible contributions</h2>
+      <div class="block-list">
+        <div class="block-item">
+          <div class="block-label">Aaron Tanaka / Austin Robey — Subvert</div>
+          Cooperative governance in digital systems — what it actually takes to build a platform that is genuinely controlled by its community, not just in spirit.
+        </div>
+        <div class="block-item">
+          <div class="block-label">Purpose Foundation</div>
+          Steward ownership as institutional design — the legal, financial, and governance architecture behind companies that are built to stay independent.
+        </div>
+      </div>
+      <div class="display-type">Structure<br/>over<br/>intention.</div>
+    </div>
+    <div class="folio-wrap">
+      <hr class="folio-rule">
+      <div class="folio"><span>Chapter XI — Governance</span><span>14 / 19</span></div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ══════════════════════════════
+     S15 · CHAPTER XII — ECONOMIC MODEL
+══════════════════════════════ -->
+<section class="spread">
+
+  <div class="pg">
+    <div class="pg-body">
+      <div class="pg-num">(29)</div>
+      <div class="section-num">12</div>
+      <div class="label">Chapter XII</div>
+      <div class="pg-heading">Economic Model</div>
+      <div class="pg-subtitle">Funding Without Extraction</div>
+      <p class="lede">A platform that survives on what people voluntarily pay for something they value — not on what advertisers pay to capture their attention. This chapter describes the economic logic of solidarity pricing, mission-aligned funding, and building for sustainability rather than scale.</p>
+      <p>Subscriptions, solidarity pricing, mission-aligned investment, cooperative capital: this is not a chapter about making money. It is a chapter about what kind of economic relationships make a platform possible — and which ones make it impossible to remain what it claims to be.</p>
+      <h2>Key themes</h2>
+      <div class="indented-list">
+        <div class="indented-item">Subscription revenue and what it aligns the platform with</div>
+        <div class="indented-item">Solidarity pricing: identical access, different contributions</div>
+        <div class="indented-item">Mission-aligned funding: what investors accept when they invest in dyad</div>
+        <div class="indented-item">Public-interest investment as an emerging category</div>
+        <div class="indented-item">Cooperative capital structures and their limits</div>
+      </div>
+    </div>
+    <div class="folio-wrap">
+      <hr class="folio-rule">
+      <div class="folio"><span>Berlin · May 2026</span><span>dyad. — 2026</span></div>
+    </div>
+  </div>
+
+  <div class="pg pg--tint">
+    <div class="pg-body">
+      <div class="pg-num">(30)</div>
+      <div class="label">Chapter XII — Possible contributions</div>
+      <h2 style="margin-top: 0; padding-top: 0; border-top: none;">Possible contributions</h2>
+      <div class="block-list">
+        <div class="block-item">
+          <div class="block-label">Nathan Schneider</div>
+          Funding democratic digital infrastructure — the history and future of non-extractive capital in the technology sector.
+        </div>
+        <div class="block-item">
+          <div class="block-label">Purpose Foundation</div>
+          Capital without extraction — how steward ownership structures separate financial return from governance control, and what investors actually get.
+        </div>
+      </div>
+      <div class="display-type display-type--sm">Value<br/>without<br/>extraction.</div>
+    </div>
+    <div class="folio-wrap">
+      <hr class="folio-rule">
+      <div class="folio"><span>Chapter XII — Economic Model</span><span>15 / 19</span></div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ══════════════════════════════
+     S16 · CHAPTER XIII — BERLIN
+══════════════════════════════ -->
+<section class="spread">
+
+  <div class="pg">
+    <div class="pg-body">
+      <div class="pg-num">(31)</div>
+      <div class="section-num">13</div>
+      <div class="label">Chapter XIII</div>
+      <div class="pg-heading">Berlin</div>
+      <div class="pg-subtitle">A Prototype for Rebuilding Local Social Fabric</div>
+      <p class="lede">Why Berlin first. A city dense enough for the model to work, diverse enough to test it, and already organised around the kind of cultural scenes and community spaces that make face-to-face encounter feel imaginable. This chapter makes the case for Berlin as the right starting point — and maps what rebuilding local social infrastructure looks like at city scale.</p>
+      <p>Density, migration, cultural scenes, hybrid communities, local experimentation: Berlin is not chosen for convenience. It is chosen because it is one of the cities where the conditions for this kind of experiment are already present — and where the need for it is most visible.</p>
+      <h2>Key themes</h2>
+      <div class="indented-list">
+        <div class="indented-item">Urban density and why it matters for encounter systems</div>
+        <div class="indented-item">Migration, transience, and the specific social texture of Berlin</div>
+        <div class="indented-item">Cultural scenes as existing infrastructure for connection</div>
+        <div class="indented-item">Hybrid communities: people who belong to multiple worlds at once</div>
+        <div class="indented-item">Local experimentation as a methodology for building at scale</div>
+      </div>
+    </div>
+    <div class="folio-wrap">
+      <hr class="folio-rule">
+      <div class="folio"><span>Berlin · May 2026</span><span>dyad. — 2026</span></div>
+    </div>
+  </div>
+
+  <div class="pg pg--tint">
+    <div class="pg-body">
+      <div class="pg-num">(32)</div>
+      <div class="label">Chapter XIII — Possible contributions</div>
+      <h2 style="margin-top: 0; padding-top: 0; border-top: none;">Possible contributions</h2>
+      <div class="block-list">
+        <div class="block-item">
+          <div class="block-label">Local organizers / cultural institutions</div>
+          First-person accounts of what the social infrastructure of Berlin actually looks like — who holds it together, what it depends on, and where it is under strain.
+        </div>
+        <div class="block-item">
+          <div class="block-label">Rebuild / New_ Public contributors</div>
+          What it takes to rebuild civic infrastructure in a city that already has a rich history of alternative institution-building.
+        </div>
+      </div>
+      <div class="display-type display-type--sm">Dense<br/>enough<br/>to test.</div>
+    </div>
+    <div class="folio-wrap">
+      <hr class="folio-rule">
+      <div class="folio"><span>Chapter XIII — Berlin</span><span>16 / 19</span></div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ══════════════════════════════
+     S17 · CHAPTER XIV — ACTION
+══════════════════════════════ -->
+<section class="spread">
+
+  <div class="pg">
+    <div class="pg-body">
+      <div class="pg-num">(33)</div>
+      <div class="section-num">14</div>
+      <div class="label">Chapter XIV</div>
+      <div class="pg-heading">Action</div>
+      <div class="pg-subtitle">Implementation, Growth, and Institutional Development</div>
+      <p class="lede">How dyad moves from theory into operational reality. Rollout strategy, partnerships, cultural programming, media strategy, community growth, institutional sequencing: this chapter is an honest account of what it takes to build this — and what success looks like at each stage along the way.</p>
+      <p>Building a platform is not the hard part. Building a community that uses it, governs it, and believes in it enough to sustain it — that is the work. This chapter maps the path from launch to institution.</p>
+      <h2>Key themes</h2>
+      <div class="indented-list">
+        <div class="indented-item">Rollout strategy: who the first members are and why it matters</div>
+        <div class="indented-item">Partnerships: venues, cultural institutions, civic organisations</div>
+        <div class="indented-item">Cultural programming alongside the platform</div>
+        <div class="indented-item">Media strategy and how the narrative gets built</div>
+        <div class="indented-item">Community growth and the risks of scaling too fast</div>
+      </div>
+    </div>
+    <div class="folio-wrap">
+      <hr class="folio-rule">
+      <div class="folio"><span>Berlin · May 2026</span><span>dyad. — 2026</span></div>
+    </div>
+  </div>
+
+  <div class="pg pg--tint">
+    <div class="pg-body">
+      <div class="pg-num">(34)</div>
+      <div class="label">Chapter XIV — Possible contributions</div>
+      <h2 style="margin-top: 0; padding-top: 0; border-top: none;">Possible contributions</h2>
+      <div class="block-list">
+        <div class="block-item">
+          <div class="block-label">Jason Fried</div>
+          Building calm systems — the case for growing slowly, saying no to urgency, and building institutions that last rather than platforms that scale.
+        </div>
+        <div class="block-item">
+          <div class="block-label">Scott Belsky</div>
+          Creative ecosystems and sustained participation — how communities around creative work develop the culture of engagement that keeps them alive over time.
+        </div>
+      </div>
+      <div class="display-type display-type--sm">From theory<br/>into rooms.</div>
+    </div>
+    <div class="folio-wrap">
+      <hr class="folio-rule">
+      <div class="folio"><span>Chapter XIV — Action</span><span>17 / 19</span></div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ══════════════════════════════
+     S18 · CHAPTER XV — POSSIBILITIES
+══════════════════════════════ -->
+<section class="spread">
+
+  <div class="pg pg--ink">
+    <div class="pg-body">
+      <div class="pg-num">(35)</div>
+      <div class="section-num">15</div>
+      <div class="label">Chapter XV</div>
+      <div class="pg-heading">Possibilities</div>
+      <div class="pg-subtitle">What Becomes Possible When People Become Real to One Another Again</div>
+      <p class="lede">When the relational layer of society is rebuilt — when strangers can encounter one another again in conditions that allow for genuine presence — what becomes possible that currently is not? Civic trust, collective intelligence, democratic resilience, public culture: not as aspirations, but as structural consequences of a different kind of social infrastructure.</p>
+      <p>This is the final argument: that the work of rebuilding encounter systems is not marginal. It is foundational. The capacity to remain in genuine contact with people who are different from us is not a nice thing to have. It is the condition under which everything else we care about becomes possible.</p>
+      <h2>Key themes</h2>
+      <div class="indented-list">
+        <div class="indented-item" style="border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.6);">Civic trust as a structural outcome, not a value</div>
+        <div class="indented-item" style="border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.6);">Collective intelligence and what it requires to function</div>
+        <div class="indented-item" style="border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.6);">Democratic resilience and the social conditions that sustain it</div>
+        <div class="indented-item" style="border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.6);">The post-platform internet as a horizon</div>
+        <div class="indented-item" style="border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.6);">Social nervous systems: what it looks like when a city can think together</div>
+      </div>
+    </div>
+    <div class="folio-wrap">
+      <hr class="folio-rule">
+      <div class="folio"><span>Berlin · May 2026</span><span>dyad. — 2026</span></div>
+    </div>
+  </div>
+
+  <div class="pg">
+    <div class="pg-body">
+      <div class="pg-num">(36)</div>
+      <div class="label">Chapter XV — Possible contributions</div>
+      <h2 style="margin-top: 0; padding-top: 0; border-top: none;">Possible contributions</h2>
+      <div class="block-list">
+        <div class="block-item">
+          <div class="block-label">Douglas Rushkoff</div>
+          The future of human-scale networks — what the internet could look like if it were designed for people rather than for the extraction of their attention and data.
+        </div>
+        <div class="block-item">
+          <div class="block-label">Daniel Schmachtenberger</div>
+          Collective sensemaking and civilization-scale coordination — the argument that the capacity to think and act together is not a soft skill but the substrate of everything else we want to do.
+        </div>
+      </div>
+      <div class="display-type">What<br/>becomes<br/>possible.</div>
+    </div>
+    <div class="folio-wrap">
+      <hr class="folio-rule">
+      <div class="folio"><span>Chapter XV — Possibilities</span><span>18 / 19</span></div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ══════════════════════════════
+     S19 · CHAPTER XVI — DOCUMENTS
+══════════════════════════════ -->
+<section class="spread">
+
+  <div class="pg">
+    <div class="pg-body">
+      <div class="pg-num">(37)</div>
+      <div class="section-num">16</div>
+      <div class="label">Chapter XVI</div>
+      <div class="pg-heading">Documents</div>
+      <div class="pg-subtitle">Operational Agreements, Policies, and Governance Materials</div>
+      <p class="lede">The governing documents of dyad — the institutional infrastructure that makes everything else possible. These are not fine print. They are the agreements through which a community governs itself, holds itself accountable, and makes its values legible to the people who live by them.</p>
+      <div class="block-list">
+        <div class="block-item"><div class="block-label">Community Standards</div>How members agree to be with one another — the norms that make genuine encounter possible.</div>
+        <div class="block-item"><div class="block-label">Moderation Principles</div>How the community enforces its standards — proportionately, transparently, and with appeal.</div>
+        <div class="block-item"><div class="block-label">Steward Ownership Structure</div>The legal form of the company — who holds voting control, on what terms, and what cannot be changed.</div>
+        <div class="block-item"><div class="block-label">Transparency Commitments</div>What dyad publishes, when, and in what form — financials, governance decisions, enforcement records.</div>
+        <div class="block-item"><div class="block-label">Participation Agreements</div>What membership means — rights, responsibilities, pricing, and how membership ends.</div>
+        <div class="block-item"><div class="block-label">Governance Procedures</div>How the People's Assembly works — proposals, deliberation, voting thresholds, and the three tiers of decision.</div>
+        <div class="block-item"><div class="block-label">Safety Protocols</div>How dyad handles harm — the processes that protect members when something goes wrong.</div>
       </div>
     </div>
     <div class="folio-wrap">
@@ -1013,28 +1435,20 @@
 
   <div class="pg pg--ink">
     <div class="pg-body">
-      <div class="pg-num">(24)</div>
-      <div class="label">A prism of possibilities</div>
-      <div class="pg-heading" style="color: #fff; margin-bottom: 10px;">What the structure makes possible</div>
-      <p>Unlike venture-backed platforms — which have a single trajectory toward growth, exit, and extraction — dyad's cooperative structure preserves multiple futures. The goal is self-sustained operation: a community that pays for the infrastructure it values, governed by the people who use it, indefinitely. But if circumstances ever change, the steward ownership structure ensures the community is in the room when decisions are made.</p>
-      <div class="numbered-list" style="margin: 10px 0;">
-        <div class="numbered-item"><span class="item-num">—</span><div>Continued self-sustained operation, funded by membership, governed by the Assembly</div></div>
-        <div class="numbered-item"><span class="item-num">—</span><div>Federation with other city-based conversation networks as dyad opens in new cities</div></div>
-        <div class="numbered-item"><span class="item-num">—</span><div>Exit to nonprofit or foundation stewardship, preserving the mission permanently</div></div>
-        <div class="numbered-item"><span class="item-num">—</span><div>Any transition: democratic participation, broad distribution of benefits, member negotiation power</div></div>
+      <div class="pg-num">(38)</div>
+      <div class="label">Appendices</div>
+      <div class="block-list">
+        <div class="block-item"><div class="block-label">Glossary</div>Key terms used throughout — steward ownership, People's Assembly, dual voting, solidarity pricing.</div>
+        <div class="block-item"><div class="block-label">Sources &amp; Research</div>The studies, precedents, and institutions that inform the arguments made here.</div>
+        <div class="block-item"><div class="block-label">Notes on Authorship</div>Who wrote what, and the process by which this document was produced and revised.</div>
+        <div class="block-item"><div class="block-label">Acknowledgements</div>The people and organisations whose thinking and work made this possible.</div>
+        <div class="block-item"><div class="block-label">Further Reading</div>The books, essays, and platforms that anyone who wants to go deeper should know about.</div>
       </div>
-      <h2 style="color: rgba(255,255,255,0.45); border-color: rgba(255,255,255,0.08);">Stages of success</h2>
-      <div class="two-col-text">
-        <p><strong>Stage 1 — Platform viability.</strong> A community that values dyad enough to pay for it. Operational surplus. The first People's Assembly convenes.</p>
-        <p><strong>Stage 2 — Governance proven.</strong> The Assembly proposes and passes its first changes. Members experience governance as real, not symbolic. Steward ownership transition complete.</p>
-        <p><strong>Stage 3 — Cultural influence.</strong> Dyad is cited as evidence that community-owned social infrastructure works. Other builders reference the model. The cynicism starts to lose.</p>
-        <p><strong>Stage 4 — Institutional durability.</strong> The platform outlasts its founders. Governance passes to a new generation of members. The structure is doing its job.</p>
-      </div>
-      <div class="wordmark-xl" style="margin-top: auto; font-size: clamp(36px, 7vw, 90px); color: rgba(255,255,255,0.08);">dyad.</div>
+      <div class="wordmark-xl" style="margin-top: auto; font-size: clamp(36px, 7vw, 90px); color: rgba(255,255,255,0.06);">dyad.</div>
     </div>
     <div class="folio-wrap">
       <hr class="folio-rule">
-      <div class="folio"><span>Appendix · May 2026</span><span>12 / 12</span></div>
+      <div class="folio"><span>Appendices · May 2026</span><span>19 / 19</span></div>
     </div>
   </div>
 
@@ -1043,7 +1457,7 @@
 <!-- ── Navigation ── -->
 <nav class="mag-nav">
   <button class="mag-btn" id="prev" onclick="go(-1)">&#8592;</button>
-  <span class="mag-count" id="count">1 / 12</span>
+  <span class="mag-count" id="count">1 / 19</span>
   <button class="mag-btn" id="next" onclick="go(1)">&#8594;</button>
 </nav>
 
@@ -1062,13 +1476,11 @@
 
   function go(dir) { show(cur + dir); }
 
-  // Keyboard
   document.addEventListener('keydown', e => {
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown') go(1);
     if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   go(-1);
   });
 
-  // Init
   show(0);
 </script>
 

@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>dyad. — Communities in Collective Ownership — May 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@300;400;500;600;700&family=IBM+Plex+Mono:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --black:  #0d0d0d;
+    --white:  #f4f1ec;
+    --tint:   #ece9e3;
+    --grey:   #888;
+    --mid:    #555;
+    --rule:   rgba(0,0,0,0.12);
+    --display:'Bebas Neue', sans-serif;
+    --sans:   'Space Grotesk', -apple-system, sans-serif;
+    --mono:   'IBM Plex Mono', 'Courier New', monospace;
+  }
+
+  html, body { height: 100%; margin: 0; overflow: hidden; background: #1a1a1a; -webkit-font-smoothing: antialiased; }
+
+  /* ── SPREAD ── */
+  .spread {
+    width: 100vw; height: 100vh;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 3px;
+    position: absolute; top: 0; left: 0;
+    opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+  }
+  .spread.active { opacity: 1; pointer-events: all; position: relative; }
+
+  /* ── PAGE VARIANTS ── */
+  .pg { overflow: hidden; display: flex; flex-direction: column; position: relative; }
+  .pg--white   { background: var(--white); color: var(--black); }
+  .pg--tint    { background: var(--tint);  color: var(--black); }
+  .pg--black   { background: var(--black); color: var(--white); }
+
+  /* ── FOLIO ── */
+  .folio {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 9px 18px 8px; border-bottom: 1px solid var(--rule); flex-shrink: 0;
+  }
+  .pg--black .folio { border-color: rgba(255,255,255,0.08); }
+  .folio span {
+    font-family: var(--mono); font-size: 6.5px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--grey);
+  }
+  .pg--black .folio span { color: rgba(255,255,255,0.22); }
+
+  /* ── BODY AREA ── */
+  .pg-body { flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 16px 20px 0; }
+
+  /* ── TYPOGRAPHY ── */
+  .art-num {
+    font-family: var(--mono); font-size: 7.5px; letter-spacing: 0.1em;
+    color: var(--grey); margin-bottom: 12px;
+  }
+  .pg--black .art-num { color: rgba(255,255,255,0.28); }
+
+  .label {
+    font-family: var(--mono); font-size: 7px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--grey); margin-bottom: 6px;
+  }
+  .pg--black .label { color: rgba(255,255,255,0.28); }
+
+  .pull {
+    font-family: var(--sans); font-weight: 700;
+    font-size: clamp(11px, 1.4vw, 16px); line-height: 1.35;
+    color: var(--black); margin-bottom: 12px;
+    text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px;
+  }
+  .pg--black .pull { color: var(--white); }
+
+  .lede {
+    font-family: var(--sans); font-size: 11px; line-height: 1.62;
+    font-weight: 500; color: var(--black); margin-bottom: 9px;
+  }
+  .pg--black .lede { color: rgba(255,255,255,0.8); }
+
+  p {
+    font-family: var(--sans); font-size: 10px; line-height: 1.65;
+    color: var(--mid); margin-bottom: 6px;
+  }
+  .pg--black p { color: rgba(255,255,255,0.52); }
+
+  h2 {
+    font-family: var(--sans); font-size: 8.5px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--black);
+    margin: 10px 0 4px; padding-top: 8px; border-top: 1px solid var(--rule);
+  }
+  .pg--black h2 { color: rgba(255,255,255,0.6); border-color: rgba(255,255,255,0.1); }
+
+  h3 {
+    font-family: var(--sans); font-size: 9.5px; font-weight: 600;
+    color: var(--black); margin: 7px 0 2px;
+  }
+  .pg--black h3 { color: rgba(255,255,255,0.75); }
+
+  strong { font-weight: 700; }
+  em { font-style: italic; }
+
+  /* ── COLUMNS ── */
+  .two-col { columns: 2; column-gap: 14px; }
+  .body-grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; flex: 1; min-height: 0; }
+  .body-grid--3 { grid-template-columns: 1fr 1fr 1fr; column-gap: 12px; }
+  .col-span-2 { grid-column: 1 / 3; }
+  .rule { border: none; border-top: 1px solid var(--rule); margin: 9px 0; }
+  .pg--black .rule { border-color: rgba(255,255,255,0.08); }
+
+  /* ── DISPLAY TYPE (huge bottom type) ── */
+  .display-wrap { margin-top: auto; overflow: hidden; line-height: 0.88; flex-shrink: 0; }
+  .display {
+    font-family: var(--display); font-size: clamp(44px, 8vw, 104px);
+    line-height: 0.88; letter-spacing: 0.01em;
+    color: var(--black); text-transform: uppercase; display: block;
+  }
+  .pg--black .display { color: var(--white); }
+  .pg--tint  .display { color: var(--black); }
+  .display--sm { font-size: clamp(26px, 4.2vw, 55px); }
+  .display-row { display: flex; justify-content: space-between; align-items: baseline; }
+
+  /* ── SECTION NUMBER WATERMARK ── */
+  .section-num {
+    font-family: var(--sans); font-weight: 800;
+    font-size: clamp(60px, 10vw, 130px); line-height: 1;
+    letter-spacing: -0.04em; color: rgba(0,0,0,0.04);
+    margin-bottom: -8px; user-select: none; pointer-events: none;
+  }
+  .pg--black .section-num { color: rgba(255,255,255,0.04); }
+
+  /* ── BLOCK LIST ── */
+  .block-list { border: 1px solid var(--rule); margin: 8px 0; }
+  .pg--black .block-list { border-color: rgba(255,255,255,0.1); }
+  .block-item {
+    font-family: var(--sans); font-size: 9.5px; line-height: 1.55;
+    color: var(--mid); padding: 7px 10px; border-bottom: 1px solid var(--rule);
+  }
+  .pg--black .block-item { color: rgba(255,255,255,0.5); border-color: rgba(255,255,255,0.07); }
+  .block-item:last-child { border-bottom: none; }
+  .block-label {
+    font-family: var(--sans); font-size: 9px; font-weight: 700;
+    color: var(--black); display: block; margin-bottom: 2px;
+  }
+  .pg--black .block-label { color: rgba(255,255,255,0.85); }
+
+  /* ── NUMBERED LIST ── */
+  .numbered-list { margin: 8px 0; }
+  .numbered-item {
+    display: grid; grid-template-columns: 28px 1fr; column-gap: 8px;
+    padding: 6px 0; border-bottom: 1px solid var(--rule);
+    font-family: var(--sans); font-size: 9.5px; line-height: 1.55; color: var(--mid);
+  }
+  .pg--black .numbered-item { color: rgba(255,255,255,0.5); border-color: rgba(255,255,255,0.07); }
+  .numbered-item:last-child { border-bottom: none; }
+  .item-num {
+    font-family: var(--mono); font-size: 8px; letter-spacing: 0.06em;
+    color: var(--grey); padding-top: 1px;
+  }
+  .pg--black .item-num { color: rgba(255,255,255,0.3); }
+
+  /* ── PRICING GRID ── */
+  .pricing-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin: 7px 0; }
+  .pricing-card {
+    border: 1px solid var(--rule); padding: 8px; background: var(--tint);
+  }
+  .pricing-name { font-family: var(--mono); font-size: 7px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--grey); margin-bottom: 3px; }
+  .pricing-amount { font-family: var(--sans); font-size: 14px; font-weight: 700; color: var(--black); margin-bottom: 4px; }
+  .pricing-card p { font-size: 8.5px; color: var(--mid); margin: 0; }
+
+  /* ── COL CARDS ── */
+  .col-card { border: 1px solid var(--rule); padding: 8px; margin-bottom: 6px; }
+  .pg--black .col-card { border-color: rgba(255,255,255,0.1); }
+  .col-card-label { font-family: var(--mono); font-size: 6.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--grey); margin-bottom: 3px; }
+  .pg--black .col-card-label { color: rgba(255,255,255,0.3); }
+  .col-card-title { font-family: var(--sans); font-size: 10px; font-weight: 700; color: var(--black); margin-bottom: 4px; }
+  .pg--black .col-card-title { color: rgba(255,255,255,0.85); }
+  .col-card p { font-size: 8.5px; margin: 0; }
+
+  /* ── TOC GRID (Subvert-style) ── */
+  .toc-item {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 5px 0; border-bottom: 1px solid var(--rule);
+    font-family: var(--sans); font-size: 9.5px;
+  }
+  .toc-item:last-child { border-bottom: none; }
+  .toc-item-title { font-weight: 600; color: var(--black); }
+  .toc-item-sub { font-size: 8px; color: var(--grey); font-style: italic; }
+  .pg--tint .toc-item-title { color: var(--black); }
+
+  /* ── CALLOUT ── */
+  .callout {
+    border-left: 2px solid var(--black); background: var(--tint);
+    padding: 8px 11px; margin: 8px 0;
+    font-size: 9.5px; line-height: 1.6; color: var(--mid);
+  }
+  .callout p { font-size: 9.5px; margin: 0; color: var(--mid); }
+  .pg--black .callout { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.05); }
+  .pg--black .callout p { color: rgba(255,255,255,0.55); }
+
+  /* ── ABOUT NOTE ── */
+  .about-note {
+    border: 1px solid var(--rule); background: var(--tint);
+    padding: 8px 11px; margin: 8px 0;
+    font-size: 9.5px; line-height: 1.6; color: var(--mid);
+  }
+  .about-note strong { font-weight: 700; color: var(--black); }
+
+  /* ── INDENTED LIST ── */
+  .indented-list { margin: 6px 0; }
+  .indented-item {
+    padding: 5px 0 5px 10px; border-left: 2px solid rgba(255,255,255,0.1);
+    font-family: var(--sans); font-size: 9.5px; line-height: 1.5;
+    color: rgba(255,255,255,0.5); margin-bottom: 4px;
+  }
+
+  /* ── DOC META ── */
+  .doc-meta { margin-top: auto; padding-top: 8px; }
+  .doc-meta p { font-family: var(--mono); font-size: 7px; letter-spacing: 0.08em; color: var(--grey); margin: 0; line-height: 1.7; }
+
+  /* ── WORDMARK ── */
+  .wordmark-xl {
+    font-family: var(--sans); font-weight: 200;
+    font-size: clamp(56px, 10vw, 130px);
+    letter-spacing: -0.05em; line-height: 1; color: #fff;
+  }
+
+  /* ─────────────────────────────────────────
+     EDITING SYSTEM
+  ───────────────────────────────────────── */
+
+  /* Focus ring on editable blocks */
+  [contenteditable]:focus-visible {
+    outline: none;
+    background: rgba(0,0,0,0.025);
+    border-radius: 2px;
+  }
+  .pg--black [contenteditable]:focus-visible { background: rgba(255,255,255,0.04); }
+
+  [contenteditable]:hover { cursor: text; }
+
+  /* Placeholder when empty */
+  [contenteditable]:empty::before {
+    content: attr(data-ph);
+    color: rgba(0,0,0,0.2);
+    pointer-events: none;
+  }
+  .pg--black [contenteditable]:empty::before { color: rgba(255,255,255,0.15); }
+
+  /* Floating toolbar */
+  #ztoolbar {
+    position: fixed;
+    z-index: 600;
+    display: none;
+    align-items: center;
+    gap: 1px;
+    padding: 4px 5px;
+    background: #111;
+    border-radius: 5px;
+    box-shadow: 0 3px 14px rgba(0,0,0,0.45);
+    pointer-events: all;
+    user-select: none;
+  }
+  #ztoolbar button {
+    font-family: var(--sans);
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 3px 7px;
+    border: none;
+    background: none;
+    color: rgba(255,255,255,0.65);
+    cursor: pointer;
+    border-radius: 3px;
+    transition: background 0.1s, color 0.1s;
+    line-height: 1;
+  }
+  #ztoolbar button:hover,
+  #ztoolbar button.on { background: rgba(255,255,255,0.14); color: #fff; }
+  #ztoolbar .tsep { width: 1px; height: 13px; background: rgba(255,255,255,0.14); margin: 0 2px; flex-shrink: 0; }
+
+  /* Save status */
+  #zsaved {
+    position: fixed; top: 14px; right: 18px; z-index: 500;
+    font-family: var(--mono); font-size: 6.5px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: rgba(255,255,255,0.28);
+    pointer-events: none; transition: opacity 0.4s;
+  }
+
+  /* ── NAVIGATION ── */
+  .mag-nav {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 14px; z-index: 300;
+  }
+  .mag-btn {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(13,13,13,0.88);
+    color: rgba(255,255,255,0.65); font-size: 14px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s, border-color 0.15s;
+    user-select: none; backdrop-filter: blur(6px);
+  }
+  .mag-btn:hover { background: rgba(13,13,13,1); border-color: rgba(255,255,255,0.35); color: #fff; }
+  .mag-btn:disabled { opacity: 0.2; cursor: default; }
+  .mag-count {
+    font-family: var(--mono); font-size: 7.5px; letter-spacing: 0.1em;
+    color: rgba(255,255,255,0.35); min-width: 44px; text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── FLOATING EDITOR TOOLBAR ── -->
+<div id="ztoolbar" aria-label="Text formatting">
+  <button data-cmd="bold" title="Bold (⌘B)"><strong>B</strong></button>
+  <button data-cmd="italic" title="Italic (⌘I)"><em>I</em></button>
+  <button data-cmd="underline" title="Underline (⌘U)"><span style="text-decoration:underline">U</span></button>
+  <div class="tsep"></div>
+  <button data-cmd="formatBlock" data-val="h2" title="Heading">H2</button>
+  <button data-cmd="formatBlock" data-val="h3" title="Sub-heading">H3</button>
+  <button data-cmd="formatBlock" data-val="p" title="Body">¶</button>
+  <div class="tsep"></div>
+  <button data-cmd="insertUnorderedList" title="List">·</button>
+  <button data-cmd="removeFormat" title="Clear formatting">✕</button>
+</div>
+<div id="zsaved"></div>
+
+<!-- ══════════════════════════════
+     S1 · COVER
+══════════════════════════════ -->
+<div class="spread active" id="s1">
+  <div class="pg pg--black" style="padding:0;">
+    <div style="padding:22px 20px 0 20px;">
+      <div style="display:flex;align-items:baseline;gap:10px;">
+        <span class="display" style="font-size:clamp(44px,9vw,116px);line-height:0.9;" data-e>dyad.</span>
+        <span style="font-family:var(--mono);font-size:7.5px;letter-spacing:0.1em;color:rgba(255,255,255,0.25);padding-bottom:4px;" data-e>Working Draft</span>
+      </div>
+    </div>
+    <div style="padding:12px 20px 14px;border-bottom:1px solid rgba(255,255,255,0.07);flex-shrink:0;">
+      <p style="font-family:var(--mono);font-size:7px;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.28);margin:0;" data-e>Communities in Collective Ownership · Berlin · May 2026</p>
+    </div>
+    <div style="padding:14px 20px 0;flex:1;display:flex;flex-direction:column;">
+      <p style="font-size:9.5px;line-height:1.65;color:rgba(255,255,255,0.45);max-width:88%;" data-e>A network for face-to-face conversations in Berlin. These documents make the decisions behind it legible — about ownership, governance, incentives, and the kind of infrastructure real human connection requires.</p>
+      <p style="font-family:var(--mono);font-size:6.5px;letter-spacing:0.08em;color:rgba(255,255,255,0.18);margin-top:8px;" data-e>hello@dyad.berlin · dyad.berlin/community</p>
+    </div>
+    <div style="padding:0 20px 0;margin-top:auto;overflow:hidden;">
+      <span class="display" style="font-size:clamp(36px,6.5vw,84px);color:rgba(255,255,255,0.08);line-height:0.88;" data-e>Communities<br>in Collective<br>Ownership</span>
+    </div>
+    <div class="folio" style="border-top:1px solid rgba(255,255,255,0.07);border-bottom:none;padding:8px 18px;">
+      <span data-e>dyad. zine</span><span data-e>Berlin · May 2026</span><span data-e>Version 1.0</span>
+    </div>
+  </div>
+
+  <div class="pg pg--white">
+    <div class="folio"><span data-e>Contents</span><span data-e>dyad. Communities in Collective Ownership</span><span data-e>01 / 12</span></div>
+    <div class="pg-body">
+      <div class="art-num" data-e>(02) — Five Documents</div>
+      <div class="pull" data-e>A manifesto, a set of commitments, and a governance framework for a platform owned by the community it serves.</div>
+      <hr class="rule"/>
+      <div class="toc-item"><span class="toc-item-title" data-e>01 — Charter</span><span class="toc-item-sub" data-e>Manifesto, commitments, and vision</span></div>
+      <div class="toc-item"><span class="toc-item-title" data-e>02 — Membership Agreement</span><span class="toc-item-sub" data-e>Rights, responsibilities, and pricing</span></div>
+      <div class="toc-item"><span class="toc-item-title" data-e>03 — Acceptance Criteria</span><span class="toc-item-sub" data-e>Who joins, how, and why curation matters</span></div>
+      <div class="toc-item"><span class="toc-item-title" data-e>04 — Community Standards</span><span class="toc-item-sub" data-e>How we agree to be with one another — with Glitch</span></div>
+      <div class="toc-item"><span class="toc-item-title" data-e>05 — Governance</span><span class="toc-item-sub" data-e>Steward ownership, dual voting, People's Assembly</span></div>
+    </div>
+    <div class="display-wrap" style="padding:0 20px 0;">
+      <div class="display-row">
+        <span class="display" data-e>Working<br>Draft</span>
+        <span class="display display--sm" style="align-self:flex-end;padding-bottom:3px;" data-e>©26</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     S2 · TABLE OF CONTENTS
+══════════════════════════════ -->
+<div class="spread" id="s2">
+  <div class="pg pg--black" style="position:relative;overflow:hidden;padding:0;">
+    <div style="position:absolute;inset:0;background:
+      radial-gradient(ellipse 60% 50% at 28% 38%, rgba(255,255,255,0.11) 0%, transparent 70%),
+      radial-gradient(ellipse 45% 40% at 72% 68%, rgba(255,255,255,0.06) 0%, transparent 65%),
+      radial-gradient(ellipse 30% 25% at 55% 20%, rgba(255,255,255,0.04) 0%, transparent 60%);
+      pointer-events:none;"></div>
+    <div style="position:absolute;bottom:44px;left:20px;right:20px;z-index:1;">
+      <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:9px;display:flex;justify-content:space-between;font-family:var(--mono);font-size:7px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.18);">
+        <span data-e>Communities in Collective Ownership</span><span data-e>Berlin · May 2026</span>
+      </div>
+    </div>
+    <div style="position:absolute;bottom:18px;left:20px;font-family:var(--mono);font-size:6px;color:rgba(255,255,255,0.1);letter-spacing:0.06em;" data-e>dyad. — 2026</div>
+  </div>
+
+  <div class="pg pg--black" style="padding:24px 22px 16px;">
+    <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,0.38);line-height:1.6;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.13);" data-e>dyad. Communities in Collective Ownership<br/>Working Draft · 01–24</div>
+    <div style="flex:1;display:flex;flex-direction:column;margin-top:0;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;flex:1;border-top:1px solid rgba(255,255,255,0.13);">
+        <div style="padding:14px 14px 14px 0;display:flex;flex-direction:column;justify-content:space-between;">
+          <div style="font-family:var(--mono);font-size:8.5px;color:rgba(255,255,255,0.28);letter-spacing:0.08em;" data-e>About</div>
+          <div style="font-family:var(--mono);font-size:18px;color:rgba(255,255,255,0.82);line-height:1.05;letter-spacing:-0.01em;" data-e>Preface</div>
+          <div style="font-family:var(--mono);font-size:8.5px;color:rgba(255,255,255,0.2);letter-spacing:0.04em;" data-e>05–06</div>
+        </div>
+        <div style="padding:14px 0 14px 14px;display:flex;flex-direction:column;justify-content:space-between;border-left:1px solid rgba(255,255,255,0.07);">
+          <div style="font-family:var(--mono);font-size:8.5px;color:rgba(255,255,255,0.28);letter-spacing:0.08em;" data-e>I.</div>
+          <div style="font-family:var(--mono);font-size:18px;color:rgba(255,255,255,0.82);line-height:1.05;letter-spacing:-0.01em;" data-e>Charter</div>
+          <div style="font-family:var(--mono);font-size:8.5px;color:rgba(255,255,255,0.2);letter-spacing:0.04em;" data-e>07–12</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;flex:1;border-top:1px solid rgba(255,255,255,0.13);">
+        <div style="padding:14px 14px 14px 0;display:flex;flex-direction:column;justify-content:space-between;">
+          <div style="font-family:var(--mono);font-size:8.5px;color:rgba(255,255,255,0.28);letter-spacing:0.08em;" data-e>II.</div>
+          <div style="font-family:var(--mono);font-size:18px;color:rgba(255,255,255,0.82);line-height:1.05;letter-spacing:-0.01em;" data-e>Membership</div>
+          <div style="font-family:var(--mono);font-size:8.5px;color:rgba(255,255,255,0.2);letter-spacing:0.04em;" data-e>13–14</div>
+        </div>
+        <div style="padding:14px 0 14px 14px;display:flex;flex-direction:column;justify-content:space-between;border-left:1px solid rgba(255,255,255,0.07);">
+          <div style="font-family:var(--mono);font-size:8.5px;color:rgba(255,255,255,0.28);letter-spacing:0.08em;" data-e>III.</div>
+          <div style="font-family:var(--mono);font-size:18px;color:rgba(255,255,255,0.82);line-height:1.05;letter-spacing:-0.01em;" data-e>Governance</div>
+          <div style="font-family:var(--mono);font-size:8.5px;color:rgba(255,255,255,0.2);letter-spacing:0.04em;" data-e>15–20</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;flex:1;border-top:1px solid rgba(255,255,255,0.13);">
+        <div style="padding:14px 14px 14px 0;display:flex;flex-direction:column;justify-content:space-between;">
+          <div style="font-family:var(--mono);font-size:8.5px;color:rgba(255,255,255,0.28);letter-spacing:0.08em;" data-e>IV.</div>
+          <div style="font-family:var(--mono);font-size:18px;color:rgba(255,255,255,0.82);line-height:1.05;letter-spacing:-0.01em;" data-e>Possibilities</div>
+          <div style="font-family:var(--mono);font-size:8.5px;color:rgba(255,255,255,0.2);letter-spacing:0.04em;" data-e>21–22</div>
+        </div>
+        <div style="border-left:1px solid rgba(255,255,255,0.07);"></div>
+      </div>
+    </div>
+    <div class="folio" style="border-top:1px solid rgba(255,255,255,0.08);border-bottom:none;padding:8px 0 0;">
+      <span data-e>Contents</span><span data-e>02 / 11</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     S3 · PREFACE
+══════════════════════════════ -->
+<div class="spread" id="s3">
+  <div class="pg pg--white">
+    <div class="folio"><span data-e>Preface</span><span data-e>dyad. Community Documents</span><span data-e>p. 3</span></div>
+    <div class="pg-body">
+      <div class="art-num" data-e>(03) — About This Document</div>
+      <div class="pull" data-e>What this is, what it is not, and how to use it.</div>
+      <div class="about-note">
+        <strong data-e>Working draft.</strong> <span data-e>This document represents our current thinking, commitments, and understanding of what we are building and why. It will change. It is not a contract or a guarantee of specific future actions. It is an honest account, written to be held up against what we actually do. If there is a gap between this document and our behaviour, that gap is the accountability mechanism.</span>
+      </div>
+      <p class="lede" data-e>Dyad is a network for face-to-face conversations in Berlin. Behind that simple sentence is a long set of decisions — about ownership, governance, incentives, and the kind of infrastructure real human connection requires. These documents make those decisions legible.</p>
+      <p data-e>This is more than an operational document. It is a blueprint and a manifesto for a different way of building a platform — one that treats the people who use it as co-owners of what it becomes, not as the product being sold.</p>
+      <p data-e>Artists and culture workers, community organisers, and platform users often shy away from conversations about governance structures and ownership models. That discomfort is understandable. But if we want to build different kinds of platforms, we have to demystify the structures that shape them. These documents are an attempt at that.</p>
+    </div>
+    <div class="display-wrap" style="padding:0 20px 0;">
+      <span class="display" data-e>About This<br>Document</span>
+    </div>
+  </div>
+
+  <div class="pg pg--tint">
+    <div class="folio"><span data-e>p. 4</span><span data-e>dyad. Community Documents</span><span data-e>Preface</span></div>
+    <div class="pg-body">
+      <div class="art-num" data-e>(04) — Contents &amp; How This Changes</div>
+      <h2 style="margin-top:0;border-top:none;padding-top:0;" data-e>What is in here</h2>
+      <div class="toc-item"><span class="toc-item-title" data-e>Charter</span><span class="toc-item-sub" data-e>Manifesto, commitments, and vision</span></div>
+      <div class="toc-item"><span class="toc-item-title" data-e>Membership Agreement</span><span class="toc-item-sub" data-e>Rights, responsibilities, pricing</span></div>
+      <div class="toc-item"><span class="toc-item-title" data-e>Acceptance Criteria</span><span class="toc-item-sub" data-e>Who joins, how, and why curation matters</span></div>
+      <div class="toc-item"><span class="toc-item-title" data-e>Community Standards</span><span class="toc-item-sub" data-e>How we agree to be with one another</span></div>
+      <div class="toc-item"><span class="toc-item-title" data-e>Governance</span><span class="toc-item-sub" data-e>Steward ownership, dual voting, People's Assembly</span></div>
+      <h2 data-e>How this document changes</h2>
+      <p data-e>Amendments to individual sections go through the People's Assembly — the community governance body described in the Governance document. The Assembly can propose changes, deliberate, and vote. Some commitments are foundational and will be permanently locked in the legal structure of the company when we complete our transition to steward ownership. Until then, they are binding public obligations.</p>
+      <p data-e>The stewards — currently the founders — can also propose changes, but those proposals go through the same Assembly process. No one has unilateral authority to rewrite the framework.</p>
+      <div class="doc-meta">
+        <p data-e>Adopted May 2026 — Version 1.0 — Working draft</p>
+        <p data-e>hello@dyad.berlin — dyad.berlin/community</p>
+      </div>
+    </div>
+    <div class="display-wrap" style="padding:0 20px 0;">
+      <div class="display-row">
+        <span class="display display--sm" data-e>Preface</span>
+        <span class="display display--sm" style="align-self:flex-end;padding-bottom:4px;" data-e>BLN-26</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     S4 · CHARTER I
+══════════════════════════════ -->
+<div class="spread" id="s4">
+  <div class="pg pg--white">
+    <div class="folio"><span data-e>Charter — 01</span><span data-e>dyad. Community Documents</span><span data-e>p. 5</span></div>
+    <div class="pg-body">
+      <div class="section-num">01</div>
+      <div class="art-num" data-e>(05) — Document 01 / 05</div>
+      <div class="pull" style="font-size:clamp(12px,1.5vw,18px);font-weight:800;" data-e>Our Charter</div>
+      <p class="lede" data-e>The platforms we use to meet, organise, and make sense of the world have become engines of extraction. Not by accident. By design. The March 2026 verdicts against Meta and YouTube confirmed what years of research had already made plain: platform design is intentional, and it is liable to its effects. Attention economies are attention economies on purpose.</p>
+      <p class="lede" style="color:var(--mid);" data-e>The typical response to this is ethical commitment. Companies publish values pages. Then they take equity investment, which obligates growth, which requires engagement optimisation, which means the values page was always a marketing document. Bandcamp was beloved. Then it was sold — twice, in eighteen months — and the community it served was not in the room when those decisions were made.</p>
+      <p data-e>Dyad exists because we believe the structural problem requires a structural answer. This charter is that answer stated plainly.</p>
+    </div>
+    <div class="display-wrap" style="padding:0 20px 0;">
+      <span class="display" data-e>Our<br>Charter</span>
+    </div>
+  </div>
+
+  <div class="pg pg--tint">
+    <div class="folio"><span data-e>p. 6</span><span data-e>dyad. Community Documents</span><span data-e>Charter — 01</span></div>
+    <div class="pg-body">
+      <div class="art-num" data-e>(06) — The Problem &amp; What Dyad Is</div>
+      <h2 style="margin-top:0;border-top:none;padding-top:0;" data-e>The problem we are responding to</h2>
+      <p data-e>Social platforms are built to maximise time-on-screen. This is not a side effect — it is the revenue model. Advertising pays for attention; platforms compete to capture it; every feed, notification, and recommendation system reflects this competition. The result is platforms optimised to make you feel connected while systematically replacing the conditions for real connection with their simulacra.</p>
+      <p data-e>Cory Doctorow coined "enshittification" to describe how platforms decline: first they serve users, then business customers, then extract maximum value from both. The community has no say. It was never in the ownership structure.</p>
+      <h2 data-e>What dyad is</h2>
+      <p data-e>A place to find someone to talk to, in person. You write a question or a subject you want to explore. Someone reads it and writes back. If both of you want to meet, you agree on a time and a place. Then you show up. That is the whole thing.</p>
+      <p data-e>The technology exists to make this as safe, trustworthy, and low-friction as possible — not to grow, not to engage, not to retain. Dyad gets out of the way once it has done its job of getting two people into the same room. The absence of feeds, algorithms, social graphs, and engagement mechanics is not a missing feature set. It is a deliberate structural decision.</p>
+    </div>
+    <div class="display-wrap" style="padding:0 20px 0;">
+      <span class="display" style="font-size:clamp(30px,5.5vw,72px);" data-e>Encounter<br>is the<br>whole point.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     S5 · CHARTER II — COMMITMENTS
+══════════════════════════════ -->
+<div class="spread" id="s5">
+  <div class="pg pg--white">
+    <div class="folio"><span data-e>Charter — Something to say yes to</span><span data-e>dyad.</span><span data-e>p. 7</span></div>
+    <div class="pg-body">
+      <div class="art-num" data-e>(07) — Something to say yes to</div>
+      <div class="pull" data-e>Something to say yes to</div>
+      <div class="block-list">
+        <div class="block-item"><div class="block-label" data-e>Ownership by the people who use it</div><span data-e>Dyad is committed to transitioning to steward ownership — a legal structure in which voting control stays with the people who operate the platform, not external investors. Our pre-seed funding instrument is designed explicitly to make this transition possible.</span></div>
+        <div class="block-item"><div class="block-label" data-e>Aligned incentives, not managed conflicts</div><span data-e>Subscription funding means dyad succeeds when members value the platform enough to pay for it — not when they cannot stop scrolling. No advertising. No data sales. No engagement optimisation.</span></div>
+        <div class="block-item"><div class="block-label" data-e>Governance by the community</div><span data-e>Active members govern this platform through the People's Assembly — a real decision-making body, not an advisory board. Community standards, acceptance criteria, and platform policy are set and changed by the members who live by them.</span></div>
+        <div class="block-item"><div class="block-label" data-e>Transparency as practice, not performance</div><span data-e>We publish the financials. We explain the decisions. When we change course, we say so and explain why. Annual financial reports are available to all members.</span></div>
+        <div class="block-item"><div class="block-label" data-e>Connection as the endpoint, not the product</div><span data-e>Two people in a room having a real conversation is not a means to a platform metric. It is the thing itself. Dyad is designed around the quality of that encounter, not the quantity of time spent on screen before it.</span></div>
+      </div>
+    </div>
+    <div class="display-wrap" style="padding:0 20px 0;">
+      <div class="display-row">
+        <span class="display display--sm" data-e>Say Yes.</span>
+        <span class="display display--sm" style="align-self:flex-end;padding-bottom:4px;" data-e>BLN-26</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="pg pg--black">
+    <div class="folio"><span data-e>p. 8</span><span data-e>dyad.</span><span data-e>Charter — Our real competition</span></div>
+    <div class="pg-body">
+      <div class="art-num" data-e>(08) — Our real competition</div>
+      <h2 style="margin-top:0;border-top:none;padding-top:0;" data-e>Our real competition</h2>
+      <p data-e>Our competition is not another app. It is cynicism — the well-earned belief that structural change in how platforms are built and owned is not actually possible. That collective governance doesn't scale. That mission statements always give way to investor returns.</p>
+      <p data-e>We understand this position. Cynicism is a rational response to repeated betrayal. But it is also an obstacle. We are competing against:</p>
+      <div class="indented-list">
+        <div class="indented-item" data-e>The notion that platforms inevitably extract value from the communities they serve</div>
+        <div class="indented-item" data-e>The assumption that investment requires surrendering governance to investors</div>
+        <div class="indented-item" data-e>The belief that social connection cannot be supported by infrastructure that does not exploit it</div>
+        <div class="indented-item" data-e>The comfort of the status quo, even when it is clearly not working</div>
+      </div>
+    </div>
+    <div class="display-wrap" style="padding:0 20px 0;">
+      <span class="display" data-e>No Ad.<br>No Algo.<br>No Exit.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     S6 · CHARTER III → MEMBERSHIP I
+══════════════════════════════ -->
+<div class="spread" id="s6">
+  <div class="pg pg--white">
+    <div class="folio"><span data-e>Charter — Commitments &amp; Asks</span><span data-e>dyad.</span><span data-e>p. 9</span></div>
+    <div class="pg-body">
+      <div class="art-num" data-e>(09) — What we commit to / What we ask</div>
+      <div class="two-col">
+        <h2 style="margin-top:0;border-top:none;padding-top:0;" data-e>What we commit to you</h2>
+        <h3 data-e>Your data is yours</h3>
+        <p data-e>We collect only what is necessary to run the platform. We do not sell it, analyse it for advertising, or share it with third parties for commercial purposes.</p>
+        <h3 data-e>No advertising, ever</h3>
+        <p data-e>Not now, not later, not under different leadership, not through a subsidiary. This will be encoded in the legal form of the company.</p>
+        <h3 data-e>Radical transparency</h3>
+        <p data-e>We publish the financials. We explain our decisions. Annual financial reports are available to all members.</p>
+        <h3 data-e>Real governance, not advisory theatre</h3>
+        <p data-e>The People's Assembly is not a focus group. Active members vote. Decisions bind us.</p>
+        <h3 data-e>A path to structural ownership</h3>
+        <p data-e>Steward ownership transition within eighteen months, conditional on community activation.</p>
+        <h2 data-e>What we ask of you</h2>
+        <h3 data-e>Show up</h3>
+        <p data-e>If you agree to meet someone, be there. The trust is the infrastructure. No-shows corrode it.</p>
+        <h3 data-e>Be honest</h3>
+        <p data-e>Not polished. Honest. The person across the table is taking the same risk. They deserve the real version of you.</p>
+        <h3 data-e>Engage in good faith</h3>
+        <p data-e>The encounter does not have to be easy or end in agreement. It has to be genuine.</p>
+        <h3 data-e>Participate in governance</h3>
+        <p data-e>Once active — five or more meetings completed — you have a vote in the People's Assembly. Use it.</p>
+      </div>
+      <div class="doc-meta"><p data-e>Document 01 / 05 — Adopted May 2026 — Version 1.0 — Working draft</p></div>
+    </div>
+    <div class="display-wrap" style="padding:0 20px 0;">
+      <div class="display-row">
+        <span class="display display--sm" data-e>Charter.</span>
+        <span class="display display--sm" style="align-self:flex-end;padding-bottom:3px;" data-e>01/05</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="pg pg--tint">
+    <div class="folio"><span data-e>p. 10</span><span data-e>dyad.</span><span data-e>Membership — 02</span></div>
+    <div class="pg-body">
+      <div class="section-num">02</div>
+      <div class="art-num" data-e>(10) — Document 02 / 05</div>
+      <div class="pull" style="font-size:clamp(12px,1.5vw,18px);font-weight:800;" data-e>Membership Agreement</div>
+      <p class="lede" data-e>Membership is not a purchase. It is an entry into a mutual relationship — one that carries rights, responsibilities, and a real say in how this community governs itself. Governance rights are earned through participation, not purchased through subscription.</p>
+      <h2 data-e>What membership is</h2>
+      <p data-e>Full access to the platform: writing conversation prompts, responding to others', sending and receiving meeting invitations, and participating in the feedback cycle that follows every meeting.</p>
+      <p data-e>Active members — those who have completed at least five meetings — have the right to participate in the People's Assembly and vote on community governance decisions. This is not a passive entitlement. It is a responsibility that comes with the platform.</p>
+    </div>
+    <div class="display-wrap" style="padding:0 20px 0;">
+      <span class="display" data-e>Not a User.<br>A Member.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     S7 · MEMBERSHIP II
+══════════════════════════════ -->
+<div class="spread" id="s7">
+  <div class="pg pg--white">
+    <div class="folio"><span data-e>Membership — Pricing &amp; Access</span><span data-e>dyad.</span><span data-e>p. 11</span></div>
+    <div class="pg-body">
+      <div class="art-num" data-e>(11) — Pricing &amp; What You Get</div>
+      <h2 style="margin-top:0;border-top:none;padding-top:0;" data-e>Pricing</h2>
+      <p style="margin-bottom:7px;" data-e>Three tiers. Identical access. The difference is your relationship to the commons.</p>
+      <div class="pricing-grid">
+        <div class="pricing-card">
+          <div class="pricing-name" data-e>Community rate</div>
+          <div class="pricing-amount" data-e>3–5€/mo</div>
+          <p data-e>For members who need it. No justification required.</p>
+        </div>
+        <div class="pricing-card">
+          <div class="pricing-name" data-e>Sustaining rate</div>
+          <div class="pricing-amount" data-e>7–9€/mo</div>
+          <p data-e>What it actually costs per member to run dyad.</p>
+        </div>
+        <div class="pricing-card">
+          <div class="pricing-name" data-e>Solidarity rate</div>
+          <div class="pricing-amount" data-e>12–15€/mo</div>
+          <p data-e>Your contribution subsidises someone on community rate.</p>
+        </div>
+      </div>
+      <p data-e>We do not ask you to justify your tier. We publish the financials so you can see exactly what the numbers mean and where the money goes.</p>
+      <h2 data-e>What you get</h2>
+      <p data-e>Access to the full platform for as long as your subscription is active. The ability to write, respond, invite, and meet. The ability to build a meeting history and a reputation that others can see when considering whether to meet you.</p>
+      <p data-e>For active members (five or more completed meetings): the right to participate in the People's Assembly and vote on community governance. Transparent financials, published annually.</p>
+    </div>
+    <div class="display-wrap" style="padding:0 20px 0;">
+      <div class="display-row">
+        <span class="display display--sm" data-e>Three Tiers.</span>
+        <span class="display display--sm" style="align-self:flex-end;padding-bottom:4px;" data-e>One Access.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="pg pg--tint">
+    <div class="folio"><span data-e>p. 12</span><span data-e>dyad.</span><span data-e>Membership — Commitments &amp; Endings</span></div>
+    <div class="pg-body">
+      <div class="art-num" data-e>(12) — Commitments &amp; How Membership Ends</div>
+      <div class="two-col">
+        <h2 style="margin-top:0;border-top:none;padding-top:0;" data-e>What you commit to</h2>
+        <h3 data-e>The community standards</h3>
+        <p data-e>By becoming a member, you agree to the community standards. These are not fine print. Read them.</p>
+        <h3 data-e>Showing up</h3>
+        <p data-e>If you agree to meet someone, show up. No-shows are taken seriously and affect the reputation others see when they consider meeting you.</p>
+        <h3 data-e>Completing the feedback form</h3>
+        <p data-e>After every meeting, you complete a feedback form before accessing the platform again. This is a hard gate. The feedback system is how the community maintains accountability over time. There is no bypass.</p>
+        <h3 data-e>Your identity</h3>
+        <p data-e>One person, one account. A pseudonym is fine. But creating multiple accounts to escape a reputation, circumvent a suspension, or game the system is grounds for permanent removal.</p>
+        <h2 data-e>Your data</h2>
+        <p data-e>We collect the minimum necessary to run the platform. We do not sell your data. We do not use it for advertising. You can request a full export at any time and delete your account at any time.</p>
+        <h2 data-e>How membership ends</h2>
+        <p data-e><strong>If you choose to leave:</strong> Cancel at any time. No penalty, no exit fee. If you delete your account, the other party in any pending meetings is notified and released.</p>
+        <p data-e><strong>If dyad ends your membership:</strong> For violations of the community standards. Most cases begin with a warning. Serious violations — harassment, sexual exploitation, ban evasion — result in immediate removal without warning.</p>
+      </div>
+      <div class="doc-meta"><p data-e>Document 02 / 05 — Adopted May 2026 — Version 1.0 — Working draft</p></div>
+    </div>
+    <div class="display-wrap" style="padding:0 20px 0;">
+      <div class="display-row">
+        <span class="display display--sm" data-e>Membership.</span>
+        <span class="display display--sm" style="align-self:flex-end;padding-bottom:3px;" data-e>02/05</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     S8 · COMMUNITY STANDARDS + GLITCH
+══════════════════════════════ -->
+<div class="spread" id="s8">
+  <div class="pg pg--black">
+    <div class="folio"><span data-e>Community Standards — 04</span><span data-e>dyad.</span><span data-e>p. 12</span></div>
+    <div class="pg-body">
+      <div class="section-num">04</div>
+      <div class="art-num" data-e>(15) — Document 04 / 05</div>
+      <div class="pull" style="font-size:clamp(12px,1.5vw,18px);font-weight:800;" data-e>Community Standards</div>
+      <p class="lede" data-e>These standards are not rules handed down from a platform to a user base. They are agreements a community makes with itself. Some can be changed by the People's Assembly. Some cannot be changed at all.</p>
+      <h2 data-e>Floor protections — cannot be weakened</h2>
+      <div class="block-list">
+        <div class="block-item">
+          <div class="block-label" data-e>Harassment — immediate removal</div>
+          <span data-e>Any behaviour intended to intimidate, threaten, or cause distress — before, during, or after a meeting — results in immediate removal. No warning. The People's Assembly can strengthen this. It cannot weaken it.</span>
+        </div>
+        <div class="block-item">
+          <div class="block-label" data-e>Sexual exploitation — immediate removal</div>
+          <span data-e>Using the platform to proposition, coerce, or exploit other members sexually results in permanent removal and, where appropriate, referral to relevant authorities.</span>
+        </div>
+        <div class="block-item">
+          <div class="block-label" data-e>Intersectional and identity-based abuse — floor protection</div>
+          <span data-e>Targeting someone for the combination of their identities — as a Black woman, as a trans woman of colour, as any person targeted for who they are as a whole — is covered explicitly. You do not need to prove which single category of harm applies. Our standards on this are informed by our partnership with Glitch.</span>
+        </div>
+      </div>
+      <h2 data-e>What we also ask</h2>
+      <div class="block-list">
+        <div class="block-item"><div class="block-label" data-e>Show up — or cancel with notice</div><span data-e>If you agree to meet, be there. Cancellations with 12+ hours' notice are least consequential. No-shows are treated as a serious breach.</span></div>
+        <div class="block-item"><div class="block-label" data-e>One account. One identity.</div><span data-e>Creating additional accounts to escape a reputation or circumvent a suspension is grounds for permanent removal.</span></div>
+        <div class="block-item"><div class="block-label" data-e>Complete the feedback form</div><span data-e>After every meeting, before accessing the platform again. No bypass. This is how accountability is maintained.</span></div>
+      </div>
+    </div>
+    <div class="display-wrap" style="padding:0 20px 0;">
+      <span class="display" data-e>Safe Is<br>Not Neutral.</span>
+    </div>
+  </div>
+
+  <div class="pg pg--tint">
+    <div class="folio"><span data-e>p. 13</span><span data-e>dyad.</span><span data-e>Community Standards — Glitch</span></div>
+    <div class="pg-body">
+      <div class="callout" style="margin-bottom:10px;">
+        <p data-e><strong>We work with Glitch</strong> — UK charity No. 1187714, committed to ending online abuse and making the internet a safer place for everyone, unapologetically centring Black women. The calls to action on this page are drawn from their research, co-authored by <strong>Gabriela de Oliveira</strong> and <strong>Dr Julia Slupska</strong>.</p>
+      </div>
+      <div class="art-num" data-e>Calls to action for tech companies</div>
+      <div class="two-col">
+        <h2 style="margin-top:4px;padding-top:0;border-top:none;" data-e>On responsibility at scale</h2>
+        <p data-e>Tech companies invented neither patriarchy nor white supremacy, but they are responsible for the scale and spread of their digital expression. That responsibility includes what gets amplified, what gets removed, and what the architecture makes inevitable. It cannot be outsourced.</p>
+        <h2 data-e>On moderation beyond removal</h2>
+        <p data-e>Content moderation cannot be limited to removing posts. It must extend to actively promoting communities and positive connections — not only suppressing harm but building the conditions in which people are safe.</p>
+        <h2 data-e>On intersectionality in policy</h2>
+        <p data-e>When someone is targeted for two identities at once — for being Black and a woman in the same act — single-axis policies fail. Glitch found this in practice: Twitter's Dehumanisation Policy missed images targeting a dark-skinned Black woman because the harm fell between its categories. Policy must protect people as they actually are.</p>
+        <h2 data-e>The 10% distinction</h2>
+        <p data-e>In Glitch's dataset, approximately 10% of flagged 'toxic' content was not abuse — it was discussion of harmful tropes. Moderation that cannot tell the difference removes the spaces where Black women name and resist what is being done to them. Protecting those spaces is part of the work.</p>
+        <h2 data-e>On policy stability</h2>
+        <p data-e>Twitter's quiet removal in 2023 of its policy prohibiting deadnaming and misgendering trans people is a warning. Progressive safety policies are reversible under new ownership. Civil society, journalism, and community governance are what make rollback costly enough to resist.</p>
+      </div>
+      <div class="doc-meta">
+        <p data-e>Document 04 / 05 — Full standards: dyad.berlin/community — Glitch: glitchcharity.co.uk</p>
+        <p data-e>We must collectively be committed to reducing and ending digital misogynoir. The work should not fall on those most affected.</p>
+      </div>
+    </div>
+    <div class="display-wrap" style="padding:0 20px 0;">
+      <div class="display-row">
+        <span class="display display--sm" data-e>Standards.</span>
+        <span class="display display--sm" style="align-self:flex-end;padding-bottom:3px;" data-e>04/05</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     S9 · GOVERNANCE I
+══════════════════════════════ -->
+<div class="spread" id="s9">
+  <div class="pg pg--black">
+    <div class="folio"><span data-e>Governance — 05</span><span data-e>dyad.</span><span data-e>p. 13</span></div>
+    <div class="pg-body">
+      <div class="section-num">05</div>
+      <div class="art-num" data-e>(17) — Document 05 / 05</div>
+      <div class="pull" style="font-size:clamp(12px,1.5vw,18px);font-weight:800;" data-e>Governance</div>
+      <p class="lede" data-e>A platform is not corrupted by bad people. It is corrupted by a structure that makes bad outcomes inevitable. When a company is financed through equity, it is obligated to grow. When growth plateaus, it extracts. This is not a story about founders losing their way — it is a structure doing exactly what it was designed to do.</p>
+      <p data-e>Dyad is built to be different in structure, not just in intention. This document explains that structure: where we are now, what we have committed to, how governance works, and what it will mean for members when the transition to steward ownership is complete.</p>
+    </div>
+    <div class="display-wrap" style="padding:0 20px 0;">
+      <span class="display" data-e>Structure<br>Over<br>Intention.</span>
+    </div>
+  </div>
+
+  <div class="pg pg--white">
+    <div class="folio"><span data-e>p. 14</span><span data-e>dyad.</span><span data-e>Governance — Model objectives</span></div>
+    <div class="pg-body">
+      <div class="art-num" data-e>(18) — What This Model Is Trying To Achieve</div>
+      <div class="pull" data-e>Five things simultaneously — not as aspirations, but as structural properties encoded into the form of the company itself.</div>
+      <div class="numbered-list">
+        <div class="numbered-item"><span class="item-num" data-e>01</span><div data-e><strong>No investor governance, ever.</strong> People who provide capital have no say in how the platform is run, what it optimises for, or who it can be sold to. Guaranteed by the steward ownership structure — not by good intentions that can be revised when they become inconvenient.</div></div>
+        <div class="numbered-item"><span class="item-num" data-e>02</span><div data-e><strong>Profit serves purpose, not the reverse.</strong> Surplus generated by the platform is reinvested into the platform, distributed to workers as reasonable compensation, or used to subsidise the community pricing tier. Investor returns are capped and defined before capital is received.</div></div>
+        <div class="numbered-item"><span class="item-num" data-e>03</span><div data-e><strong>Community governs community affairs.</strong> Standards, criteria, and policy are set by the People's Assembly — not by the platform's founders or its investors.</div></div>
+        <div class="numbered-item"><span class="item-num" data-e>04</span><div data-e><strong>No sale without community consent.</strong> After the steward ownership transition, any acquisition requires consent of the Purpose Foundation anchor and the People's Assembly.</div></div>
+        <div class="numbered-item"><span class="item-num" data-e>05</span><div data-e><strong>Sustainable without exploitation.</strong> Success is measured by whether members value the platform enough to pay for it — not by time-on-screen, data value, or advertising revenue.</div></div>
+      </div>
+    </div>
+    <div class="display-wrap" style="padding:0 20px 0;">
+      <div class="display-row">
+        <span class="display display--sm" data-e>Five Rules.</span>
+        <span class="display display--sm" style="align-self:flex-end;padding-bottom:4px;" data-e>BLN-26</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     S9 · GOVERNANCE II
+══════════════════════════════ -->
+<div class="spread" id="s10">
+  <div class="pg pg--white">
+    <div class="folio"><span data-e>Governance — Structural Problem</span><span data-e>dyad.</span><span data-e>p. 15</span></div>
+    <div class="pg-body">
+      <div class="art-num" data-e>(19) — The Structural Problem</div>
+      <div class="body-grid" style="gap:14px;">
+        <div>
+          <div class="col-card"><div class="col-card-label" data-e>Problem</div><div class="col-card-title" data-e>Misaligned incentives</div><p data-e>Equity-financed platforms are structurally obligated to prioritise investor returns. When users and investors want different things, investors win. This is governance working as designed.</p></div>
+          <div class="col-card"><div class="col-card-label" data-e>Problem</div><div class="col-card-title" data-e>Value extraction</div><p data-e>Platforms serve users, then business customers, then extract maximum value from both. The community has no structural recourse.</p></div>
+        </div>
+        <div>
+          <div class="col-card"><div class="col-card-label" data-e>Problem</div><div class="col-card-title" data-e>Governance without accountability</div><p data-e>Platform communities generate enormous value — content, data, trust, time. But they have no formal claim on the decisions that affect them.</p></div>
+          <div class="col-card"><div class="col-card-label" data-e>The design challenge</div><div class="col-card-title" data-e>Capital + control</div><p data-e>Combining cooperative control with functional capital access, without surrendering governance to investors in exchange. This is the problem dyad's structure is built to solve.</p></div>
+        </div>
+      </div>
+      <h2 data-e>Why existing alternatives fall short</h2>
+      <div class="two-col">
+        <p data-e><strong>Traditional cooperatives</strong> solve the governance problem but struggle with capital access. They cannot issue equity, limiting external investment. Platforms — where network effects reward the first mover — are a particularly difficult environment for co-op formation.</p>
+        <p data-e><strong>Equity crowdfunding</strong> extends ownership to more people, but governance rights track money, not engagement. This reproduces the same fundamental alignment problem: governance stake accumulates to capital, not participation.</p>
+      </div>
+    </div>
+    <div class="display-wrap" style="padding:0 20px 0;">
+      <div class="display-row">
+        <span class="display display--sm" data-e>Structural</span>
+        <span class="display display--sm" style="align-self:flex-end;padding-bottom:4px;" data-e>Solutions.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="pg pg--tint">
+    <div class="folio"><span data-e>p. 16</span><span data-e>dyad.</span><span data-e>Governance — Alternatives &amp; Where We Are</span></div>
+    <div class="pg-body">
+      <div class="art-num" data-e>(20) — Alternatives &amp; Where We Are</div>
+      <h3 style="margin-top:0;" data-e>Tokens and DAOs</h3>
+      <p data-e>Token-based governance promised community ownership but largely delivered governance theatre. Most token holders have no meaningful mechanism to exercise governance, and the structures that exist tend to be captured by large holders who acquired stakes financially rather than through participation.</p>
+      <h3 data-e>Profit sharing</h3>
+      <p data-e>Distributing returns to workers or users addresses the distribution problem without addressing the control problem. A platform can pay out profits while remaining fully controlled by its equity holders. Profit sharing does not give recipients a voice in how the platform is run. It is better than nothing. It is not governance.</p>
+      <p data-e>Steward ownership is the structure that attempts to solve both capital access and cooperative control simultaneously. It is not a complete solution. It is the best available one.</p>
+      <h2 data-e>Where we are now</h2>
+      <p data-e>Dyad is currently raising pre-seed funding. Investors accept from the outset that the company will transition to a steward-owned structure. They do not hold traditional equity. They will have no governance claim after the transition. This is agreed before capital is received — not asked for afterwards.</p>
+      <h2 data-e>Steward ownership explained</h2>
+      <p data-e>In a steward-owned company, voting control stays permanently with the people who operate it. It does not transfer to investors. Profits are not extracted through equity — investors receive capped returns, and their financial claim then ends. The legal structure makes this binding. Reference companies: Ecosia, Einhorn, and Waschbär — all operating under the German <em>Verantwortungseigentum</em> framework.</p>
+    </div>
+    <div class="display-wrap" style="padding:0 20px 0;">
+      <div class="display-row">
+        <span class="display display--sm" data-e>Steward</span>
+        <span class="display display--sm" style="align-self:flex-end;padding-bottom:4px;" data-e>Ownership.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     S10 · GOVERNANCE III — DUAL VOTING
+══════════════════════════════ -->
+<div class="spread" id="s11">
+  <div class="pg pg--white">
+    <div class="folio"><span data-e>Governance — Funding &amp; Dual Voting</span><span data-e>dyad.</span><span data-e>p. 17</span></div>
+    <div class="pg-body">
+      <div class="art-num" data-e>(21) — Funding &amp; Dual Voting</div>
+      <div class="callout"><p data-e>Steward ownership is not a values statement. It is a legal constraint. The distinction matters: values can be revised; legal structures require a structural act to undo. Our commitment is to make these things the same — to encode our values into the structure so that no future change in personnel or investor composition can override them.</p></div>
+      <h2 data-e>How we are funded</h2>
+      <p data-e>Pre-seed capital through a funding instrument designed specifically for companies on the steward ownership path. Investors enter knowing and agreeing to the transition. No traditional equity. Capped returns. No ongoing governance claim. No veto over operational decisions.</p>
+      <h2 data-e>Dual voting</h2>
+      <p data-e>Dyad operates two parallel governance tracks. Both exclude investors. Together they constitute the full governance of the platform.</p>
+      <div class="body-grid" style="gap:10px;flex:none;margin-top:4px;">
+        <div class="col-card">
+          <div class="col-card-label" data-e>Track One</div>
+          <div class="col-card-title" data-e>Steward governance</div>
+          <p data-e>Corporate structure, financial decisions, major strategic changes, stewardship succession. Voting held by the stewards — currently the founders. Investors have no vote here. Guaranteed by the legal structure.</p>
+        </div>
+        <div class="col-card">
+          <div class="col-card-label" data-e>Track Two</div>
+          <div class="col-card-title" data-e>People's Assembly</div>
+          <p data-e>Community standards, acceptance criteria, membership policy, platform features that affect community life. Voting belongs to active members. Investors have no vote here either. One active member, one vote.</p>
+        </div>
+      </div>
+    </div>
+    <div class="display-wrap" style="padding:0 20px 0;">
+      <div class="display-row">
+        <span class="display display--sm" data-e>Two Tracks.</span>
+        <span class="display display--sm" style="align-self:flex-end;padding-bottom:4px;" data-e>Zero Investors.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="pg pg--tint">
+    <div class="folio"><span data-e>p. 18</span><span data-e>dyad.</span><span data-e>Governance — People's Assembly</span></div>
+    <div class="pg-body">
+      <div class="art-num" data-e>(22) — The People's Assembly</div>
+      <div class="two-col">
+        <h2 style="margin-top:0;border-top:none;padding-top:0;" data-e>The People's Assembly</h2>
+        <p data-e>The People's Assembly is not appointed by us. It is constituted by any active member who chooses to participate. Showing up to the Assembly is itself an act of governance.</p>
+        <h3 data-e>What the Assembly does</h3>
+        <p data-e>Reviews and votes on proposed changes to community standards, acceptance criteria, and the membership agreement. Proposes and votes on new policies. Reviews appeals of governance decisions. Monitors enforcement. Holds stewards accountable through public record.</p>
+        <h3 data-e>How it works</h3>
+        <p data-e>Asynchronous, in writing, via a structured deliberation space accessible to all active members. Any active member can submit a proposal — requires a second before entering deliberation. Standard proposals: 7-day minimum deliberation. Major proposals: 14-day minimum. Standard decisions: simple majority. Major decisions: supermajority (two-thirds).</p>
+        <h3 data-e>Three tiers of decision-making</h3>
+        <p data-e><strong>Operational</strong> — Day-to-day platform operations: moderation, customer support, feature development within existing policy. Handled by the team. Communicated in monthly updates to the Assembly.</p>
+        <p data-e><strong>Strategic</strong> — Pricing changes, expansion to new cities, partnerships, significant product direction. Proposed by Stewards with a 14-day Assembly response window.</p>
+        <p data-e><strong>Foundational</strong> — Core commitments, governance structure, legal form. Some require Assembly supermajority. Others — no advertising, no data sales, steward ownership itself — are permanently locked in the legal structure after transition. No vote can change them.</p>
+      </div>
+    </div>
+    <div class="display-wrap" style="padding:0 20px 0;">
+      <div class="display-row">
+        <span class="display display--sm" data-e>The Assembly.</span>
+        <span class="display display--sm" style="align-self:flex-end;padding-bottom:3px;" data-e>©26</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     S11 · GOVERNANCE IV · APPENDIX
+══════════════════════════════ -->
+<div class="spread" id="s12">
+  <div class="pg pg--white">
+    <div class="folio"><span data-e>Governance — Commitments</span><span data-e>dyad.</span><span data-e>p. 19</span></div>
+    <div class="pg-body">
+      <div class="art-num" data-e>(23) — What We Have Committed To</div>
+      <div class="pull" data-e>What we have committed to — and what will be locked</div>
+      <div class="block-list">
+        <div class="block-item"><div class="block-label" data-e>No advertising, ever.</div><span data-e>Not now, not under different leadership, not through a subsidiary. Commitment today, legal constraint after transition.</span></div>
+        <div class="block-item"><div class="block-label" data-e>No sale of member data.</div><span data-e>Cannot be sold, licensed for commercial use, or used for advertising targeting. Commitment today, legal constraint after transition.</span></div>
+        <div class="block-item"><div class="block-label" data-e>Steward ownership completed and preserved.</div><span data-e>We will complete the transition within eighteen months, conditional on community activation. Once complete, the company cannot revert to traditional equity structure.</span></div>
+        <div class="block-item"><div class="block-label" data-e>No platform sale to a conflicting acquirer.</div><span data-e>After transition, any acquisition requires consent of the Purpose Foundation anchor and the People's Assembly.</span></div>
+        <div class="block-item"><div class="block-label" data-e>Community governance preserved.</div><span data-e>The People's Assembly cannot be dissolved, suspended, or replaced by an appointed body.</span></div>
+      </div>
+      <h2 data-e>Transparency</h2>
+      <p data-e>Annual financial reports: revenue by pricing tier, operating costs, surplus allocation, summary of investor terms — available to all members. Steward governance decisions: communicated to the People's Assembly within 30 days.</p>
+      <div class="doc-meta">
+        <p data-e>Document 05 / 05 — Adopted May 2026 — Version 1.0 — Working draft</p>
+        <p data-e>Full governance charter on request: hello@dyad.berlin</p>
+        <p data-e>Purpose Foundation: purpose-economy.org</p>
+      </div>
+    </div>
+    <div class="display-wrap" style="padding:0 20px 0;">
+      <div class="display-row">
+        <span class="display display--sm" data-e>Locked.</span>
+        <span class="display display--sm" style="align-self:flex-end;padding-bottom:4px;" data-e>For Good.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="pg pg--black">
+    <div class="folio"><span data-e>p. 20</span><span data-e>dyad.</span><span data-e>Possibilities</span></div>
+    <div class="pg-body">
+      <div class="art-num" data-e>(24) — A prism of possibilities</div>
+      <div class="pull" style="font-weight:800;font-size:clamp(12px,1.5vw,18px);" data-e>What the structure makes possible</div>
+      <p data-e>Unlike venture-backed platforms — which have a single trajectory toward growth, exit, and extraction — dyad's cooperative structure preserves multiple futures. The goal is self-sustained operation: a community that pays for the infrastructure it values, governed by the people who use it, indefinitely.</p>
+      <div class="numbered-list" style="margin:8px 0;">
+        <div class="numbered-item"><span class="item-num" data-e>—</span><div data-e>Continued self-sustained operation, funded by membership, governed by the Assembly</div></div>
+        <div class="numbered-item"><span class="item-num" data-e>—</span><div data-e>Federation with other city-based conversation networks as dyad opens in new cities</div></div>
+        <div class="numbered-item"><span class="item-num" data-e>—</span><div data-e>Exit to nonprofit or foundation stewardship, preserving the mission permanently</div></div>
+        <div class="numbered-item"><span class="item-num" data-e>—</span><div data-e>Any transition: democratic participation, broad distribution of benefits, member negotiation power</div></div>
+      </div>
+      <h2 data-e>Stages of success</h2>
+      <div class="two-col">
+        <p data-e><strong>Stage 1 — Platform viability.</strong> A community that values dyad enough to pay for it. Operational surplus. The first People's Assembly convenes.</p>
+        <p data-e><strong>Stage 2 — Governance proven.</strong> The Assembly proposes and passes its first changes. Members experience governance as real, not symbolic. Steward ownership transition complete.</p>
+        <p data-e><strong>Stage 3 — Cultural influence.</strong> Dyad is cited as evidence that community-owned social infrastructure works. Other builders reference the model.</p>
+        <p data-e><strong>Stage 4 — Institutional durability.</strong> The platform outlasts its founders. Governance passes to a new generation of members. The structure is doing its job.</p>
+      </div>
+    </div>
+    <div class="display-wrap" style="padding:0 20px 0;">
+      <span class="display" style="color:rgba(255,255,255,0.9);" data-e>dyad.<br>Berlin.<br>©26</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── NAVIGATION ── -->
+<nav class="mag-nav">
+  <button class="mag-btn" id="btn-prev" disabled>&#8592;</button>
+  <span class="mag-count" id="spread-count">1 / 12</span>
+  <button class="mag-btn" id="btn-next">&#8594;</button>
+</nav>
+
+<script>
+// ── NAVIGATION ──────────────────────────────────────
+const spreads = Array.from(document.querySelectorAll('.spread'));
+let current = 0;
+const btnPrev = document.getElementById('btn-prev');
+const btnNext = document.getElementById('btn-next');
+const countEl = document.getElementById('spread-count');
+
+function goto(n) {
+  spreads[current].classList.remove('active');
+  current = n;
+  spreads[current].classList.add('active');
+  countEl.textContent = (current + 1) + ' / ' + spreads.length;
+  btnPrev.disabled = current === 0;
+  btnNext.disabled = current === spreads.length - 1;
+}
+
+btnPrev.addEventListener('click', () => { if (current > 0) goto(current - 1); });
+btnNext.addEventListener('click', () => { if (current < spreads.length - 1) goto(current + 1); });
+
+document.addEventListener('keydown', e => {
+  // Don't navigate while typing in an editable element
+  if (document.activeElement && document.activeElement.isContentEditable) return;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { if (current < spreads.length - 1) goto(current + 1); }
+  if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   { if (current > 0) goto(current - 1); }
+});
+
+// ── EDITABLE REGIONS ────────────────────────────────
+const STORAGE_KEY = 'dyad-zine-v2';
+let saveTimer, eidCounter = 0;
+
+// Assign IDs and make editable
+document.querySelectorAll('[data-e]').forEach(el => {
+  el.dataset.eid = ++eidCounter;
+  el.contentEditable = 'true';
+  el.spellcheck = false;
+  // Prevent newline on Enter for inline elements
+  if (el.tagName === 'SPAN' || el.tagName === 'STRONG' || el.tagName === 'EM') {
+    el.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); }
+    });
+  }
+});
+
+// ── SAVE / RESTORE ──────────────────────────────────
+function save() {
+  const state = {};
+  document.querySelectorAll('[data-eid]').forEach(el => {
+    state[el.dataset.eid] = el.innerHTML;
+  });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  showStatus('saved');
+  setTimeout(() => showStatus(''), 1400);
+}
+
+function restore() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    if (!saved) return;
+    document.querySelectorAll('[data-eid]').forEach(el => {
+      if (saved[el.dataset.eid] !== undefined) el.innerHTML = saved[el.dataset.eid];
+    });
+  } catch (e) {}
+}
+
+restore();
+
+document.addEventListener('input', e => {
+  if (!e.target.dataset.eid) return;
+  showStatus('saving…');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(save, 700);
+});
+
+const savedEl = document.getElementById('zsaved');
+function showStatus(msg) { savedEl.textContent = msg; }
+
+// ── FLOATING TOOLBAR ─────────────────────────────────
+const toolbar = document.getElementById('ztoolbar');
+let tbMousedown = false, tbTimer;
+
+// Keep toolbar interactive without closing on click
+toolbar.addEventListener('mousedown', e => {
+  e.preventDefault();
+  tbMousedown = true;
+});
+document.addEventListener('mouseup', () => {
+  tbMousedown = false;
+});
+
+// Update toolbar position on selection change
+document.addEventListener('selectionchange', () => {
+  clearTimeout(tbTimer);
+  tbTimer = setTimeout(updateToolbar, 60);
+});
+
+function updateToolbar() {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed || !sel.toString().trim()) {
+    if (!tbMousedown) hideToolbar();
+    return;
+  }
+  // Only show when inside an editable region
+  const node = sel.anchorNode;
+  const editable = node && (
+    node.closest ? node.closest('[contenteditable]') :
+    node.parentElement && node.parentElement.closest('[contenteditable]')
+  );
+  if (!editable) { hideToolbar(); return; }
+
+  const range = sel.getRangeAt(0);
+  const rect = range.getBoundingClientRect();
+  positionToolbar(rect);
+  refreshActive();
+}
+
+function positionToolbar(rect) {
+  toolbar.style.display = 'flex';
+  requestAnimationFrame(() => {
+    const tw = toolbar.offsetWidth;
+    const th = toolbar.offsetHeight;
+    let left = rect.left + rect.width / 2 - tw / 2;
+    left = Math.max(6, Math.min(left, window.innerWidth - tw - 6));
+    const top = rect.top - th - 8;
+    toolbar.style.left = left + 'px';
+    toolbar.style.top = (top < 6 ? rect.bottom + 8 : top) + 'px';
+  });
+}
+
+function hideToolbar() { toolbar.style.display = 'none'; }
+
+function refreshActive() {
+  toolbar.querySelectorAll('button[data-cmd]').forEach(btn => {
+    try {
+      btn.classList.toggle('on', document.queryCommandState(btn.dataset.cmd));
+    } catch (e) {}
+  });
+}
+
+// Toolbar button clicks
+toolbar.querySelectorAll('button[data-cmd]').forEach(btn => {
+  btn.addEventListener('mousedown', e => {
+    e.preventDefault();
+    const cmd = btn.dataset.cmd;
+    const val = btn.dataset.val || null;
+    document.execCommand(cmd, false, val);
+    refreshActive();
+    // Trigger save
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(save, 700);
+  });
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (!document.activeElement || !document.activeElement.isContentEditable) return;
+  if ((e.metaKey || e.ctrlKey) && e.key === 'b') { e.preventDefault(); document.execCommand('bold', false, null); refreshActive(); }
+  if ((e.metaKey || e.ctrlKey) && e.key === 'i') { e.preventDefault(); document.execCommand('italic', false, null); refreshActive(); }
+  if ((e.metaKey || e.ctrlKey) && e.key === 'u') { e.preventDefault(); document.execCommand('underline', false, null); refreshActive(); }
+});
+</script>
+</body>
+</html>
