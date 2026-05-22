@@ -1,6 +1,7 @@
 import { env } from '$env/dynamic/private';
 import { sendEmail } from './email.js';
 import { makeAdminClient } from './supabase-admin.js';
+import { getEmailNotificationsEnabled } from './app-settings.js';
 import { copy } from '$lib/copy.js';
 import { escapeHtml } from '$lib/utils/escape-html.js';
 import { tokens } from '$lib/design-tokens.js';
@@ -107,6 +108,10 @@ interface DispatchParams {
 
 async function dispatch(params: DispatchParams): Promise<void> {
 	try {
+		// Global kill switch first — checked once per send, off by default.
+		// Admin plane flips this via /admin/settings; no env var, no redeploy.
+		if (!(await getEmailNotificationsEnabled())) return;
+
 		const recipient = await resolveRecipient(params.userId);
 		if (!recipient) {
 			console.error(`[notification-emails] no recipient for user ${params.userId}`);
