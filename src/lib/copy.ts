@@ -398,6 +398,7 @@ export const copy = {
 		scopes: 'Scopes',
 		feedback: 'Feedback',
 		conversations: 'Conversations',
+		settings: 'Settings',
 		hide: 'Hide',
 		unhide: 'Unhide',
 		hidden: 'Hidden',

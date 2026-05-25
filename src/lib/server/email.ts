@@ -1,81 +1,48 @@
 import { env } from '$env/dynamic/private';
+import {
+	MailpitEmailProvider,
+	MigaduEmailProvider,
+	ResendEmailProvider,
+	type EmailMessage,
+	type EmailProvider
+} from './email-providers/index.js';
 
-/**
- * Send an email via HTTP API.
- *
- * Local dev (default): Mailpit HTTP API at http://localhost:54324/api/v1/send
- *   → emails viewable at http://localhost:54324
- * Production: Resend API (https://resend.com)
- *
- * NOTE: Resend is a US company. For sovereignty compliance (see docs/design/
- * shared-infrastructure-opportunities.md), plan to migrate to an EU-hosted
- * provider (Mailjet, Postal, or similar) before v0.2. The provider abstraction
- * here (EMAIL_PROVIDER switch) makes this a config change + body format swap.
- *
- * Environment variables:
- *   EMAIL_PROVIDER   — 'mailpit' (default) or 'resend'
- *   RESEND_API_KEY   — Resend API key (required for resend)
- *   EMAIL_FROM       — sender address (default: hello@dyadberlin)
- */
-export async function sendEmail(params: {
-	to: string;
-	subject: string;
-	html: string;
-}): Promise<boolean> {
-	const provider = env.EMAIL_PROVIDER ?? 'mailpit';
-	const from = env.EMAIL_FROM || 'hello@dyad.berlin';
+const DEFAULT_FROM = 'hello@dyad.berlin';
+const DEFAULT_MAILPIT_URL = 'http://localhost:54324/api/v1/send';
 
-	console.error(`[email] provider=${provider} to=${params.to}`);
+function resolveProvider(): EmailProvider {
+	const from = env.EMAIL_FROM || DEFAULT_FROM;
+	const name = env.EMAIL_PROVIDER || 'mailpit';
 
-	try {
-		if (provider === 'resend') {
-			const apiKey = env.RESEND_API_KEY;
-			if (!apiKey) {
-				console.error('[email] Resend requires RESEND_API_KEY');
-				return false;
-			}
-
-			const res = await fetch('https://api.resend.com/emails', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'Authorization': `Bearer ${apiKey}`
+	switch (name) {
+		case 'resend':
+			return new ResendEmailProvider(env.RESEND_API_KEY, from);
+		case 'migadu':
+			return new MigaduEmailProvider(
+				{
+					smtpHost: env.MIGADU_SMTP_HOST,
+					smtpUser: env.MIGADU_SMTP_USER,
+					smtpPass: env.MIGADU_SMTP_PASS
 				},
-				body: JSON.stringify({
-					from: `Dyad <${from}>`,
-					to: [params.to],
-					subject: params.subject,
-					html: params.html
-				})
-			});
+				from
+			);
+		case 'mailpit':
+			return new MailpitEmailProvider(env.EMAIL_API_URL || DEFAULT_MAILPIT_URL, from);
+		default:
+			console.error(`[email] unknown EMAIL_PROVIDER=${name}, falling back to mailpit`);
+			return new MailpitEmailProvider(env.EMAIL_API_URL || DEFAULT_MAILPIT_URL, from);
+	}
+}
 
-			if (!res.ok) {
-				console.error('[email] Resend error:', res.status, await res.text());
-				return false;
-			}
-			return true;
-		}
-
-		// Default: Mailpit (local dev)
-		const apiUrl = env.EMAIL_API_URL || 'http://localhost:54324/api/v1/send';
-		const res = await fetch(apiUrl, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				From: { Email: from, Name: 'Dyad' },
-				To: [{ Email: params.to }],
-				Subject: params.subject,
-				HTML: params.html
-			})
-		});
-
-		if (!res.ok) {
-			console.error('[email] Mailpit error:', res.status, await res.text());
-			return false;
-		}
-		return true;
+export async function sendEmail(message: EmailMessage): Promise<boolean> {
+	const provider = resolveProvider();
+	console.error(`[email] provider=${provider.name} to=${message.to}`);
+	try {
+		return await provider.send(message);
 	} catch (err) {
 		console.error('[email] Failed to send:', err);
 		return false;
 	}
 }
+
+export type { EmailMessage } from './email-providers/index.js';

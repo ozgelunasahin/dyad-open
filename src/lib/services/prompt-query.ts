@@ -118,7 +118,6 @@ export class SupabasePromptQueryService implements PromptQueryService {
 			.from('time_slots_public')
 			.select('id, prompt_id, start_time, duration_minutes, general_area, general_area_lat, general_area_lng, accepted, created_at')
 			.in('prompt_id', promptIds)
-			.eq('accepted', false)
 			.order('start_time', { ascending: true });
 
 		const authorIds = prompts.map((p) => p.author_id);
@@ -197,7 +196,6 @@ export class SupabasePromptQueryService implements PromptQueryService {
 			.from('time_slots_public')
 			.select('id, prompt_id, start_time, duration_minutes, general_area, general_area_lat, general_area_lng, accepted, created_at')
 			.in('prompt_id', promptIds)
-			.eq('accepted', false)
 			.order('start_time', { ascending: true });
 
 		const now = new Date();
@@ -281,7 +279,6 @@ export class SupabasePromptQueryService implements PromptQueryService {
 				.from('time_slots_public')
 				.select('id, prompt_id, start_time, duration_minutes, general_area, general_area_lat, general_area_lng, accepted, created_at')
 				.eq('prompt_id', id)
-				.eq('accepted', false)
 				.order('start_time', { ascending: true });
 			availableSlots = (publicSlots ?? []).filter((s) =>
 				isAvailable(s as TimeSlot, now)
@@ -357,12 +354,10 @@ export class SupabasePromptQueryService implements PromptQueryService {
 	}
 
 	async getAvailableSlots(promptId: string, userId: string): Promise<TimeSlot[]> {
-		// Fetch all non-accepted slots
 		const { data: slots } = await this.supabase
 			.from('time_slots_public')
 			.select('id, prompt_id, start_time, duration_minutes, general_area, general_area_lat, general_area_lng, accepted, created_at')
 			.eq('prompt_id', promptId)
-			.eq('accepted', false)
 			.order('start_time', { ascending: true });
 
 		const now = new Date();

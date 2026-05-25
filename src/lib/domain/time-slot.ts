@@ -2,12 +2,10 @@ import type { TimeSlot } from './types.js';
 
 const INVITATION_CUTOFF_HOURS = 12;
 
-export type SlotState = 'available' | 'closing' | 'expired' | 'booked';
+export type SlotState = 'available' | 'closing' | 'expired';
 
 /** Derive the effective state of a time slot from its stored fields. */
 export function deriveSlotState(slot: TimeSlot, now: Date = new Date()): SlotState {
-	if (slot.accepted) return 'booked';
-
 	const startTime = new Date(slot.start_time);
 	if (startTime <= now) return 'expired';
 

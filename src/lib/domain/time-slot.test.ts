@@ -59,20 +59,24 @@ describe('deriveSlotState', () => {
 		expect(deriveSlotState(slot, now)).toBe('expired');
 	});
 
-	it('returns "booked" when accepted, regardless of time', () => {
-		const futureSlot = makeSlot({ accepted: true, start_time: hoursFromNow(48, now) });
-		expect(deriveSlotState(futureSlot, now)).toBe('booked');
+	it('accepted slots derive state from timing, not from accept status', () => {
+		const futureAccepted = makeSlot({ accepted: true, start_time: hoursFromNow(48, now) });
+		expect(deriveSlotState(futureAccepted, now)).toBe('available');
 
-		const pastSlot = makeSlot({ accepted: true, start_time: hoursFromNow(-24, now) });
-		expect(deriveSlotState(pastSlot, now)).toBe('booked');
+		const pastAccepted = makeSlot({ accepted: true, start_time: hoursFromNow(-24, now) });
+		expect(deriveSlotState(pastAccepted, now)).toBe('expired');
 	});
 });
 
 describe('isAvailable', () => {
 	const now = new Date('2026-03-25T12:00:00Z');
 
-	it('true for future non-accepted slot outside cutoff', () => {
+	it('true for future slot outside cutoff', () => {
 		expect(isAvailable(makeSlot({ start_time: hoursFromNow(24, now) }), now)).toBe(true);
+	});
+
+	it('true for future slot that already has accepted meetings', () => {
+		expect(isAvailable(makeSlot({ accepted: true, start_time: hoursFromNow(24, now) }), now)).toBe(true);
 	});
 
 	it('false for closing slot', () => {
@@ -81,10 +85,6 @@ describe('isAvailable', () => {
 
 	it('false for expired slot', () => {
 		expect(isAvailable(makeSlot({ start_time: hoursFromNow(-1, now) }), now)).toBe(false);
-	});
-
-	it('false for accepted slot', () => {
-		expect(isAvailable(makeSlot({ accepted: true }), now)).toBe(false);
 	});
 });
 
@@ -99,8 +99,8 @@ describe('isExpired', () => {
 		expect(isExpired(makeSlot({ start_time: hoursFromNow(24, now) }), now)).toBe(false);
 	});
 
-	it('false for accepted slot (booked, not expired)', () => {
-		expect(isExpired(makeSlot({ accepted: true, start_time: hoursFromNow(-1, now) }), now)).toBe(false);
+	it('true for past slot even when accepted', () => {
+		expect(isExpired(makeSlot({ accepted: true, start_time: hoursFromNow(-1, now) }), now)).toBe(true);
 	});
 });
 

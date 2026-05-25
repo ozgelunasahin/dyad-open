@@ -119,13 +119,13 @@ export class SupabasePromptCommandService implements PromptCommandService {
 	async addSlots(promptId: string, authorId: string, slots: TimeSlotInput[]): Promise<void> {
 		const prompt = await this.getOwnPrompt(promptId, authorId);
 
-		// 3-slot ceiling: count existing future-valid non-accepted slots.
-		// "Expired" is derived from start_time alone — no separate stamp.
+		// 3-slot ceiling: count existing future-valid slots. Accepted slots
+		// still count — a slot can host more than one meeting, so they remain
+		// actively offered until expiry.
 		const { count } = await this.supabase
 			.from('time_slots')
 			.select('id', { count: 'exact', head: true })
 			.eq('prompt_id', promptId)
-			.eq('accepted', false)
 			.gt('start_time', new Date().toISOString());
 
 		if ((count ?? 0) + slots.length > 3) {

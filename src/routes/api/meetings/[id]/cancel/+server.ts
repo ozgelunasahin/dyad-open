@@ -4,12 +4,11 @@ import { requireIdentity } from '$lib/services/identity.js';
 import { parseJsonBody } from '$lib/server/parse-body.js';
 import { SupabaseMeetingService } from '$lib/services/meeting.js';
 import { handleServiceError } from '$lib/server/handle-service-error.js';
+import { deferEmail, notifyMeetingCancelled } from '$lib/server/notification-emails.js';
 
 /** POST /api/meetings/[id]/cancel — cancel with optional reason */
-export const POST: RequestHandler = async ({ params, request, locals }) => {
-	// Auth guard: throws 401 if not signed in. Identity itself is unused
-	// here — RLS enforces ownership on the underlying RPC call.
-	const _upactor = requireIdentity(locals);
+export const POST: RequestHandler = async ({ params, request, locals, platform }) => {
+	const upactor = requireIdentity(locals);
 
 	const [body, errorResponse] = await parseJsonBody<{ reason?: string }>(request);
 	if (errorResponse) return errorResponse;
@@ -22,7 +21,27 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 
 	const service = new SupabaseMeetingService(locals.supabase);
 	try {
+		const { data: meeting } = await locals.supabase
+			.from('meetings')
+			.select('participant_a, participant_b')
+			.eq('id', params.id)
+			.maybeSingle();
+
 		const tier = await service.cancel(params.id, body.reason);
+
+		if (meeting) {
+			const other =
+				meeting.participant_a === upactor.id ? meeting.participant_b : meeting.participant_a;
+			deferEmail(
+				platform,
+				notifyMeetingCancelled({
+					remainingParticipantUserId: other,
+					meetingId: params.id,
+					reason: body.reason ?? null
+				})
+			);
+		}
+
 		return json({ ok: true, tier });
 	} catch (err) {
 		return handleServiceError(err, '[meetings/cancel]');

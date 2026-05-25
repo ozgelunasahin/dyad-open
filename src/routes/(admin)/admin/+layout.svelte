@@ -13,6 +13,7 @@
 		<a href="/admin/scopes" class="admin-tab" class:active={$page.url.pathname.startsWith('/admin/scopes')}>{copy.admin.scopes}</a>
 		<a href="/admin/conversations" class="admin-tab" class:active={$page.url.pathname === '/admin/conversations'}>{copy.admin.conversations}</a>
 		<a href="/admin/feedback" class="admin-tab" class:active={$page.url.pathname === '/admin/feedback'}>{copy.admin.feedback}</a>
+		<a href="/admin/settings" class="admin-tab" class:active={$page.url.pathname === '/admin/settings'}>{copy.admin.settings}</a>
 	</nav>
 
 	<div class="admin-content">

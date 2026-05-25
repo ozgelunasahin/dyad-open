@@ -3,11 +3,12 @@ import type { RequestHandler } from './$types';
 import { requireIdentity } from '$lib/services/identity.js';
 import { SupabaseInvitationService } from '$lib/services/invitation.js';
 import { handleServiceError } from '$lib/server/handle-service-error.js';
+import { deferEmail, notifyInvitationDeclined } from '$lib/server/notification-emails.js';
 
 const MAX_REASON_LENGTH = 2000;
 
 /** POST /api/invitations/[id]/decline — invitee declines a pending invitation */
-export const POST: RequestHandler = async ({ params, request, locals }) => {
+export const POST: RequestHandler = async ({ params, request, locals, platform }) => {
 	const upactor = requireIdentity(locals);
 
 	let body: unknown = {};
@@ -42,6 +43,23 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		// Suppress unused-variable warning while keeping the auth call as the
 		// authoritative gate (the SQL function also enforces invitee identity).
 		void upactor;
+
+		const { data: invitation } = await locals.supabase
+			.from('prompt_invitations')
+			.select('inviter_id, prompt_id')
+			.eq('id', params.id)
+			.maybeSingle();
+		if (invitation?.inviter_id && invitation.prompt_id) {
+			deferEmail(
+				platform,
+				notifyInvitationDeclined({
+					inviterUserId: invitation.inviter_id,
+					promptId: invitation.prompt_id,
+					reason
+				})
+			);
+		}
+
 		return json({ ok: true });
 	} catch (err) {
 		return handleServiceError(err, '[invitations/decline]');

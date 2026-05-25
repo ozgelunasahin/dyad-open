@@ -441,6 +441,7 @@
 			</div>
 		{/if}
 	{/if}
+
 </div>
 
 <FloatingNav variant="profile" attentionCount={data.attentionCount} />

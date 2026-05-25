@@ -177,13 +177,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 
 	// Per-prompt active-slot derivation. A prompt is "active" when it has at
-	// least one future-valid non-accepted slot. Drives the Started vs Past
-	// (Archive) tab segregation on the profile page — no separate archived
-	// state on the prompt itself, just slot validity.
+	// least one future-valid slot. Drives the Started vs Past (Archive) tab
+	// segregation on the profile page — no separate archived state on the
+	// prompt itself, just slot validity. Slots that already have accepted
+	// meetings still count: a slot can host more than one meeting.
 	const now = Date.now();
 	const hasFutureValidSlotByPromptId: Record<string, boolean> = {};
-	for (const slot of authoredSlotsData as Array<{ prompt_id: string; start_time: string; accepted: boolean }>) {
-		if (slot.accepted) continue;
+	for (const slot of authoredSlotsData as Array<{ prompt_id: string; start_time: string }>) {
 		if (new Date(slot.start_time).getTime() <= now) continue;
 		hasFutureValidSlotByPromptId[slot.prompt_id] = true;
 	}

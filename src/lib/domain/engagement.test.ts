@@ -74,8 +74,8 @@ describe('canInvite', () => {
 		expect(canInvite(makePrompt(), makeSlot(), 'author-1')).toBe(false);
 	});
 
-	it('false for accepted slot', () => {
-		expect(canInvite(makePrompt(), makeSlot({ accepted: true }), 'user-2')).toBe(false);
+	it('true for accepted slot — slots can host multiple meetings', () => {
+		expect(canInvite(makePrompt(), makeSlot({ accepted: true }), 'user-2')).toBe(true);
 	});
 
 	it('false for expired slot', () => {
