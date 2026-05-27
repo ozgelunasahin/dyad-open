@@ -1,10 +1,17 @@
 import { json, error } from '@sveltejs/kit';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { sendEmail } from '$lib/server/email.js';
+import { addToAudience } from '$lib/server/resend-contacts.js';
 import { escapeHtml } from '$lib/utils/escape-html.js';
 import { nanoid } from 'nanoid';
 import { copy } from '$lib/copy';
 import { captureServer } from '$lib/server/posthog.js';
+import {
+	renderTiptapToEmailHtml,
+	buildInviteEmailHtml,
+	INVITE_EXPIRY_DAYS as EXPIRY_DAYS
+} from '$lib/utils/tiptap-email-html.js';
+import type { JSONContent } from '@tiptap/core';
 import type { RequestHandler } from './$types';
 
 /** Derive the app origin from the Supabase URL or fall back to production. */
@@ -13,7 +20,7 @@ const APP_ORIGIN =
 		? 'http://localhost:5173'
 		: 'https://dyad.berlin';
 
-const INVITE_EXPIRY_DAYS = 14;
+const INVITE_EXPIRY_DAYS = EXPIRY_DAYS;
 const MAX_MESSAGE_LENGTH = 2000;
 
 async function requireAdmin(locals: App.Locals) {
@@ -26,42 +33,36 @@ async function requireAdmin(locals: App.Locals) {
 }
 
 /**
- * Render the invitation email body.
+ * Build invitation email HTML.
  *
- * `opener` is the admin's own opening line — e.g. "Hey T —" or "Hi Ozge,".
- * Rendered verbatim (no "Hi " prefix). Omit entirely when empty, so the
- * email leads straight into the personal message / standard copy rather
- * than a defensive "Hi there,".
- *
- * `message` (when non-empty) is a quoted block beneath the opener — the
- * recipient reads the sender's own words first, then the standard "you've
- * been invited" framing.
- *
- * Both fields are escaped before interpolation; line breaks in the message
- * are preserved as <br> tags. Everything else is plain text.
+ * Accepts either a TipTap JSON body (new rich-text path) or the legacy
+ * opener/message strings. TipTap JSON takes precedence when provided.
  */
 function renderInviteEmail(params: {
+	body?: JSONContent | null;
 	opener?: string;
-	inviteUrl: string;
 	message?: string;
+	inviteUrl: string;
 }): string {
-	const openerBlock = params.opener ? `\n\t\t\t\t<p style="font-family: Helvetica, Arial, sans-serif; margin: 0 0 16px;">${params.opener}</p>` : '';
-	const personalBlock = params.message
-		? `
-				<blockquote style="font-family: Helvetica, Arial, sans-serif; margin: 0 0 24px; padding: 12px 16px; background: #f7f4ee; border-left: 3px solid #c8c2b6; font-style: italic; color: #3a3a3a; white-space: pre-wrap;">${escapeHtml(
-					params.message
-				).replace(/\n/g, '<br>')}</blockquote>`
-		: '';
+	let bodyHtml: string;
 
-	return `
-			<div style="font-family: Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 40px 20px; color: #1a1a1a; line-height: 1.7;">${openerBlock}${personalBlock}
-				<p style="font-family: Helvetica, Arial, sans-serif; margin: 0 0 16px;"><a href="${params.inviteUrl}" style="font-family: Helvetica, Arial, sans-serif; color: #1a1a1a; font-weight: bold; text-decoration: underline;">Join dyad</a></p>
-				<p style="font-family: Helvetica, Arial, sans-serif; font-size: 14px; color: #666; margin: 0 0 0;">This link expires in ${INVITE_EXPIRY_DAYS} days.</p>
-				<hr style="border: none; border-top: 1px solid #e0ddd8; margin: 32px 0 16px;" />
-				<a href="https://dyad.berlin" style="display: inline-block;"><img src="https://dyad.berlin/images/logo-dark.png" alt="dyad" style="height: 32px; width: auto; margin-bottom: 8px;" /></a>
-				<p style="font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: #999; margin: 0;">cultivating a culture of conversation</p>
-			</div>
-		`;
+	if (params.body) {
+		bodyHtml = renderTiptapToEmailHtml(params.body);
+	} else {
+		const openerBlock = params.opener
+			? `<p style="font-family:'SangBleu Sunrise',Georgia,serif;margin:0 0 16px;">${params.opener}</p>`
+			: '';
+		const messageBlock = params.message
+			? `<blockquote style="font-family:'SangBleu Sunrise',Georgia,serif;margin:0 0 24px;padding:12px 16px;background:#f7f4ee;border-left:3px solid #c8c2b6;font-style:italic;color:#3a3a3a;white-space:pre-wrap;">${escapeHtml(params.message).replace(/\n/g, '<br>')}</blockquote>`
+			: '';
+		bodyHtml = openerBlock + messageBlock;
+	}
+
+	return buildInviteEmailHtml({
+		bodyHtml,
+		inviteUrl: params.inviteUrl,
+		expiryDays: INVITE_EXPIRY_DAYS
+	});
 }
 
 /** Build the escaped opener line from the admin's `name` input. Undefined when blank. */
@@ -81,14 +82,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	} catch {
 		return json({ error: 'Invalid JSON body' }, { status: 400 });
 	}
-	const { email, name, message } = body;
+	const { email, name, message, body: richBody } = body;
 
 	if (!email || typeof email !== 'string') {
 		error(400, 'Email is required');
 	}
 
-	// Validate + trim the optional custom message. Admin-only surface, so a
-	// clear 400 is fine — this is a sanity guard, not a user-facing error.
+	// Validate + trim the optional legacy message field.
 	let trimmedMessage: string | undefined;
 	if (message !== undefined && message !== null && message !== '') {
 		if (typeof message !== 'string') {
@@ -100,6 +100,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 		if (candidate.length > 0) trimmedMessage = candidate;
 	}
+
+	// Rich body from TipTap JSON (new path — takes precedence over opener/message).
+	const tiptapBody =
+		richBody && typeof richBody === 'object' ? (richBody as JSONContent) : null;
 
 	// Check if this email already has an unused, non-expired invitation
 	const { data: existing } = await locals.supabase
@@ -116,12 +120,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		await sendEmail({
 			to: email.trim(),
 			subject: copy.email.inviteSubject,
-			html: renderInviteEmail({ opener: buildOpener(name), inviteUrl, message: trimmedMessage })
+			html: renderInviteEmail({ body: tiptapBody, opener: buildOpener(name), inviteUrl, message: trimmedMessage })
 		}).catch((err) => console.error('[invites] Failed to resend invite email:', err));
+		addToAudience('invited', { email: email.trim() }).catch(() => {});
 		await captureServer(locals.user!.id, 'invite_email_sent', {
 			invited_email: email.trim(),
 			resent: true,
-			has_message: !!trimmedMessage
+			has_message: !!tiptapBody || !!trimmedMessage
 		});
 		return json({ ok: true, alreadyInvited: true, inviteUrl });
 	}
@@ -162,12 +167,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	await sendEmail({
 		to: email.trim(),
 		subject: copy.email.inviteSubject,
-		html: renderInviteEmail({ opener: buildOpener(name), inviteUrl, message: trimmedMessage })
+		html: renderInviteEmail({ body: tiptapBody, opener: buildOpener(name), inviteUrl, message: trimmedMessage })
 	}).catch((err) => console.error('[invites] Failed to send invite email:', err));
+	addToAudience('invited', { email: email.trim() }).catch(() => {});
 	await captureServer(locals.user!.id, 'invite_email_sent', {
 		invited_email: email.trim(),
 		resent: false,
-		has_message: !!trimmedMessage
+		has_message: !!tiptapBody || !!trimmedMessage
 	});
 
 	return json({ ok: true, inviteUrl });

@@ -1,5 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { makeAdminClient } from '$lib/server/supabase-admin.js';
+import { addToAudience } from '$lib/server/resend-contacts.js';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -112,6 +113,8 @@ export const actions: Actions = {
 				: 'Could not create your account. Please try again.';
 			return fail(400, { username, error: friendly });
 		}
+
+		addToAudience('member', { email, firstName: username as string }).catch(() => {});
 
 		// Mark the invitation as used so it can't be reused.
 		const { error: useError } = await locals.supabase.rpc('use_invitation', { invite_token: token });

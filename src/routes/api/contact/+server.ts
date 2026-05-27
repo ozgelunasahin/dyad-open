@@ -1,5 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import { sendEmail } from '$lib/server/email.js';
+import { addToAudience } from '$lib/server/resend-contacts.js';
 import { escapeHtml } from '$lib/utils/escape-html.js';
 import { copy } from '$lib/copy';
 import type { RequestHandler } from './$types';
@@ -44,7 +45,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 		return json({ error: 'Invalid JSON body' }, { status: 400 });
 	}
 
-	const { email, name, based_in, freewrite, expression_url, referred_by_username } = body as Record<string, unknown>;
+	const { email, name, based_in, freewrite, expression_url, referred_by_username, referral_source } = body as Record<string, unknown>;
 
 	if (!email || typeof email !== 'string') {
 		error(400, 'Email is required');
@@ -93,6 +94,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 		name: (typeof name === 'string' ? name.trim() : null) || null,
 		based_in: (typeof based_in === 'string' ? based_in.trim() : null) || null,
 		freewrite: (typeof freewrite === 'string' ? freewrite.trim() : null) || null,
+		referral_source: (typeof referral_source === 'string' ? referral_source.trim() : null) || null,
 	};
 	if (typeof expression_url === 'string' && expression_url.trim()) {
 		insertRow.expression_url = expression_url.trim();
@@ -123,7 +125,10 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 		error(500, 'Failed to save contact');
 	}
 
-	const displayName = escapeHtml((typeof name === 'string' && name.trim()) || 'there');
+	const firstName = (typeof name === 'string' && name.trim()) || undefined;
+	addToAudience('waitlist', { email: email.trim(), firstName }).catch(() => {});
+
+	const displayName = escapeHtml(firstName || 'there');
 	await sendEmail({
 		to: email.trim(),
 		subject: copy.email.waitlistSubject,

@@ -3,6 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { copy } from '$lib/copy';
 	import { capture } from '$lib/analytics';
+	import CitySearch from '$lib/components/CitySearch.svelte';
 
 	interface Props {
 		mode?: 'waitlist' | 'login';
@@ -21,6 +22,8 @@
 	let name = $state('');
 	let city = $state('');
 	let email = $state('');
+	let referralSource = $state('');
+	let referralOther = $state('');
 	let newsletterConsent = $state(false);
 
 	// Login fields
@@ -62,6 +65,7 @@
 					name: name.trim() || undefined,
 					based_in: city.trim() || undefined,
 					freewrite: freewrite.trim(),
+					referral_source: referralSource === 'other' ? (referralOther.trim() || 'other') : (referralSource || undefined),
 					referred_by_username: dyadRef || undefined
 				})
 			});
@@ -169,29 +173,29 @@
 
 					<label class="field">
 						<span class="field-label">{copy.waitlist.city}</span>
-						<select bind:value={city} class="city-select">
-							<option value="">{copy.waitlist.selectCity}</option>
-							<optgroup label={copy.waitlist.activeNow}>
-								<option value="Berlin">Berlin</option>
-							</optgroup>
-							<optgroup label={copy.waitlist.comingSoon}>
-								<option value="Hamburg">Hamburg</option>
-								<option value="Munich">Munich</option>
-								<option value="Vienna">Vienna</option>
-								<option value="Amsterdam">Amsterdam</option>
-								<option value="London">London</option>
-								<option value="Paris">Paris</option>
-								<option value="Barcelona">Barcelona</option>
-								<option value="Lisbon">Lisbon</option>
-								<option value="Copenhagen">Copenhagen</option>
-								<option value="Stockholm">Stockholm</option>
-								<option value="New York">New York</option>
-								<option value="San Francisco">San Francisco</option>
-								<option value="Other">Other</option>
-							</optgroup>
-						</select>
+						<CitySearch bind:value={city} placeholder={copy.waitlist.selectCity} />
 						<p class="city-note">{copy.waitlist.cityExpansionNote}</p>
 					</label>
+
+					<div class="referral-field">
+						<span class="referral-label">{copy.waitlist.referralLabel}</span>
+						<span class="referral-note">{copy.waitlist.referralNote}</span>
+						<select bind:value={referralSource} class="referral-select">
+							<option value="" disabled selected>Select one</option>
+							{#each copy.waitlist.referralOptions as opt}
+								<option value={opt.value}>{opt.label}</option>
+							{/each}
+						</select>
+						{#if referralSource === 'other'}
+							<input
+								type="text"
+								class="referral-other"
+								placeholder="Please tell us more"
+								bind:value={referralOther}
+								maxlength={200}
+							/>
+						{/if}
+					</div>
 
 					<label class="newsletter-consent">
 						<input type="checkbox" bind:checked={newsletterConsent} />
@@ -349,6 +353,59 @@
 		color: var(--text-muted);
 		line-height: 1.5;
 	}
+
+	.referral-field {
+		background: color-mix(in srgb, var(--color-accent, #c8c2b6) 8%, transparent);
+		border: 1px solid color-mix(in srgb, var(--color-accent, #c8c2b6) 30%, transparent);
+		border-radius: var(--radius-input);
+		padding: var(--space-3) var(--space-4);
+		margin-bottom: var(--space-4);
+	}
+
+	.referral-label {
+		display: block;
+		font-size: var(--text-sm);
+		color: var(--text-primary);
+		font-weight: 500;
+		margin-bottom: var(--space-1);
+	}
+
+	.referral-note {
+		display: block;
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+		margin-bottom: var(--space-3);
+		line-height: 1.5;
+	}
+
+	.referral-select {
+		width: 100%;
+		font-size: var(--text-base);
+		padding: var(--space-2) var(--space-3);
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-input);
+		background: var(--bg-canvas);
+		color: var(--text-primary);
+		box-sizing: border-box;
+		cursor: pointer;
+	}
+
+	.referral-select:focus { outline: none; border-color: var(--text-muted); }
+
+	.referral-other {
+		width: 100%;
+		margin-top: var(--space-2);
+		padding: var(--space-2) var(--space-3);
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-input);
+		font-size: var(--text-sm);
+		font-family: inherit;
+		background: var(--bg-canvas);
+		color: var(--text-primary);
+		box-sizing: border-box;
+	}
+
+	.referral-other:focus { outline: none; border-color: var(--text-muted); }
 
 	.newsletter-consent {
 		display: flex;
