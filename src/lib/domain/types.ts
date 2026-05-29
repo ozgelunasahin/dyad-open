@@ -196,9 +196,31 @@ export interface RevealedFeedback {
 	locked_at: string;
 }
 
+// Group feedback (R5 / U11): one group-level form per participant per group
+// gathering (a slot with >= 2 active meetings). Distinct from the per-pair
+// FeedbackForm used by one-on-one meetings.
+
+export type GroupFeedbackState = 'due' | 'submitted';
+
+export interface GroupFeedback {
+	id: string;
+	prompt_id: string;
+	slot_id: string;
+	reviewer_id: string;
+	meet_again: boolean | null;
+	comment: string | null;
+	personal_feedback: string | null;
+	state: GroupFeedbackState;
+	submitted_at: string | null;
+	created_at: string;
+}
+
 export interface GateStatus {
 	gated: boolean;
 	feedbackFormId: string | null;
+	// Set when the gate is a group feedback form rather than a one-on-one
+	// feedback_forms row. Mutually exclusive with feedbackFormId in practice.
+	groupFeedbackFormId?: string | null;
 }
 
 export interface ReputationSignal {

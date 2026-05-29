@@ -144,6 +144,21 @@ export const handle: Handle = async ({ event, resolve }) => {
 				}
 				// Store in locals so the layout renders the feedback modal instead of redirecting
 				(event.locals as any).pendingFeedbackFormId = gateStatus.feedbackFormId;
+			} else if (gateStatus.gated && gateStatus.groupFeedbackFormId) {
+				// Group feedback (R5/U11): one simple group-level form per gathering.
+				// Routed to a dedicated /feedback/group/[id] page (which is gate-exempt
+				// under the /feedback prefix). Unlike the one-on-one modal path, this
+				// redirects — the group form is a standalone page with no reveal state.
+				if (pathname.startsWith('/api/')) {
+					return new Response(JSON.stringify({ error: 'gated', groupFeedbackFormId: gateStatus.groupFeedbackFormId }), {
+						status: 403,
+						headers: { 'Content-Type': 'application/json' }
+					});
+				}
+				return new Response(null, {
+					status: 302,
+					headers: { Location: `/feedback/group/${gateStatus.groupFeedbackFormId}` }
+				});
 			}
 		}
 	}

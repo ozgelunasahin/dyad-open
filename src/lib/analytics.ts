@@ -33,7 +33,8 @@ export type EventName =
 	| 'invitation_accepted'
 	| 'invitation_declined'
 	| 'meeting_cancelled'
-	| 'feedback_submitted';
+	| 'feedback_submitted'
+	| 'group_feedback_submitted';
 
 export type AnalyticsProps = Record<string, string | number | boolean>;
 

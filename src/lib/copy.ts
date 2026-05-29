@@ -306,6 +306,25 @@ export const copy = {
 		revealIntroFallback: "Here's what they shared with you:",
 	},
 
+	// ── Group feedback ───────────────────────────────────────────────────
+	groupFeedback: {
+		_routes: ['/feedback/group/[id]'],
+		_description: 'Post-gathering feedback for group conversations. One simple form per participant per gathering. Gated — blocks all app access until submitted.',
+		title: 'How was the conversation?',
+		meetAgainQuestion: 'Would you have a conversation with these people again?',
+		yes: 'Yes',
+		no: 'No',
+		commentLabel: 'Anything you want to add?',
+		commentPlaceholder: 'Optional',
+		personalFeedbackLabel: 'Any personal feedback you\'d like to give?',
+		personalFeedbackPlaceholder: 'Optional',
+		submit: 'Submit feedback',
+		submitting: 'Submitting...',
+		thankYou: 'Thank you',
+		submitted: 'Your feedback has been submitted.',
+		continueToDiscover: 'Continue to discover',
+	},
+
 	// ── Waitlist ───────────────────────────────────────────────────────
 	waitlist: {
 		_routes: ['/waitlist', '/ (AuthDialog)'],
