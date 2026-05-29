@@ -283,6 +283,18 @@ export const copy = {
 		// .ics calendar event metadata
 		calendarTitlePrefix: 'dyad: ',
 		calendarFallbackTitle: (username: string) => `Meeting with @${username}`,
+		// Interim safety floor: a gathering participant flags a problem to moderators.
+		reportProblem: 'Report a problem',
+		reportTitle: 'Report a problem',
+		reportBody: 'If something felt unsafe or off about this gathering, tell us. A moderator will read it.',
+		reportLabel: 'What happened?',
+		reportPlaceholder: 'A few sentences. Be honest — it helps us look into it.',
+		reportSubmit: 'Send report',
+		reportSubmitting: 'Sending...',
+		reportCancel: 'Cancel',
+		reportThankYou: 'Thanks — a moderator will look into this.',
+		reportMinLength: 'Please write at least 10 characters',
+		reportGenericError: 'Couldn’t send the report. Please try again.',
 	},
 
 	// ── Feedback ───────────────────────────────────────────────────────
