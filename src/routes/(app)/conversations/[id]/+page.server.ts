@@ -13,11 +13,17 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const commentService = new SupabaseCommentService(locals.supabase);
 	const invitationService = new SupabaseInvitationService(locals.supabase);
 
-	const [detail, comments, myComment, myInvitations] = await Promise.all([
+	// Per-slot occupancy (confirmed joiners) for the "+N others joining" marker
+	// and full-slot derivation. Non-authors cannot read `meetings` under RLS, so
+	// this comes via the viewer-safe SECURITY DEFINER RPC — count-only, no
+	// usernames/UUIDs/location. Keyed slotId → active-meeting count. Never an
+	// ordering signal. Independent of `detail`, so fetched in the same batch.
+	const [detail, comments, myComment, myInvitations, occupancyRes] = await Promise.all([
 		promptService.getPromptDetail(params.id, userId),
 		commentService.getCommentsForPrompt(params.id),
 		commentService.getMyComment(params.id, userId),
-		invitationService.getPendingForPrompt(params.id, userId)
+		invitationService.getPendingForPrompt(params.id, userId),
+		locals.supabase.rpc('get_prompt_slot_occupancy', { p_prompt_id: params.id })
 	]);
 
 	if (!detail) {
@@ -25,6 +31,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	}
 
 	const isAuthor = detail.author_id === userId;
+
+	const slotOccupancy: Record<string, number> = {};
+	for (const row of (occupancyRes.data ?? []) as Array<{ slot_id: string; occupied: number }>) {
+		slotOccupancy[row.slot_id] = row.occupied;
+	}
 
 	// Slots the current user already has a pending invitation for
 	const invitedSlotIds = new Set(myInvitations.map(inv => inv.slot_id));
@@ -297,6 +308,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		myMeeting,
 		myCancellation,
 		participants,
+		slotOccupancy,
 		user: { id: userId }
 	};
 };

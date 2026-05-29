@@ -1,11 +1,7 @@
 <script lang="ts">
-	export type ConversationMode = 'comfort' | 'stretch' | 'sparring';
-
 	export interface Participant {
 		id: string;
 		firstName: string;
-		conversationMode?: ConversationMode;
-		intention?: string | null;
 	}
 
 	interface Props {
@@ -57,16 +53,6 @@
 		return AVATAR_PALETTE[Math.abs(h) % AVATAR_PALETTE.length];
 	}
 
-	const MODE_RING: Record<ConversationMode, string> = {
-		comfort: '#7a9e7e',  // muted green
-		stretch: '#c9923a',  // amber
-		sparring: '#5e6b9e', // indigo
-	};
-
-	function ringColor(mode?: ConversationMode): string | null {
-		return mode ? MODE_RING[mode] : null;
-	}
-
 	function initials(firstName: string): string {
 		return firstName[0]?.toUpperCase() ?? '?';
 	}
@@ -99,7 +85,6 @@
 				role="listitem"
 				style="
 					--avatar-bg: {avatarBg(p.id)};
-					--ring-color: {ringColor(p.conversationMode) ?? 'transparent'};
 					--stagger: {i * 60}ms;
 					z-index: {MAX_SHOWN - i};
 				"
@@ -117,9 +102,6 @@
 				{#if openId === p.id}
 					<div class="participant-card" role="tooltip">
 						<p class="card-name">{p.firstName}</p>
-						{#if p.intention}
-							<p class="card-intention">"{p.intention}"</p>
-						{/if}
 					</div>
 				{/if}
 			</div>
@@ -193,7 +175,7 @@
 		height: 36px;
 		border-radius: 50%;
 		background: var(--avatar-bg);
-		border: 2px solid var(--ring-color, transparent);
+		border: 2px solid transparent;
 		outline: 2px solid var(--bg-canvas);
 		outline-offset: 0;
 		cursor: pointer;
@@ -279,14 +261,6 @@
 		font-size: var(--text-sm);
 		font-weight: 500;
 		color: var(--text-primary);
-		margin: 0 0 var(--space-1);
-	}
-
-	.card-intention {
-		font-size: var(--text-xs);
-		color: var(--text-muted);
-		line-height: var(--leading-relaxed);
-		font-style: italic;
 		margin: 0;
 	}
 

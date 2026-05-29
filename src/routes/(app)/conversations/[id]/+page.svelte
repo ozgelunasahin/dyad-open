@@ -11,7 +11,34 @@
 	import { copy } from '$lib/copy';
 	import ParticipantsStack from '$lib/components/ParticipantsStack.svelte';
 
+	import { isSlotFull } from '$lib/domain/time-slot.js';
+
 	let { data }: { data: PageData } = $props();
+
+	// Conversation size label shown near the times. capacity is the per-slot
+	// joiner cap: 1 = one-on-one, ≥2 = small group (up to N others), null = no
+	// label (legacy unlimited).
+	let sizeLabel = $derived.by(() => {
+		const cap = data.prompt.capacity;
+		if (cap === null || cap === undefined) return null;
+		if (cap === 1) return copy.conversation.sizeOneOnOne;
+		return copy.conversation.sizeGroup(cap);
+	});
+
+	// Per-slot occupancy (confirmed joiners), from the viewer-safe RPC.
+	function occupiedOn(slotId: string): number {
+		return data.slotOccupancy?.[slotId] ?? 0;
+	}
+	// Capacity-aware fullness for a slot.
+	function slotIsFull(slotId: string): boolean {
+		return isSlotFull(occupiedOn(slotId), data.prompt.capacity);
+	}
+	// "+N others joining" marker count. The current viewer's own confirmed
+	// meeting (if any) is reflected in occupancy; responders inviting to a slot
+	// they have not yet joined see the raw confirmed count as "others".
+	function othersOn(slotId: string): number {
+		return occupiedOn(slotId);
+	}
 
 	// svelte-ignore state_referenced_locally — intentional initial-value capture for editable field
 	let responseText = $state(data.myComment?.body ?? '');
@@ -309,6 +336,10 @@
 		{/if}
 	</div>
 
+	{#if sizeLabel}
+		<p class="size-label">{sizeLabel}</p>
+	{/if}
+
 	{#if data.participants && data.participants.length > 0}
 		<ParticipantsStack participants={data.participants} />
 	{/if}
@@ -342,6 +373,9 @@
 						area={slot.general_area}
 						exactLocation={slot.exact_location ?? null}
 						invited={slot.accepted}
+						occupied={occupiedOn(slot.id)}
+						capacity={data.prompt.capacity}
+						othersJoining={othersOn(slot.id)}
 					/>
 				{/each}
 			</section>
@@ -439,7 +473,10 @@
 							vague={!hasResponse}
 							selected={selectedSlotId === slot.id}
 							invited={invitedSlotIds.has(slot.id)}
-							onclick={hasResponse ? () => { selectedSlotId = selectedSlotId === slot.id ? null : slot.id; } : undefined}
+							occupied={occupiedOn(slot.id)}
+							capacity={data.prompt.capacity}
+							othersJoining={othersOn(slot.id)}
+							onclick={hasResponse && !slotIsFull(slot.id) ? () => { selectedSlotId = selectedSlotId === slot.id ? null : slot.id; } : undefined}
 						/>
 					{/each}
 
@@ -628,6 +665,15 @@
 
 	.title { font-size: var(--text-3xl); font-weight: normal; margin: 0 0 var(--space-2); line-height: var(--leading-tight); }
 	.meta { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin: 0 0 var(--space-8); }
+	/* Conversation size (one-on-one / small group) — quiet coordination label. */
+	.size-label {
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--text-muted);
+		margin: 0 0 var(--space-6);
+	}
 	.meta-author { color: var(--text-muted); text-decoration: none; }
 	.meta-author:hover { color: var(--text-primary); }
 	.body { font-size: var(--text-md); line-height: var(--leading-relaxed); margin-bottom: var(--space-10); }

@@ -14,8 +14,10 @@ export interface InvitationService {
 
 	cancel(invitationId: string, inviterId: string): Promise<void>;
 
-	/** Accept an invitation. Returns meeting ID on success, null if slot already booked. Authorization via auth.uid(). */
-	accept(invitationId: string): Promise<string | null>;
+	/** Accept an invitation. Returns the meeting ID on success. Throws a
+	 *  DomainError when the slot is full / over capacity / no longer available
+	 *  (the RPC returns NULL in those cases). Authorization via app.current_user_id(). */
+	accept(invitationId: string): Promise<string>;
 
 	/** Decline a pending invitation with an optional reason. Authorization via auth.uid() (must be invitee). */
 	decline(invitationId: string, reason?: string): Promise<void>;
@@ -78,13 +80,22 @@ export class SupabaseInvitationService implements InvitationService {
 		}
 	}
 
-	async accept(invitationId: string): Promise<string | null> {
+	async accept(invitationId: string): Promise<string> {
 		const { data, error } = await this.supabase.rpc('accept_invitation', {
 			p_invitation_id: invitationId
 		});
 
 		if (error) throw new Error(`Failed to accept invitation: ${error.message}`);
-		return (data as string) ?? null;
+		// The RPC returns NULL when the slot is full / over capacity, the slot
+		// has expired, or the inviter already has a meeting on it. Surface a
+		// clear reason rather than a silent no-op so the author sees why their
+		// accept did not produce a meeting. Message matches
+		// copy.conversation.conversationFull.
+		const meetingId = data as string | null;
+		if (!meetingId) {
+			throw new DomainError('This conversation is full or no longer available.', 409);
+		}
+		return meetingId;
 	}
 
 	async decline(invitationId: string, reason?: string): Promise<void> {

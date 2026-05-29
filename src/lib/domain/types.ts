@@ -80,6 +80,11 @@ export interface PromptSummary {
 	region: string;
 	audience_scope: string | null;
 	audience_scope_name: string | null;
+	// Max joiners per slot (mirrors Prompt.capacity). null = legacy unlimited;
+	// 1 = one-on-one; 2-7 = small group (up to 8 total incl. author). Optional
+	// because not every summary surface populates it (anon landing teaser leaves
+	// it undefined); detail and the authenticated feed always set it.
+	capacity?: number | null;
 }
 
 export interface PromptDetail extends PromptSummary {

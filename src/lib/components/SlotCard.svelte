@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { formatHybridDate, formatSlotTimeRange } from '$lib/utils/dates.js';
+	import { isSlotFull } from '$lib/domain/time-slot.js';
+	import { copy } from '$lib/copy.js';
 
 	interface Props {
 		startTime: string;
@@ -11,12 +13,24 @@
 		exactLocation?: { name: string; address: string; lat?: number; lng?: number } | null;
 		past?: boolean;
 		vague?: boolean;
+		// Capacity-aware fullness + "who's joining" marker. `occupied` is the
+		// count of confirmed joiners on this slot (from the viewer-safe occupancy
+		// RPC); `capacity` is the prompt's per-slot joiner cap (null = unlimited).
+		// `othersJoining` is the low-resolution marker count, already adjusted to
+		// exclude the viewer where applicable.
+		occupied?: number;
+		capacity?: number | null;
+		othersJoining?: number;
 		onclick?: () => void;
 	}
 
-	let { startTime, durationMinutes, area, selected = false, invited = false, invitedNote, exactLocation, past = false, vague = false, onclick }: Props = $props();
+	let { startTime, durationMinutes, area, selected = false, invited = false, invitedNote, exactLocation, past = false, vague = false, occupied = 0, capacity = null, othersJoining = 0, onclick }: Props = $props();
 
-	let interactive = $derived(!!onclick && !invited && !vague);
+	let full = $derived(isSlotFull(occupied, capacity));
+	// A full slot is not invitable — drop interactivity even if an onclick was
+	// passed (the parent disables/ignores it, this is the rendering safety net).
+	let interactive = $derived(!!onclick && !invited && !vague && !full);
+	let showOthers = $derived(othersJoining > 0);
 
 	/** formatHybridDate returns "Today", "Tomorrow", "Friday", or "28 Mar".
 	 *  For weekday-only results (2–6 days out), append the day number. */
@@ -56,15 +70,21 @@
 			<span class="slot-date">{formatSlotDateFull(startTime)} · {formatSlotTimeRange(startTime, durationMinutes)}</span>
 			<span class="slot-details">{area}</span>
 		</div>
+		{#if showOthers}
+			<p class="slot-others">{copy.conversation.othersJoining(othersJoining)}</p>
+		{/if}
 	</button>
 {:else}
-	<div class="slot-card" class:selected class:invited class:past>
+	<div class="slot-card" class:selected class:invited class:past class:full>
 		<div class="slot-row">
 			<span class="slot-date">{formatSlotDateFull(startTime)} · {formatSlotTimeRange(startTime, durationMinutes)}</span>
 			<span class="slot-details">
-				{area}{#if invitedNote}<span class="slot-status">{invitedNote}</span>{/if}
+				{area}{#if full}<span class="slot-status">{copy.conversation.slotFull}</span>{:else if invitedNote}<span class="slot-status">{invitedNote}</span>{/if}
 			</span>
 		</div>
+		{#if showOthers}
+			<p class="slot-others">{copy.conversation.othersJoining(othersJoining)}</p>
+		{/if}
 		{#if exactLocation}
 			{#if exactLocation.lat}
 				<a class="slot-location" href="https://www.openstreetmap.org/?mlat={exactLocation.lat}&mlon={exactLocation.lng}&zoom=17" target="_blank" rel="noopener">
@@ -114,6 +134,20 @@
 
 	.slot-card.past {
 		opacity: var(--opacity-disabled);
+	}
+
+	/* Full slot: not invitable. Dimmed like past/invited, no pointer affordance. */
+	.slot-card.full {
+		opacity: var(--opacity-disabled);
+	}
+
+	/* Low-resolution "+N others joining" marker — quiet, beneath the time row. */
+	.slot-others {
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+		letter-spacing: 0.01em;
+		margin: var(--space-2) 0 0;
 	}
 
 	.slot-card.vague {

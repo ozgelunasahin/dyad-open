@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { JSONContent } from '@tiptap/core';
 import type { Prompt, PromptDetail, PromptSummary, TimeSlot } from '$lib/domain/types.js';
-import { isAvailable } from '$lib/domain/time-slot.js';
+import { isAvailable, isSlotFull } from '$lib/domain/time-slot.js';
 import { buildUsernameMap, buildProfileMap } from '$lib/server/username-lookup.js';
 import { jsonToPlainText } from '$lib/utils/json-content.js';
 import { renderBodyHtmlOrFallback } from '$lib/utils/render-body.js';
@@ -78,6 +78,36 @@ export interface PromptQueryService {
 export class SupabasePromptQueryService implements PromptQueryService {
 	constructor(private supabase: SupabaseClient) {}
 
+	/**
+	 * Per-slot occupancy for a set of prompts, keyed promptId → (slotId →
+	 * occupied count). Sourced from the viewer-safe SECURITY DEFINER RPC
+	 * `get_prompt_slot_occupancy` — non-authors cannot read `meetings` under
+	 * RLS, so this is the only path to a seat count. The RPC re-implements the
+	 * auth + published/hidden + audience-scope checks and returns count-only
+	 * rows (no usernames/UUIDs/location). One round trip per prompt, run in
+	 * parallel. Unauthorized/empty prompts return no rows (treated as 0).
+	 */
+	private async loadOccupancyByPrompt(
+		promptIds: string[]
+	): Promise<Map<string, Map<string, number>>> {
+		const out = new Map<string, Map<string, number>>();
+		if (promptIds.length === 0) return out;
+		const results = await Promise.all(
+			promptIds.map(async (id) => {
+				const { data } = await this.supabase.rpc('get_prompt_slot_occupancy', {
+					p_prompt_id: id
+				});
+				return { id, rows: (data ?? []) as Array<{ slot_id: string; occupied: number }> };
+			})
+		);
+		for (const { id, rows } of results) {
+			const slotMap = new Map<string, number>();
+			for (const r of rows) slotMap.set(r.slot_id, r.occupied);
+			out.set(id, slotMap);
+		}
+		return out;
+	}
+
 	async getPublishedPrompts(params: {
 		region: string;
 		userId: string;
@@ -94,7 +124,7 @@ export class SupabasePromptQueryService implements PromptQueryService {
 		// 20260506130000 (hidden_at) and 20260508180100 (audience_scope).
 		let query = this.supabase
 			.from('prompts')
-			.select('id, author_id, title, body, cover_image_url, published_at, region, audience_scope')
+			.select('id, author_id, title, body, cover_image_url, published_at, region, audience_scope, capacity')
 			.eq('state', 'published')
 			.is('hidden_at', null)
 			.eq('region', params.region);
@@ -121,20 +151,28 @@ export class SupabasePromptQueryService implements PromptQueryService {
 			.order('start_time', { ascending: true });
 
 		const authorIds = prompts.map((p) => p.author_id);
-		const [profileMap, scopeNames] = await Promise.all([
+		const [profileMap, scopeNames, occupancyByPrompt] = await Promise.all([
 			buildProfileMap(this.supabase, authorIds),
-			loadScopeNames(this.supabase, params.scopes)
+			loadScopeNames(this.supabase, params.scopes),
+			// Per-slot occupancy for full-slot derivation. Used only to drop dead
+			// (full) slots, exactly like the timing filter below — NEVER an
+			// ordering signal. Occupancy is invisible to non-authors under RLS,
+			// so it comes via the viewer-safe SECURITY DEFINER RPC.
+			this.loadOccupancyByPrompt(promptIds)
 		]);
+		const capacityByPrompt = new Map(prompts.map((p) => [p.id, p.capacity ?? null]));
 
-		// Filter to only available slots and group by prompt
+		// Filter to only available slots (timing) that are not full (capacity)
+		// and group by prompt.
 		const now = new Date();
 		const slotsByPrompt = new Map<string, TimeSlot[]>();
 		for (const slot of allSlots ?? []) {
-			if (isAvailable(slot as TimeSlot, now)) {
-				const existing = slotsByPrompt.get(slot.prompt_id) ?? [];
-				existing.push(slot as TimeSlot);
-				slotsByPrompt.set(slot.prompt_id, existing);
-			}
+			if (!isAvailable(slot as TimeSlot, now)) continue;
+			const occupied = occupancyByPrompt.get(slot.prompt_id)?.get(slot.id) ?? 0;
+			if (isSlotFull(occupied, capacityByPrompt.get(slot.prompt_id))) continue;
+			const existing = slotsByPrompt.get(slot.prompt_id) ?? [];
+			existing.push(slot as TimeSlot);
+			slotsByPrompt.set(slot.prompt_id, existing);
 		}
 
 		// Build summaries, filtering out prompts with no available slots
@@ -157,7 +195,8 @@ export class SupabasePromptQueryService implements PromptQueryService {
 				published_at: p.published_at,
 				region: p.region,
 				audience_scope: p.audience_scope ?? null,
-				audience_scope_name: p.audience_scope ? scopeNames.get(p.audience_scope) ?? null : null
+				audience_scope_name: p.audience_scope ? scopeNames.get(p.audience_scope) ?? null : null,
+				capacity: p.capacity ?? null
 			});
 		}
 
@@ -231,7 +270,10 @@ export class SupabasePromptQueryService implements PromptQueryService {
 				// Anon path filters audience_scope IS NULL above; this is always
 				// commons. Set explicitly so the type stays exhaustive.
 				audience_scope: null,
-				audience_scope_name: null
+				audience_scope_name: null,
+				// Anon landing teaser does not surface mode/size, and the
+				// occupancy RPC is authenticated-only. Leave capacity unset.
+				capacity: null
 			});
 		}
 
@@ -315,7 +357,8 @@ export class SupabasePromptQueryService implements PromptQueryService {
 			published_at: prompt.published_at,
 			region: prompt.region,
 			audience_scope: prompt.audience_scope ?? null,
-			audience_scope_name: audienceScopeName
+			audience_scope_name: audienceScopeName,
+			capacity: prompt.capacity ?? null
 		};
 	}
 
