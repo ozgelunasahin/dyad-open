@@ -9,6 +9,7 @@
 	import type { SubmitSlot } from '$lib/domain/types';
 	import { capture } from '$lib/analytics';
 	import { copy } from '$lib/copy';
+	import ParticipantsStack from '$lib/components/ParticipantsStack.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -307,6 +308,10 @@
 			{@html data.prompt.body_html}
 		{/if}
 	</div>
+
+	{#if data.participants && data.participants.length > 0}
+		<ParticipantsStack participants={data.participants} />
+	{/if}
 
 	{#if isOwnPrompt && data.prompt.state === 'published'}
 		<ConfirmDialog

@@ -133,6 +133,8 @@ export const copy = {
 		meetingCancelledByYou: (date: string) => `You cancelled this meeting on ${date}`,
 		cancellationNoteLabel: 'Their note',
 		reinviteHeading: (username: string) => `@${username} cancelled. You can invite them to a new time.`,
+		participantsHeading: (n: number) => n === 1 ? '1 joining the conversation' : `${n} joining the conversation`,
+		participantsNone: '',
 	},
 
 	// ── Editor ─────────────────────────────────────────────────────────
