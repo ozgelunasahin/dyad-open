@@ -15,7 +15,7 @@
 
 	interface Props {
 		onClose: () => void;
-		onPublish?: (slots: SubmitSlot[], audienceScope: string | null) => void;
+		onPublish?: (slots: SubmitSlot[], audienceScope: string | null, capacity: number) => void;
 		onSave?: (slots: SubmitSlot[]) => void;
 		initialSlots?: InitialSlot[];
 		availableScopes?: Array<{ scope: string; name: string }>;
@@ -46,6 +46,13 @@
 
 	// Empty string means commons (mapped to audience_scope=NULL upstream).
 	let audienceScope = $state<string>('');
+
+	// Conversation size. One-on-one (capacity 1) or a small group, where the
+	// author sets the max number of *others* (1-7 → up to 8 people total incl.
+	// the author). Set at publish; immutable afterwards.
+	let conversationSize = $state<'one' | 'group'>('one');
+	let maxOthers = $state(7);
+	const capacity = $derived(conversationSize === 'one' ? 1 : maxOthers);
 
 	const regionLabel = region.charAt(0).toUpperCase() + region.slice(1);
 
@@ -256,7 +263,7 @@
 	}
 
 	function handlePublish() {
-		onPublish?.(collectSlots(), audienceScope || null);
+		onPublish?.(collectSlots(), audienceScope || null, capacity);
 	}
 
 	function handleSave() {
@@ -443,6 +450,47 @@
 
 		{#if error}
 			<p class="publish-error">{error}</p>
+		{/if}
+
+		{#if onPublish}
+			<div class="size-picker">
+				<span class="size-label">{copy.editor.sizeLabel}</span>
+				<div class="size-options">
+					<button
+						type="button"
+						class="size-option"
+						class:selected={conversationSize === 'one'}
+						aria-pressed={conversationSize === 'one'}
+						onclick={() => (conversationSize = 'one')}
+						disabled={publishing || saving}
+					>{copy.editor.sizeOneOnOne}</button>
+					<button
+						type="button"
+						class="size-option"
+						class:selected={conversationSize === 'group'}
+						aria-pressed={conversationSize === 'group'}
+						onclick={() => (conversationSize = 'group')}
+						disabled={publishing || saving}
+					>{copy.editor.sizeGroup}</button>
+				</div>
+				{#if conversationSize === 'group'}
+					<div class="size-max">
+						<button
+							type="button"
+							class="size-step"
+							aria-label={copy.editor.sizeFewer}
+							onclick={() => (maxOthers = Math.max(1, maxOthers - 1))}
+							disabled={publishing || saving || maxOthers <= 1}>&minus;</button>
+						<span class="size-max-label">{copy.editor.sizeMaxOthers.replace('{n}', String(maxOthers))}</span>
+						<button
+							type="button"
+							class="size-step"
+							aria-label={copy.editor.sizeMore}
+							onclick={() => (maxOthers = Math.min(7, maxOthers + 1))}
+							disabled={publishing || saving || maxOthers >= 7}>+</button>
+					</div>
+				{/if}
+			</div>
 		{/if}
 
 		{#if onPublish && availableScopes.length > 0}
@@ -656,6 +704,67 @@
 		font-size: var(--text-sm);
 		color: var(--color-danger);
 		margin: var(--space-2) 0;
+	}
+
+	.size-picker {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+		margin: var(--space-4) 0 0;
+	}
+	.size-label {
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+	}
+	.size-options {
+		display: flex;
+		gap: var(--space-2);
+	}
+	.size-option {
+		flex: 1;
+		padding: var(--space-2) var(--space-3);
+		font-family: inherit;
+		font-size: var(--text-sm);
+		color: var(--text-primary);
+		background: transparent;
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-input);
+		cursor: pointer;
+		transition: background 0.15s, border-color 0.15s;
+	}
+	.size-option.selected {
+		background: var(--bg-control);
+		border-color: var(--text-primary);
+	}
+	.size-option:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+	.size-max {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+	}
+	.size-step {
+		width: 32px;
+		height: 32px;
+		font-size: var(--text-md);
+		line-height: 1;
+		color: var(--text-primary);
+		background: transparent;
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-input);
+		cursor: pointer;
+	}
+	.size-step:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+	.size-max-label {
+		font-size: var(--text-sm);
+		color: var(--text-primary);
+		min-width: 96px;
+		text-align: center;
 	}
 
 	.audience-picker {

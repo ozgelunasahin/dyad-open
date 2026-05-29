@@ -180,6 +180,12 @@ export const copy = {
 		audiencePostingTo: 'Posting to',
 		audienceCommons: '{region} (everyone)',
 		audienceCorner: 'Within the {name} corner',
+		sizeLabel: 'Who you’d like to meet',
+		sizeOneOnOne: 'One-on-one',
+		sizeGroup: 'A small group',
+		sizeMaxOthers: 'up to {n} others',
+		sizeFewer: 'Fewer people',
+		sizeMore: 'More people',
 	},
 
 	// ── Profile ────────────────────────────────────────────────────────
