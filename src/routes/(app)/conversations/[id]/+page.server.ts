@@ -196,6 +196,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	// For non-authors: check if they have a confirmed meeting for this prompt
 	let myMeeting: {
 		id: string;
+		slot_id: string;
 		scheduled_time: string;
 		duration_minutes: number;
 		general_area: string;
@@ -212,10 +213,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	} | null = null;
 
 	if (!isAuthor) {
-		// Step 1: find the meeting ID (RLS restricts to participant rows)
+		// Step 1: find the meeting ID + slot (RLS restricts to participant rows).
+		// slot_id is carried through so the "+N others joining" marker can
+		// exclude the viewer's own seat on that slot.
 		const { data: meetingRow } = await locals.supabase
 			.from('meetings')
-			.select('id')
+			.select('id, slot_id')
 			.eq('prompt_id', params.id)
 			.or(`participant_a.eq.${userId},participant_b.eq.${userId}`)
 			.in('state', ['scheduled', 'awaiting_feedback', 'completed'])
@@ -230,6 +233,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			if (meetingData) {
 				myMeeting = {
 					id: meetingData.id,
+					slot_id: meetingRow.slot_id,
 					scheduled_time: meetingData.scheduled_time,
 					duration_minutes: meetingData.duration_minutes,
 					general_area: meetingData.general_area ?? '',

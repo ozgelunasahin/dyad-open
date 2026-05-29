@@ -2,7 +2,8 @@
 -- meetings) allowed on any one time slot of the conversation.
 --
 --   NULL  = grandfathered "unlimited" — legacy rows published before this
---           shipped. New publishes must set a value (enforced in publish_prompt).
+--           shipped. New publishes must set a value (enforced in the app layer,
+--           PromptCommandService.publish — not in publish_prompt).
 --   1     = one-on-one (a single accepted meeting per slot).
 --   2..7  = small group (up to 8 people total including the author).
 --

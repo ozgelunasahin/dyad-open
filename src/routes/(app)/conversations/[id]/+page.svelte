@@ -33,11 +33,14 @@
 	function slotIsFull(slotId: string): boolean {
 		return isSlotFull(occupiedOn(slotId), data.prompt.capacity);
 	}
-	// "+N others joining" marker count. The current viewer's own confirmed
-	// meeting (if any) is reflected in occupancy; responders inviting to a slot
-	// they have not yet joined see the raw confirmed count as "others".
+	// "+N others joining" marker count. Occupancy counts every confirmed joiner
+	// on the slot, INCLUDING the viewer when they hold a seat. The marker is
+	// about OTHERS, so subtract the viewer's own seat on the slot they joined.
+	// A responder inviting to a slot they have not joined sees the raw count.
 	function othersOn(slotId: string): number {
-		return occupiedOn(slotId);
+		const occupied = occupiedOn(slotId);
+		const viewerHasSeatHere = data.myMeeting?.slot_id === slotId;
+		return viewerHasSeatHere ? Math.max(0, occupied - 1) : occupied;
 	}
 
 	// svelte-ignore state_referenced_locally — intentional initial-value capture for editable field

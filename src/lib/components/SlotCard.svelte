@@ -15,9 +15,10 @@
 		vague?: boolean;
 		// Capacity-aware fullness + "who's joining" marker. `occupied` is the
 		// count of confirmed joiners on this slot (from the viewer-safe occupancy
-		// RPC); `capacity` is the prompt's per-slot joiner cap (null = unlimited).
-		// `othersJoining` is the low-resolution marker count, already adjusted to
-		// exclude the viewer where applicable.
+		// RPC), used for the full/capacity derivation; `capacity` is the prompt's
+		// per-slot joiner cap (null = unlimited). `othersJoining` is the
+		// low-resolution marker count and EXCLUDES the viewer's own seat when they
+		// hold one on this slot (the parent subtracts it), so it counts OTHERS only.
 		occupied?: number;
 		capacity?: number | null;
 		othersJoining?: number;

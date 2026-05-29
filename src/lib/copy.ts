@@ -141,6 +141,10 @@ export const copy = {
 		// Surfaced to the author when accepting a joiner fails because the slot
 		// is at capacity (or the invitation is otherwise no longer acceptable).
 		conversationFull: 'This conversation is full or no longer available.',
+		// Surfaced to a responder at invite time when the chosen slot is already
+		// at capacity (best-effort guard; accept-time enforcement is the source
+		// of truth and a TOCTOU fill between invite and accept is fine).
+		timeFull: 'This time is full.',
 		// Low-resolution "+N others joining" marker on a slot (excludes the viewer).
 		othersJoining: (n: number) => `+${n} other${n === 1 ? '' : 's'} joining`,
 		slotFull: 'Full',
@@ -293,7 +297,6 @@ export const copy = {
 		reportSubmitting: 'Sending...',
 		reportCancel: 'Cancel',
 		reportThankYou: 'Thanks — a moderator will look into this.',
-		reportMinLength: 'Please write at least 10 characters',
 		reportGenericError: 'Couldn’t send the report. Please try again.',
 	},
 
