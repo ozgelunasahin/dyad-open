@@ -152,8 +152,6 @@ export const copy = {
 		meetingCancelledByYou: (date: string) => `You cancelled this meeting on ${date}`,
 		cancellationNoteLabel: 'Their note',
 		reinviteHeading: (username: string) => `@${username} cancelled. You can invite them to a new time.`,
-		participantsHeading: (n: number) => n === 1 ? '1 joining the conversation' : `${n} joining the conversation`,
-		participantsNone: '',
 		// Conversation size / capacity (shown to responders near the times).
 		sizeOneOnOne: 'one-on-one',
 		sizeGroup: (others: number) => `small group · up to ${others} other${others === 1 ? '' : 's'}`,

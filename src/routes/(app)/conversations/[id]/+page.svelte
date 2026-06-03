@@ -9,7 +9,6 @@
 	import type { SubmitSlot } from '$lib/domain/types';
 	import { capture } from '$lib/analytics';
 	import { copy } from '$lib/copy';
-	import ParticipantsStack from '$lib/components/ParticipantsStack.svelte';
 
 	import { isSlotFull } from '$lib/domain/time-slot.js';
 
@@ -346,10 +345,6 @@
 		<p class="size-label">{sizeLabel}</p>
 	{/if}
 
-	{#if data.participants && data.participants.length > 0}
-		<ParticipantsStack participants={data.participants} />
-	{/if}
-
 	{#if isOwnPrompt && data.prompt.state === 'published'}
 		<ConfirmDialog
 			bind:this={unpublishDialog}
@@ -373,6 +368,9 @@
 			<section class="my-summary">
 				<p class="section-label">{copy.conversation.myOfferedTimes}</p>
 				{#each data.prompt.available_slots as slot}
+					<!-- Author's own offered times: occupancy/capacity drive the "full"
+					     state, but we don't repeat a "+N others joining" headcount here —
+					     the responses list below names every confirmed joiner per slot. -->
 					<SlotCard
 						startTime={slot.start_time}
 						durationMinutes={slot.duration_minutes}
@@ -381,7 +379,6 @@
 						invited={slot.accepted}
 						occupied={occupiedOn(slot.id)}
 						capacity={data.prompt.capacity}
-						othersJoining={othersOn(slot.id)}
 					/>
 				{/each}
 			</section>

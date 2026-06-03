@@ -274,28 +274,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		}
 	}
 
-	// Participants: everyone who has responded to this conversation, shown as
-	// a stacked-avatars section. We surface first names only — not usernames,
-	// not full profiles. The author is excluded (they wrote the prompt, not a
-	// participant in the respondent sense). Current user is excluded too so
-	// they don't see themselves listed.
-	const participantAuthorIds = [
-		...new Set(comments.map((c) => c.author_id).filter((id) => id !== userId && id !== detail.author_id))
-	];
-
-	let participants: Array<{ id: string; firstName: string }> = [];
-	if (participantAuthorIds.length > 0) {
-		const { data: participantProfiles } = await locals.supabase
-			.from('profiles')
-			.select('id, username, display_name')
-			.in('id', participantAuthorIds);
-
-		participants = (participantProfiles ?? []).map((p: { id: string; username: string; display_name: string | null }) => ({
-			id: p.id,
-			firstName: p.display_name ? p.display_name.trim().split(/\s+/)[0] : p.username,
-		}));
-	}
-
 	return {
 		prompt: detail,
 		comments: enrichedComments,
@@ -306,7 +284,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		promptMeetings,
 		myMeeting,
 		myCancellation,
-		participants,
 		slotOccupancy,
 		user: { id: userId }
 	};
