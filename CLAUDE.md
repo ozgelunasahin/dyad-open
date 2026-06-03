@@ -98,6 +98,7 @@ Navigation is via `FloatingNav` on every page that needs it; there is no shared 
 | `ADMIN_DEV_BYPASS` | No (dev only) | Set to `1` in `.env.local` to allow `/admin/*` through without Cloudflare Access. Has no effect in production builds. |
 | `PUBLIC_ASSET_BASE_URL` | No | Override for static page imagery (e.g. `/why` hero images). Falls back to the default Supabase uploads bucket. Set this to route assets through a sovereign host without touching code. |
 | `PUBLIC_PLAUSIBLE_SCRIPT_SRC` | No | Plausible Analytics script URL with embedded site identifier (e.g. `https://plausible.io/js/pa-XXXXXXXX.js`). Copy from the Plausible dashboard's tracking-script snippet. Setting this enables the script tag in the public + authenticated app; the admin plane is always excluded. Unset = no analytics. |
+| `PUBLIC_ZINE_PAYMENT_LINK` | No | Stripe **Payment Link** URL (`https://buy.stripe.com/...`) for the `/zine` page. Create it once in the Stripe dashboard from the zine product (enable shipping-address collection for the physical item). The page links to it as a full-page redirect — no embedded Stripe.js, consistent with the consent-free constraint. Unset = the page shows an "available soon" state instead of a buy button. |
 | `CF_ACCESS_TEAM_DOMAIN` | Yes (admin plane) | Cloudflare Zero Trust team domain, e.g. `dyad-berlin.cloudflareaccess.com`. Used to fetch the JWKS for verifying admin-plane JWTs. |
 | `CF_ACCESS_AUD` | Yes (admin plane) | Per-application audience tag from the Cloudflare Access dashboard. Used to verify the `aud` claim on admin-plane JWTs. |
 
