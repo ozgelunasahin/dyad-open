@@ -308,6 +308,46 @@
 			} else { const e = await res.json().catch(() => ({})); actionError = (e as any).error ?? copy.conversation.failedToDelete; }
 		} catch { actionError = copy.common.networkError; }
 	}
+
+	// ── Author view: slot-centric grouping ──────────────────────────────────
+	// Each offered time is shown once, with its participants nested under it.
+	// Unifies one-on-one (a slot with ≤1 participant) and small group (≤N) — no
+	// separate "meeting card per response" repeating the slot's time/place. A
+	// response (comment) attaches to the conversation, not a slot — the slot link
+	// comes via the invitation — so responders who haven't requested a time are
+	// listed on their own, below the times.
+	const ACTIVE_MEETING_STATES = ['scheduled', 'awaiting_feedback'];
+	function confirmedOnSlot(slotId: string) {
+		return (data.promptMeetings ?? []).filter(
+			(m) => m.slot_id === slotId && ACTIVE_MEETING_STATES.includes(m.state)
+		);
+	}
+	function cancelledOnSlot(slotId: string) {
+		return (data.promptMeetings ?? []).filter(
+			(m) => m.slot_id === slotId && (m.state === 'cancelled_early' || m.state === 'cancelled_late')
+		);
+	}
+	function pendingOnSlot(slotId: string) {
+		return (data.receivedInvitations ?? []).filter((inv) => inv.slot_id === slotId && inv.state === 'pending');
+	}
+	function responseBodyFor(inviterId: string): string | null {
+		return data.comments.find((c) => c.author_id === inviterId)?.body ?? null;
+	}
+	// Responders who wrote a response but haven't requested any time (no invitation).
+	let respondersWithoutTime = $derived(
+		data.comments.filter(
+			(c) => !(data.receivedInvitations ?? []).some((inv) => inv.inviter_id === c.author_id)
+		)
+	);
+	// Pending invitations on a time the author no longer offers (slot removed or
+	// expired). They have no slot to nest under, but the author must still be able
+	// to accept/decline them — surface them in their own block rather than dropping.
+	let availableSlotIds = $derived(new Set(data.prompt.available_slots.map((s) => s.id)));
+	let orphanPending = $derived(
+		(data.receivedInvitations ?? []).filter(
+			(inv) => inv.state === 'pending' && !availableSlotIds.has(inv.slot_id)
+		)
+	);
 </script>
 
 <svelte:head>
@@ -362,24 +402,108 @@
 		/>
 		{#if actionError}<p class="field-error" style="margin-top: var(--space-2)">{actionError}</p>{/if}
 
-		<!-- Author summary: the times they offered + any active meetings against
-		     them. Mirrors the responder-side slot/meeting blocks but read-only. -->
+		<!-- Reusable accept/decline action row for a pending invitation. -->
+		{#snippet inviteActions(invId: string, slotId: string)}
+			{#if openDeclineId === invId}
+				<textarea
+					class="invite-message-textarea"
+					placeholder={copy.conversation.declineMessagePlaceholder}
+					bind:value={declineMessage}
+					rows={3}
+					maxlength={2000}
+					disabled={decliningId === invId}
+				></textarea>
+				{#if declineError}<p class="field-error" role="alert">{declineError}</p>{/if}
+				<div class="invite-actions">
+					<button class="btn-secondary" onclick={cancelDecline} disabled={decliningId === invId}>{copy.common.cancel}</button>
+					<button class="btn-primary" onclick={() => declineInvitation(invId)} disabled={decliningId === invId}>{decliningId === invId ? copy.conversation.declining : copy.conversation.decline}</button>
+				</div>
+			{:else}
+				<div class="invite-actions">
+					<button class="btn-text btn-text--danger" onclick={() => openDecline(invId)} disabled={acceptingId === invId}>{copy.conversation.decline}</button>
+					<button class="btn-primary" onclick={() => acceptInvitation(invId, slotId)} disabled={acceptingId === invId}>{acceptingId === invId ? copy.common.accepting : copy.common.accept}</button>
+				</div>
+			{/if}
+		{/snippet}
+
+		<!-- Slot-centric author view: each offered time once, participants nested
+		     under it. Confirmed joiners link to their meeting; pending requests get
+		     accept/decline inline; the meeting time/place is never repeated per
+		     participant. Same shape serves one-on-one (≤1 joiner) and small group. -->
 		{#if data.prompt.available_slots.length > 0}
 			<section class="my-summary">
 				<p class="section-label">{copy.conversation.myOfferedTimes}</p>
 				{#each data.prompt.available_slots as slot}
-					<!-- Author's own offered times: occupancy/capacity drive the "full"
-					     state, but we don't repeat a "+N others joining" headcount here —
-					     the responses list below names every confirmed joiner per slot. -->
-					<SlotCard
-						startTime={slot.start_time}
-						durationMinutes={slot.duration_minutes}
-						area={slot.general_area}
-						exactLocation={slot.exact_location ?? null}
-						invited={slot.accepted}
-						occupied={occupiedOn(slot.id)}
-						capacity={data.prompt.capacity}
-					/>
+					{@const confirmed = confirmedOnSlot(slot.id)}
+					{@const pending = pendingOnSlot(slot.id)}
+					{@const cancelled = cancelledOnSlot(slot.id)}
+					<div class="slot-group">
+						<SlotCard
+							startTime={slot.start_time}
+							durationMinutes={slot.duration_minutes}
+							area={slot.general_area}
+							exactLocation={slot.exact_location ?? null}
+							invited={slot.accepted}
+							occupied={occupiedOn(slot.id)}
+							capacity={data.prompt.capacity}
+						/>
+						{#if confirmed.length > 0 || pending.length > 0 || cancelled.length > 0}
+							<div class="slot-participants">
+								{#if confirmed.length > 0}
+									<p class="slot-confirmed">
+										<span class="participant-sublabel">{copy.conversation.confirmedSublabel}</span>
+										{#each confirmed as m, i}<a href="/meetings/{m.id}" class="participant-link">@{m.partner_username}</a>{#if i < confirmed.length - 1}, {/if}{/each}
+									</p>
+								{/if}
+								{#each pending as inv}
+									<div class="slot-pending">
+										<span class="response-meta">{copy.conversation.respondedBy(inv.inviter_username, formatDate(inv.created_at))}</span>
+										{#if responseBodyFor(inv.inviter_id) ?? inv.comment_body}<p class="participant-response">{responseBodyFor(inv.inviter_id) ?? inv.comment_body}</p>{/if}
+										{#if inv.message}<p class="inv-message">{inv.message}</p>{/if}
+										{@render inviteActions(inv.id, inv.slot_id)}
+									</div>
+								{/each}
+								{#each cancelled as m}
+									<p class="slot-cancelled">@{m.partner_username} · {copy.conversation.participantCancelled}{#if m.cancellation_reason}: {m.cancellation_reason}{/if}</p>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				{/each}
+				{#if acceptError}<p class="field-error">{acceptError}</p>{/if}
+			</section>
+		{/if}
+
+		<!-- Pending requests on times no longer offered — no slot to nest under, but
+		     still actionable. -->
+		{#if orphanPending.length > 0}
+			<section class="my-summary">
+				{#each orphanPending as inv}
+					<div class="slot-group">
+						<SlotCard startTime={inv.slot_start_time} durationMinutes={inv.slot_duration_minutes ?? 60} area={inv.slot_general_area} past />
+						<div class="slot-participants">
+							<div class="slot-pending">
+								<span class="response-meta">{copy.conversation.respondedBy(inv.inviter_username, formatDate(inv.created_at))}</span>
+								{#if responseBodyFor(inv.inviter_id) ?? inv.comment_body}<p class="participant-response">{responseBodyFor(inv.inviter_id) ?? inv.comment_body}</p>{/if}
+								{#if inv.message}<p class="inv-message">{inv.message}</p>{/if}
+								{@render inviteActions(inv.id, inv.slot_id)}
+							</div>
+						</div>
+					</div>
+				{/each}
+			</section>
+		{/if}
+
+		<!-- Responders who haven't requested a time. A response attaches to the
+		     conversation, not a slot, so these have nowhere to nest. -->
+		{#if respondersWithoutTime.length > 0}
+			<section class="responses-no-time">
+				<p class="section-label">{copy.conversation.responsesNoTimeHeading}</p>
+				{#each respondersWithoutTime as comment}
+					<div class="response-card">
+						<span class="response-meta">{copy.conversation.respondedBy(comment.author_username ?? 'anonymous', formatDate(comment.created_at))}</span>
+						<p class="response-body">{comment.body}</p>
+					</div>
 				{/each}
 			</section>
 		{/if}
@@ -501,141 +625,6 @@
 		{/if}
 	{/if}
 
-	<!-- Author view: responses + their invitations together -->
-	{#if isOwnPrompt && (data.comments.length > 0 || data.receivedInvitations.length > 0)}
-		<section class="responses-received">
-			{#each data.comments as comment}
-				{@const invitation = data.receivedInvitations.find(inv => inv.inviter_id === comment.author_id)}
-				{@const meeting = invitation ? data.promptMeetings?.find(m => m.slot_id === invitation.slot_id) : null}
-				<div class="response-card" class:has-invitation={!!invitation}>
-					<span class="response-meta">{copy.conversation.respondedBy(comment.author_username ?? 'anonymous', formatDate(comment.created_at))}</span>
-					<p class="response-body">{comment.body}</p>
-
-					{#if invitation}
-						<div class="response-invitation">
-							{#if invitation.state === 'accepted' && meeting && (meeting.state === 'cancelled_early' || meeting.state === 'cancelled_late')}
-								<!-- Accepted invitation whose meeting was later cancelled. Any newer
-								     pending re-invitation takes the pending branch because the loader
-								     picks the most-recent invitation per inviter. -->
-								<MeetingCard
-									partnerUsername={comment.author_username ?? 'anonymous'}
-									scheduledTime={meeting.scheduled_time}
-									durationMinutes={invitation.slot_duration_minutes ?? 60}
-									generalArea={meeting.general_area ?? invitation.slot_general_area}
-									exactLocation={meeting.exact_location}
-									cancelled
-									cancelledByMe={meeting.cancelled_by !== null && meeting.cancelled_by === data.user.id}
-									cancelledByUsername={meeting.cancelled_by !== null && meeting.cancelled_by !== data.user.id
-										? (meeting.cancelled_by_username ?? comment.author_username ?? null)
-										: null}
-									cancellationReason={meeting.cancellation_reason}
-								/>
-							{:else if invitation.state === 'accepted' && meeting}
-								<a href="/meetings/{meeting.id}" class="meeting-card-link">
-									<MeetingCard
-										partnerUsername={comment.author_username ?? 'anonymous'}
-										scheduledTime={meeting.scheduled_time}
-										durationMinutes={invitation.slot_duration_minutes ?? 60}
-										generalArea={meeting.general_area ?? invitation.slot_general_area}
-										exactLocation={meeting.exact_location}
-									/>
-								</a>
-							{:else if invitation.state === 'accepted'}
-								<!-- Accepted but meeting record isn't loaded (rare fallback). -->
-								<MeetingCard
-									partnerUsername={comment.author_username ?? 'anonymous'}
-									scheduledTime={invitation.slot_start_time}
-									durationMinutes={invitation.slot_duration_minutes ?? 60}
-									generalArea={invitation.slot_general_area}
-								/>
-							{:else if invitation.state === 'pending'}
-								<SlotCard startTime={invitation.slot_start_time} durationMinutes={invitation.slot_duration_minutes ?? 60} area={invitation.slot_general_area} />
-								{#if invitation.message}
-									<p class="inv-message">{invitation.message}</p>
-								{/if}
-								{#if openDeclineId === invitation.id}
-									<textarea
-										class="invite-message-textarea"
-										placeholder={copy.conversation.declineMessagePlaceholder}
-										bind:value={declineMessage}
-										rows={3}
-										maxlength={2000}
-										disabled={decliningId === invitation.id}
-									></textarea>
-									{#if declineError}<p class="field-error" role="alert">{declineError}</p>{/if}
-									<div class="invite-actions">
-										<button class="btn-secondary" onclick={cancelDecline} disabled={decliningId === invitation.id}>
-											{copy.common.cancel}
-										</button>
-										<button class="btn-primary" onclick={() => declineInvitation(invitation.id)} disabled={decliningId === invitation.id}>
-											{decliningId === invitation.id ? copy.conversation.declining : copy.conversation.decline}
-										</button>
-									</div>
-								{:else}
-									<div class="invite-actions">
-										<button class="btn-text btn-text--danger" onclick={() => openDecline(invitation.id)} disabled={acceptingId === invitation.id}>
-											{copy.conversation.decline}
-										</button>
-										<button class="btn-primary" onclick={() => acceptInvitation(invitation.id, invitation.slot_id)} disabled={acceptingId === invitation.id}>
-											{acceptingId === invitation.id ? copy.common.accepting : copy.common.accept}
-										</button>
-									</div>
-								{/if}
-							{/if}
-						</div>
-					{/if}
-				</div>
-			{/each}
-
-			<!-- Invitations without a matching comment (edge case) -->
-			{#each data.receivedInvitations.filter(inv => !data.comments.some(c => c.author_id === inv.inviter_id)) as inv}
-				<div class="response-card has-invitation">
-					<span class="response-meta">{copy.conversation.respondedBy(inv.inviter_username, formatDate(inv.created_at))}</span>
-					{#if inv.comment_body}
-						<p class="response-body">{inv.comment_body}</p>
-					{/if}
-					<div class="response-invitation">
-						<SlotCard startTime={inv.slot_start_time} durationMinutes={inv.slot_duration_minutes ?? 60} area={inv.slot_general_area} />
-						{#if inv.state === 'pending'}
-							{#if inv.message}
-								<p class="inv-message">{inv.message}</p>
-							{/if}
-							{#if openDeclineId === inv.id}
-								<textarea
-									class="invite-message-textarea"
-									placeholder={copy.conversation.declineMessagePlaceholder}
-									bind:value={declineMessage}
-									rows={3}
-									maxlength={2000}
-									disabled={decliningId === inv.id}
-								></textarea>
-								{#if declineError}<p class="field-error" role="alert">{declineError}</p>{/if}
-								<div class="invite-actions">
-									<button class="btn-secondary" onclick={cancelDecline} disabled={decliningId === inv.id}>
-										{copy.common.cancel}
-									</button>
-									<button class="btn-primary" onclick={() => declineInvitation(inv.id)} disabled={decliningId === inv.id}>
-										{decliningId === inv.id ? copy.conversation.declining : copy.conversation.decline}
-									</button>
-								</div>
-							{:else}
-								<div class="invite-actions">
-									<button class="btn-text btn-text--danger" onclick={() => openDecline(inv.id)} disabled={acceptingId === inv.id}>
-										{copy.conversation.decline}
-									</button>
-									<button class="btn-primary" onclick={() => acceptInvitation(inv.id, inv.slot_id)} disabled={acceptingId === inv.id}>
-										{acceptingId === inv.id ? copy.common.accepting : copy.common.accept}
-									</button>
-								</div>
-							{/if}
-						{/if}
-					</div>
-				</div>
-			{/each}
-
-			{#if acceptError}<p class="field-error">{acceptError}</p>{/if}
-		</section>
-	{/if}
 </div>
 
 <FloatingNav
@@ -700,11 +689,10 @@
 
 	/* Sections */
 	.slots-section { margin-top: var(--space-4); margin-bottom: var(--space-6); }
-	.response-section, .responses-received { margin-top: var(--space-6); padding-top: var(--space-6); border-top: 1px solid var(--border-link); }
+	.response-section { margin-top: var(--space-6); padding-top: var(--space-6); border-top: 1px solid var(--border-link); }
 
-	/* Author summary blocks above .responses-received: list of offered times,
-	   list of scheduled meetings. Quiet typography to match the page idiom — the
-	   section label sits like the existing .meta line, the cards do the work. */
+	/* Author's offered times + nested participants. Quiet typography to match the
+	   page idiom — the section label sits like the existing .meta line. */
 	.my-summary { margin-top: var(--space-6); }
 	.my-summary:first-of-type { padding-top: var(--space-6); border-top: 1px solid var(--border-link); }
 	.section-label {
@@ -804,8 +792,33 @@
 	.response-card:last-child { border-bottom: none; }
 	.response-meta { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); display: block; margin-bottom: var(--space-1); }
 	.response-body { font-size: var(--text-base); margin: 0 0 var(--space-1); line-height: var(--leading-normal); }
-	.response-invitation { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--border-link); }
-	.meeting-link { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-success); display: block; margin-bottom: var(--space-2); }
-	.meeting-link:hover { opacity: var(--opacity-hover-card); }
 	.inv-message { font-size: var(--text-sm); color: var(--text-secondary); font-style: italic; margin: var(--space-2) 0 var(--space-3); }
+
+	/* Slot-centric author view: participants nested under each offered time. */
+	.slot-group { margin-bottom: var(--space-5); }
+	.slot-participants {
+		margin: var(--space-2) 0 0 var(--space-2);
+		padding-left: var(--space-4);
+		border-left: 2px solid var(--border-link);
+	}
+	.slot-confirmed {
+		font-size: var(--text-sm);
+		color: var(--text-secondary);
+		margin: var(--space-2) 0;
+		line-height: var(--leading-relaxed);
+	}
+	.participant-sublabel {
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--text-muted);
+		margin-right: var(--space-2);
+	}
+	.participant-link { color: var(--text-link); text-decoration: none; }
+	.participant-link:hover { text-decoration: underline; }
+	.slot-pending { margin: var(--space-3) 0; }
+	.participant-response { font-size: var(--text-base); margin: var(--space-1) 0; line-height: var(--leading-normal); }
+	.slot-cancelled { font-size: var(--text-sm); font-style: italic; color: var(--text-muted); margin: var(--space-2) 0; }
+	.responses-no-time { margin-top: var(--space-6); padding-top: var(--space-6); border-top: 1px solid var(--border-link); }
 </style>

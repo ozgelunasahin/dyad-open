@@ -155,6 +155,10 @@ export const copy = {
 		// Conversation size / capacity (shown to responders near the times).
 		sizeOneOnOne: 'one-on-one',
 		sizeGroup: (others: number) => `small group · up to ${others} other${others === 1 ? '' : 's'}`,
+		// Author's slot-centric participant view: who's nested under each offered time.
+		confirmedSublabel: 'confirmed',
+		participantCancelled: 'cancelled',
+		responsesNoTimeHeading: 'Responded, no time chosen',
 		// Surfaced to the author when accepting a joiner fails because the slot
 		// is at capacity (or the invitation is otherwise no longer acceptable).
 		conversationFull: 'This conversation is full or no longer available.',
