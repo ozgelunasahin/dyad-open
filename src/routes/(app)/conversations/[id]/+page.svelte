@@ -316,14 +316,17 @@
 	// member's words stay visible whatever their meeting status. The exact
 	// time/place lives once in "Times you offered"; status lines reference a slot
 	// by day + neighbourhood only. One shape serves one-on-one and small group.
+	// A meeting that has happened or is upcoming, vs one that's been called off.
 	const ACTIVE_MEETING_STATES = ['scheduled', 'awaiting_feedback'];
+	const MET_STATE = 'completed';
 
 	type ResponseRow = {
 		key: string;
 		username: string;
 		body: string | null;
+		message: string | null; // the note attached to a meeting request, if any
 		createdAt: string;
-		status: 'pending' | 'confirmed' | 'cancelled' | 'responded';
+		status: 'pending' | 'confirmed' | 'met' | 'cancelled' | 'responded';
 		slotRef: string | null; // pre-formatted "day · neighbourhood"
 		meetingId: string | null;
 		invitationId: string | null;
@@ -333,7 +336,7 @@
 
 	// Compact slot reference for a status line — day + neighbourhood, never the
 	// exact address (that lives once in "Times you offered").
-	function slotRef(iso: string | undefined | null, area: string | null | undefined): string | null {
+	function formatSlotRef(iso: string | undefined | null, area: string | null | undefined): string | null {
 		if (!iso) return null;
 		return area ? `${formatDate(iso)} · ${area}` : formatDate(iso);
 	}
@@ -349,17 +352,26 @@
 	}
 
 	// One row per responder, tagged with meeting status by precedence:
-	// active meeting → pending invitation → cancelled meeting → responded(no time).
-	// (Meetings carry partner_username, not an id, so confirmed/cancelled match by
-	// username; pending matches the invitation by inviter_id.)
+	// has a meeting (confirmed/met) → pending request → cancelled → responded(no
+	// time). Meetings carry partner_username, not an id, so they match by username
+	// (unique); pending matches the invitation by inviter_id.
 	let responseRows = $derived.by<ResponseRow[]>(() => {
 		const meetings = data.promptMeetings ?? [];
 		const invites = data.receivedInvitations ?? [];
 		const rows: ResponseRow[] = [];
+		const shownPending = new Set<string>(); // invitation ids already on a row
+
+		const newRow = (over: Partial<ResponseRow> & Pick<ResponseRow, 'key' | 'username' | 'createdAt'>): ResponseRow => ({
+			body: null, message: null, status: 'responded', slotRef: null,
+			meetingId: null, invitationId: null, slotId: null, cancellationReason: null,
+			...over
+		});
 
 		for (const c of data.comments) {
-			const confirmed = meetings.find(
-				(m) => m.partner_username === c.author_username && ACTIVE_MEETING_STATES.includes(m.state)
+			const meeting = meetings.find(
+				(m) =>
+					m.partner_username === c.author_username &&
+					(ACTIVE_MEETING_STATES.includes(m.state) || m.state === MET_STATE)
 			);
 			const pending = invites.find((inv) => inv.inviter_id === c.author_id && inv.state === 'pending');
 			const cancelled = meetings.find(
@@ -368,51 +380,67 @@
 					(m.state === 'cancelled_early' || m.state === 'cancelled_late')
 			);
 
-			const row: ResponseRow = {
-				key: c.author_id,
-				username: c.author_username ?? 'anonymous',
-				body: c.body,
-				createdAt: c.created_at,
-				status: 'responded',
-				slotRef: null,
-				meetingId: null,
-				invitationId: null,
-				slotId: null,
-				cancellationReason: null
-			};
-			if (confirmed) {
-				row.status = 'confirmed';
-				row.slotRef = slotRef(confirmed.scheduled_time, confirmed.general_area);
-				row.meetingId = confirmed.id;
+			const row = newRow({ key: c.author_id, username: c.author_username ?? 'anonymous', body: c.body, createdAt: c.created_at });
+			if (meeting) {
+				row.status = meeting.state === MET_STATE ? 'met' : 'confirmed';
+				row.slotRef = formatSlotRef(meeting.scheduled_time, meeting.general_area);
+				row.meetingId = meeting.id;
 			} else if (pending) {
 				row.status = 'pending';
-				row.slotRef = slotRef(pending.slot_start_time, pending.slot_general_area);
+				row.slotRef = formatSlotRef(pending.slot_start_time, pending.slot_general_area);
+				row.message = pending.message;
 				row.invitationId = pending.id;
 				row.slotId = pending.slot_id;
+				shownPending.add(pending.id);
 			} else if (cancelled) {
 				row.status = 'cancelled';
-				row.slotRef = slotRef(cancelled.scheduled_time, cancelled.general_area);
+				row.slotRef = formatSlotRef(cancelled.scheduled_time, cancelled.general_area);
 				row.cancellationReason = cancelled.cancellation_reason;
 			}
 			rows.push(row);
 		}
 
-		// Edge: an invitation whose inviter wrote no comment (rare — response-first
-		// flow). Surface it so the author can still act on it.
+		// Any pending request not already on a row stays actionable on its own: a
+		// comment-less inviter, OR a second request from someone whose row resolved
+		// to confirmed/met (multi-invite is allowed). Words shown only when this is
+		// their sole row — otherwise the request line + actions suffice.
 		for (const inv of invites) {
+			if (inv.state !== 'pending' || shownPending.has(inv.id)) continue;
+			const hasPrimaryRow = data.comments.some((c) => c.author_id === inv.inviter_id);
+			rows.push(newRow({
+				key: `inv:${inv.id}`,
+				username: inv.inviter_username,
+				body: hasPrimaryRow ? null : inv.comment_body,
+				message: inv.message,
+				createdAt: inv.created_at,
+				status: 'pending',
+				slotRef: formatSlotRef(inv.slot_start_time, inv.slot_general_area),
+				invitationId: inv.id,
+				slotId: inv.slot_id
+			}));
+			shownPending.add(inv.id);
+		}
+
+		// Comment-less accepted inviter (has a meeting, no comment) — rare under the
+		// response-first flow, but surface them so they aren't lost.
+		for (const inv of invites) {
+			if (inv.state !== 'accepted') continue;
 			if (data.comments.some((c) => c.author_id === inv.inviter_id)) continue;
-			rows.push({
+			const meeting = meetings.find(
+				(m) =>
+					m.partner_username === inv.inviter_username &&
+					(ACTIVE_MEETING_STATES.includes(m.state) || m.state === MET_STATE)
+			);
+			rows.push(newRow({
 				key: `inv:${inv.id}`,
 				username: inv.inviter_username,
 				body: inv.comment_body,
 				createdAt: inv.created_at,
-				status: inv.state === 'pending' ? 'pending' : 'confirmed',
-				slotRef: slotRef(inv.slot_start_time, inv.slot_general_area),
-				meetingId: null,
-				invitationId: inv.state === 'pending' ? inv.id : null,
-				slotId: inv.slot_id,
-				cancellationReason: null
-			});
+				status: meeting?.state === MET_STATE ? 'met' : 'confirmed',
+				slotRef: formatSlotRef(meeting?.scheduled_time ?? inv.slot_start_time, meeting?.general_area ?? inv.slot_general_area),
+				meetingId: meeting?.id ?? null,
+				slotId: inv.slot_id
+			}));
 		}
 
 		// Actionable-first (pending), stable chronological within each group:
@@ -540,12 +568,14 @@
 						<span class="response-meta">{copy.conversation.respondedBy(row.username, formatDate(row.createdAt))}</span>
 						{#if row.body}<p class="response-body">{row.body}</p>{/if}
 						{#if row.status === 'pending'}
+							{#if row.message}<p class="inv-message">{row.message}</p>{/if}
 							<p class="response-status">{copy.conversation.statusWantsToMeet(row.slotRef)}</p>
 							{@render inviteActions(row.invitationId ?? '', row.slotId ?? '')}
-						{:else if row.status === 'confirmed' && row.meetingId}
-							<a href="/meetings/{row.meetingId}" class="response-status response-status--link">{copy.conversation.statusConfirmed(row.slotRef)} →</a>
-						{:else if row.status === 'confirmed'}
-							<p class="response-status">{copy.conversation.statusConfirmed(row.slotRef)}</p>
+						{:else if (row.status === 'confirmed' || row.status === 'met') && row.meetingId}
+							{@const label = row.status === 'met' ? copy.conversation.statusMet(row.slotRef) : copy.conversation.statusConfirmed(row.slotRef)}
+							<a href="/meetings/{row.meetingId}" class="response-status response-status--link">{label}</a>
+						{:else if row.status === 'confirmed' || row.status === 'met'}
+							<p class="response-status">{row.status === 'met' ? copy.conversation.statusMet(row.slotRef) : copy.conversation.statusConfirmed(row.slotRef)}</p>
 						{:else if row.status === 'cancelled'}
 							<p class="response-status response-status--muted">{copy.conversation.participantCancelled}{#if row.cancellationReason}: {row.cancellationReason}{/if}</p>
 						{:else}
@@ -864,5 +894,6 @@
 	}
 	.response-status--muted { color: var(--text-muted); }
 	.response-status--link { display: inline-block; text-decoration: none; color: var(--text-link); }
+	.response-status--link::after { content: ' →'; } /* nav affordance — decorative, not copy */
 	.response-status--link:hover { text-decoration: underline; }
 </style>

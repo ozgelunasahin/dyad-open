@@ -160,6 +160,7 @@ export const copy = {
 		// once in "Times you offered"). slotRef is pre-formatted "day · neighbourhood".
 		responsesHeading: 'Responses',
 		statusConfirmed: (slotRef: string | null) => (slotRef ? `confirmed · ${slotRef}` : 'confirmed'),
+		statusMet: (slotRef: string | null) => (slotRef ? `met · ${slotRef}` : 'met'),
 		statusWantsToMeet: (slotRef: string | null) => (slotRef ? `wants to meet · ${slotRef}` : 'wants to meet'),
 		statusNoTimeChosen: 'no time chosen yet',
 		participantCancelled: 'cancelled',
