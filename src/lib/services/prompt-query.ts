@@ -321,11 +321,13 @@ export class SupabasePromptQueryService implements PromptQueryService {
 				p_prompt_id: id
 			});
 			// Hide past slots — accepted past slots have meeting representation
-			// elsewhere; non-accepted past slots are functionally dead. The
-			// section reads as "what am I currently offering" rather than a
-			// historical inventory.
+			// elsewhere; non-accepted past slots are functionally dead. Retired
+			// slots (withdrawn via a whole-gathering cancel) are equally not on
+			// offer; their cancelled meetings stay visible via the response
+			// rows. The section reads as "what am I currently offering" rather
+			// than a historical inventory.
 			availableSlots = ((ownSlots ?? []) as TimeSlot[]).filter(
-				(s) => new Date(s.start_time) > now
+				(s) => !s.retired_at && new Date(s.start_time) > now
 			);
 		} else {
 			const { data: publicSlots } = await this.supabase

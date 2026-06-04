@@ -138,6 +138,39 @@ describe('buildResponseRows', () => {
 		expect(rows[0]).toMatchObject({ status: 'confirmed', meetingId: 'm5', body: 'count me in' });
 	});
 
+	it('a comment-less accepted inviter whose meeting was cancelled reads cancelled — never confirmed', () => {
+		const rows = buildResponseRows(
+			[],
+			[
+				meeting({
+					id: 'm6',
+					partner_username: 'rex',
+					state: 'cancelled_early',
+					cancellation_reason: 'venue fell through'
+				})
+			],
+			[invitation({ id: 'i6', inviter_id: 'rex', state: 'accepted', comment_body: 'count me in' })],
+			fmt
+		);
+		expect(rows).toHaveLength(1);
+		expect(rows[0]).toMatchObject({
+			status: 'cancelled',
+			meetingId: null,
+			cancellationReason: 'venue fell through',
+			body: 'count me in'
+		});
+	});
+
+	it('a comment-less accepted inviter with no matching meeting at all gets no row (nothing truthful to claim)', () => {
+		const rows = buildResponseRows(
+			[],
+			[],
+			[invitation({ id: 'i7', inviter_id: 'rex', state: 'accepted', comment_body: 'count me in' })],
+			fmt
+		);
+		expect(rows).toHaveLength(0);
+	});
+
 	it('orders pending first (oldest request on top), then everyone else newest-first', () => {
 		const rows = buildResponseRows(
 			[
