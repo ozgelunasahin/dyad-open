@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import type { Prompt } from '$lib/domain/types';
+	import type { Prompt, LocationRef } from '$lib/domain/types';
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
 	import { page } from '$app/state';
@@ -108,7 +108,7 @@
 			partner_username: string;
 			partner_usernames: string[];
 			anonymous_count: number;
-			exact_location: { place_id: string; name: string; address: string; lat: number; lng: number } | null;
+			exact_location: LocationRef | null;
 			state: string;
 			cancelled_by_me: boolean;
 			cancelled_by_username: string | null;
@@ -384,7 +384,7 @@
 									cancelledByUsername={isCancelled && !item.meeting.cancelled_by_me ? (item.meeting.cancelled_by_username ?? item.meeting.partner_username) : null}
 								>
 									<ParticipantsStack
-										self={{ name: data.username || 'you' }}
+										self={{ name: data.username || copy.common.you }}
 										participants={item.meeting.partner_usernames.map((name) => ({ id: name, name }))}
 										anonymousCount={item.meeting.anonymous_count}
 									/>
@@ -424,7 +424,7 @@
 								cancelledByUsername={isCancelled && !item.meeting.cancelled_by_me ? (item.meeting.cancelled_by_username ?? item.meeting.partner_username) : null}
 							>
 								<ParticipantsStack
-									self={{ name: data.username || 'you' }}
+									self={{ name: data.username || copy.common.you }}
 									participants={item.meeting.partner_usernames.map((name) => ({ id: name, name }))}
 									anonymousCount={item.meeting.anonymous_count}
 								/>

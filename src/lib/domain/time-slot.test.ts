@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deriveSlotState, isAvailable, isExpired, isClosing, isDiscoverable, isSlotFull } from './time-slot.js';
+import { deriveSlotState, isAvailable, isExpired, isClosing, isDiscoverable, isSlotFull, slotEndPassed } from './time-slot.js';
 import type { TimeSlot } from './types.js';
 
 function makeSlot(overrides: Partial<TimeSlot> = {}): TimeSlot {
@@ -158,5 +158,24 @@ describe('isSlotFull', () => {
 
 	it('empty slot is not full for any positive capacity', () => {
 		expect(isSlotFull(0, 7)).toBe(false);
+	});
+});
+
+describe('slotEndPassed', () => {
+	const now = new Date('2026-03-25T12:00:00Z');
+
+	it('false when the slot ends in the future', () => {
+		// Starts in 1h, 60min long → ends 2h out.
+		expect(slotEndPassed(hoursFromNow(1, now), 60, now)).toBe(false);
+	});
+
+	it('true when the slot already ended', () => {
+		// Started 3h ago, 60min long → ended 2h ago.
+		expect(slotEndPassed(hoursFromNow(-3, now), 60, now)).toBe(true);
+	});
+
+	it('true at the exact end boundary (a meeting ending now is over)', () => {
+		// Started 1h ago, 60min long → ends exactly now.
+		expect(slotEndPassed(hoursFromNow(-1, now), 60, now)).toBe(true);
 	});
 });

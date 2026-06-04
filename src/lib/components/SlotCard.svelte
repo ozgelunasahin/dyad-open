@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { formatHybridDate, formatSlotTimeRange } from '$lib/utils/dates.js';
-	import { isSlotFull } from '$lib/domain/time-slot.js';
+	import { isSlotFull, slotEndPassed } from '$lib/domain/time-slot.js';
 	import { copy } from '$lib/copy.js';
 
 	interface Props {
@@ -10,7 +10,6 @@
 		area: string;
 		selected?: boolean;
 		invited?: boolean;
-		invitedNote?: string;
 		exactLocation?: { name: string; address: string; lat?: number; lng?: number } | null;
 		past?: boolean;
 		vague?: boolean;
@@ -45,17 +44,16 @@
 		onclick?: () => void;
 	}
 
-	let { startTime, durationMinutes, area, selected = false, invited = false, invitedNote, exactLocation, past = false, vague = false, occupied = 0, capacity = null, othersJoining = 0, onclick, children, tone = 'plain', cancelled = false, cancelledByMe = false, cancelledByUsername = null, cancellationReason = null, invitedPending = false, pendingNote = null, onWithdraw, withdrawing = false }: Props = $props();
+	let { startTime, durationMinutes, area, selected = false, invited = false, exactLocation, past = false, vague = false, occupied = 0, capacity = null, othersJoining = 0, onclick, children, tone = 'plain', cancelled = false, cancelledByMe = false, cancelledByUsername = null, cancellationReason = null, invitedPending = false, pendingNote = null, onWithdraw, withdrawing = false }: Props = $props();
 
 	let full = $derived(isSlotFull(occupied, capacity));
 
 	// Meeting-state derivation (unified card): props describe the facts, the
 	// card decides the chrome. Mirrors the retired MeetingCard's state model.
 	const isCancelled = $derived(cancelled || cancelledByMe || !!cancelledByUsername);
-	const isPastMeeting = $derived.by(() => {
-		if (tone !== 'meeting' || invitedPending || isCancelled) return false;
-		return new Date(startTime).getTime() + durationMinutes * 60_000 < Date.now();
-	});
+	const isPastMeeting = $derived(
+		tone === 'meeting' && !invitedPending && !isCancelled && slotEndPassed(startTime, durationMinutes)
+	);
 	// A full slot is not invitable — drop interactivity even if an onclick was
 	// passed (the parent disables/ignores it, this is the rendering safety net).
 	let interactive = $derived(!!onclick && !invited && !vague && !full);
@@ -117,7 +115,7 @@
 		<div class="slot-row">
 			<span class="slot-date">{formatSlotDateFull(startTime)} · {formatSlotTimeRange(startTime, durationMinutes)}</span>
 			<span class="slot-details">
-				{area}{#if full}<span class="slot-status">{copy.conversation.slotFull}</span>{:else if invitedNote}<span class="slot-status">{invitedNote}</span>{/if}
+				{area}{#if full}<span class="slot-status">{copy.conversation.slotFull}</span>{/if}
 			</span>
 		</div>
 		{#if invitedPending && pendingNote}

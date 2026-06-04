@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { copy } from '$lib/copy';
+	import { deriveStackLayout } from '$lib/domain/gathering.js';
 	// Overlapping-circle avatar stack (original treatment by ozge). One stack,
 	// two pin modes decided by the data the viewer's RLS could load:
 	//   identified — name + initial, hover handle, optional link to a meeting
@@ -40,9 +41,10 @@
 	let identified = $derived(
 		self ? [{ id: 'self', name: self.name, isSelf: true }, ...participants] : participants
 	);
-	let visible = $derived(identified.slice(0, MAX_SHOWN));
-	let anonShown = $derived(Math.min(anonymousCount, Math.max(0, MAX_SHOWN - visible.length)));
-	let overflow = $derived(identified.length + anonymousCount - visible.length - anonShown);
+	let layout = $derived(deriveStackLayout(identified.length, anonymousCount, MAX_SHOWN));
+	let visible = $derived(identified.slice(0, layout.visibleCount));
+	let anonShown = $derived(layout.anonShown);
+	let overflow = $derived(layout.overflow);
 
 	// Warm, desaturated palette — feels like handmade paper, not brand swatches.
 	const AVATAR_PALETTE = [
@@ -107,16 +109,19 @@
 
 	<!-- Anonymised seats: how many, never who. One shared hover handle for the
 	     whole group — the circles are interchangeable, so sweeping across them
-	     answers the count once instead of re-opening per circle. -->
+	     answers the count once instead of re-opening per circle. The group is a
+	     real list entry carrying the count; the circles themselves are
+	     decorative. -->
 	{#if anonShown > 0}
-		<span class="anon-group" aria-hidden="true">
+		<span class="anon-group" role="listitem" aria-label={copy.common.nOthers(anonymousCount)}>
 			{#each Array(anonShown) as _, j (j)}
 				<span
 					class="participant-avatar participant-avatar--anon"
+					aria-hidden="true"
 					style="--stagger: {(visible.length + j) * 60}ms; z-index: {anonShown - j};"
 				></span>
 			{/each}
-			<span class="participant-card" role="tooltip">{copy.common.nOthers(anonymousCount)}</span>
+			<span class="participant-card" role="tooltip" aria-hidden="true">{copy.common.nOthers(anonymousCount)}</span>
 		</span>
 	{/if}
 
@@ -238,7 +243,7 @@
 	/* The viewer's own pin says "you" in place of an initial — smaller so the
 	   word sits comfortably in the circle. */
 	.avatar-initials--you {
-		font-size: 0.5625rem; /* 9px — below the token scale; fits the 36px pin */
+		font-size: var(--text-2xs); /* 9px — fits the word in the 36px pin */
 		letter-spacing: 0.02em;
 	}
 

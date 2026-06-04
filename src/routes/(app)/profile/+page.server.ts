@@ -1,9 +1,11 @@
 import type { PageServerLoad } from './$types';
+import type { LocationRef } from '$lib/domain/types.js';
 import { requireIdentity } from '$lib/services/identity.js';
 import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
 import { SupabaseMeetingService } from '$lib/services/meeting.js';
 import { buildUsernameMap } from '$lib/server/username-lookup.js';
 import { loadCancellersFor } from '$lib/services/cancellation-query.js';
+import { othersBeyond } from '$lib/domain/gathering.js';
 
 function getPartnerId(m: { participant_a: string; participant_b: string }, userId: string): string {
 	return m.participant_a === userId ? m.participant_b : m.participant_a;
@@ -217,7 +219,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			// Confirmed joiners beyond the identified pins — rendered as neutral
 			// circles, mirroring the conversation page's attendee view.
 			anonymous_count: number;
-			exact_location: { place_id: string; name: string; address: string; lat: number; lng: number } | null;
+			exact_location: LocationRef | null;
 			state: string;
 			cancelled_by_me: boolean;
 			cancelled_by_username: string | null;
@@ -278,6 +280,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 	// (SECURITY DEFINER RPC — participants only) and the slot's confirmed-joiner
 	// count (viewer-safe count-only RPC). One parallel fan-out across the few
 	// active cards; cancelled/past records skip it.
+	// TODO(perf): 2 RPCs per active meeting (location + occupancy). If profile P99
+	// regresses with members holding many active gatherings, replace with a batch
+	// RPC taking meeting-id/prompt-id arrays.
 	const promptQuery = new SupabasePromptQueryService(locals.supabase);
 	const authoredSet = new Set(authoredPromptIds);
 	await Promise.all(
@@ -298,8 +303,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 				// the named pins is anonymised; an attendee's identified pins are the
 				// host + their own seat — the other joiners stay neutral circles.
 				m.anonymous_count = authoredSet.has(promptId)
-					? Math.max(0, occupied - m.partner_usernames.length)
-					: Math.max(0, occupied - 1);
+					? othersBeyond(occupied, m.partner_usernames.length)
+					: othersBeyond(occupied, 1);
 			})
 	);
 

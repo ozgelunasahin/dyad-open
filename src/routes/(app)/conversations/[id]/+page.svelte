@@ -13,6 +13,7 @@
 	import { buildResponseRows, ACTIVE_MEETING_STATES } from '$lib/domain/response-rows.js';
 
 	import { isSlotFull } from '$lib/domain/time-slot.js';
+	import { othersBeyond } from '$lib/domain/gathering.js';
 
 	let { data }: { data: PageData } = $props();
 
@@ -515,8 +516,8 @@
 					>
 						<ParticipantsStack
 							participants={[{ id: 'host', name: data.prompt.author_username }]}
-							self={{ name: data.username || 'you' }}
-							anonymousCount={Math.max(0, occupiedOn(data.myMeeting.slot_id) - 1)}
+							self={{ name: data.username || copy.common.you }}
+							anonymousCount={othersBeyond(occupiedOn(data.myMeeting.slot_id), 1)}
 						/>
 					</SlotCard>
 				</a>
