@@ -586,9 +586,8 @@
 							<p class="response-status">{row.status === 'met' ? copy.conversation.statusMet(row.slotRef) : copy.conversation.statusConfirmed(row.slotRef)}</p>
 						{:else if row.status === 'cancelled'}
 							<p class="response-status response-status--muted">{copy.conversation.participantCancelled}{#if row.cancellationReason}: {row.cancellationReason}{/if}</p>
-						{:else}
-							<p class="response-status response-status--muted">{copy.conversation.statusNoTimeChosen}</p>
 						{/if}
+						<!-- 'responded' (no time chosen): just the words, no status line. -->
 					</div>
 				{/each}
 				{#if acceptError}<p class="field-error">{acceptError}</p>{/if}

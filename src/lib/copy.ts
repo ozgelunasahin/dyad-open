@@ -162,7 +162,6 @@ export const copy = {
 		statusConfirmed: (slotRef: string | null) => (slotRef ? `confirmed · ${slotRef}` : 'confirmed'),
 		statusMet: (slotRef: string | null) => (slotRef ? `met · ${slotRef}` : 'met'),
 		statusWantsToMeet: (slotRef: string | null) => (slotRef ? `wants to meet · ${slotRef}` : 'wants to meet'),
-		statusNoTimeChosen: 'no time chosen yet',
 		participantCancelled: 'cancelled',
 		// Surfaced to the author when accepting a joiner fails because the slot
 		// is at capacity (or the invitation is otherwise no longer acceptable).

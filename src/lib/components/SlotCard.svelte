@@ -80,33 +80,37 @@
 		{/if}
 	</button>
 {:else}
-	<div class="slot-card" class:selected class:invited class:past class:full class:has-aside={!!children}>
-		<div class="slot-main">
-			<div class="slot-row">
-				<span class="slot-date">{formatSlotDateFull(startTime)} · {formatSlotTimeRange(startTime, durationMinutes)}</span>
-				<span class="slot-details">
-					{area}{#if full}<span class="slot-status">{copy.conversation.slotFull}</span>{:else if invitedNote}<span class="slot-status">{invitedNote}</span>{/if}
-				</span>
-			</div>
-			{#if showOthers}
-				<p class="slot-others">{copy.conversation.othersJoining(othersJoining)}</p>
-			{/if}
-			{#if exactLocation}
-				{#if exactLocation.lat}
-					<a class="slot-location" href="https://www.openstreetmap.org/?mlat={exactLocation.lat}&mlon={exactLocation.lng}&zoom=17" target="_blank" rel="noopener">
-						<span class="slot-location-name">{exactLocation.name}</span>
-						<span class="slot-location-address">{exactLocation.address}</span>
-					</a>
-				{:else}
-					<div class="slot-location">
-						<span class="slot-location-name">{exactLocation.name}</span>
-						<span class="slot-location-address">{exactLocation.address}</span>
-					</div>
-				{/if}
-			{/if}
+	<div class="slot-card" class:selected class:invited class:past class:full>
+		<div class="slot-row">
+			<span class="slot-date">{formatSlotDateFull(startTime)} · {formatSlotTimeRange(startTime, durationMinutes)}</span>
+			<span class="slot-details">
+				{area}{#if full}<span class="slot-status">{copy.conversation.slotFull}</span>{:else if invitedNote}<span class="slot-status">{invitedNote}</span>{/if}
+			</span>
 		</div>
-		{#if children}
-			<div class="slot-aside">{@render children()}</div>
+		{#if showOthers}
+			<p class="slot-others">{copy.conversation.othersJoining(othersJoining)}</p>
+		{/if}
+		{#if exactLocation || children}
+			<!-- Foot row, under the rule: location on the left, optional nested
+			     content (e.g. the joining avatar stack) on the right. -->
+			<div class="slot-foot">
+				{#if exactLocation}
+					{#if exactLocation.lat}
+						<a class="slot-location" href="https://www.openstreetmap.org/?mlat={exactLocation.lat}&mlon={exactLocation.lng}&zoom=17" target="_blank" rel="noopener">
+							<span class="slot-location-name">{exactLocation.name}</span>
+							<span class="slot-location-address">{exactLocation.address}</span>
+						</a>
+					{:else}
+						<div class="slot-location">
+							<span class="slot-location-name">{exactLocation.name}</span>
+							<span class="slot-location-address">{exactLocation.address}</span>
+						</div>
+					{/if}
+				{/if}
+				{#if children}
+					<div class="slot-aside">{@render children()}</div>
+				{/if}
+			</div>
 		{/if}
 	</div>
 {/if}
@@ -167,23 +171,20 @@
 		user-select: none;
 	}
 
-	/* Optional right-hand nested content (e.g. the joining avatar stack).
-	   The card becomes a row: existing content keeps its column layout in
-	   .slot-main; the aside sits vertically centred on the right. */
-	.slot-card.has-aside {
-		flex-direction: row;
-		align-items: center;
-	}
-	.slot-main {
+	/* Foot row under the rule: location left, optional nested content (e.g. the
+	   joining avatar stack) on the right. The rule lives on the row so it spans
+	   the card whether or not a location is present. */
+	.slot-foot {
 		display: flex;
-		flex-direction: column;
-		gap: var(--space-2);
-		flex: 1;
-		min-width: 0;
+		align-items: center;
+		gap: var(--space-3);
+		padding-top: var(--space-3);
+		margin-top: var(--space-1);
+		border-top: 1px solid var(--border-link);
 	}
 	.slot-aside {
 		flex-shrink: 0;
-		margin-left: var(--space-3);
+		margin-left: auto;
 	}
 
 	.slot-row {
@@ -219,9 +220,8 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-1);
-		padding-top: var(--space-3);
-		margin-top: var(--space-1);
-		border-top: 1px solid var(--border-link);
+		flex: 1;
+		min-width: 0;
 	}
 
 	.slot-location-name {
