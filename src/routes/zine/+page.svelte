@@ -20,22 +20,26 @@
 	//   PUBLIC_ZINE_PAYMENT_LINK_SUPPORTER
 	//
 	// A tier renders only when its URL is set; with none set the page shows a
-	// calm "available soon" state. Prices are shown on the Stripe checkout
-	// page — the Payment Link is the source of truth for what is charged.
+	// calm "available soon" state. Displayed prices must match the Payment
+	// Link — Stripe still charges whatever the link says, so update both
+	// together. Tiers are listed in increasing price order.
 	const tiers = [
 		{
-			name: 'Standard',
-			detail: 'One copy of Issue 001.',
-			url: env.PUBLIC_ZINE_PAYMENT_LINK_STANDARD
-		},
-		{
 			name: 'Reduced',
-			detail: 'One copy, if the standard price is a stretch.',
+			price: '€15',
+			detail: 'If the standard price is too much.',
 			url: env.PUBLIC_ZINE_PAYMENT_LINK_REDUCED
 		},
 		{
+			name: 'Standard',
+			price: '€25',
+			detail: 'The zine.',
+			url: env.PUBLIC_ZINE_PAYMENT_LINK_STANDARD
+		},
+		{
 			name: 'Supporter',
-			detail: 'One copy, with a little extra toward the next print run.',
+			price: '€50',
+			detail: 'Helps support us and subsidises the reduced price.',
 			url: env.PUBLIC_ZINE_PAYMENT_LINK_SUPPORTER
 		}
 	]
@@ -62,6 +66,7 @@
 	</header>
 
 	<section class="hero">
+		<span class="ghost-numeral" aria-hidden="true">001</span>
 		<div class="hero-text">
 			<h1 class="title">The Dyad Zine</h1>
 			<p class="subtitle">Issue 001</p>
@@ -71,49 +76,58 @@
 	<section class="body-section">
 		<div class="prose">
 			<p>
-				We made a zine because some things deserve paper. The conversations that stayed with us,
-				the questions we kept returning to, the city as we have come to know it through strangers —
-				none of it felt right on a screen.
+				The zine is the document of dyad's first year: our plan for building social technology owned
+				by its community.
 			</p>
 			<p>
-				Issue 001 collects writing from the first year of dyad. Prompts that sparked something.
-				Reflections on what it means to sit across from someone you have never met and mean it.
-				Notes from Berlin.
+				In this issue: a diagnosis of the platform economy and its harms, what happened to Meetup,
+				the case for steward ownership and collective governance, our approach to trust and safety,
+				the execution plan, and what becomes possible if it works.
 			</p>
-			<p>
-				Printed in a small run. Black and white. Staple-bound. The kind of thing you leave on a table
-				for someone else to find.
-			</p>
+			<p>A hundred pages, A5, black and white, printed in a small run.</p>
 		</div>
 	</section>
 
+	<div class="asterism" aria-hidden="true">⁂</div>
+
 	<section class="buy-section">
-		<div class="buy-block">
+		<div class="coupon">
+			<span class="coupon-scissors" aria-hidden="true">✂</span>
+
 			{#if tiers.length > 1}
 				<ul class="tier-list">
 					{#each tiers as tier (tier.url)}
 						<li class="tier">
-							<div class="tier-text">
+							<div class="tier-row">
 								<span class="tier-name">{tier.name}</span>
-								<span class="tier-detail">{tier.detail}</span>
+								<span class="tier-leader" aria-hidden="true"></span>
+								<span class="tier-price">{tier.price}</span>
+								<a
+									class="buy-btn buy-btn--tier"
+									href={tier.url}
+									aria-label="order the zine — {tier.name}, {tier.price}"
+								>
+									order <span class="arrow">→</span>
+								</a>
 							</div>
-							<a class="buy-btn buy-btn--tier" href={tier.url} aria-label="order the zine — {tier.name}">
-								order <span class="arrow">→</span>
-							</a>
+							<p class="tier-detail">{tier.detail}</p>
 						</li>
 					{/each}
 				</ul>
 			{:else if tiers.length === 1}
-				<a class="buy-btn" href={tiers[0].url}>
-					order the zine <span class="arrow">→</span>
-				</a>
+				<div class="tier-row">
+					<span class="tier-price">{tiers[0].price}</span>
+					<a class="buy-btn" href={tiers[0].url}>
+						order the zine <span class="arrow">→</span>
+					</a>
+				</div>
 			{:else}
 				<span class="buy-btn buy-btn--soon" aria-disabled="true">available soon</span>
 			{/if}
 
 			<p class="fulfillment-note">
-				Copies change hands in person — in Berlin, and wherever dyad travels. Write to
-				<a href="mailto:hello@dyad.berlin">hello@dyad.berlin</a> to find one.
+				Ships from Berlin within 5–7 days. Write to
+				<a href="mailto:hello@dyad.berlin">hello@dyad.berlin</a> for bulk orders or questions.
 			</p>
 		</div>
 	</section>
@@ -132,6 +146,7 @@
 		flex-direction: column;
 		align-items: center;
 		padding: var(--space-6) var(--space-5);
+		overflow-x: clip;
 	}
 
 	.header {
@@ -149,20 +164,35 @@
 		display: inline-block;
 	}
 
+	/* ── Masthead ─────────────────────────────────────────────────────────
+	   The zine's own cover sheet: small mono issue label, oversized SangBleu
+	   title, a double editorial rule, the issue numeral ghosted behind like a
+	   registration mark, and the page's single terracotta accent — a stamp
+	   sitting across the fold. */
 	.hero {
+		position: relative;
 		width: 100%;
 		max-width: var(--content-narrow);
-		padding-bottom: var(--space-10);
-		border-bottom: 1px solid var(--border-subtle);
+		padding: var(--space-8) 0 var(--space-8);
+		border-bottom: 3px double var(--line-color);
+	}
+
+	.hero-text {
+		position: relative;
+		display: flex;
+		flex-direction: column-reverse; /* label reads above the title; h1 stays first in DOM */
+		gap: var(--space-3);
+		z-index: 1;
 	}
 
 	.title {
 		font-family: var(--font-serif);
-		font-size: var(--text-3xl);
+		font-size: clamp(2.5rem, 8.5vw, 3.75rem);
 		font-weight: 300;
-		line-height: var(--leading-tight);
-		margin: 0 0 var(--space-2);
-		letter-spacing: -0.01em;
+		line-height: 1.04;
+		margin: 0;
+		letter-spacing: -0.02em;
+		text-wrap: balance;
 	}
 
 	.subtitle {
@@ -170,15 +200,37 @@
 		font-size: var(--text-xs);
 		color: var(--text-muted);
 		margin: 0;
-		letter-spacing: 0.06em;
+		letter-spacing: 0.18em;
 		text-transform: uppercase;
 	}
 
+	.ghost-numeral {
+		position: absolute;
+		right: calc(-1 * var(--space-8));
+		bottom: calc(-1 * var(--space-4));
+		font-family: var(--font-serif);
+		font-weight: 300;
+		font-size: clamp(6.5rem, 26vw, 11rem);
+		line-height: 1;
+		letter-spacing: -0.04em;
+		color: transparent;
+		-webkit-text-stroke: 1px color-mix(in srgb, var(--text-primary) 28%, transparent);
+		pointer-events: none;
+		user-select: none;
+		z-index: 0;
+	}
+
+	@supports not (-webkit-text-stroke: 1px black) {
+		.ghost-numeral {
+			color: color-mix(in srgb, var(--text-primary) 7%, transparent);
+		}
+	}
+
+	/* ── Prose ────────────────────────────────────────────────────────── */
 	.body-section {
 		width: 100%;
 		max-width: var(--content-narrow);
-		padding: var(--space-10) 0;
-		border-bottom: 1px solid var(--border-subtle);
+		padding: var(--space-10) 0 var(--space-6);
 	}
 
 	.prose {
@@ -195,21 +247,105 @@
 		color: var(--text-secondary);
 	}
 
+	.prose p:first-of-type::first-letter {
+		float: left;
+		font-size: 3.1em;
+		line-height: 0.82;
+		font-weight: 300;
+		padding: var(--space-1) var(--space-2) 0 0;
+		color: var(--text-primary);
+	}
+
+	/* ── Asterism — the printer's section break ───────────────────────── */
+	.asterism {
+		width: 100%;
+		max-width: var(--content-narrow);
+		text-align: center;
+		font-family: var(--font-serif);
+		font-size: var(--text-lg);
+		color: var(--text-muted);
+		padding: var(--space-4) 0;
+		user-select: none;
+	}
+
+	/* ── The order coupon ─────────────────────────────────────────────── */
 	.buy-section {
 		width: 100%;
 		max-width: var(--content-narrow);
-		padding: var(--space-10) 0;
+		padding: var(--space-4) 0 var(--space-10);
 	}
 
-	.buy-block {
+	.coupon {
+		position: relative;
+		border: 1px dashed var(--line-color);
+		border-radius: 2px;
+		padding: var(--space-8) var(--space-6) var(--space-6);
 		display: flex;
 		flex-direction: column;
 		align-items: flex-start;
+		gap: var(--space-6);
+	}
+
+	.coupon-scissors {
+		position: absolute;
+		top: -0.72em;
+		left: var(--space-6);
+		font-size: var(--text-lg);
+		line-height: 1;
+		color: var(--text-muted);
+		background: var(--bg-canvas);
+		padding: 0 var(--space-2);
+		user-select: none;
+	}
+
+	.tier-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		width: 100%;
+		display: flex;
+		flex-direction: column;
 		gap: var(--space-5);
 	}
 
-	/* Primary action, mirrors the landing-page .join-btn: inverted fill, takes
-	   the visitor to Stripe-hosted checkout via a full-page navigation. */
+	.tier-row {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+	}
+
+	.tier-name {
+		font-family: var(--font-serif);
+		font-size: var(--text-lg);
+		color: var(--text-primary);
+		flex-shrink: 0;
+	}
+
+	/* Dotted leader, as in a colophon price list */
+	.tier-leader {
+		flex: 1;
+		min-width: var(--space-6);
+		border-bottom: 1px dotted var(--line-color);
+		transform: translateY(0.2em);
+	}
+
+	.tier-price {
+		font-family: var(--font-mono);
+		font-size: var(--text-base);
+		color: var(--text-primary);
+		letter-spacing: 0.02em;
+		flex-shrink: 0;
+	}
+
+	.tier-detail {
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+		line-height: var(--leading-relaxed);
+		margin: var(--space-1) 0 0;
+	}
+
+	/* ── Buttons — small letterpress blocks ───────────────────────────── */
 	.buy-btn {
 		display: inline-flex;
 		align-items: center;
@@ -222,56 +358,15 @@
 		padding: var(--space-3) var(--space-5);
 		text-decoration: none;
 		cursor: pointer;
-		transition: opacity 0.15s;
+		box-shadow: 3px 3px 0 color-mix(in srgb, var(--text-primary) 20%, transparent);
+		transition:
+			transform var(--duration-fast) var(--ease-ink),
+			box-shadow var(--duration-fast) var(--ease-ink);
 	}
 
 	.buy-btn:hover {
-		opacity: var(--opacity-hover-btn);
-	}
-
-	.arrow {
-		font-size: var(--text-sm);
-	}
-
-	.tier-list {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-		width: 100%;
-		display: flex;
-		flex-direction: column;
-	}
-
-	.tier {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		flex-wrap: wrap;
-		gap: var(--space-4);
-		padding: var(--space-4) 0;
-	}
-
-	.tier + .tier {
-		border-top: 1px solid var(--border-subtle);
-	}
-
-	.tier-text {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-1);
-	}
-
-	.tier-name {
-		font-family: var(--font-serif);
-		font-size: var(--text-md);
-		color: var(--text-primary);
-	}
-
-	.tier-detail {
-		font-family: var(--font-mono);
-		font-size: var(--text-xs);
-		color: var(--text-muted);
-		line-height: var(--leading-relaxed);
+		transform: translate(2px, 2px);
+		box-shadow: 1px 1px 0 color-mix(in srgb, var(--text-primary) 20%, transparent);
 	}
 
 	.buy-btn--tier {
@@ -279,16 +374,22 @@
 		flex-shrink: 0;
 	}
 
+	.arrow {
+		font-size: var(--text-sm);
+	}
+
 	/* No payment links configured: a calm, non-interactive placeholder. */
 	.buy-btn--soon {
 		background: none;
 		color: var(--text-muted);
-		border-color: var(--border-subtle);
+		border: 1px solid var(--border-subtle);
+		box-shadow: none;
 		cursor: default;
 	}
 
 	.buy-btn--soon:hover {
-		opacity: 1;
+		transform: none;
+		box-shadow: none;
 	}
 
 	.fulfillment-note {
@@ -308,10 +409,12 @@
 		color: var(--text-primary);
 	}
 
+	/* ── Colophon ─────────────────────────────────────────────────────── */
 	.footer {
 		width: 100%;
 		max-width: var(--content-narrow);
 		padding-top: var(--space-8);
+		border-top: 1px solid var(--border-subtle);
 	}
 
 	.footer-link {
@@ -323,5 +426,51 @@
 
 	.footer-link:hover {
 		color: var(--text-primary);
+	}
+
+	/* ── Load choreography — one staggered ink-settle ─────────────────── */
+	@media (prefers-reduced-motion: no-preference) {
+		.header,
+		.hero-text,
+		.body-section,
+		.asterism,
+		.buy-section,
+		.footer {
+			animation: rise var(--duration-slow) var(--ease-ink) both;
+		}
+
+		.hero-text { animation-delay: 60ms; }
+		.body-section { animation-delay: 140ms; }
+		.asterism { animation-delay: 200ms; }
+		.buy-section { animation-delay: 260ms; }
+		.footer { animation-delay: 320ms; }
+
+		.ghost-numeral {
+			animation: ghost-in 700ms var(--ease-ink) 240ms both;
+		}
+	}
+
+	@keyframes rise {
+		from {
+			opacity: 0;
+			transform: translateY(10px);
+		}
+	}
+
+	@keyframes ghost-in {
+		from {
+			opacity: 0;
+		}
+	}
+
+	/* ── Small screens — the numeral tucks in, the stamp keeps its corner ── */
+	@media (max-width: 640px) {
+		.ghost-numeral {
+			right: calc(-1 * var(--space-4));
+		}
+
+		.coupon {
+			padding: var(--space-8) var(--space-4) var(--space-5);
+		}
 	}
 </style>
