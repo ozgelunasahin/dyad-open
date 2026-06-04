@@ -9,6 +9,7 @@
 	import type { SubmitSlot } from '$lib/domain/types';
 	import { capture } from '$lib/analytics';
 	import { copy } from '$lib/copy';
+	import ParticipantsStack from '$lib/components/ParticipantsStack.svelte';
 
 	import { isSlotFull } from '$lib/domain/time-slot.js';
 
@@ -549,9 +550,13 @@
 						/>
 						{#if joining.length > 0}
 							<div class="slot-joining">
-								{#each joining as m (m.id)}
-									<a href="/meetings/{m.id}" class="participant-chip">@{m.partner_username}</a>
-								{/each}
+								<ParticipantsStack
+									participants={joining.map((m) => ({
+										id: m.id,
+										name: m.partner_username ?? 'anonymous',
+										href: `/meetings/${m.id}`
+									}))}
+								/>
 							</div>
 						{/if}
 					</div>
@@ -877,26 +882,10 @@
 	.response-body { font-size: var(--text-base); margin: 0 0 var(--space-1); line-height: var(--leading-normal); }
 	.inv-message { font-size: var(--text-sm); color: var(--text-secondary); font-style: italic; margin: var(--space-2) 0 var(--space-3); }
 
-	/* "Times you offered": each slot once, with who's joining as tappable
-	   name-buttons beneath it (each links to its meeting). Never dimmed. */
+	/* "Times you offered": each slot once, with who's joining as an overlapping
+	   avatar stack beneath it (each circle links to its meeting). Never dimmed. */
 	.slot-group { margin-bottom: var(--space-4); }
-	.slot-joining {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--space-2);
-		margin: var(--space-2) 0 0 var(--space-1);
-	}
-	.participant-chip {
-		font-family: var(--font-mono);
-		font-size: var(--text-xs);
-		color: var(--text-primary);
-		text-decoration: none;
-		border: 1px solid var(--border-link);
-		border-radius: var(--radius-input);
-		padding: var(--space-1) var(--space-2);
-		transition: border-color 0.15s;
-	}
-	.participant-chip:hover { border-color: var(--text-primary); }
+	.slot-joining { margin: var(--space-2) 0 0 var(--space-1); }
 
 	/* Responses: the spine. Single list; words always visible; a quiet status
 	   line annotates meeting state (no coloured badges — the accept/decline
