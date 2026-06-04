@@ -110,8 +110,9 @@
 
 /* ── User-handle links (@username in text) ──────────────────── */
 /* One hover signal for every username link, wherever it appears: inherit the
- * surrounding text style, brighten to primary and underline on hover. Defined
- * here (not per component) so the treatment can't drift. */
+ * surrounding text style, quietly brighten to primary on hover — no
+ * underline (the original conversation-header treatment). Defined here (not
+ * per component) so the treatment can't drift. */
 .user-handle {
 	color: inherit;
 	text-decoration: none;
@@ -119,8 +120,6 @@
 .user-handle:hover,
 .user-handle:focus-visible {
 	color: var(--text-primary);
-	text-decoration: underline;
-	text-underline-offset: 3px;
 }
 
 /* ── Form feedback ──────────────────────────────────────────── */

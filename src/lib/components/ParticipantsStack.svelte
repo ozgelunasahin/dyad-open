@@ -106,7 +106,7 @@
 				role="listitem"
 				href={p.href}
 				aria-label={handle}
-				style="--avatar-bg: {colourById.get(p.id)}; --stagger: {i * 60}ms; z-index: {visible.length + anonShown - i};"
+				style="--avatar-bg: {colourById.get(p.id)}; z-index: {visible.length + anonShown - i};"
 			>
 				<span class="avatar-initials" class:avatar-initials--you={p.isSelf} aria-hidden="true">{p.isSelf ? copy.common.you : initials(p.name)}</span>
 				<span class="participant-card" role="tooltip" aria-hidden="true">{handle}</span>
@@ -116,7 +116,7 @@
 				class="participant-avatar"
 				role="listitem"
 				aria-label={handle}
-				style="--avatar-bg: {colourById.get(p.id)}; --stagger: {i * 60}ms; z-index: {visible.length + anonShown - i};"
+				style="--avatar-bg: {colourById.get(p.id)}; z-index: {visible.length + anonShown - i};"
 			>
 				<span class="avatar-initials" class:avatar-initials--you={p.isSelf} aria-hidden="true">{p.isSelf ? copy.common.you : initials(p.name)}</span>
 				<span class="participant-card" role="tooltip" aria-hidden="true">{handle}</span>
@@ -135,7 +135,7 @@
 				<span
 					class="participant-avatar participant-avatar--anon"
 					aria-hidden="true"
-					style="--stagger: {(visible.length + j) * 60}ms; z-index: {anonShown - j};"
+					style="z-index: {anonShown - j};"
 				></span>
 			{/each}
 			<span class="participant-card" role="tooltip" aria-hidden="true">{copy.common.nOthers(anonymousCount)}</span>
@@ -145,7 +145,7 @@
 	{#if overflow > 0}
 		<div
 			class="avatar-overflow"
-			style="z-index: 0; --stagger: {(visible.length + anonShown) * 60}ms;"
+			style="z-index: 0;"
 			aria-label="{overflow} more joining"
 		>
 			<span>+{overflow}</span>
@@ -174,21 +174,17 @@
 		text-decoration: none;
 		/* Overlap: each avatar slides 10px under the previous */
 		margin-left: -10px;
-		animation: avatar-appear var(--duration-slow) var(--ease-ink) both;
-		animation-delay: var(--stagger);
-		transition:
-			transform var(--duration-fast) var(--ease-ink),
-			opacity var(--duration-fast) var(--ease-ink);
+		transition: transform var(--duration-fast) var(--ease-ink);
 	}
 
 	.participant-avatar:first-child {
 		margin-left: 0;
 	}
 
+	/* Hover: a gentle lift only — no opacity fade. */
 	.participant-avatar:hover,
 	.participant-avatar:focus-visible {
 		transform: translateY(-2px);
-		opacity: var(--opacity-hover-btn);
 		/* Lift above neighbouring circles so the handle card isn't clipped. */
 		z-index: 50;
 	}
@@ -238,17 +234,6 @@
 		}
 	}
 
-	@keyframes avatar-appear {
-		from {
-			opacity: 0;
-			transform: scale(0.8) translateY(4px);
-		}
-		to {
-			opacity: 1;
-			transform: scale(1) translateY(0);
-		}
-	}
-
 	.avatar-initials {
 		font-family: var(--font-mono);
 		font-size: var(--text-xs);
@@ -293,10 +278,6 @@
 	.anon-group:hover .participant-avatar--anon {
 		transform: translateY(-2px);
 	}
-	/* The group moves as one — suppress the per-circle hover fade. */
-	.participant-avatar--anon:hover {
-		opacity: 1;
-	}
 	.anon-group:hover > .participant-card {
 		display: block;
 		animation: card-appear 150ms var(--ease-ink) both;
@@ -315,8 +296,6 @@
 		outline: 2px solid var(--bg-canvas);
 		outline-offset: 0;
 		margin-left: -10px;
-		animation: avatar-appear var(--duration-slow) var(--ease-ink) both;
-		animation-delay: var(--stagger);
 		flex-shrink: 0;
 	}
 
