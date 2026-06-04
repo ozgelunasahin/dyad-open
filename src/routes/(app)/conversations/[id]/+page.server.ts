@@ -166,10 +166,19 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			}
 		}
 
-		// Enrich with exact_location via SECURITY DEFINER RPC
-		for (const m of meetings ?? []) {
-			const { data: detail } = await locals.supabase.rpc('get_meeting_with_location', { p_meeting_id: m.id });
-			const d = Array.isArray(detail) ? detail[0] : detail;
+		// Enrich with exact_location via SECURITY DEFINER RPC. One call per meeting,
+		// run in parallel — a full group slot holds up to 7 meetings, and serial
+		// round trips cost 30–80ms each. (A batch/array RPC variant is the proper
+		// fix; tracked as follow-up.)
+		const locationDetails = await Promise.all(
+			(meetings ?? []).map((m) =>
+				locals.supabase
+					.rpc('get_meeting_with_location', { p_meeting_id: m.id })
+					.then(({ data }) => (Array.isArray(data) ? data[0] : data) ?? null)
+			)
+		);
+		(meetings ?? []).forEach((m, i) => {
+			const d = locationDetails[i];
 			const canceller = cancellers.get(m.id) ?? null;
 			promptMeetings.push({
 				id: m.id,
@@ -185,7 +194,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				cancellation_reason: canceller?.reason ?? null,
 				partner_username: partnerMap.get(m.participant_b) ?? null
 			});
-		}
+		});
 	}
 
 	// For non-authors: check if they have a confirmed meeting for this prompt

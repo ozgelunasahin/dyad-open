@@ -1,16 +1,17 @@
 <script lang="ts">
 	import { copy } from '$lib/copy';
+	import { MIN_CAPACITY, MAX_CAPACITY } from '$lib/domain/types.js';
 
 	interface Props {
 		// Conversation size. 'one' = one-on-one (capacity 1); 'group' = the author
-		// sets the max number of *others* (1-7 → up to 8 people total incl. the
-		// author). Set at publish; immutable afterwards.
+		// sets the max number of *others* (MIN..MAX_CAPACITY → up to MAX+1 people
+		// total incl. the author). Set at publish; immutable afterwards.
 		size?: 'one' | 'group';
 		maxOthers?: number;
 		disabled?: boolean;
 	}
 
-	let { size = $bindable('one'), maxOthers = $bindable(7), disabled = false }: Props = $props();
+	let { size = $bindable('one'), maxOthers = $bindable(MAX_CAPACITY), disabled = false }: Props = $props();
 </script>
 
 <div class="size-picker">
@@ -39,15 +40,15 @@
 				type="button"
 				class="size-step"
 				aria-label={copy.editor.sizeFewer}
-				onclick={() => (maxOthers = Math.max(1, maxOthers - 1))}
-				disabled={disabled || maxOthers <= 1}>&minus;</button>
+				onclick={() => (maxOthers = Math.max(MIN_CAPACITY, maxOthers - 1))}
+				disabled={disabled || maxOthers <= MIN_CAPACITY}>&minus;</button>
 			<span class="size-max-label">{copy.editor.sizeMaxOthers.replace('{n}', String(maxOthers))}</span>
 			<button
 				type="button"
 				class="size-step"
 				aria-label={copy.editor.sizeMore}
-				onclick={() => (maxOthers = Math.min(7, maxOthers + 1))}
-				disabled={disabled || maxOthers >= 7}>+</button>
+				onclick={() => (maxOthers = Math.min(MAX_CAPACITY, maxOthers + 1))}
+				disabled={disabled || maxOthers >= MAX_CAPACITY}>+</button>
 		</div>
 	{/if}
 </div>

@@ -43,7 +43,9 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 			.maybeSingle();
 
 		if (lookupError) {
-			throw new Error(`Failed to load meeting: ${lookupError.message}`);
+			// Log the Supabase detail server-side only — never into the error chain.
+			console.error('[meetings/report] lookup error:', lookupError);
+			throw new Error('Failed to load meeting');
 		}
 		if (!meeting) {
 			throw new DomainError('You can only report a problem about a meeting you are part of', 403);
@@ -57,7 +59,8 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		});
 
 		if (insertError) {
-			throw new Error(`Failed to record report: ${insertError.message}`);
+			console.error('[meetings/report] insert error:', insertError);
+			throw new Error('Failed to record report');
 		}
 
 		return json({ ok: true });

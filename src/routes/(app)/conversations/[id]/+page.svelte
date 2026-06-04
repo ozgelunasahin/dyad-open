@@ -10,6 +10,8 @@
 	import { capture } from '$lib/analytics';
 	import { copy } from '$lib/copy';
 	import ParticipantsStack from '$lib/components/ParticipantsStack.svelte';
+	import { formatShortDate as formatDate } from '$lib/utils/dates.js';
+	import { buildResponseRows, ACTIVE_MEETING_STATES } from '$lib/domain/response-rows.js';
 
 	import { isSlotFull } from '$lib/domain/time-slot.js';
 
@@ -70,10 +72,6 @@
 	let declineError = $state('');
 	let openDeclineId = $state<string | null>(null);
 	let declineMessage = $state('');
-
-	function formatDate(iso: string): string {
-		return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-	}
 
 	async function submitResponse() {
 		if (!responseText.trim()) return;
@@ -311,36 +309,10 @@
 	}
 
 	// ── Author view: response-spine model ───────────────────────────────────
-	// The author's page is the set of RESPONSES to their conversation; each
-	// response is the context for a (potential or actual) meeting. The schedule
-	// annotates each response with a status — it never becomes the spine, so a
-	// member's words stay visible whatever their meeting status. The exact
-	// time/place lives once in "Times you offered"; status lines reference a slot
-	// by day + neighbourhood only. One shape serves one-on-one and small group.
-	// A meeting that has happened or is upcoming, vs one that's been called off.
-	const ACTIVE_MEETING_STATES = ['scheduled', 'awaiting_feedback'];
-	const MET_STATE = 'completed';
-
-	type ResponseRow = {
-		key: string;
-		username: string;
-		body: string | null;
-		message: string | null; // the note attached to a meeting request, if any
-		createdAt: string;
-		status: 'pending' | 'confirmed' | 'met' | 'cancelled' | 'responded';
-		slotRef: string | null; // pre-formatted "day · neighbourhood"
-		meetingId: string | null;
-		invitationId: string | null;
-		slotId: string | null;
-		cancellationReason: string | null;
-	};
-
-	// Compact slot reference for a status line — day + neighbourhood, never the
-	// exact address (that lives once in "Times you offered").
-	function formatSlotRef(iso: string | undefined | null, area: string | null | undefined): string | null {
-		if (!iso) return null;
-		return area ? `${formatDate(iso)} · ${area}` : formatDate(iso);
-	}
+	// The derivation (status precedence, edge cases, ordering) is a pure,
+	// unit-tested function in $lib/domain/response-rows — this page only wires
+	// loader data in and renders the rows. The exact time/place lives once in
+	// "Times you offered"; status lines reference a slot by day + neighbourhood.
 
 	// Who's joining a slot — the active meetings on it. Rendered as tappable
 	// name-buttons on the "Times you offered" card (each links to its meeting).
@@ -350,108 +322,9 @@
 		);
 	}
 
-	// One row per responder, tagged with meeting status by precedence:
-	// has a meeting (confirmed/met) → pending request → cancelled → responded(no
-	// time). Meetings carry partner_username, not an id, so they match by username
-	// (unique); pending matches the invitation by inviter_id.
-	let responseRows = $derived.by<ResponseRow[]>(() => {
-		const meetings = data.promptMeetings ?? [];
-		const invites = data.receivedInvitations ?? [];
-		const rows: ResponseRow[] = [];
-		const shownPending = new Set<string>(); // invitation ids already on a row
-
-		const newRow = (over: Partial<ResponseRow> & Pick<ResponseRow, 'key' | 'username' | 'createdAt'>): ResponseRow => ({
-			body: null, message: null, status: 'responded', slotRef: null,
-			meetingId: null, invitationId: null, slotId: null, cancellationReason: null,
-			...over
-		});
-
-		for (const c of data.comments) {
-			const meeting = meetings.find(
-				(m) =>
-					m.partner_username === c.author_username &&
-					(ACTIVE_MEETING_STATES.includes(m.state) || m.state === MET_STATE)
-			);
-			const pending = invites.find((inv) => inv.inviter_id === c.author_id && inv.state === 'pending');
-			const cancelled = meetings.find(
-				(m) =>
-					m.partner_username === c.author_username &&
-					(m.state === 'cancelled_early' || m.state === 'cancelled_late')
-			);
-
-			const row = newRow({ key: c.author_id, username: c.author_username ?? 'anonymous', body: c.body, createdAt: c.created_at });
-			if (meeting) {
-				row.status = meeting.state === MET_STATE ? 'met' : 'confirmed';
-				row.slotRef = formatSlotRef(meeting.scheduled_time, meeting.general_area);
-				row.meetingId = meeting.id;
-			} else if (pending) {
-				row.status = 'pending';
-				row.slotRef = formatSlotRef(pending.slot_start_time, pending.slot_general_area);
-				row.message = pending.message;
-				row.invitationId = pending.id;
-				row.slotId = pending.slot_id;
-				shownPending.add(pending.id);
-			} else if (cancelled) {
-				row.status = 'cancelled';
-				row.slotRef = formatSlotRef(cancelled.scheduled_time, cancelled.general_area);
-				row.cancellationReason = cancelled.cancellation_reason;
-			}
-			rows.push(row);
-		}
-
-		// Any pending request not already on a row stays actionable on its own: a
-		// comment-less inviter, OR a second request from someone whose row resolved
-		// to confirmed/met (multi-invite is allowed). Words shown only when this is
-		// their sole row — otherwise the request line + actions suffice.
-		for (const inv of invites) {
-			if (inv.state !== 'pending' || shownPending.has(inv.id)) continue;
-			const hasPrimaryRow = data.comments.some((c) => c.author_id === inv.inviter_id);
-			rows.push(newRow({
-				key: `inv:${inv.id}`,
-				username: inv.inviter_username,
-				body: hasPrimaryRow ? null : inv.comment_body,
-				message: inv.message,
-				createdAt: inv.created_at,
-				status: 'pending',
-				slotRef: formatSlotRef(inv.slot_start_time, inv.slot_general_area),
-				invitationId: inv.id,
-				slotId: inv.slot_id
-			}));
-			shownPending.add(inv.id);
-		}
-
-		// Comment-less accepted inviter (has a meeting, no comment) — rare under the
-		// response-first flow, but surface them so they aren't lost.
-		for (const inv of invites) {
-			if (inv.state !== 'accepted') continue;
-			if (data.comments.some((c) => c.author_id === inv.inviter_id)) continue;
-			const meeting = meetings.find(
-				(m) =>
-					m.partner_username === inv.inviter_username &&
-					(ACTIVE_MEETING_STATES.includes(m.state) || m.state === MET_STATE)
-			);
-			rows.push(newRow({
-				key: `inv:${inv.id}`,
-				username: inv.inviter_username,
-				body: inv.comment_body,
-				createdAt: inv.created_at,
-				status: meeting?.state === MET_STATE ? 'met' : 'confirmed',
-				slotRef: formatSlotRef(meeting?.scheduled_time ?? inv.slot_start_time, meeting?.general_area ?? inv.slot_general_area),
-				meetingId: meeting?.id ?? null,
-				slotId: inv.slot_id
-			}));
-		}
-
-		// Actionable-first (pending), stable chronological within each group:
-		// pending oldest-first (longest-waiting on top); everyone else newest-first.
-		const rank = (r: ResponseRow) => (r.status === 'pending' ? 0 : 1);
-		return rows.sort((a, b) => {
-			if (rank(a) !== rank(b)) return rank(a) - rank(b);
-			const at = new Date(a.createdAt).getTime();
-			const bt = new Date(b.createdAt).getTime();
-			return rank(a) === 0 ? at - bt : bt - at;
-		});
-	});
+	let responseRows = $derived.by(() =>
+		buildResponseRows(data.comments, data.promptMeetings ?? [], data.receivedInvitations ?? [], formatDate)
+	);
 </script>
 
 <svelte:head>

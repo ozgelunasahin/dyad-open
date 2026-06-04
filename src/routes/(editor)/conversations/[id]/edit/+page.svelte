@@ -489,6 +489,7 @@
 		{publishing}
 		saving={savingSlots}
 		error={publishError}
+		showSizePicker={data.prompt.published_at == null}
 	/>
 {/if}
 

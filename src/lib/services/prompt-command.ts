@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { JSONContent } from '@tiptap/core';
 import { nanoid } from 'nanoid';
-import type { Prompt, TimeSlotInput } from '$lib/domain/types.js';
+import { MIN_CAPACITY, MAX_CAPACITY, type Prompt, type TimeSlotInput } from '$lib/domain/types.js';
 import { canPublish, canUnpublish } from '$lib/domain/prompt.js';
 import { deriveGeneralArea, validateRegion } from '$lib/services/location.js';
 import { DomainError } from '$lib/domain/errors.js';
@@ -112,9 +112,11 @@ export class SupabasePromptCommandService implements PromptCommandService {
 		const effectiveCapacity = isFirstPublish ? (capacity ?? 1) : prompt.capacity;
 		if (
 			effectiveCapacity != null &&
-			(!Number.isInteger(effectiveCapacity) || effectiveCapacity < 1 || effectiveCapacity > 7)
+			(!Number.isInteger(effectiveCapacity) ||
+				effectiveCapacity < MIN_CAPACITY ||
+				effectiveCapacity > MAX_CAPACITY)
 		) {
-			throw new DomainError('Group size must be between 1 and 7');
+			throw new DomainError(`Group size must be between ${MIN_CAPACITY} and ${MAX_CAPACITY}`);
 		}
 
 		// audience_scope + capacity are set here, then publish_prompt flips

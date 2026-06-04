@@ -8,7 +8,7 @@
 	import ConversationCard from '$lib/components/ConversationCard.svelte';
 	import MeetingCard from '$lib/components/MeetingCard.svelte';
 	import { copy } from '$lib/copy';
-	import { formatRelativePast } from '$lib/utils/dates';
+	import { formatRelativePast, formatShortDate as formatDate } from '$lib/utils/dates';
 
 	let { data }: { data: PageData } = $props();
 
@@ -255,13 +255,6 @@
 		goto(`/profile?tab=${tab}`, { replaceState: true });
 	}
 
-	function formatDate(iso: string): string {
-		return new Date(iso).toLocaleDateString('en-US', {
-			weekday: 'short',
-			month: 'short',
-			day: 'numeric'
-		});
-	}
 	function formatTime(iso: string): string {
 		return new Date(iso).toLocaleTimeString('en-US', {
 			hour: 'numeric',

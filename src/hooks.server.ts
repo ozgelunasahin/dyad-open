@@ -137,7 +137,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 			if (gateStatus.gated && gateStatus.kind === 'one_on_one') {
 				if (pathname.startsWith('/api/')) {
-					return new Response(JSON.stringify({ error: 'gated', feedbackFormId: gateStatus.formId }), {
+					// Body mirrors the GateStatus discriminated union ({kind, formId}) so
+					// programmatic callers handle both gate kinds with one shape.
+					return new Response(JSON.stringify({ error: 'gated', kind: gateStatus.kind, formId: gateStatus.formId }), {
 						status: 403,
 						headers: { 'Content-Type': 'application/json' }
 					});
@@ -150,7 +152,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 				// under the /feedback prefix). Unlike the one-on-one modal path, this
 				// redirects — the group form is a standalone page with no reveal state.
 				if (pathname.startsWith('/api/')) {
-					return new Response(JSON.stringify({ error: 'gated', groupFeedbackFormId: gateStatus.formId }), {
+					return new Response(JSON.stringify({ error: 'gated', kind: gateStatus.kind, formId: gateStatus.formId }), {
 						status: 403,
 						headers: { 'Content-Type': 'application/json' }
 					});

@@ -12,7 +12,7 @@ export async function loadLayoutData(locals: App.Locals) {
 
 	const pendingFormId = (locals as any).pendingFeedbackFormId as string | undefined;
 
-	const [{ data: profile }, { count: invitationCount }, { count: feedbackCount }, pendingFeedback] = await Promise.all([
+	const [{ data: profile }, { count: invitationCount }, { count: feedbackCount }, { count: groupFeedbackCount }, pendingFeedback] = await Promise.all([
 		locals.supabase
 			.from('profiles')
 			.select('username')
@@ -28,13 +28,20 @@ export async function loadLayoutData(locals: App.Locals) {
 			.select('*', { count: 'exact', head: true })
 			.eq('reviewer_id', locals.user.id)
 			.eq('state', 'due'),
+		// Group gatherings gate on group_feedback rows, not feedback_forms — count
+		// them too so the attention badge matches what the gate enforces.
+		locals.supabase
+			.from('group_feedback')
+			.select('*', { count: 'exact', head: true })
+			.eq('reviewer_id', locals.user.id)
+			.eq('state', 'due'),
 		pendingFormId ? loadPendingFeedback(locals, pendingFormId) : Promise.resolve(null)
 	]);
 
 	return {
 		identity: userToUpactor(locals.user),
 		username: profile?.username ?? '',
-		attentionCount: (invitationCount ?? 0) + (feedbackCount ?? 0),
+		attentionCount: (invitationCount ?? 0) + (feedbackCount ?? 0) + (groupFeedbackCount ?? 0),
 		pendingFeedback
 	};
 }

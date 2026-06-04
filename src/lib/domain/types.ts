@@ -3,6 +3,12 @@ import type { JSONContent } from '@tiptap/core';
 // Prompt states
 export type PromptState = 'draft' | 'published';
 
+// Per-conversation capacity bounds (max joiners per slot; mirrors the DB CHECK
+// in 20260529100000_add_capacity_to_prompts.sql). 1 = one-on-one; up to 7
+// others = 8 people total including the author. null stays legacy unlimited.
+export const MIN_CAPACITY = 1;
+export const MAX_CAPACITY = 7;
+
 // Location reference stored in time_slots.exact_location JSONB
 export interface LocationRef {
 	place_id: string;
