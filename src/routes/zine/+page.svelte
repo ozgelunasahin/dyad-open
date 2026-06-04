@@ -27,19 +27,19 @@
 		{
 			name: 'Reduced',
 			price: '€15',
-			detail: 'One copy, if the standard price is a stretch.',
+			detail: 'If the standard price is too much.',
 			url: env.PUBLIC_ZINE_PAYMENT_LINK_REDUCED
 		},
 		{
 			name: 'Standard',
 			price: '€25',
-			detail: 'One copy of Issue 001.',
+			detail: 'The zine.',
 			url: env.PUBLIC_ZINE_PAYMENT_LINK_STANDARD
 		},
 		{
 			name: 'Supporter',
 			price: '€50',
-			detail: 'One copy, with a little extra toward the next print run.',
+			detail: 'Helps support us and subsidises the reduced price.',
 			url: env.PUBLIC_ZINE_PAYMENT_LINK_SUPPORTER
 		}
 	]
@@ -71,7 +71,6 @@
 			<h1 class="title">The Dyad Zine</h1>
 			<p class="subtitle">Issue 001</p>
 		</div>
-		<span class="stamp" aria-hidden="true">Made in Berlin</span>
 	</section>
 
 	<section class="body-section">
@@ -131,8 +130,8 @@
 			{/if}
 
 			<p class="fulfillment-note">
-				Copies change hands in person — in Berlin, and wherever dyad travels. Write to
-				<a href="mailto:hello@dyad.berlin">hello@dyad.berlin</a> to find one.
+				Ships from Berlin within 5–7 days. Write to
+				<a href="mailto:hello@dyad.berlin">hello@dyad.berlin</a> for bulk orders or questions.
 			</p>
 		</div>
 	</section>
@@ -229,24 +228,6 @@
 		.ghost-numeral {
 			color: color-mix(in srgb, var(--text-primary) 7%, transparent);
 		}
-	}
-
-	.stamp {
-		position: absolute;
-		right: 0;
-		bottom: calc(-1 * var(--space-4));
-		z-index: 2;
-		font-family: var(--font-mono);
-		font-size: var(--text-xs);
-		text-transform: uppercase;
-		letter-spacing: 0.14em;
-		color: var(--color-accent);
-		border: 1.5px solid var(--color-accent);
-		border-radius: 2px;
-		padding: var(--space-1) var(--space-3);
-		background: var(--bg-canvas);
-		transform: rotate(-4deg);
-		opacity: 0.9;
 	}
 
 	/* ── Prose ────────────────────────────────────────────────────────── */
@@ -471,10 +452,6 @@
 		.ghost-numeral {
 			animation: ghost-in 700ms var(--ease-ink) 240ms both;
 		}
-
-		.stamp {
-			animation: stamp-in var(--duration-slow) var(--ease-ink) 520ms both;
-		}
 	}
 
 	@keyframes rise {
@@ -487,13 +464,6 @@
 	@keyframes ghost-in {
 		from {
 			opacity: 0;
-		}
-	}
-
-	@keyframes stamp-in {
-		from {
-			opacity: 0;
-			transform: rotate(-9deg) scale(1.14);
 		}
 	}
 
