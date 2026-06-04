@@ -114,6 +114,7 @@ Schema defined in `supabase/migrations/` (source of truth). Key tables:
 - `feedback_forms` — Post-meeting feedback with simultaneous reveal
 - `adjective_vocabulary` — Rating tags for feedback
 - `app_settings` — Global runtime config (key/JSONB value). Service-role-only. Read/written by the admin plane (`/admin/settings`) and the notification dispatch gate. Default seed: `email_notifications_enabled = false`.
+- `notification_settings` — Per-member notification address (strictly opt-in; dispatch never falls back to the auth email) + per-event flags. Owner-only RLS on every verb — the address is PII and must not ride the permissive profiles SELECT policy.
 
 ## Key Files
 

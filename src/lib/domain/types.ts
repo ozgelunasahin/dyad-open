@@ -1,5 +1,12 @@
 import type { JSONContent } from '@tiptap/core';
 
+// Default email-notification preference when a member has no explicit value.
+// Mirrors the per-event `profiles.email_*` column defaults (TRUE; see
+// migration 20260604090000) and is the single source for the
+// nullish-coalescing fallback at every read site that may encounter a
+// missing/null row.
+export const EMAIL_NOTIFICATIONS_DEFAULT = true;
+
 // Prompt states
 export type PromptState = 'draft' | 'published';
 

@@ -279,6 +279,25 @@ export const copy = {
 		// Attention-card sentence: "@marco cancelled this meeting on Fri, 20 Apr"
 		cancellationAttention: (username: string, date: string) =>
 			`@${username} cancelled this meeting on ${date}`,
+		// Quiet action row in the profile card, next to sign out.
+		preferencesLink: 'preferences',
+	},
+
+	// ── Preferences ────────────────────────────────────────────────────
+	preferences: {
+		_routes: ['/profile/preferences'],
+		_description:
+			'Notification settings. Email is strictly opt-in: members add an address to receive notification emails; per-event toggles refine which events. No address, no mail.',
+		title: 'Preferences',
+		backToProfile: '← profile',
+		emailPlaceholder: 'Add an email address to turn on notifications',
+		emailAriaLabel: 'Email address for notifications',
+		save: 'save',
+		emailError: "Couldn't save that address. Please try again.",
+		emailPrefsHeading: 'Email me about',
+		prefInvitationReceived: 'New invitations',
+		prefInvitationAnswered: 'Replies to my invitations',
+		prefMeetingCancelled: 'Cancelled meetings',
 	},
 
 	// ── Meeting detail ─────────────────────────────────────────────────

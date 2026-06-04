@@ -5,6 +5,7 @@ import { getEmailNotificationsEnabled } from './app-settings.js';
 import { copy } from '$lib/copy.js';
 import { escapeHtml } from '$lib/utils/escape-html.js';
 import { tokens } from '$lib/design-tokens.js';
+import { EMAIL_NOTIFICATIONS_DEFAULT } from '$lib/domain/types.js';
 
 const { color, textSize, space, leading, letterSpacing } = tokens;
 const SERIF = "'SangBleu Sunrise', Georgia, serif";
@@ -76,32 +77,51 @@ export function deferEmail(
 	}
 }
 
+/** One flag per notification family — mirrors the notification_settings
+ *  columns from 20260604090000_granular_email_notification_prefs.sql. */
+export interface NotificationPrefs {
+	invitationReceived: boolean;
+	invitationAnswered: boolean;
+	meetingCancelled: boolean;
+}
+
 export interface NotificationRecipient {
 	userId: string;
 	email: string;
-	emailNotifications: boolean;
+	prefs: NotificationPrefs;
 }
 
-/** Load a recipient's email and preference. Returns null if no row exists. */
+/** Load a recipient's notification address and per-event preferences.
+ *
+ *  Notifications are strictly opt-in: mail goes only to an address the member
+ *  has added to their notification settings — never to the auth account
+ *  email. Returns null when the member has not opted in (no row, or no
+ *  address), which is the normal default state, not an error. */
 export async function resolveRecipient(userId: string): Promise<NotificationRecipient | null> {
 	const admin = makeAdminClient();
-	const [{ data: profile }, { data: authUser }] = await Promise.all([
-		admin.from('profiles').select('email_notifications').eq('id', userId).maybeSingle(),
-		admin.auth.admin.getUserById(userId)
-	]);
+	const { data: settings } = await admin
+		.from('notification_settings')
+		.select('email, invitation_received, invitation_answered, meeting_cancelled')
+		.eq('user_id', userId)
+		.maybeSingle();
 
-	const email = authUser.user?.email;
+	const email = settings?.email;
 	if (!email) return null;
 
 	return {
 		userId,
 		email,
-		emailNotifications: profile?.email_notifications ?? true
+		prefs: {
+			invitationReceived: settings.invitation_received ?? EMAIL_NOTIFICATIONS_DEFAULT,
+			invitationAnswered: settings.invitation_answered ?? EMAIL_NOTIFICATIONS_DEFAULT,
+			meetingCancelled: settings.meeting_cancelled ?? EMAIL_NOTIFICATIONS_DEFAULT
+		}
 	};
 }
 
 interface DispatchParams {
 	userId: string;
+	pref: keyof NotificationPrefs;
 	subject: string;
 	bodyHtml: string;
 }
@@ -112,12 +132,10 @@ async function dispatch(params: DispatchParams): Promise<void> {
 		// Admin plane flips this via /admin/settings; no env var, no redeploy.
 		if (!(await getEmailNotificationsEnabled())) return;
 
+		// Not opted in (no notification address) is the quiet default.
 		const recipient = await resolveRecipient(params.userId);
-		if (!recipient) {
-			console.error(`[notification-emails] no recipient for user ${params.userId}`);
-			return;
-		}
-		if (!recipient.emailNotifications) return;
+		if (!recipient) return;
+		if (!recipient.prefs[params.pref]) return;
 
 		await sendEmail({
 			to: recipient.email,
@@ -147,6 +165,7 @@ export async function notifyInvitationReceived(params: {
 	const subject = escapeHtml(params.inviterUsername ?? 'Someone');
 	await dispatch({
 		userId: params.authorUserId,
+		pref: 'invitationReceived',
 		subject: 'A new invitation to meet',
 		bodyHtml: `
 			<p>${subject} responded to your conversation and would like to meet.</p>
@@ -162,6 +181,7 @@ export async function notifyInvitationAccepted(params: {
 }): Promise<void> {
 	await dispatch({
 		userId: params.inviterUserId,
+		pref: 'invitationAnswered',
 		subject: 'Your invitation was accepted',
 		bodyHtml: `
 			<p>Your invitation was accepted. The meeting is scheduled.</p>
@@ -180,6 +200,7 @@ export async function notifyInvitationDeclined(params: {
 		: '';
 	await dispatch({
 		userId: params.inviterUserId,
+		pref: 'invitationAnswered',
 		subject: 'Your invitation was declined',
 		bodyHtml: `
 			<p>Your invitation was declined this time.</p>
@@ -199,6 +220,7 @@ export async function notifyMeetingCancelled(params: {
 		: '';
 	await dispatch({
 		userId: params.remainingParticipantUserId,
+		pref: 'meetingCancelled',
 		subject: 'A meeting was cancelled',
 		bodyHtml: `
 			<p>The other person cancelled.</p>
@@ -224,6 +246,9 @@ export async function notifyMultiInviteCourtesy(params: {
 		params.existingParticipantUserIds.map((userId) =>
 			dispatch({
 				userId,
+				// Rides the meeting flag for now; if this courtesy ever turns on
+				// (MULTI_INVITE_COURTESY_EMAIL=1) it deserves its own preference.
+				pref: 'meetingCancelled',
 				subject: 'Someone else is joining your meeting',
 				bodyHtml: `
 					<p>Another person accepted an invitation for the same time and place as your meeting.</p>

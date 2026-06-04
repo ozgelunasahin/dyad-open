@@ -36,7 +36,10 @@ function resolveProvider(): EmailProvider {
 
 export async function sendEmail(message: EmailMessage): Promise<boolean> {
 	const provider = resolveProvider();
-	console.error(`[email] provider=${provider.name} to=${message.to}`);
+	// Deliberately no recipient in the log line — the notification address is
+	// opt-in PII (notification_settings) and logs have a different
+	// access/retention boundary than the database.
+	console.error(`[email] provider=${provider.name}`);
 	try {
 		return await provider.send(message);
 	} catch (err) {

@@ -276,9 +276,12 @@
 	<div class="profile-card">
 		<div class="profile-name">{data.username}</div>
 		<div class="profile-handle">@{data.username}</div>
-		<form method="POST" action="/logout" class="sign-out-form">
-			<button type="submit" class="sign-out-link">{copy.nav.signOut}</button>
-		</form>
+		<div class="profile-actions">
+			<a href="/profile/preferences" class="profile-action-link">{copy.profile.preferencesLink}</a>
+			<form method="POST" action="/logout" class="sign-out-form">
+				<button type="submit" class="sign-out-link">{copy.nav.signOut}</button>
+			</form>
+		</div>
 	</div>
 
 	<!-- Needs your attention — notification surface only, actions happen on conversation detail -->
@@ -479,6 +482,23 @@
 		font-size: var(--text-sm);
 		color: var(--text-muted);
 	}
+	.profile-actions {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: var(--space-1);
+		margin-top: var(--space-2);
+	}
+	.profile-action-link {
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+		display: inline-block;
+		text-decoration: underline;
+		text-decoration-color: transparent;
+	}
+	.profile-action-link:hover {
+		color: var(--text-primary);
+	}
 	.sign-out-form {
 		margin: 0;
 		padding: 0;
@@ -487,7 +507,6 @@
 	.sign-out-link {
 		font-size: var(--text-sm);
 		color: var(--text-muted);
-		margin-top: var(--space-2);
 		display: inline-block;
 		background: none;
 		border: none;

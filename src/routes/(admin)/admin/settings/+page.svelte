@@ -53,10 +53,12 @@
 			<span class="setting-label">Transactional email notifications</span>
 			<span class="setting-hint">
 				When on, the four dyadic events (invitation received, accepted,
-				declined, meeting cancelled) send email to the relevant member.
-				When off, every notification is dropped before recipient lookup —
-				no email is sent. Per-member opt-out is not yet wired into the
-				app UI; this is the only switch.
+				declined, meeting cancelled) can send email. When off, every
+				notification is dropped before recipient lookup — no email is
+				sent. This is the master gate; mail additionally requires that
+				the member has added a notification address in their profile
+				preferences (strictly opt-in — the account email is never
+				used), and per-event opt-outs are honoured while this is on.
 			</span>
 		</div>
 	</label>
