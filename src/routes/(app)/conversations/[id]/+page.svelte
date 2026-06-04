@@ -4,7 +4,6 @@
 	import SlotCard from '$lib/components/SlotCard.svelte';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
-	import MeetingCard from '$lib/components/MeetingCard.svelte';
 	import PublishSheet from '$lib/components/PublishSheet.svelte';
 	import type { SubmitSlot } from '$lib/domain/types';
 	import { capture } from '$lib/analytics';
@@ -501,18 +500,25 @@
 	<!-- Available times + invitation flow (non-authors only) -->
 	{#if !isOwnPrompt}
 		{#if data.myMeeting}
-			<!-- Confirmed: meeting scheduled. Same <MeetingCard> used on the author
-			     view and the profile surface — a meeting is symmetric regardless
-			     of who initiated the conversation. -->
+			<!-- Confirmed: the unified gathering card. The full room — the host
+			     identified, the viewer's own pin ("you"), and neutral circles for
+			     the other joiners (count from the viewer-safe occupancy RPC,
+			     never who). -->
 			<section class="slots-section">
 				<a href="/meetings/{data.myMeeting.id}" class="meeting-card-link">
-					<MeetingCard
-						partnerUsername={data.prompt.author_username}
-						scheduledTime={data.myMeeting.scheduled_time}
+					<SlotCard
+						tone="meeting"
+						startTime={data.myMeeting.scheduled_time}
 						durationMinutes={data.myMeeting.duration_minutes}
-						generalArea={data.myMeeting.general_area}
+						area={data.myMeeting.general_area}
 						exactLocation={data.myMeeting.exact_location}
-					/>
+					>
+						<ParticipantsStack
+							participants={[{ id: 'host', name: data.prompt.author_username }]}
+							self={{ name: data.username || 'you' }}
+							anonymousCount={Math.max(0, occupiedOn(data.myMeeting.slot_id) - 1)}
+						/>
+					</SlotCard>
 				</a>
 			</section>
 		{:else}
@@ -534,12 +540,13 @@
 					     session — sendInvite keeps `invitedSlotIds` + `invitationBySlotId`
 					     in sync so the withdraw action works without a page reload). -->
 					{#each data.prompt.available_slots.filter(s => invitedSlotIds.has(s.id)) as slot}
-						<MeetingCard
-							partnerUsername={data.prompt.author_username}
-							scheduledTime={slot.start_time}
+						<SlotCard
+							tone="meeting"
+							startTime={slot.start_time}
 							durationMinutes={slot.duration_minutes}
-							generalArea={slot.general_area}
+							area={slot.general_area}
 							invitedPending
+							pendingNote={copy.conversation.invitationPending(data.prompt.author_username)}
 							onWithdraw={invitationBySlotId[slot.id] ? () => withdrawInvitation(slot.id) : undefined}
 							withdrawing={withdrawingSlotId === slot.id}
 						/>
@@ -673,7 +680,7 @@
 		100% { opacity: 0; }
 	}
 
-	/* MeetingCard inside an <a> — strip link chrome so the card reads cleanly,
+	/* Gathering card inside an <a> — strip link chrome so the card reads cleanly,
 	 * but keep it hoverable/clickable for navigation to the meeting detail page. */
 	.meeting-card-link {
 		display: block;
@@ -686,7 +693,7 @@
 	/* Invitation flow */
 	.invite-question { font-size: var(--text-md); color: var(--text-muted); margin: 0 0 var(--space-4); }
 
-	/* Withdraw button lives inside MeetingCard's invitedPending state. */
+	/* Withdraw button lives inside SlotCard's invitedPending state. */
 
 	/* Prior cancellation note — quiet blockquote, no red, no border. The note
 	 * carries context without demanding attention. */

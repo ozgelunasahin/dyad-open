@@ -17,6 +17,22 @@
 		/** Optional right-hand content nested inside the card (e.g. the avatar
 		 *  stack of who's joining this time). Static variant only. */
 		children?: Snippet;
+		/** 'meeting' applies the meeting tints (scheduled green / past neutral)
+		 *  and derives the past state from the end time — the unified card for a
+		 *  confirmed meeting. 'plain' (default) is the offered-time look. */
+		tone?: 'plain' | 'meeting';
+		/** Cancelled-meeting chrome: muted card, date strikethrough, attribution
+		 *  + optional reason. Props describe the facts; the card renders them. */
+		cancelled?: boolean;
+		cancelledByMe?: boolean;
+		cancelledByUsername?: string | null;
+		cancellationReason?: string | null;
+		/** Invitation sent, not yet accepted: dashed border + optional note +
+		 *  withdraw (a free action — no confirm). */
+		invitedPending?: boolean;
+		pendingNote?: string | null;
+		onWithdraw?: () => void;
+		withdrawing?: boolean;
 		// Capacity-aware fullness + "who's joining" marker. `occupied` is the
 		// count of confirmed joiners on this slot (from the viewer-safe occupancy
 		// RPC), used for the full/capacity derivation; `capacity` is the prompt's
@@ -29,9 +45,17 @@
 		onclick?: () => void;
 	}
 
-	let { startTime, durationMinutes, area, selected = false, invited = false, invitedNote, exactLocation, past = false, vague = false, occupied = 0, capacity = null, othersJoining = 0, onclick, children }: Props = $props();
+	let { startTime, durationMinutes, area, selected = false, invited = false, invitedNote, exactLocation, past = false, vague = false, occupied = 0, capacity = null, othersJoining = 0, onclick, children, tone = 'plain', cancelled = false, cancelledByMe = false, cancelledByUsername = null, cancellationReason = null, invitedPending = false, pendingNote = null, onWithdraw, withdrawing = false }: Props = $props();
 
 	let full = $derived(isSlotFull(occupied, capacity));
+
+	// Meeting-state derivation (unified card): props describe the facts, the
+	// card decides the chrome. Mirrors the retired MeetingCard's state model.
+	const isCancelled = $derived(cancelled || cancelledByMe || !!cancelledByUsername);
+	const isPastMeeting = $derived.by(() => {
+		if (tone !== 'meeting' || invitedPending || isCancelled) return false;
+		return new Date(startTime).getTime() + durationMinutes * 60_000 < Date.now();
+	});
 	// A full slot is not invitable — drop interactivity even if an onclick was
 	// passed (the parent disables/ignores it, this is the rendering safety net).
 	let interactive = $derived(!!onclick && !invited && !vague && !full);
@@ -80,19 +104,43 @@
 		{/if}
 	</button>
 {:else}
-	<div class="slot-card" class:selected class:invited class:past class:full>
+	<div
+		class="slot-card"
+		class:selected
+		class:invited
+		class:past={past || isPastMeeting}
+		class:full
+		class:tone-meeting={tone === 'meeting'}
+		class:state-cancelled={isCancelled}
+		class:state-invited={invitedPending}
+	>
 		<div class="slot-row">
 			<span class="slot-date">{formatSlotDateFull(startTime)} · {formatSlotTimeRange(startTime, durationMinutes)}</span>
 			<span class="slot-details">
 				{area}{#if full}<span class="slot-status">{copy.conversation.slotFull}</span>{:else if invitedNote}<span class="slot-status">{invitedNote}</span>{/if}
 			</span>
 		</div>
+		{#if invitedPending && pendingNote}
+			<p class="slot-pending-note">{pendingNote}</p>
+		{/if}
 		{#if showOthers}
 			<p class="slot-others">{copy.conversation.othersJoining(othersJoining)}</p>
 		{/if}
-		{#if exactLocation || children}
+		{#if isCancelled}
+			<p class="slot-cancel-status">
+				{cancelledByMe
+					? copy.profile.meetingCancelledByYou
+					: cancelledByUsername
+						? copy.profile.meetingCancelledBy(cancelledByUsername)
+						: copy.profile.meetingCancelled}
+			</p>
+			{#if cancellationReason}
+				<blockquote class="slot-cancel-reason">{cancellationReason}</blockquote>
+			{/if}
+		{/if}
+		{#if exactLocation || children || (invitedPending && onWithdraw)}
 			<!-- Foot row, under the rule: location on the left, optional nested
-			     content (e.g. the joining avatar stack) on the right. -->
+			     content (the joining avatar stack) or the withdraw action right. -->
 			<div class="slot-foot">
 				{#if exactLocation}
 					{#if exactLocation.lat}
@@ -109,6 +157,11 @@
 				{/if}
 				{#if children}
 					<div class="slot-aside">{@render children()}</div>
+				{/if}
+				{#if invitedPending && onWithdraw}
+					<button class="slot-withdraw" onclick={onWithdraw} disabled={withdrawing}>
+						{withdrawing ? copy.conversation.withdrawing : copy.conversation.withdrawInvitation}
+					</button>
 				{/if}
 			</div>
 		{/if}
@@ -154,6 +207,70 @@
 	.slot-card.full {
 		opacity: var(--opacity-disabled);
 	}
+
+	/* Meeting tone + states — the unified card for confirmed meetings (mirrors
+	   the retired MeetingCard's chrome). */
+	.slot-card.tone-meeting {
+		background: var(--bg-meeting-scheduled);
+	}
+	.slot-card.tone-meeting.past {
+		opacity: 1; /* a past meeting is a record, not a disabled control */
+		background: var(--bg-meeting-past);
+	}
+	.slot-card.tone-meeting.past .slot-date {
+		font-style: italic;
+	}
+	.slot-card.state-cancelled {
+		background: transparent;
+		border-color: color-mix(in srgb, var(--text-primary) 12%, transparent);
+		color: var(--text-muted);
+		opacity: 1;
+	}
+	.slot-card.state-cancelled .slot-date {
+		text-decoration: line-through;
+	}
+	.slot-card.state-invited {
+		background: transparent;
+		border: 1px dashed var(--border-meeting-pending);
+	}
+	.slot-pending-note {
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		font-style: italic;
+		color: var(--text-muted);
+		margin: 0;
+	}
+	.slot-cancel-status {
+		font-size: var(--text-sm);
+		font-style: italic;
+		color: var(--text-muted);
+		margin: 0;
+	}
+	.slot-cancel-reason {
+		font-size: var(--text-sm);
+		font-style: italic;
+		color: var(--text-secondary);
+		line-height: var(--leading-relaxed);
+		margin: 0;
+		padding: 0;
+		border: none;
+	}
+	.slot-withdraw {
+		flex-shrink: 0;
+		margin-left: auto;
+		font-family: inherit;
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+		background: none;
+		border: none;
+		padding: 0;
+		cursor: pointer;
+		text-decoration: underline;
+		text-underline-offset: 3px;
+		text-decoration-style: dotted;
+	}
+	.slot-withdraw:hover { color: var(--text-primary); }
+	.slot-withdraw:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 
 	/* Low-resolution "+N others joining" marker — quiet, beneath the time row. */
 	.slot-others {

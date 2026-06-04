@@ -3,6 +3,7 @@ import type { PageServerLoad } from './$types';
 import { requireIdentity } from '$lib/services/identity.js';
 import { SupabaseMeetingService } from '$lib/services/meeting.js';
 import { SupabaseFeedbackService } from '$lib/services/feedback.js';
+import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
 import type { RevealedFeedback, FeedbackForm } from '$lib/domain/types.js';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -31,7 +32,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const feedbackService = new SupabaseFeedbackService(locals.supabase);
 
 	// Fan out all secondary queries in parallel
-	const [{ data: otherProfile }, { data: prompt }, invitation, revealedFeedback, myFeedbackForm, coParticipants] = await Promise.all([
+	const [{ data: otherProfile }, { data: prompt }, invitation, revealedFeedback, myFeedbackForm, gathering, slotOccupancy] = await Promise.all([
 		locals.supabase.from('profiles').select('username').eq('id', otherId).single(),
 		locals.supabase.from('prompts').select('id, title, cover_image_url, state, author_id, published_at').eq('id', meeting.prompt_id).single(),
 		// The invitation that created THIS specific meeting. Meeting.invitation_id
@@ -60,34 +61,49 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		// in, so the conversation author (a participant in every pair on their own
 		// slot) gets the whole group, while a joiner sees only their own pair — which
 		// keeps the deferred inter-participant reveal closed (see DESIGN.md). Returns
-		// the resolved usernames; empty when the slot can't be read (we fall back to
-		// the single partner below).
-		(async (): Promise<string[]> => {
+		// each participant with the meeting row that pairs them with the viewer, so
+		// the unified card can pin-link the author to each pair's detail page; empty
+		// when the slot can't be read (we fall back to the single partner below).
+		(async (): Promise<{ slotId: string | null; participants: { username: string; meetingId: string }[] }> => {
 			const { data: thisRow } = await locals.supabase
 				.from('meetings')
 				.select('slot_id')
 				.eq('id', params.id)
 				.maybeSingle();
-			if (!thisRow?.slot_id) return [];
+			if (!thisRow?.slot_id) return { slotId: null, participants: [] };
 			const { data: siblings } = await locals.supabase
 				.from('meetings')
-				.select('participant_a, participant_b')
+				.select('id, participant_a, participant_b')
 				.eq('slot_id', thisRow.slot_id)
 				.in('state', ['scheduled', 'awaiting_feedback', 'completed']);
-			const ids = new Set<string>();
+			// RLS guarantees the viewer is on every returned row, so each row
+			// contributes exactly one other participant.
+			const meetingIdByOther = new Map<string, string>();
 			for (const s of siblings ?? []) {
-				if (s.participant_a !== userId) ids.add(s.participant_a);
-				if (s.participant_b !== userId) ids.add(s.participant_b);
+				const other = s.participant_a !== userId ? s.participant_a : s.participant_b;
+				if (other !== userId && !meetingIdByOther.has(other)) meetingIdByOther.set(other, s.id);
 			}
-			if (ids.size === 0) return [];
+			if (meetingIdByOther.size === 0) return { slotId: thisRow.slot_id, participants: [] };
 			const { data: profs } = await locals.supabase
 				.from('profiles')
 				.select('id, username')
-				.in('id', [...ids]);
+				.in('id', [...meetingIdByOther.keys()]);
 			const nameById = new Map((profs ?? []).map((p: { id: string; username: string }) => [p.id, p.username]));
-			return [...ids].map((id) => nameById.get(id) ?? 'someone');
-		})()
+			return {
+				slotId: thisRow.slot_id,
+				participants: [...meetingIdByOther].map(([id, meetingId]) => ({
+					username: nameById.get(id) ?? 'someone',
+					meetingId
+				}))
+			};
+		})(),
+		// Per-slot confirmed-joiner counts via the viewer-safe RPC — count only, no
+		// identities. Lets an attendee see how many people confirmed on their slot
+		// without RLS revealing who (the identified list above stays author-only).
+		new SupabasePromptQueryService(locals.supabase).getSlotOccupancy(meeting.prompt_id)
 	]);
+
+	const coParticipants = gathering.participants.map((p) => p.username);
 
 	return {
 		meeting,
@@ -95,6 +111,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		// The gathering's participants (author sees the group; a joiner sees just the
 		// author). Falls back to the single partner for ordinary two-person meetings.
 		coParticipants: coParticipants.length > 0 ? coParticipants : [otherProfile?.username ?? 'someone'],
+		// Identified pins for the unified card (author mode) + the anonymised count
+		// for attendee mode. `slotOccupied` counts confirmed joiners on this slot,
+		// including the viewer's own seat when they hold one.
+		gathering: gathering.participants,
+		slotOccupied: gathering.slotId ? (slotOccupancy[gathering.slotId] ?? 0) : 0,
+		isPromptAuthor: prompt?.author_id === userId,
 		prompt: prompt ? {
 			id: prompt.id,
 			title: prompt.title,

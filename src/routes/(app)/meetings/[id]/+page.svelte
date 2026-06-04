@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
+	import SlotCard from '$lib/components/SlotCard.svelte';
+	import ParticipantsStack from '$lib/components/ParticipantsStack.svelte';
 	import { generateICS, downloadICS } from '$lib/utils/calendar.js';
 	import { capture } from '$lib/analytics';
 	import type { PageData } from './$types';
@@ -39,11 +41,6 @@
 			: copy.meeting.cancelConfirmLate;
 	});
 
-	function formatDate(iso: string): string {
-		return new Date(iso).toLocaleDateString('en-US', {
-			weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit'
-		});
-	}
 	function formatMeetingDate(iso: string): string {
 		const d = new Date(iso);
 		const date = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
@@ -162,33 +159,31 @@
 		</a>
 	{/if}
 
-	<div class="detail-grid">
-		<div class="detail-row">
-			<span class="label">{copy.meeting.when}</span>
-			<span class="value">{formatDate(data.meeting.scheduled_time)}</span>
-		</div>
-		<div class="detail-row">
-			<span class="label">{copy.meeting.duration}</span>
-			<span class="value">{data.meeting.duration_minutes} {copy.meeting.minutes}</span>
-		</div>
-		<div class="detail-row">
-			<span class="label">{copy.meeting.area}</span>
-			<span class="value">{data.meeting.general_area}</span>
-		</div>
-		{#if 'exact_location' in data.meeting && data.meeting.exact_location}
-			<div class="detail-row">
-				<span class="label">{copy.meeting.location}</span>
-				<a
-					class="value location"
-					href="https://www.openstreetmap.org/?mlat={data.meeting.exact_location.lat}&mlon={data.meeting.exact_location.lng}&zoom=17"
-					target="_blank"
-					rel="noopener"
-				>
-					{data.meeting.exact_location.name}<br /><span class="addr">{data.meeting.exact_location.address}</span>
-				</a>
-			</div>
+	<!-- The unified gathering card: when · where once, the room as pins. The
+	     viewer's own pin ("you") sits leftmost. The author sees who (identified
+	     pins, each linking to that pair's meeting); an attendee sees the host
+	     identified plus neutral circles for the other joiners — the count comes
+	     from the viewer-safe occupancy RPC, never identities. -->
+	<SlotCard
+		tone="meeting"
+		startTime={data.meeting.scheduled_time}
+		durationMinutes={data.meeting.duration_minutes}
+		area={data.meeting.general_area}
+		exactLocation={'exact_location' in data.meeting && data.meeting.exact_location ? data.meeting.exact_location : null}
+	>
+		{#if data.isPromptAuthor}
+			<ParticipantsStack
+				self={{ name: data.username || 'you' }}
+				participants={data.gathering.map((p) => ({ id: p.meetingId, name: p.username, href: `/meetings/${p.meetingId}` }))}
+			/>
+		{:else}
+			<ParticipantsStack
+				self={{ name: data.username || 'you' }}
+				participants={[{ id: 'host', name: data.otherUsername }]}
+				anonymousCount={Math.max(0, data.slotOccupied - 1)}
+			/>
 		{/if}
-	</div>
+	</SlotCard>
 
 	{#if data.invitationMessage}
 		<div class="invitation-note">
@@ -346,14 +341,6 @@
 	.meeting-with { font-size: var(--text-2xl); font-weight: normal; display: block; line-height: var(--leading-tight); }
 	.calendar-link { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-link); background: none; border: none; padding: 0; cursor: pointer; display: block; margin-top: var(--space-2); }
 	.calendar-link:hover { text-decoration: underline; }
-
-	.detail-grid { display: flex; flex-direction: column; margin-bottom: var(--space-6); }
-	.detail-row { display: flex; gap: var(--space-4); padding: var(--space-3) 0; border-bottom: 1px solid var(--border-link); }
-	.label { font-size: var(--text-sm); color: var(--text-muted); width: 80px; flex-shrink: 0; }
-	.value { font-size: var(--text-base); }
-	.location { font-weight: 500; color: inherit; text-decoration: none; }
-	.location:hover { text-decoration: underline; }
-	.addr { font-size: var(--text-xs); color: var(--text-muted); font-weight: normal; }
 
 	.invitation-note { margin-bottom: var(--space-6); }
 	.note-label { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); display: block; margin-bottom: var(--space-1); }

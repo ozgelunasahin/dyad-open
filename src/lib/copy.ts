@@ -35,6 +35,10 @@ export const copy = {
 		_routes: ['/discover', '/profile', '/conversations/[id]', '/meetings/[id]', '/feedback/[id]'],
 		_description: 'Button labels, fallback text, and error messages used across the whole app.',
 		untitled: 'Untitled',
+		// The viewer's own pin in a participants stack — never their raw @handle.
+		you: 'you',
+		// Hover handle on the anonymised pins — how many, never who.
+		nOthers: (n: number) => `${n} other${n === 1 ? '' : 's'}`,
 		save: 'Save',
 		send: 'Send',
 		back: 'Back',
@@ -118,9 +122,6 @@ export const copy = {
 		respondedBy: (username: string, date: string) => `on ${date}, @${username} wrote`,
 		youResponded: (date: string) => `${date === 'just now' ? 'just now' : `on ${date}`}, you responded`,
 		invitationPending: (authorUsername: string) => `You have invited @${authorUsername}, waiting for them to confirm.`,
-		youMet: (username: string) => `You met @${username}`,
-		// Group gathering: a slot hosting multiple co-participants ("You met @tom and @sophie").
-		youMetMany: (usernames: string[]) => `You met ${formatNameList(usernames)}`,
 		withdrawInvitation: 'Withdraw invitation',
 		withdrawing: 'Withdrawing...',
 		withdrawFailed: 'Couldn\u2019t withdraw. Please try again.',

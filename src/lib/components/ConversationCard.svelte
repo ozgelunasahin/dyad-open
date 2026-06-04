@@ -8,7 +8,7 @@
 	 * - Landing + discover feed (`variant="full"`, default) — 88x96 thumb,
 	 *   meta row above title (neighbourhood · date), 3-line snippet.
 	 * - Profile conversation list (`variant="profile"`) — 72x72 thumb, title
-	 *   + status pill, optional `meeting` slot underneath for MeetingCard.
+	 *   + status pill, optional `meeting` slot underneath for the gathering card.
 	 * - Map BottomSheet (`variant="compact"`) — 64x64 thumb, title + snippet
 	 *   + author, no meta row.
 	 *
@@ -39,7 +39,7 @@
 		dimmed?: boolean;
 		variant?: 'full' | 'profile' | 'compact';
 		audienceScopeName?: string | null;
-		/** Slot for nested content below the row (e.g. MeetingCard). */
+		/** Slot for nested content below the row (e.g. the gathering card). */
 		children?: Snippet;
 	}
 
@@ -161,8 +161,10 @@
 		border-bottom: 1px solid var(--border-link);
 	}
 	.card.profile:last-child { border-bottom: none; }
-	a.card:hover,
-	button.card:hover { opacity: var(--opacity-hover-card); }
+	/* Hover affordance fades the row (thumb + title) only — nested content like
+	   the gathering card stays steady, so the whole block doesn't blink. */
+	a.card:hover .row,
+	button.card:hover .row { opacity: var(--opacity-hover-card); }
 	.card.dimmed { opacity: var(--opacity-hover-card); }
 	.card.dimmed:hover { opacity: 1; }
 
@@ -171,6 +173,7 @@
 		gap: var(--space-5);
 		padding: var(--space-6) var(--space-5);
 		align-items: stretch;
+		transition: opacity 0.15s;
 	}
 	.row.profile {
 		gap: var(--space-4);
