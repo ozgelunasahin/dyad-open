@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
-	import SlotCard from '$lib/components/SlotCard.svelte';
 	import ParticipantsStack from '$lib/components/ParticipantsStack.svelte';
 	import { generateICS, downloadICS } from '$lib/utils/calendar.js';
+	import { formatShortDate } from '$lib/utils/dates.js';
+	import { othersBeyond } from '$lib/domain/gathering.js';
 	import { capture } from '$lib/analytics';
 	import type { PageData } from './$types';
 	import { copy } from '$lib/copy';
@@ -137,9 +138,6 @@
 <div class="content">
 	<div class="meeting-header">
 		<span class="meeting-with">{data.coParticipants.length > 1 ? copy.profile.meetingWithMany(data.coParticipants) : copy.profile.meetingWith(data.otherUsername)}</span>
-		{#if data.meeting.state === 'scheduled'}
-			<button class="calendar-link" onclick={handleAddToCalendar}>{copy.meeting.addToCalendar}</button>
-		{/if}
 	</div>
 
 	{#if data.prompt}
@@ -159,35 +157,85 @@
 		</a>
 	{/if}
 
-	<!-- The unified gathering card: when · where once, the room as pins. The
-	     viewer's own pin ("you") sits leftmost. The author sees who (identified
-	     pins, each linking to that pair's meeting); an attendee sees the host
-	     identified plus neutral circles for the other joiners — the count comes
-	     from the viewer-safe occupancy RPC, never identities. -->
-	<SlotCard
-		tone="meeting"
-		startTime={data.meeting.scheduled_time}
-		durationMinutes={data.meeting.duration_minutes}
-		area={data.meeting.general_area}
-		exactLocation={'exact_location' in data.meeting && data.meeting.exact_location ? data.meeting.exact_location : null}
-	>
-		{#if data.isPromptAuthor}
-			<ParticipantsStack
-				self={{ name: data.username || 'you' }}
-				participants={data.gathering.map((p) => ({ id: p.meetingId, name: p.username, href: `/meetings/${p.meetingId}` }))}
-			/>
-		{:else}
-			<ParticipantsStack
-				self={{ name: data.username || 'you' }}
-				participants={[{ id: 'host', name: data.otherUsername }]}
-				anonymousCount={Math.max(0, data.slotOccupied - 1)}
-			/>
+	<!-- This page IS the meeting — details laid out as page content, not the
+	     gathering card (the card is the preview that links here; repeating it
+	     inside its own destination reads as a circular link). -->
+	{#if data.cancellation}
+		<p class="cancelled-status">
+			{data.cancellation.cancelledByMe
+				? copy.profile.meetingCancelledByYou
+				: data.cancellation.cancelledByUsername
+					? copy.profile.meetingCancelledBy(data.cancellation.cancelledByUsername)
+					: copy.profile.meetingCancelled}
+		</p>
+		{#if data.cancellation.reason}
+			<blockquote class="cancelled-reason">{data.cancellation.reason}</blockquote>
 		{/if}
-	</SlotCard>
+	{/if}
+
+	<div class="detail-grid">
+		<div class="detail-row">
+			<span class="label">{copy.meeting.when}</span>
+			<div class="value">
+				<span class:struck={!!data.cancellation}>
+					{formatMeetingDate(data.meeting.scheduled_time)} · {data.meeting.duration_minutes}
+					{copy.meeting.minutes}
+				</span>
+				{#if data.meeting.state === 'scheduled'}
+					<button class="calendar-link" onclick={handleAddToCalendar}>{copy.meeting.addToCalendar}</button>
+				{/if}
+			</div>
+		</div>
+		<div class="detail-row">
+			<span class="label">{copy.meeting.area}</span>
+			<span class="value">{data.meeting.general_area}</span>
+		</div>
+		{#if 'exact_location' in data.meeting && data.meeting.exact_location}
+			<div class="detail-row">
+				<span class="label">{copy.meeting.location}</span>
+				<a
+					class="value location"
+					href="https://www.openstreetmap.org/?mlat={data.meeting.exact_location.lat}&mlon={data.meeting.exact_location.lng}&zoom=17"
+					target="_blank"
+					rel="noopener"
+				>
+					{data.meeting.exact_location.name}<br /><span class="addr">{data.meeting.exact_location.address}</span>
+				</a>
+			</div>
+		{/if}
+		{#if !data.cancellation}
+			<!-- The room. Author: identified pins linking to each pair's meeting.
+			     Attendee: host pin + own "you" pin + neutral circles (slotOccupied
+			     counts joiner meetings only — the host has no meeting row — so
+			     subtract the viewer's own seat). -->
+			<div class="detail-row detail-row--who">
+				<span class="label">{copy.meeting.who}</span>
+				<div class="value">
+					{#if data.isPromptAuthor}
+						<ParticipantsStack
+							self={{ name: data.username || copy.common.you }}
+							participants={data.gathering.map((p) => ({ id: p.meetingId, name: p.username, href: `/meetings/${p.meetingId}` }))}
+						/>
+					{:else}
+						<ParticipantsStack
+							self={{ name: data.username || copy.common.you }}
+							participants={[{ id: 'host', name: data.otherUsername }]}
+							anonymousCount={othersBeyond(data.slotOccupied, 1)}
+						/>
+					{/if}
+				</div>
+			</div>
+		{/if}
+	</div>
 
 	{#if data.invitationMessage}
 		<div class="invitation-note">
-			<span class="note-label">{copy.meeting.invitationNote}</span>
+			<!-- Same attribution idiom as the conversation page's response lines. -->
+			<span class="note-label">
+				{data.invitationFromMe
+					? copy.conversation.youWrote(formatShortDate(data.invitationCreatedAt ?? data.meeting.scheduled_time))
+					: copy.conversation.respondedBy(data.otherUsername, formatShortDate(data.invitationCreatedAt ?? data.meeting.scheduled_time))}
+			</span>
 			<p class="note-body">{data.invitationMessage}</p>
 		</div>
 	{/if}
@@ -228,8 +276,16 @@
 		</section>
 	{/if}
 
+	<!-- Page-level actions: this is the place to act on a meeting, so the
+	     actions live in the body, not behind a context menu. -->
+	<section class="meeting-actions">
+		{#if data.meeting.state === 'scheduled'}
+			<button class="action-cancel" onclick={openCancelDialog}>{copy.meeting.cancelMeeting}</button>
+		{/if}
+		<button class="action-report" onclick={openReportDialog}>{copy.meeting.reportProblem}</button>
+	</section>
+
 	{#if data.meeting.state === 'scheduled'}
-		<!-- Cancel lives in the FloatingNav kebab menu; dialog triggered from there. -->
 		<dialog bind:this={cancelDialog} class="cancel-dialog" aria-labelledby="cancel-title">
 			<div class="cancel-inner">
 				<h3 id="cancel-title" class="cancel-title">{copy.meeting.cancelTitle(data.otherUsername)}</h3>
@@ -323,16 +379,8 @@
 	</dialog>
 </div>
 
-<FloatingNav
-	variant="detail"
-	attentionCount={data.attentionCount ?? 0}
-	actions={[
-		...(data.meeting.state === 'scheduled'
-			? [{ label: copy.meeting.cancelMeeting, onclick: openCancelDialog, danger: true }]
-			: []),
-		{ label: copy.meeting.reportProblem, onclick: openReportDialog }
-	]}
-/>
+<!-- Meeting actions live in the page body, not the nav kebab. -->
+<FloatingNav variant="detail" attentionCount={data.attentionCount ?? 0} />
 
 <style>
 	.content { width: 100%; max-width: var(--content-narrow); padding-bottom: var(--nav-clearance); }
@@ -341,6 +389,29 @@
 	.meeting-with { font-size: var(--text-2xl); font-weight: normal; display: block; line-height: var(--leading-tight); }
 	.calendar-link { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-link); background: none; border: none; padding: 0; cursor: pointer; display: block; margin-top: var(--space-2); }
 	.calendar-link:hover { text-decoration: underline; }
+
+	/* Detail rows — the page body IS the meeting detail. */
+	.detail-grid { display: flex; flex-direction: column; margin-bottom: var(--space-6); }
+	.detail-row { display: flex; gap: var(--space-4); padding: var(--space-3) 0; border-bottom: 1px solid var(--border-link); }
+	.detail-row--who { align-items: center; }
+	.label { font-size: var(--text-sm); color: var(--text-muted); width: 80px; flex-shrink: 0; }
+	.value { font-size: var(--text-base); }
+	.struck { text-decoration: line-through; color: var(--text-muted); }
+	.location { font-weight: 500; color: inherit; text-decoration: none; }
+	.location:hover { text-decoration: underline; }
+	.addr { font-size: var(--text-xs); color: var(--text-muted); font-weight: normal; }
+
+	/* Cancelled: quiet page-level status above the rows. */
+	.cancelled-status { font-size: var(--text-sm); font-style: italic; color: var(--text-muted); margin: 0 0 var(--space-2); }
+	.cancelled-reason { font-size: var(--text-sm); font-style: italic; color: var(--text-secondary); line-height: var(--leading-relaxed); margin: 0 0 var(--space-4); padding: 0; border: none; }
+
+	/* Page-level actions — visible, quiet text buttons. */
+	.meeting-actions { display: flex; gap: var(--space-5); margin-top: var(--space-8); padding-top: var(--space-4); border-top: 1px solid var(--border-link); }
+	.meeting-actions button { font-family: inherit; font-size: var(--text-sm); background: none; border: none; padding: 0; cursor: pointer; }
+	.action-cancel { color: var(--color-danger); }
+	.action-cancel:hover { text-decoration: underline; }
+	.action-report { color: var(--text-muted); }
+	.action-report:hover { color: var(--text-primary); text-decoration: underline; }
 
 	.invitation-note { margin-bottom: var(--space-6); }
 	.note-label { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); display: block; margin-bottom: var(--space-1); }

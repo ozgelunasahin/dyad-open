@@ -291,7 +291,7 @@ export const copy = {
 		duration: 'Duration',
 		area: 'Area',
 		location: 'Location',
-		invitationNote: 'Invitation note',
+		who: 'Who',
 		minutes: 'minutes',
 		// Feedback-status block on the meeting detail page.
 		feedbackDue: 'You have feedback to submit',
