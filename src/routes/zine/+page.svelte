@@ -76,14 +76,13 @@
 	<section class="body-section">
 		<div class="prose">
 			<p>
-				The zine is the document of dyad's first year: what we learned about why social platforms
-				fail the people who use them, and our plan for building social technology owned by its
-				community.
+				The zine is the document of dyad's first year: our plan for building social technology owned
+				by its community.
 			</p>
 			<p>
-				Inside: a diagnosis of the platform economy and its harms, what happened to Meetup, the case
-				for steward ownership and collective governance, our approach to trust and safety, the
-				execution plan, and what becomes possible if it works.
+				In this issue: a diagnosis of the platform economy and its harms, what happened to Meetup,
+				the case for steward ownership and collective governance, our approach to trust and safety,
+				the execution plan, and what becomes possible if it works.
 			</p>
 			<p>A hundred pages, A5, black and white, printed in a small run.</p>
 		</div>
