@@ -26,14 +26,24 @@
 
 	// Group-aware cancellation. Three dialog shapes:
 	//   joiner in a group  — "leave" framing (the gathering continues);
-	//   author, ≥2 joiners — a scope choice: one seat vs the whole gathering;
+	//   author, ≥2 joiners — pick PEOPLE (checkboxes; the time stays open) or
+	//                        the ENTIRETY (the time is withdrawn);
 	//   1:1 (either role)  — today's pair framing.
-	// Scope defaults to the least destructive option (this seat only).
-	let cancelScope = $state<'pair' | 'gathering'>('pair');
+	// Defaults to the least destructive shape: just this pair selected.
+	let entirety = $state(false);
+	let selectedPairs = $state(new Set<string>());
 	const isGroupGathering = $derived(data.slotOccupied > 1);
 	const authorChoosesScope = $derived(data.isPromptAuthor && data.gathering.length >= 2);
 	const joinerLeaving = $derived(!data.isPromptAuthor && isGroupGathering);
-	const gatheringNames = $derived(data.gathering.map((p) => p.username));
+	const selectionCount = $derived(entirety ? data.gathering.length : selectedPairs.size);
+
+	// Copy-on-write: runes track by assignment, never mutate the Set in place.
+	function togglePair(meetingId: string) {
+		const next = new Set(selectedPairs);
+		if (next.has(meetingId)) next.delete(meetingId);
+		else next.add(meetingId);
+		selectedPairs = next;
+	}
 
 	// Interim safety floor: report a problem about this gathering to moderators.
 	let reportDialog = $state<HTMLDialogElement | undefined>();
@@ -50,15 +60,21 @@
 	);
 	const reasonTrimmed = $derived(cancelReason.trim());
 	const canSubmitCancel = $derived(
-		!cancelling && (!isEarly || reasonTrimmed.length >= 10)
+		!cancelling &&
+			(!isEarly || reasonTrimmed.length >= 10) &&
+			// The author's roster dialog needs a non-empty selection.
+			(!authorChoosesScope || entirety || selectedPairs.size > 0)
 	);
 	// Button label adapts to social weight: late-without-note makes the social cost visible.
 	const cancelButtonLabel = $derived.by(() => {
 		if (cancelling) return copy.meeting.cancelling;
-		if (cancelScope === 'gathering') {
-			return isEarly
-				? copy.meeting.cancelConfirmGatheringEarly
-				: copy.meeting.cancelConfirmGatheringLate;
+		if (authorChoosesScope) {
+			if (entirety) {
+				return isEarly
+					? copy.meeting.cancelConfirmGatheringEarly
+					: copy.meeting.cancelConfirmGatheringLate;
+			}
+			return copy.meeting.cancelConfirmSelection(selectedPairs.size || 1);
 		}
 		if (isEarly) return copy.meeting.cancelConfirmEarly;
 		return reasonTrimmed.length === 0
@@ -92,7 +108,9 @@
 		cancelReason = '';
 		cancelError = '';
 		cancelErrorRef = null;
-		cancelScope = 'pair';
+		// Least destructive default: just this pair selected, time stays open.
+		entirety = false;
+		selectedPairs = new Set([data.meeting.id]);
 		cancelDialog?.showModal();
 	}
 
@@ -103,16 +121,20 @@
 		cancelErrorRef = null;
 		try {
 			const reason = cancelReason.trim();
+			// Author roster: entirety withdraws the time; a selection cancels
+			// just those pairs. Everyone else (joiner, 1:1) cancels their pair.
+			const scope = authorChoosesScope ? (entirety ? 'gathering' : 'selection') : 'pair';
 			const res = await fetch(`/api/meetings/${data.meeting.id}/cancel`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					...(reason ? { reason } : {}),
-					...(cancelScope === 'gathering' ? { scope: 'gathering' } : {})
+					...(scope !== 'pair' ? { scope } : {}),
+					...(scope === 'selection' ? { meetingIds: [...selectedPairs] } : {})
 				})
 			});
 			if (res.ok) {
-				capture('meeting_cancelled', { tier: isEarly ? 'early' : 'late', scope: cancelScope });
+				capture('meeting_cancelled', { tier: isEarly ? 'early' : 'late', scope });
 				cancelDialog?.close();
 				goto('/profile');
 				return;
@@ -341,25 +363,37 @@
 				<p class="cancel-when">{formatMeetingDate(data.meeting.scheduled_time)}</p>
 
 				{#if authorChoosesScope}
-					<!-- Scope choice: one seat or the whole gathering. Defaults to the
-					     least destructive option. -->
-					<div class="cancel-scope" role="radiogroup" aria-label={copy.meeting.cancelTitleChoice}>
-						<label class="scope-option">
-							<input type="radio" name="cancel-scope" value="pair" bind:group={cancelScope} />
-							<span>{copy.meeting.cancelScopeSeat(data.otherUsername)}</span>
-						</label>
-						<label class="scope-option">
-							<input type="radio" name="cancel-scope" value="gathering" bind:group={cancelScope} />
-							<span>{copy.meeting.cancelScopeGathering(gatheringNames)}</span>
+					<!-- The roster: cancel any combination of joiners (the time stays
+					     open for the rest), or the entirety (the time is withdrawn).
+					     Defaults to just this pair selected. -->
+					<div class="cancel-scope" aria-label={copy.meeting.cancelTitleChoice}>
+						{#each data.gathering as pair (pair.meetingId)}
+							<label class="scope-option" class:scope-option--muted={entirety}>
+								<input
+									type="checkbox"
+									checked={entirety || selectedPairs.has(pair.meetingId)}
+									disabled={entirety}
+									onchange={() => togglePair(pair.meetingId)}
+								/>
+								<span>@{pair.username}</span>
+							</label>
+						{/each}
+						<label class="scope-option scope-option--entirety">
+							<input type="checkbox" bind:checked={entirety} />
+							<span>{copy.meeting.cancelScopeGathering}</span>
 						</label>
 					</div>
 				{/if}
 
 				<p class="cancel-body" class:cancel-body--late={!isEarly}>
-					{#if cancelScope === 'gathering'}
+					{#if authorChoosesScope && entirety}
 						{isEarly
-							? copy.meeting.cancelBodyGatheringEarly(gatheringNames.length)
-							: copy.meeting.cancelBodyGatheringLate(gatheringNames.length)}
+							? copy.meeting.cancelBodyGatheringEarly(data.gathering.length)
+							: copy.meeting.cancelBodyGatheringLate(data.gathering.length)}
+					{:else if authorChoosesScope}
+						{isEarly
+							? copy.meeting.cancelBodySelectionEarly(selectionCount)
+							: copy.meeting.cancelBodySelectionLate(selectionCount)}
 					{:else if joinerLeaving}
 						{isEarly
 							? copy.meeting.cancelBodyLeaveEarly(data.otherUsername)
@@ -373,8 +407,10 @@
 
 				<div class="field">
 					<label for="cancel-reason">
-						{#if cancelScope === 'gathering'}
+						{#if authorChoosesScope && entirety}
 							{copy.meeting.cancelReasonLabelGathering}
+						{:else if authorChoosesScope}
+							{copy.meeting.cancelReasonLabelSelection}
 						{:else}
 							{isEarly
 								? copy.meeting.cancelReasonLabelEarly(data.otherUsername)
@@ -538,7 +574,8 @@
 		margin: calc(-1 * var(--space-2)) 0 0;
 	}
 
-	/* Scope choice (author of a group): quiet radios, no card chrome. */
+	/* The roster (author of a group): quiet checkboxes, no card chrome. The
+	   entirety option sits apart — checking it overrides the individuals. */
 	.cancel-scope {
 		display: flex;
 		flex-direction: column;
@@ -554,6 +591,14 @@
 	}
 	.scope-option input {
 		accent-color: var(--text-primary);
+	}
+	.scope-option--muted {
+		color: var(--text-muted);
+	}
+	.scope-option--entirety {
+		margin-top: var(--space-2);
+		padding-top: var(--space-3);
+		border-top: 1px solid var(--border-link);
 	}
 
 	.cancel-body {

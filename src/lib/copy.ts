@@ -312,8 +312,19 @@ export const copy = {
 		cancelBodyLeaveLate: (username: string) =>
 			`This is a late change — the gathering continues, but @${username} won't have much time to adjust. A real explanation matters here.`,
 		cancelTitleChoice: 'What would you like to cancel?',
-		cancelScopeSeat: (username: string) => `Just your meeting with @${username}`,
-		cancelScopeGathering: (names: string[]) => `The whole gathering — ${formatNameList(names)}`,
+		// The author picks people (checkboxes) or the entirety. Cancelling
+		// people keeps the time open; the entirety withdraws it.
+		cancelScopeGathering: 'The whole gathering — this time is withdrawn',
+		cancelBodySelectionEarly: (n: number) =>
+			n === 1
+				? 'Their meeting is cancelled and they’re notified. The time stays open for everyone else.'
+				: 'Their meetings are cancelled and they’re notified. The time stays open for everyone else.',
+		cancelBodySelectionLate: (n: number) =>
+			n === 1
+				? 'This is a late cancellation — they won’t have much time to make other plans. The time stays open for everyone else.'
+				: 'This is a late cancellation for them — they won’t have much time to make other plans. The time stays open for everyone else.',
+		cancelReasonLabelSelection: 'A message to them',
+		cancelConfirmSelection: (n: number) => (n === 1 ? 'Cancel for one person' : `Cancel for ${n} people`),
 		cancelBodyGatheringEarly: (count: number) =>
 			`This calls the time off for ${count === 1 ? 'your one confirmed joiner' : `all ${count} people`}. Everyone is notified, the time is withdrawn, and your note travels with the cancellation.`,
 		cancelBodyGatheringLate: (count: number) =>

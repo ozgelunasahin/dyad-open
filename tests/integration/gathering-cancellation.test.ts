@@ -326,6 +326,102 @@ describe('Gathering cancellation lifecycle', () => {
 		});
 	});
 
+	describe('selective cancellation (uninvite specific joiners)', () => {
+		let promptId: string;
+		let slotId: string;
+		let digitMeeting: string;
+		let sophieMeeting: string;
+
+		it('sets up a 2-joiner gathering', async () => {
+			({ promptId, slotId } = await publishGroupPrompt('Selective uninvite', 'select'));
+			digitMeeting = await join(digitServices, DIGIT, promptId, slotId);
+			sophieMeeting = await join(sophieServices, SOPHIE, promptId, slotId);
+		});
+
+		it('rejects a selection containing a foreign meeting id, mutating nothing', async () => {
+			const { promptId: pOther, slotId: sOther } = await publishGroupPrompt(
+				'Other gathering',
+				'select-other'
+			);
+			const foreign = await join(tomServices, TOM, pOther, sOther);
+			await expect(
+				marcoServices.meeting.cancelGathering(
+					digitMeeting,
+					'this should not apply, wrong slot id included',
+					[digitMeeting, foreign]
+				)
+			).rejects.toMatchObject({ status: 404 });
+			const { data: untouched } = await adminClient
+				.from('meetings')
+				.select('state')
+				.in('id', [digitMeeting, sophieMeeting, foreign]);
+			expect(untouched!.every((m) => m.state === 'scheduled')).toBe(true);
+		});
+
+		it('cancels only the selected pair; the time stays open and others stay scheduled', async () => {
+			const { tier, joiners } = await marcoServices.meeting.cancelGathering(
+				digitMeeting,
+				'Sorry, this pairing will not work this time.',
+				[digitMeeting]
+			);
+			expect(tier).toBe('early');
+			expect(joiners).toHaveLength(1);
+			expect(joiners[0]).toEqual({ joinerId: DIGIT.id, meetingId: digitMeeting });
+
+			const { data: cancelled } = await adminClient
+				.from('meetings')
+				.select('state')
+				.eq('id', digitMeeting)
+				.single();
+			expect(cancelled?.state).toBe('cancelled_early');
+
+			const { data: sophiePair } = await adminClient
+				.from('meetings')
+				.select('state')
+				.eq('id', sophieMeeting)
+				.single();
+			expect(sophiePair?.state).toBe('scheduled');
+
+			// The time is NOT withdrawn — still offered and invitable.
+			const { data: slot } = await adminClient
+				.from('time_slots')
+				.select('retired_at, accepted')
+				.eq('id', slotId)
+				.single();
+			expect(slot?.retired_at).toBeNull();
+			expect(slot?.accepted).toBe(true);
+
+			// The act is grouped (one act) even for a single selection.
+			const { data: rec } = await adminClient
+				.from('cancellation_records')
+				.select('group_key')
+				.eq('meeting_id', digitMeeting)
+				.single();
+			expect(rec?.group_key).not.toBeNull();
+
+			// Only the selected joiner is notified.
+			const { data: notifs } = await adminClient
+				.from('notifications')
+				.select('user_id, data')
+				.eq('type', 'meeting_cancelled');
+			const forThisSlot = (notifs ?? []).filter(
+				(n) => (n.data as { meeting_id?: string })?.meeting_id === digitMeeting
+			);
+			expect(forThisSlot).toHaveLength(1);
+			expect(forThisSlot[0].user_id).toBe(DIGIT.id);
+			const sophieNotified = (notifs ?? []).some(
+				(n) => (n.data as { meeting_id?: string })?.meeting_id === sophieMeeting
+			);
+			expect(sophieNotified).toBe(false);
+		});
+
+		it('rejects an empty selection', async () => {
+			await expect(
+				marcoServices.meeting.cancelGathering(sophieMeeting, 'a perfectly valid reason here', [])
+			).rejects.toMatchObject({ status: 400 });
+		});
+	});
+
 	describe('pair semantics are regression-free', () => {
 		it('a joiner leaving a 2-joiner gathering does not retire the slot', async () => {
 			const { promptId, slotId } = await publishGroupPrompt('Joiner leaves', 'leave');

@@ -15,14 +15,21 @@ import {
  *
  * scope: 'pair' (default) cancels this one pair-meeting (either participant);
  * scope: 'gathering' is host-only and cancels every live pair on the slot in
- * one act (one tier/reason/free-pass — see cancel_gathering RPC), retiring
- * the slot. Authorization is enforced in the RPCs; this handler validates
- * input and fans out emails per affected recipient.
+ * one act, retiring the slot (the time is withdrawn);
+ * scope: 'selection' is host-only and cancels just the pairs named in
+ * meetingIds — the time stays open for everyone else.
+ * One act either way (one tier/reason/free-pass — see cancel_gathering RPC).
+ * Authorization is enforced in the RPCs; this handler validates input and
+ * fans out emails per affected recipient.
  */
 export const POST: RequestHandler = async ({ params, request, locals, platform }) => {
 	const upactor = requireIdentity(locals);
 
-	const [body, errorResponse] = await parseJsonBody<{ reason?: string; scope?: string }>(request);
+	const [body, errorResponse] = await parseJsonBody<{
+		reason?: string;
+		scope?: string;
+		meetingIds?: unknown;
+	}>(request);
 	if (errorResponse) return errorResponse;
 
 	if (body.reason !== undefined) {
@@ -32,14 +39,27 @@ export const POST: RequestHandler = async ({ params, request, locals, platform }
 	}
 
 	const scope = body.scope ?? 'pair';
-	if (scope !== 'pair' && scope !== 'gathering') {
-		return json({ error: 'scope must be "pair" or "gathering"' }, { status: 400 });
+	if (scope !== 'pair' && scope !== 'gathering' && scope !== 'selection') {
+		return json({ error: 'scope must be "pair", "gathering", or "selection"' }, { status: 400 });
+	}
+
+	let meetingIds: string[] | undefined;
+	if (scope === 'selection') {
+		if (
+			!Array.isArray(body.meetingIds) ||
+			body.meetingIds.length === 0 ||
+			body.meetingIds.length > 7 ||
+			!body.meetingIds.every((m) => typeof m === 'string' && m.length > 0 && m.length <= 64)
+		) {
+			return json({ error: 'meetingIds must be a list of 1-7 meeting ids' }, { status: 400 });
+		}
+		meetingIds = body.meetingIds as string[];
 	}
 
 	const service = new SupabaseMeetingService(locals.supabase);
 	try {
-		if (scope === 'gathering') {
-			const { tier, joiners } = await service.cancelGathering(params.id, body.reason);
+		if (scope === 'gathering' || scope === 'selection') {
+			const { tier, joiners } = await service.cancelGathering(params.id, body.reason, meetingIds);
 			// One email per affected joiner — the kill switch and per-recipient
 			// preference are enforced inside dispatch() per call. Each email links
 			// the joiner's OWN pair-meeting page (meetings RLS hides other pairs').

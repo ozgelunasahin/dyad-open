@@ -1,17 +1,26 @@
--- cancel_gathering: the author calls off a whole gathering in one act.
+-- cancel_gathering: the author cancels joiners — some, or all — in one act.
 --
 -- A gathering = N pair-meetings (author = participant_a on every row) sharing
 -- one time_slot. Cancelling them one by one would require N reasons, run N
--- late free-pass checks, and leave the slot open for fresh invitations.
--- This RPC performs the act once, in one transaction:
+-- late free-pass checks, and leave no way to call the time itself off.
+-- This RPC performs one act, in one transaction, over a SELECTION:
 --
+--   * p_pair_meeting_ids = NULL  → the ENTIRETY: every scheduled pair is
+--     cancelled, pending invitations on the slot are resolved, and the slot
+--     is RETIRED (see 20260604150100) — the time is withdrawn;
+--   * p_pair_meeting_ids = [...] → those pairs only ("uninvite these
+--     people"): the named pairs are cancelled and notified; the time STAYS
+--     OPEN for the remaining and future joiners (no retirement, pending
+--     invitations untouched). Every id must be a scheduled pair on the
+--     anchor's slot with the caller as participant_a — anything else aborts
+--     the whole act;
 --   * host-only (caller must be the prompt author) — SECURITY DEFINER
 --     bypasses RLS, so the check is explicit, mirroring
 --     get_prompt_slot_occupancy's author branch;
 --   * tier (early/late, 12h rule) judged ONCE — every pair shares the slot's
 --     scheduled_time, so the tier is uniform by construction;
---   * early requires one reason (>=10 chars), recorded on every pair's
---     cancellation_records row;
+--   * early requires one reason (>=10 chars), recorded on every cancelled
+--     pair's cancellation_records row;
 --   * ONE free-pass act: rows share a group_key (see 20260604150000) and the
 --     distinct-act count treats them as a single late cancellation.
 --     free_pass_used is written UNIFORMLY on every row of the act — it means
@@ -24,9 +33,8 @@
 --     anchor coexists with advanced siblings is the moments around the slot
 --     time itself, where a call-off is moot;
 --   * every affected joiner gets a meeting_cancelled notification;
---   * pending invitations on the slot are resolved to cancelled so they don't
---     linger on inviters' profiles;
---   * the slot is RETIRED (see 20260604150100) — the time is withdrawn.
+--   * like cancel_meeting, accepted flips FALSE when a selection leaves zero
+--     active meetings on the slot (the slot state must not lie).
 --
 -- LOCK ORDER: slot FOR UPDATE first, then meeting rows — the same global
 -- order as cancel_meeting (20260604150000) and accept_invitation, so a
@@ -53,7 +61,11 @@
 --   JOIN time_slots ts ON ts.id = pi.slot_id
 --   WHERE pi.state = 'pending' AND ts.retired_at IS NOT NULL;
 
-CREATE OR REPLACE FUNCTION cancel_gathering(p_meeting_id UUID, p_reason TEXT DEFAULT NULL)
+CREATE OR REPLACE FUNCTION cancel_gathering(
+  p_meeting_id UUID,
+  p_reason TEXT DEFAULT NULL,
+  p_pair_meeting_ids UUID[] DEFAULT NULL
+)
 RETURNS TABLE(tier TEXT, joiner_id UUID, meeting_id UUID)
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -70,9 +82,15 @@ DECLARE
   v_group_key UUID := gen_random_uuid();
   v_pair RECORD;
   v_cancelled INTEGER := 0;
+  v_entirety BOOLEAN := (p_pair_meeting_ids IS NULL);
+  v_remaining_active INTEGER;
 BEGIN
   IF v_caller IS NULL THEN
     RAISE EXCEPTION 'Not authorized';
+  END IF;
+
+  IF NOT v_entirety AND COALESCE(array_length(p_pair_meeting_ids, 1), 0) = 0 THEN
+    RAISE EXCEPTION 'Nothing selected to cancel';
   END IF;
 
   -- Plain-read prechecks (no lock yet): anchor resolves the slot + prompt.
@@ -118,13 +136,34 @@ BEGIN
     END IF;
   END IF;
 
-  -- Cancel every live pair on the slot. participant_a = v_caller is belt and
-  -- braces — the author is participant_a on every pair of their own slot.
+  -- Selection validation BEFORE mutating anything: every requested id must be
+  -- a scheduled pair on THIS slot with the caller as participant_a. A foreign,
+  -- non-scheduled, or off-slot id aborts the whole act — partial application
+  -- of an explicit selection would misrepresent the author's intent.
+  IF NOT v_entirety THEN
+    IF EXISTS (
+      SELECT 1 FROM unnest(p_pair_meeting_ids) AS req(id)
+      WHERE NOT EXISTS (
+        SELECT 1 FROM meetings m
+        WHERE m.id = req.id
+          AND m.slot_id = v_anchor.slot_id
+          AND m.state = 'scheduled'
+          AND m.participant_a = v_caller
+      )
+    ) THEN
+      RAISE EXCEPTION 'Meeting not found or not cancellable';
+    END IF;
+  END IF;
+
+  -- Cancel the selected pairs (entirety: every live pair on the slot).
+  -- participant_a = v_caller is belt and braces — the author is participant_a
+  -- on every pair of their own slot.
   FOR v_pair IN
     SELECT m.id, m.participant_b FROM meetings m
     WHERE m.slot_id = v_anchor.slot_id
       AND m.state = 'scheduled'
       AND m.participant_a = v_caller
+      AND (v_entirety OR m.id = ANY(p_pair_meeting_ids))
     FOR UPDATE
   LOOP
     UPDATE meetings m
@@ -150,15 +189,28 @@ BEGIN
     RAISE EXCEPTION 'Meeting not found or not cancellable';
   END IF;
 
-  -- Pending invitations on a withdrawn time must not linger as actionable.
-  UPDATE prompt_invitations pi
-  SET state = 'cancelled', resolved_at = NOW()
-  WHERE pi.slot_id = v_anchor.slot_id AND pi.state = 'pending';
+  IF v_entirety THEN
+    -- Pending invitations on a withdrawn time must not linger as actionable.
+    UPDATE prompt_invitations pi
+    SET state = 'cancelled', resolved_at = NOW()
+    WHERE pi.slot_id = v_anchor.slot_id AND pi.state = 'pending';
 
-  -- Withdraw the time itself.
-  UPDATE time_slots ts
-  SET retired_at = NOW(), accepted = FALSE
-  WHERE ts.id = v_anchor.slot_id;
+    -- Withdraw the time itself.
+    UPDATE time_slots ts
+    SET retired_at = NOW(), accepted = FALSE
+    WHERE ts.id = v_anchor.slot_id;
+  ELSE
+    -- Selection: the time stays open. But mirror cancel_meeting's invariant —
+    -- accepted must not claim a meeting exists when none remains.
+    SELECT COUNT(*) INTO v_remaining_active
+    FROM meetings m
+    WHERE m.slot_id = v_anchor.slot_id
+      AND m.state IN ('scheduled', 'awaiting_feedback');
+
+    IF v_remaining_active = 0 THEN
+      UPDATE time_slots ts SET accepted = FALSE WHERE ts.id = v_anchor.slot_id;
+    END IF;
+  END IF;
 
   RETURN QUERY
   SELECT v_tier, m.participant_b, m.id
@@ -168,8 +220,8 @@ BEGIN
 END;
 $$;
 
-COMMENT ON FUNCTION cancel_gathering(UUID, TEXT) IS
-  'Host-only whole-gathering cancellation: cancels every scheduled pair on the anchor meeting''s slot in one act (one tier, one reason, one free-pass act via group_key), notifies every joiner, resolves pending invitations, retires the slot. Returns (tier, joiner_id, meeting_id) per cancelled pair so the app layer can email each joiner a link to their own pair-meeting.';
+COMMENT ON FUNCTION cancel_gathering(UUID, TEXT, UUID[]) IS
+  'Host-only gathering cancellation over a selection: p_pair_meeting_ids NULL cancels every scheduled pair, resolves pending invitations, and retires the slot (the time is withdrawn); a non-null selection cancels just those pairs and leaves the time open. One act either way: one tier, one reason, one free-pass via group_key. Returns (tier, joiner_id, meeting_id) per cancelled pair so the app layer can email each joiner a link to their own pair-meeting.';
 
 REVOKE EXECUTE ON FUNCTION cancel_gathering FROM public;
 GRANT EXECUTE ON FUNCTION cancel_gathering TO authenticated;

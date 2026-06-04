@@ -7,13 +7,16 @@ export interface MeetingService {
 	getDetail(meetingId: string): Promise<MeetingDetail | null>;
 	getMyMeetings(userId: string): Promise<(Meeting & { general_area: string | null })[]>;
 	cancel(meetingId: string, reason?: string): Promise<CancellationTier>;
-	/** Host-only: cancel every live pair on the anchor meeting's slot in one
-	 *  act. Returns the tier plus, per affected joiner, THEIR pair-meeting id
-	 *  (meetings RLS hides other pairs' pages, so each email must link the
-	 *  recipient's own). */
+	/** Host-only: cancel joiners on the anchor meeting's slot in one act.
+	 *  Without a selection, the ENTIRETY: every live pair cancels and the time
+	 *  is withdrawn. With pairMeetingIds, just those pairs cancel and the time
+	 *  stays open. Returns the tier plus, per affected joiner, THEIR
+	 *  pair-meeting id (meetings RLS hides other pairs' pages, so each email
+	 *  must link the recipient's own). */
 	cancelGathering(
 		meetingId: string,
-		reason?: string
+		reason?: string,
+		pairMeetingIds?: string[]
 	): Promise<{ tier: CancellationTier; joiners: { joinerId: string; meetingId: string }[] }>;
 }
 
@@ -75,20 +78,24 @@ export class SupabaseMeetingService implements MeetingService {
 
 	async cancelGathering(
 		meetingId: string,
-		reason?: string
+		reason?: string,
+		pairMeetingIds?: string[]
 	): Promise<{ tier: CancellationTier; joiners: { joinerId: string; meetingId: string }[] }> {
 		const { data, error } = await this.supabase.rpc('cancel_gathering', {
 			p_meeting_id: meetingId,
-			p_reason: reason ?? null
+			p_reason: reason ?? null,
+			p_pair_meeting_ids: pairMeetingIds ?? null
 		});
 
 		if (error) {
 			// cancel_gathering raises the same validation messages as cancel_meeting,
-			// plus 'Not authorized' for non-hosts.
+			// plus 'Not authorized' for non-hosts and 'Nothing selected' for an
+			// empty selection.
 			const msg = error.message ?? '';
 			if (msg.includes('Meeting not found')) throw new DomainError(msg, 404);
 			if (msg.includes('Not authorized')) throw new DomainError(msg, 403);
 			if (msg.includes('Early cancellation requires an explanation')) throw new DomainError(msg, 400);
+			if (msg.includes('Nothing selected')) throw new DomainError(msg, 400);
 			throw new Error(`Failed to cancel gathering: ${msg}`);
 		}
 
