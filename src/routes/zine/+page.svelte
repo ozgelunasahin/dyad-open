@@ -16,6 +16,7 @@
 	// supplies the URLs (documented in .env.example and CLAUDE.md):
 	//
 	//   PUBLIC_ZINE_PAYMENT_LINK_STANDARD
+	//   PUBLIC_ZINE_PAYMENT_LINK_REDUCED
 	//   PUBLIC_ZINE_PAYMENT_LINK_SUPPORTER
 	//
 	// A tier renders only when its URL is set; with none set the page shows a
@@ -26,6 +27,11 @@
 			name: 'Standard',
 			detail: 'One copy of Issue 001.',
 			url: env.PUBLIC_ZINE_PAYMENT_LINK_STANDARD
+		},
+		{
+			name: 'Reduced',
+			detail: 'One copy, if the standard price is a stretch.',
+			url: env.PUBLIC_ZINE_PAYMENT_LINK_REDUCED
 		},
 		{
 			name: 'Supporter',
