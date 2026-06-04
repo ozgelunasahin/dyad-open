@@ -7,7 +7,8 @@ import { handleServiceError } from '$lib/server/handle-service-error.js';
 import {
 	deferEmail,
 	notifyMeetingCancelled,
-	notifyGatheringCancelled
+	notifyGatheringCancelled,
+	notifySpotCancelled
 } from '$lib/server/notification-emails.js';
 
 /**
@@ -63,10 +64,14 @@ export const POST: RequestHandler = async ({ params, request, locals, platform }
 			// One email per affected joiner — the kill switch and per-recipient
 			// preference are enforced inside dispatch() per call. Each email links
 			// the joiner's OWN pair-meeting page (meetings RLS hides other pairs').
+			// The template must stay truthful: only the entirety withdraws the
+			// time; a selection cancels this recipient's spot while the time
+			// stays open.
+			const notify = scope === 'gathering' ? notifyGatheringCancelled : notifySpotCancelled;
 			for (const { joinerId, meetingId } of joiners) {
 				deferEmail(
 					platform,
-					notifyGatheringCancelled({
+					notify({
 						joinerUserId: joinerId,
 						meetingId,
 						reason: body.reason ?? null

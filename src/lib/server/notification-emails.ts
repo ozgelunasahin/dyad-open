@@ -208,6 +208,27 @@ export async function notifyMeetingCancelled(params: {
 	});
 }
 
+/** Selective cancellation: the host cancelled THIS recipient's meeting, but
+ *  the time itself was not withdrawn — never claim the gathering is off. */
+export async function notifySpotCancelled(params: {
+	joinerUserId: string;
+	meetingId: string;
+	reason?: string | null;
+}): Promise<void> {
+	const reasonBlock = params.reason
+		? `<blockquote style="margin: 0 0 ${space[6]}; padding: ${space[3]} ${space[4]}; background: #f7f4ee; border-left: 3px solid #c8c2b6; font-style: italic; color: ${color.textSecondary}; white-space: pre-wrap;">${escapeHtml(params.reason)}</blockquote>`
+		: '';
+	await dispatch({
+		userId: params.joinerUserId,
+		subject: 'Your meeting was cancelled',
+		bodyHtml: `
+			<p>The host cancelled your meeting.</p>
+			${reasonBlock}
+			<p><a href="${meetingLink(params.meetingId)}" style="color: ${color.textPrimary}; font-weight: bold; text-decoration: underline;">See the details</a></p>
+		`
+	});
+}
+
 /** Whole-gathering cancellation: the host called the time off — group-framed
  *  body (the recipient's pair-meeting link still works for the record). */
 export async function notifyGatheringCancelled(params: {

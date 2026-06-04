@@ -161,6 +161,20 @@ describe('buildResponseRows', () => {
 		});
 	});
 
+	it('a comment-less accepted inviter with BOTH an active and a cancelled meeting resolves to the active one (re-invite after cancel)', () => {
+		const rows = buildResponseRows(
+			[],
+			[
+				meeting({ id: 'm-active', partner_username: 'rex' }),
+				meeting({ id: 'm-old', partner_username: 'rex', state: 'cancelled_early' })
+			],
+			[invitation({ id: 'i8', inviter_id: 'rex', state: 'accepted', comment_body: 'count me in' })],
+			fmt
+		);
+		expect(rows).toHaveLength(1);
+		expect(rows[0]).toMatchObject({ status: 'confirmed', meetingId: 'm-active' });
+	});
+
 	it('a comment-less accepted inviter with no matching meeting at all gets no row (nothing truthful to claim)', () => {
 		const rows = buildResponseRows(
 			[],

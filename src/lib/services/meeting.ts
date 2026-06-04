@@ -100,8 +100,13 @@ export class SupabaseMeetingService implements MeetingService {
 		}
 
 		const rows = (data ?? []) as { tier: CancellationTier; joiner_id: string; meeting_id: string }[];
+		// The RPC raises before returning an empty set (v_cancelled guard) — an
+		// empty result here means a broken contract, not a quiet 'early' default.
+		if (rows.length === 0) {
+			throw new Error('cancel_gathering returned no rows unexpectedly');
+		}
 		return {
-			tier: rows[0]?.tier ?? 'early',
+			tier: rows[0].tier,
 			joiners: rows.map((r) => ({ joinerId: r.joiner_id, meetingId: r.meeting_id }))
 		};
 	}

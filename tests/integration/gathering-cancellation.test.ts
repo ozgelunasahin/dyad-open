@@ -420,6 +420,97 @@ describe('Gathering cancellation lifecycle', () => {
 				marcoServices.meeting.cancelGathering(sophieMeeting, 'a perfectly valid reason here', [])
 			).rejects.toMatchObject({ status: 400 });
 		});
+
+		it('tolerates an already-cancelled own pair in the selection — cancels only the scheduled one', async () => {
+			// digitMeeting was cancelled above; selecting it again alongside
+			// sophie must NOT abort the act (the intent for digit is already
+			// satisfied) — the stale-roster dead-end from review finding #1.
+			const { tier, joiners } = await marcoServices.meeting.cancelGathering(
+				sophieMeeting,
+				'Calling this off for sophie as well, sorry.',
+				[digitMeeting, sophieMeeting]
+			);
+			expect(tier).toBe('early');
+			expect(joiners).toHaveLength(1);
+			expect(joiners[0].joinerId).toBe(SOPHIE.id);
+
+			const { data: sophiePair } = await adminClient
+				.from('meetings')
+				.select('state')
+				.eq('id', sophieMeeting)
+				.single();
+			expect(sophiePair?.state).toBe('cancelled_early');
+			// digit's pair untouched by the second act (still cancelled from the first).
+			const { data: digitRecs } = await adminClient
+				.from('cancellation_records')
+				.select('id')
+				.eq('meeting_id', digitMeeting);
+			expect(digitRecs).toHaveLength(1);
+		});
+
+		it('a selection draining ALL pairs flips accepted=false but does NOT retire the slot', async () => {
+			const { promptId: p3, slotId: s3 } = await publishGroupPrompt('Drain by selection', 'drain');
+			const m1 = await join(digitServices, DIGIT, p3, s3);
+			const m2 = await join(tomServices, TOM, p3, s3);
+
+			await marcoServices.meeting.cancelGathering(m1, 'Cancelling for both of you, sorry.', [m1, m2]);
+
+			const { data: slot } = await adminClient
+				.from('time_slots')
+				.select('accepted, retired_at')
+				.eq('id', s3)
+				.single();
+			expect(slot?.accepted).toBe(false);
+			expect(slot?.retired_at).toBeNull();
+			// Still offered: a vacated-but-open time is re-invitable.
+			const available = await digitServices.promptQuery.getAvailableSlots(p3, DIGIT.id);
+			expect(available).toHaveLength(1);
+		});
+	});
+
+	describe('retired-slot service guards', () => {
+		let promptId: string;
+		let slotId: string;
+
+		it('sets up and entirety-cancels a gathering', async () => {
+			({ promptId, slotId } = await publishGroupPrompt('Guarded after retire', 'guards'));
+			const anchor = await join(digitServices, DIGIT, promptId, slotId);
+			await marcoServices.meeting.cancelGathering(anchor, 'The venue closed, calling it off.');
+			const { data: slot } = await adminClient
+				.from('time_slots')
+				.select('retired_at')
+				.eq('id', slotId)
+				.single();
+			expect(slot?.retired_at).not.toBeNull();
+		});
+
+		it('editSlot rejects a retired slot loudly', async () => {
+			await expect(
+				marcoServices.promptCommand.editSlot(slotId, MARCO.id, { duration_minutes: 90 })
+			).rejects.toMatchObject({ status: 400 });
+		});
+
+		it('addSlots ceiling excludes the retired slot — a replacement time fits', async () => {
+			const future = new Date();
+			future.setDate(future.getDate() + 5);
+			// The prompt already has 1 retired slot; the ceiling (3) must count
+			// only on-offer slots, so adding three fresh times succeeds.
+			await marcoServices.promptCommand.addSlots(promptId, MARCO.id, [
+				{
+					start_time: future.toISOString(),
+					duration_minutes: 60,
+					location: {
+						place_id: 'gc-replacement-1',
+						name: 'Replacement Venue',
+						address: 'Ersatzstr 1, 10999 Berlin',
+						lat: 52.5,
+						lng: 13.43
+					}
+				}
+			]);
+			const slots = await marcoServices.promptQuery.getAvailableSlots(promptId, MARCO.id);
+			expect(slots).toHaveLength(1);
+		});
 	});
 
 	describe('pair semantics are regression-free', () => {

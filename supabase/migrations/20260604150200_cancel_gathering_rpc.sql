@@ -137,9 +137,13 @@ BEGIN
   END IF;
 
   -- Selection validation BEFORE mutating anything: every requested id must be
-  -- a scheduled pair on THIS slot with the caller as participant_a. A foreign,
-  -- non-scheduled, or off-slot id aborts the whole act — partial application
-  -- of an explicit selection would misrepresent the author's intent.
+  -- a pair on THIS slot with the caller as participant_a. A foreign or
+  -- off-slot id aborts the whole act — partial application of an explicit
+  -- selection would misrepresent the author's intent. Deliberately NO state
+  -- requirement here: a selected pair that was concurrently cancelled (or
+  -- advanced) is simply skipped by the scheduled-only loop below — the
+  -- author's intent for that person is already satisfied, and aborting would
+  -- strand the dialog in an unrecoverable retry loop against a stale roster.
   IF NOT v_entirety THEN
     IF EXISTS (
       SELECT 1 FROM unnest(p_pair_meeting_ids) AS req(id)
@@ -147,7 +151,6 @@ BEGIN
         SELECT 1 FROM meetings m
         WHERE m.id = req.id
           AND m.slot_id = v_anchor.slot_id
-          AND m.state = 'scheduled'
           AND m.participant_a = v_caller
       )
     ) THEN
@@ -212,6 +215,8 @@ BEGIN
     END IF;
   END IF;
 
+  -- cr.meeting_id is table-qualified (SQL scope); the OUT column 'meeting_id'
+  -- only shadows UNqualified plpgsql refs — keep every ref qualified here.
   RETURN QUERY
   SELECT v_tier, m.participant_b, m.id
   FROM cancellation_records cr

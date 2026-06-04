@@ -25,6 +25,8 @@
 --   1. free-pass count: COUNT(*) → COUNT(DISTINCT COALESCE(group_key, id))
 --   2. lock order: slot FOR UPDATE before the meeting-row FOR UPDATE
 --      (plain-read precheck added before the slot lock)
+--   3. the original post-INSERT slot PERFORM is removed — the slot lock is
+--      already held from delta 2; re-acquiring would be a no-op
 
 ALTER TABLE cancellation_records ADD COLUMN group_key UUID;
 
@@ -109,10 +111,8 @@ BEGIN
   INSERT INTO cancellation_records (meeting_id, cancelled_by, tier, reason, free_pass_used)
   VALUES (p_meeting_id, v_caller, v_tier, p_reason, v_free_pass);
 
-  -- Take the slot lock so concurrent cancellations serialize and the
-  -- remaining-active count below is consistent under READ COMMITTED.
-  PERFORM 1 FROM time_slots WHERE id = v_meeting.slot_id FOR UPDATE;
-
+  -- (The slot lock is already held from the top of the function, so the
+  -- remaining-active count below is consistent under READ COMMITTED.)
   SELECT COUNT(*) INTO v_remaining_active
   FROM meetings
   WHERE slot_id = v_meeting.slot_id
