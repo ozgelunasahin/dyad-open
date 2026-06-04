@@ -9,8 +9,22 @@
 -- `group_key` ties the N rows of one act together (NULL for ordinary pair
 -- cancels — each row is its own act). The free-pass count in cancel_meeting
 -- becomes COUNT(DISTINCT COALESCE(group_key, id)) so the two RPCs share one
--- accounting definition. Everything else in cancel_meeting is byte-identical
--- to the authoritative 20260519100000 version.
+-- accounting definition.
+--
+-- Lock-order change (vs 20260519100000): the slot lock is taken BEFORE the
+-- meeting row lock. cancel_gathering (next migrations) locks slot → sibling
+-- meetings; if cancel_meeting kept its old meeting → slot order, a joiner's
+-- pair-cancel racing the author's gathering-cancel on the same slot would be
+-- a classic AB-BA deadlock. Both RPCs now lock slot first, then meetings.
+-- The meeting row is plain-read first (slot_id + participant precheck), then
+-- re-locked and state-rechecked after the slot lock, so a cancel that lost
+-- the race resolves as 'not cancellable' instead of deadlocking.
+--
+-- DELTAS from the authoritative 20260519100000 body — everything else is
+-- copied verbatim:
+--   1. free-pass count: COUNT(*) → COUNT(DISTINCT COALESCE(group_key, id))
+--   2. lock order: slot FOR UPDATE before the meeting-row FOR UPDATE
+--      (plain-read precheck added before the slot lock)
 
 ALTER TABLE cancellation_records ADD COLUMN group_key UUID;
 
@@ -32,9 +46,9 @@ DECLARE
   v_late_count INTEGER;
   v_remaining_active INTEGER;
 BEGIN
+  -- Plain read first: existence/participant precheck + slot id for the lock.
   SELECT * INTO v_meeting FROM meetings
-  WHERE id = p_meeting_id AND state = 'scheduled'
-  FOR UPDATE;
+  WHERE id = p_meeting_id AND state = 'scheduled';
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Meeting not found or not cancellable';
@@ -42,6 +56,19 @@ BEGIN
 
   IF v_caller NOT IN (v_meeting.participant_a, v_meeting.participant_b) THEN
     RAISE EXCEPTION 'Not a participant';
+  END IF;
+
+  -- Slot lock FIRST (global lock order: slot → meetings), then re-lock the
+  -- meeting and re-check state — a concurrent cancel may have resolved it
+  -- between the plain read and the slot lock.
+  PERFORM 1 FROM time_slots WHERE id = v_meeting.slot_id FOR UPDATE;
+
+  SELECT * INTO v_meeting FROM meetings
+  WHERE id = p_meeting_id AND state = 'scheduled'
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Meeting not found or not cancellable';
   END IF;
 
   IF v_caller = v_meeting.participant_a THEN

@@ -127,12 +127,25 @@ describe('Gathering cancellation lifecycle', () => {
 		});
 
 		it('cancels all pairs in one act: states, records, group_key, notifications, retired slot', async () => {
-			const { tier, joinerIds } = await marcoServices.meeting.cancelGathering(
+			const { tier, joiners } = await marcoServices.meeting.cancelGathering(
 				anchorMeetingId,
 				'The venue fell through, I am calling this one off.'
 			);
 			expect(tier).toBe('early');
-			expect(joinerIds.sort()).toEqual([DIGIT.id, SOPHIE.id, TOM.id].sort());
+			expect(joiners.map((j) => j.joinerId).sort()).toEqual(
+				[DIGIT.id, SOPHIE.id, TOM.id].sort()
+			);
+
+			// Each joiner is returned with THEIR OWN pair-meeting id (the email
+			// link target — other pairs' pages are RLS-hidden from them).
+			const { data: pairs } = await adminClient
+				.from('meetings')
+				.select('id, participant_b')
+				.eq('slot_id', slotId);
+			const pairByJoiner = new Map(pairs!.map((p) => [p.participant_b, p.id]));
+			for (const j of joiners) {
+				expect(j.meetingId).toBe(pairByJoiner.get(j.joinerId));
+			}
 
 			const { data: meetings } = await adminClient
 				.from('meetings')
@@ -258,9 +271,9 @@ describe('Gathering cancellation lifecycle', () => {
 		});
 
 		it('late gathering cancel succeeds without a reason; rows share one group_key = ONE act', async () => {
-			const { tier, joinerIds } = await marcoServices.meeting.cancelGathering(anchorMeetingId);
+			const { tier, joiners } = await marcoServices.meeting.cancelGathering(anchorMeetingId);
 			expect(tier).toBe('late');
-			expect(joinerIds).toHaveLength(2);
+			expect(joiners).toHaveLength(2);
 
 			// Scope to THIS slot's meetings.
 			const { data: meetings } = await adminClient

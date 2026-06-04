@@ -39,15 +39,16 @@ export const POST: RequestHandler = async ({ params, request, locals, platform }
 	const service = new SupabaseMeetingService(locals.supabase);
 	try {
 		if (scope === 'gathering') {
-			const { tier, joinerIds } = await service.cancelGathering(params.id, body.reason);
+			const { tier, joiners } = await service.cancelGathering(params.id, body.reason);
 			// One email per affected joiner — the kill switch and per-recipient
-			// preference are enforced inside dispatch() per call.
-			for (const joinerId of joinerIds) {
+			// preference are enforced inside dispatch() per call. Each email links
+			// the joiner's OWN pair-meeting page (meetings RLS hides other pairs').
+			for (const { joinerId, meetingId } of joiners) {
 				deferEmail(
 					platform,
 					notifyGatheringCancelled({
 						joinerUserId: joinerId,
-						meetingId: params.id,
+						meetingId,
 						reason: body.reason ?? null
 					})
 				);

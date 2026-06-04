@@ -20,13 +20,28 @@ ALTER TABLE time_slots ADD COLUMN retired_at TIMESTAMPTZ;
 COMMENT ON COLUMN time_slots.retired_at IS
   'Set when the author withdraws this time (whole-gathering cancel). Retired slots are not offered, not invitable, and accept_invitation rejects them.';
 
--- Recreate the public view with the new column appended (CREATE OR REPLACE
--- VIEW requires new columns at the end). Grants carry over on replace.
-CREATE OR REPLACE VIEW time_slots_public AS
-  SELECT id, prompt_id, start_time, duration_minutes,
-         general_area, general_area_lat, general_area_lng,
-         accepted, created_at, retired_at
-  FROM time_slots;
+-- Column-level grants: the base table uses an explicit column list (see
+-- 20260329 / 20260402) that excludes exact_location. retired_at must be
+-- granted or the security_invoker view below raises permission denied for
+-- every caller.
+GRANT SELECT (retired_at) ON time_slots TO authenticated;
+GRANT SELECT (retired_at) ON time_slots TO anon;
+
+-- Recreate the public view with the new column. CRITICAL: the authoritative
+-- definition (20260402) carries WITH (security_invoker = true) so the view
+-- evaluates RLS as the calling role — recreating without it would silently
+-- run the view as its owner and bypass RLS on time_slots. Mirror the 20260402
+-- idiom exactly: drop, recreate with the option, re-grant.
+DROP VIEW IF EXISTS time_slots_public;
+CREATE VIEW time_slots_public
+  WITH (security_invoker = true)
+  AS SELECT id, prompt_id, start_time, duration_minutes,
+            general_area, general_area_lat, general_area_lng,
+            accepted, created_at, retired_at
+     FROM time_slots;
+
+GRANT SELECT ON time_slots_public TO authenticated;
+GRANT SELECT ON time_slots_public TO anon;
 
 CREATE OR REPLACE FUNCTION accept_invitation(p_invitation_id UUID)
 RETURNS UUID

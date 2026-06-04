@@ -8,61 +8,94 @@
 --   * host-only (caller must be the prompt author) — SECURITY DEFINER
 --     bypasses RLS, so the check is explicit, mirroring
 --     get_prompt_slot_occupancy's author branch;
---   * tier (early/late, 12h rule) judged ONCE — every pair shares
+--   * tier (early/late, 12h rule) judged ONCE — every pair shares the slot's
 --     scheduled_time, so the tier is uniform by construction;
 --   * early requires one reason (>=10 chars), recorded on every pair's
 --     cancellation_records row;
 --   * ONE free-pass act: rows share a group_key (see 20260604150000) and the
---     distinct-act count treats them as a single late cancellation;
---   * every joiner gets a meeting_cancelled notification (same payload shape
---     as cancel_meeting's);
+--     distinct-act count treats them as a single late cancellation.
+--     free_pass_used is written UNIFORMLY on every row of the act — it means
+--     "this row belongs to an act that consumed a free pass", so any row of
+--     the act answers the question. Admin aggregations must count acts
+--     (DISTINCT COALESCE(group_key, id)), not rows;
+--   * SCOPE: state = 'scheduled' pairs only, intentionally. awaiting_feedback
+--     /completed pairs already happened (advance only fires after the slot
+--     time) — they cannot be "called off". The only window where a scheduled
+--     anchor coexists with advanced siblings is the moments around the slot
+--     time itself, where a call-off is moot;
+--   * every affected joiner gets a meeting_cancelled notification;
 --   * pending invitations on the slot are resolved to cancelled so they don't
 --     linger on inviters' profiles;
---   * the slot is RETIRED (see 20260604150100) — the time is withdrawn, not
---     re-opened.
+--   * the slot is RETIRED (see 20260604150100) — the time is withdrawn.
 --
--- Returns one row per cancelled pair (tier, joiner_id) so the API layer can
--- fan out transactional emails per recipient.
+-- LOCK ORDER: slot FOR UPDATE first, then meeting rows — the same global
+-- order as cancel_meeting (20260604150000) and accept_invitation, so a
+-- joiner's pair-cancel racing the author's call-off serializes instead of
+-- deadlocking. The anchor is plain-read for prechecks before the slot lock;
+-- the cancellable set is collected under the slot lock, so a concurrently
+-- cancelled anchor doesn't abort the act (the author's intent — end the
+-- gathering — still applies to the remaining pairs).
+--
+-- Returns one row per cancelled pair (tier, joiner_id, meeting_id) so the
+-- API layer can fan out emails per recipient, each linking the joiner's OWN
+-- pair-meeting page (meetings RLS hides other pairs' pages from them).
+--
+-- Post-deploy verification:
+--   -- act-vs-row accounting sanity (expect 0 rows pre-existing groups):
+--   SELECT cancelled_by FROM cancellation_records
+--   WHERE tier='late' AND cancelled_at > NOW() - INTERVAL '90 days'
+--   GROUP BY cancelled_by
+--   HAVING COUNT(*) != COUNT(DISTINCT COALESCE(group_key, id));
+--   -- no retired slots immediately after migration:
+--   SELECT COUNT(*) FROM time_slots WHERE retired_at IS NOT NULL;
+--   -- no pending invitations on retired slots (after first use):
+--   SELECT pi.id FROM prompt_invitations pi
+--   JOIN time_slots ts ON ts.id = pi.slot_id
+--   WHERE pi.state = 'pending' AND ts.retired_at IS NOT NULL;
 
 CREATE OR REPLACE FUNCTION cancel_gathering(p_meeting_id UUID, p_reason TEXT DEFAULT NULL)
-RETURNS TABLE(tier TEXT, joiner_id UUID)
+RETURNS TABLE(tier TEXT, joiner_id UUID, meeting_id UUID)
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
   v_caller UUID := app.current_user_id();
-  v_meeting meetings%ROWTYPE;
+  v_anchor meetings%ROWTYPE;
   v_author UUID;
+  v_slot_start TIMESTAMPTZ;
   v_tier TEXT;
   v_free_pass BOOLEAN := FALSE;
   v_late_count INTEGER;
   v_group_key UUID := gen_random_uuid();
   v_pair RECORD;
+  v_cancelled INTEGER := 0;
 BEGIN
   IF v_caller IS NULL THEN
     RAISE EXCEPTION 'Not authorized';
   END IF;
 
-  -- Anchor: any of the author's pair-meetings on the slot. Must be live.
-  SELECT * INTO v_meeting FROM meetings
-  WHERE id = p_meeting_id AND state = 'scheduled'
-  FOR UPDATE;
+  -- Plain-read prechecks (no lock yet): anchor resolves the slot + prompt.
+  -- The anchor itself may be cancelled concurrently — the act proceeds on
+  -- whatever scheduled pairs remain under the slot lock below.
+  SELECT * INTO v_anchor FROM meetings m WHERE m.id = p_meeting_id;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Meeting not found or not cancellable';
   END IF;
 
   -- Host-only: the caller must author the prompt behind this gathering.
-  SELECT author_id INTO v_author FROM prompts WHERE id = v_meeting.prompt_id;
+  SELECT author_id INTO v_author FROM prompts p WHERE p.id = v_anchor.prompt_id;
   IF v_author IS NULL OR v_author != v_caller THEN
     RAISE EXCEPTION 'Not authorized';
   END IF;
 
-  -- Serialize against concurrent accepts/cancels on this slot.
-  PERFORM 1 FROM time_slots WHERE id = v_meeting.slot_id FOR UPDATE;
+  -- Slot lock FIRST (global order: slot → meetings). Serializes against
+  -- concurrent accepts, pair cancels, and other call-offs on this slot.
+  SELECT start_time INTO v_slot_start
+  FROM time_slots ts WHERE ts.id = v_anchor.slot_id FOR UPDATE;
 
-  IF v_meeting.scheduled_time - INTERVAL '12 hours' > NOW() THEN
+  IF v_slot_start - INTERVAL '12 hours' > NOW() THEN
     v_tier := 'early';
   ELSE
     v_tier := 'late';
@@ -89,15 +122,15 @@ BEGIN
   -- braces — the author is participant_a on every pair of their own slot.
   FOR v_pair IN
     SELECT m.id, m.participant_b FROM meetings m
-    WHERE m.slot_id = v_meeting.slot_id
+    WHERE m.slot_id = v_anchor.slot_id
       AND m.state = 'scheduled'
       AND m.participant_a = v_caller
     FOR UPDATE
   LOOP
-    UPDATE meetings
+    UPDATE meetings m
     SET state = CASE WHEN v_tier = 'early' THEN 'cancelled_early' ELSE 'cancelled_late' END,
         resolved_at = NOW()
-    WHERE id = v_pair.id;
+    WHERE m.id = v_pair.id;
 
     INSERT INTO cancellation_records (meeting_id, cancelled_by, tier, reason, free_pass_used, group_key)
     VALUES (v_pair.id, v_caller, v_tier, p_reason, v_free_pass, v_group_key);
@@ -106,23 +139,29 @@ BEGIN
     VALUES (v_pair.participant_b, 'meeting_cancelled', jsonb_build_object(
       'meeting_id', v_pair.id,
       'cancelled_by', v_caller,
-      'scheduled_time', v_meeting.scheduled_time,
+      'scheduled_time', v_slot_start,
       'reason', p_reason
     ));
+
+    v_cancelled := v_cancelled + 1;
   END LOOP;
 
+  IF v_cancelled = 0 THEN
+    RAISE EXCEPTION 'Meeting not found or not cancellable';
+  END IF;
+
   -- Pending invitations on a withdrawn time must not linger as actionable.
-  UPDATE prompt_invitations
+  UPDATE prompt_invitations pi
   SET state = 'cancelled', resolved_at = NOW()
-  WHERE slot_id = v_meeting.slot_id AND state = 'pending';
+  WHERE pi.slot_id = v_anchor.slot_id AND pi.state = 'pending';
 
   -- Withdraw the time itself.
-  UPDATE time_slots
+  UPDATE time_slots ts
   SET retired_at = NOW(), accepted = FALSE
-  WHERE id = v_meeting.slot_id;
+  WHERE ts.id = v_anchor.slot_id;
 
   RETURN QUERY
-  SELECT v_tier, m.participant_b
+  SELECT v_tier, m.participant_b, m.id
   FROM cancellation_records cr
   JOIN meetings m ON m.id = cr.meeting_id
   WHERE cr.group_key = v_group_key;
@@ -130,7 +169,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION cancel_gathering(UUID, TEXT) IS
-  'Host-only whole-gathering cancellation: cancels every scheduled pair on the anchor meeting''s slot in one act (one tier, one reason, one free-pass), notifies every joiner, resolves pending invitations, retires the slot. Returns (tier, joiner_id) per cancelled pair for app-layer email fan-out.';
+  'Host-only whole-gathering cancellation: cancels every scheduled pair on the anchor meeting''s slot in one act (one tier, one reason, one free-pass act via group_key), notifies every joiner, resolves pending invitations, retires the slot. Returns (tier, joiner_id, meeting_id) per cancelled pair so the app layer can email each joiner a link to their own pair-meeting.';
 
 REVOKE EXECUTE ON FUNCTION cancel_gathering FROM public;
 GRANT EXECUTE ON FUNCTION cancel_gathering TO authenticated;

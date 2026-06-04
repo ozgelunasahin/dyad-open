@@ -140,11 +140,14 @@ export class SupabasePromptCommandService implements PromptCommandService {
 
 		// 3-slot ceiling: count existing future-valid slots. Accepted slots
 		// still count — a slot can host more than one meeting, so they remain
-		// actively offered until expiry.
+		// actively offered until expiry. Retired slots (withdrawn via a
+		// whole-gathering cancel) are no longer offered and don't consume the
+		// ceiling.
 		const { count } = await this.supabase
 			.from('time_slots')
 			.select('id', { count: 'exact', head: true })
 			.eq('prompt_id', promptId)
+			.is('retired_at', null)
 			.gt('start_time', new Date().toISOString());
 
 		if ((count ?? 0) + slots.length > 3) {
@@ -158,6 +161,12 @@ export class SupabasePromptCommandService implements PromptCommandService {
 		const slot = await this.getOwnSlot(slotId, authorId);
 		if (slot.accepted) {
 			throw new DomainError('Cannot edit a slot that has already been booked');
+		}
+		// A retired slot was withdrawn by a whole-gathering cancel — terminal.
+		// Editing it would be a silent no-op (deriveSlotState keeps it hidden),
+		// so reject loudly; the author offers a new time instead.
+		if (slot.retired_at) {
+			throw new DomainError('This time was withdrawn and cannot be re-offered — add a new time instead');
 		}
 
 		const prompt = await this.getOwnPrompt(slot.prompt_id, authorId);
@@ -330,10 +339,10 @@ export class SupabasePromptCommandService implements PromptCommandService {
 	private async getOwnSlot(
 		slotId: string,
 		authorId: string
-	): Promise<{ id: string; prompt_id: string; accepted: boolean }> {
+	): Promise<{ id: string; prompt_id: string; accepted: boolean; retired_at: string | null }> {
 		const { data, error } = await this.supabase
 			.from('time_slots')
-			.select('id, prompt_id, accepted, prompts!inner(author_id)')
+			.select('id, prompt_id, accepted, retired_at, prompts!inner(author_id)')
 			.eq('id', slotId)
 			.single();
 
@@ -345,7 +354,12 @@ export class SupabasePromptCommandService implements PromptCommandService {
 			throw new DomainError('Slot not found', 404);
 		}
 
-		return { id: data.id, prompt_id: data.prompt_id, accepted: data.accepted };
+		return {
+			id: data.id,
+			prompt_id: data.prompt_id,
+			accepted: data.accepted,
+			retired_at: data.retired_at ?? null
+		};
 	}
 
 	private validateSlotFields(slot: TimeSlotInput): void {

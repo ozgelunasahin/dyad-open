@@ -8,11 +8,13 @@ export interface MeetingService {
 	getMyMeetings(userId: string): Promise<(Meeting & { general_area: string | null })[]>;
 	cancel(meetingId: string, reason?: string): Promise<CancellationTier>;
 	/** Host-only: cancel every live pair on the anchor meeting's slot in one
-	 *  act. Returns the tier plus the affected joiner ids for email fan-out. */
+	 *  act. Returns the tier plus, per affected joiner, THEIR pair-meeting id
+	 *  (meetings RLS hides other pairs' pages, so each email must link the
+	 *  recipient's own). */
 	cancelGathering(
 		meetingId: string,
 		reason?: string
-	): Promise<{ tier: CancellationTier; joinerIds: string[] }>;
+	): Promise<{ tier: CancellationTier; joiners: { joinerId: string; meetingId: string }[] }>;
 }
 
 export class SupabaseMeetingService implements MeetingService {
@@ -74,7 +76,7 @@ export class SupabaseMeetingService implements MeetingService {
 	async cancelGathering(
 		meetingId: string,
 		reason?: string
-	): Promise<{ tier: CancellationTier; joinerIds: string[] }> {
+	): Promise<{ tier: CancellationTier; joiners: { joinerId: string; meetingId: string }[] }> {
 		const { data, error } = await this.supabase.rpc('cancel_gathering', {
 			p_meeting_id: meetingId,
 			p_reason: reason ?? null
@@ -90,10 +92,10 @@ export class SupabaseMeetingService implements MeetingService {
 			throw new Error(`Failed to cancel gathering: ${msg}`);
 		}
 
-		const rows = (data ?? []) as { tier: CancellationTier; joiner_id: string }[];
+		const rows = (data ?? []) as { tier: CancellationTier; joiner_id: string; meeting_id: string }[];
 		return {
 			tier: rows[0]?.tier ?? 'early',
-			joinerIds: rows.map((r) => r.joiner_id)
+			joiners: rows.map((r) => ({ joinerId: r.joiner_id, meetingId: r.meeting_id }))
 		};
 	}
 }
