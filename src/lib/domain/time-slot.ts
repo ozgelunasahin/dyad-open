@@ -51,3 +51,20 @@ export function isSlotFull(occupied: number, capacity: number | null | undefined
 	if (capacity === null || capacity === undefined) return false;
 	return occupied >= capacity;
 }
+
+/**
+ * Has a meeting's slot finished — i.e. is its end time in the past?
+ *
+ * Used by the unified gathering card to decide the "past meeting" chrome (a
+ * record, not a live control). Pure on an injectable `now`. The exact-end
+ * boundary counts as passed (`end <= now` → true) — a meeting that ends right
+ * now is over.
+ */
+export function slotEndPassed(
+	startTime: string,
+	durationMinutes: number,
+	now: Date = new Date()
+): boolean {
+	const endMs = new Date(startTime).getTime() + durationMinutes * 60_000;
+	return endMs <= now.getTime();
+}

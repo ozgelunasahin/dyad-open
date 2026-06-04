@@ -8,7 +8,7 @@
 	 * - Landing + discover feed (`variant="full"`, default) — 88x96 thumb,
 	 *   meta row above title (neighbourhood · date), 3-line snippet.
 	 * - Profile conversation list (`variant="profile"`) — 72x72 thumb, title
-	 *   + status pill, optional `meeting` slot underneath for MeetingCard.
+	 *   + status pill, optional `meeting` slot underneath for the gathering card.
 	 * - Map BottomSheet (`variant="compact"`) — 64x64 thumb, title + snippet
 	 *   + author, no meta row.
 	 *
@@ -39,7 +39,7 @@
 		dimmed?: boolean;
 		variant?: 'full' | 'profile' | 'compact';
 		audienceScopeName?: string | null;
-		/** Slot for nested content below the row (e.g. MeetingCard). */
+		/** Slot for nested content below the row (e.g. the gathering card). */
 		children?: Snippet;
 	}
 
@@ -124,24 +124,30 @@
 			{/if}
 		</div>
 	</div>
+{/snippet}
+
+<!-- Children (e.g. the gathering card) render INSIDE the shell but OUTSIDE the
+     row's link, so nested content can carry its own link target — clicking the
+     row goes to the conversation; clicking the nested card goes wherever it
+     points. -->
+<div class="card-shell" class:profile={variant === 'profile'}>
+	{#if href}
+		<a {href} class="card" class:dimmed>
+			{@render inner()}
+		</a>
+	{:else if onclick}
+		<button type="button" class="card" class:dimmed {onclick}>
+			{@render inner()}
+		</button>
+	{:else}
+		<div class="card" class:dimmed>
+			{@render inner()}
+		</div>
+	{/if}
 	{#if children}
 		{@render children()}
 	{/if}
-{/snippet}
-
-{#if href}
-	<a {href} class="card" class:dimmed class:profile={variant === 'profile'}>
-		{@render inner()}
-	</a>
-{:else if onclick}
-	<button type="button" class="card" class:dimmed class:profile={variant === 'profile'} {onclick}>
-		{@render inner()}
-	</button>
-{:else}
-	<div class="card" class:dimmed class:profile={variant === 'profile'}>
-		{@render inner()}
-	</div>
-{/if}
+</div>
 
 <style>
 	.card {
@@ -157,12 +163,14 @@
 		font: inherit;
 		transition: opacity 0.15s;
 	}
-	.card.profile {
+	.card-shell.profile {
 		border-bottom: 1px solid var(--border-link);
 	}
-	.card.profile:last-child { border-bottom: none; }
-	a.card:hover,
-	button.card:hover { opacity: var(--opacity-hover-card); }
+	.card-shell.profile:last-child { border-bottom: none; }
+	/* Hover affordance fades the row (thumb + title) only — nested content like
+	   the gathering card stays steady, so the whole block doesn't blink. */
+	a.card:hover .row,
+	button.card:hover .row { opacity: var(--opacity-hover-card); }
 	.card.dimmed { opacity: var(--opacity-hover-card); }
 	.card.dimmed:hover { opacity: 1; }
 
@@ -171,6 +179,7 @@
 		gap: var(--space-5);
 		padding: var(--space-6) var(--space-5);
 		align-items: stretch;
+		transition: opacity 0.15s;
 	}
 	.row.profile {
 		gap: var(--space-4);

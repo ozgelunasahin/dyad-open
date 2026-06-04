@@ -35,6 +35,19 @@ export const copy = {
 		_routes: ['/discover', '/profile', '/conversations/[id]', '/meetings/[id]', '/feedback/[id]'],
 		_description: 'Button labels, fallback text, and error messages used across the whole app.',
 		untitled: 'Untitled',
+		// The viewer's own pin in a participants stack — never their raw @handle.
+		you: 'you',
+		// Hover handle on the anonymised pins — how many, never who.
+		nOthers: (n: number) => `${n} other${n === 1 ? '' : 's'}`,
+		// Screen-reader labels for a participants stack.
+		roomWithYou: (others: number) => `you and ${others} other${others === 1 ? '' : 's'} joining`,
+		roomSize: (n: number) => `${n} joining`,
+		moreJoining: (n: number) => `${n} more joining`,
+		// Tail of a linkified name list ("@a, @b and 2 others") — the names are
+		// rendered as UserHandle links, so the string is decomposed into parts.
+		andNOthers: (n: number) => `and ${n} other${n === 1 ? '' : 's'}`,
+		// Accessible name for the stretched overlay link on a gathering card.
+		openMeeting: 'Open meeting',
 		save: 'Save',
 		send: 'Send',
 		back: 'Back',
@@ -116,11 +129,11 @@ export const copy = {
 		responseSent: 'response sent',
 		youWrote: (date: string) => `on ${date}, you wrote`,
 		respondedBy: (username: string, date: string) => `on ${date}, @${username} wrote`,
+		// Decomposed variant for linkified rendering: prefix + <UserHandle> + suffix.
+		respondedByPrefix: (date: string) => `on ${date},`,
+		wroteSuffix: 'wrote',
 		youResponded: (date: string) => `${date === 'just now' ? 'just now' : `on ${date}`}, you responded`,
 		invitationPending: (authorUsername: string) => `You have invited @${authorUsername}, waiting for them to confirm.`,
-		youMet: (username: string) => `You met @${username}`,
-		// Group gathering: a slot hosting multiple co-participants ("You met @tom and @sophie").
-		youMetMany: (usernames: string[]) => `You met ${formatNameList(usernames)}`,
 		withdrawInvitation: 'Withdraw invitation',
 		withdrawing: 'Withdrawing...',
 		withdrawFailed: 'Couldn\u2019t withdraw. Please try again.',
@@ -235,6 +248,10 @@ export const copy = {
 		meetingCancelled: 'Meeting cancelled',
 		meetingCancelledBy: (username: string) => `@${username} cancelled this meeting`,
 		meetingCancelledByYou: 'You cancelled this meeting',
+		// Decomposed parts for linkified rendering: 'Meeting with' + <UserHandle>
+		// links, and <UserHandle> + 'cancelled this meeting'.
+		meetingWithPrefix: 'Meeting with',
+		cancelledThisMeetingSuffix: 'cancelled this meeting',
 		feedbackDue: 'Feedback due',
 		youStarted: 'You started',
 		youRespondedTab: 'You responded',
@@ -290,7 +307,7 @@ export const copy = {
 		duration: 'Duration',
 		area: 'Area',
 		location: 'Location',
-		invitationNote: 'Invitation note',
+		who: 'Who',
 		minutes: 'minutes',
 		// Feedback-status block on the meeting detail page.
 		feedbackDue: 'You have feedback to submit',

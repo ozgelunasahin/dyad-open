@@ -1,12 +1,12 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import type { Prompt } from '$lib/domain/types';
+	import type { Prompt, LocationRef } from '$lib/domain/types';
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
 	import { page } from '$app/state';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
 	import ConversationCard from '$lib/components/ConversationCard.svelte';
-	import MeetingCard from '$lib/components/MeetingCard.svelte';
+	import GatheringCard from '$lib/components/GatheringCard.svelte';
 	import { copy } from '$lib/copy';
 	import { formatRelativePast, formatShortDate as formatDate } from '$lib/utils/dates';
 
@@ -54,7 +54,7 @@
 		if (state === 'pending') return copy.profile.invitedWaiting(authorUsername);
 		if (state === 'declined') return copy.profile.invitationDeclined;
 		if (state === 'expired') return copy.profile.invitationExpired;
-		// 'accepted' handled by the MeetingCard — no status line needed.
+		// 'accepted' handled by the gathering card — no status line needed.
 		return null;
 	}
 
@@ -106,6 +106,8 @@
 			general_area: string | null;
 			partner_username: string;
 			partner_usernames: string[];
+			anonymous_count: number;
+			exact_location: LocationRef | null;
 			state: string;
 			cancelled_by_me: boolean;
 			cancelled_by_username: string | null;
@@ -132,6 +134,8 @@
 			general_area: m.general_area,
 			partner_username: m.partner_username,
 			partner_usernames: m.partner_usernames ?? [m.partner_username],
+			anonymous_count: m.anonymous_count ?? 0,
+			exact_location: m.exact_location ?? null,
 			state: m.state,
 			cancelled_by_me: m.cancelled_by_me,
 			cancelled_by_username: m.cancelled_by_username
@@ -369,14 +373,19 @@
 						>
 							{#if item.meeting}
 								{@const isCancelled = item.meeting.state === 'cancelled_early' || item.meeting.state === 'cancelled_late'}
-								<MeetingCard
-									partnerUsername={item.meeting.partner_username}
-									partnerUsernames={item.meeting.partner_usernames}
-									scheduledTime={item.meeting.scheduled_time}
+								<!-- Renders outside the row's link (ConversationCard shell):
+								     the row opens the conversation, the card the meeting. -->
+								<GatheringCard
+									startTime={item.meeting.scheduled_time}
 									durationMinutes={item.meeting.duration_minutes}
-									generalArea={item.meeting.general_area}
+									area={item.meeting.general_area ?? ''}
+									exactLocation={item.meeting.exact_location}
 									cancelledByMe={isCancelled && item.meeting.cancelled_by_me}
 									cancelledByUsername={isCancelled && !item.meeting.cancelled_by_me ? (item.meeting.cancelled_by_username ?? item.meeting.partner_username) : null}
+									self={{ name: data.username || copy.common.you, href: data.username ? `/users/${data.username}` : undefined }}
+									participants={item.meeting.partner_usernames.map((name) => ({ id: name, name, href: `/users/${name}` }))}
+									anonymousCount={item.meeting.anonymous_count}
+									meetingHref="/meetings/{item.meeting.id}"
 								/>
 							{/if}
 						</ConversationCard>
@@ -403,14 +412,19 @@
 					>
 						{#if item.meeting}
 							{@const isCancelled = item.meeting.state === 'cancelled_early' || item.meeting.state === 'cancelled_late'}
-							<MeetingCard
-								partnerUsername={item.meeting.partner_username}
-								partnerUsernames={item.meeting.partner_usernames}
-								scheduledTime={item.meeting.scheduled_time}
+							<!-- Renders outside the row's link (ConversationCard shell):
+							     the row opens the conversation, the card the meeting. -->
+							<GatheringCard
+								startTime={item.meeting.scheduled_time}
 								durationMinutes={item.meeting.duration_minutes}
-								generalArea={item.meeting.general_area}
+								area={item.meeting.general_area ?? ''}
+								exactLocation={item.meeting.exact_location}
 								cancelledByMe={isCancelled && item.meeting.cancelled_by_me}
 								cancelledByUsername={isCancelled && !item.meeting.cancelled_by_me ? (item.meeting.cancelled_by_username ?? item.meeting.partner_username) : null}
+								self={{ name: data.username || copy.common.you, href: data.username ? `/users/${data.username}` : undefined }}
+								participants={item.meeting.partner_usernames.map((name) => ({ id: name, name, href: `/users/${name}` }))}
+								anonymousCount={item.meeting.anonymous_count}
+								meetingHref="/meetings/{item.meeting.id}"
 							/>
 						{/if}
 					</ConversationCard>
@@ -636,4 +650,6 @@
 		display: flex;
 		flex-direction: column;
 	}
+
+	/* Gathering-card chrome (overlay link, hover) lives in GatheringCard. */
 </style>

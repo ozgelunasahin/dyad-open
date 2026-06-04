@@ -1,9 +1,11 @@
 import type { PageServerLoad } from './$types';
+import type { LocationRef } from '$lib/domain/types.js';
 import { requireIdentity } from '$lib/services/identity.js';
 import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
 import { SupabaseMeetingService } from '$lib/services/meeting.js';
 import { buildUsernameMap } from '$lib/server/username-lookup.js';
 import { loadCancellersFor } from '$lib/services/cancellation-query.js';
+import { othersBeyond } from '$lib/domain/gathering.js';
 
 function getPartnerId(m: { participant_a: string; participant_b: string }, userId: string): string {
 	return m.participant_a === userId ? m.participant_b : m.participant_a;
@@ -195,17 +197,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 		.map((m) => m.id);
 	const cancellers = await loadCancellersFor(locals.supabase, cancelledMeetingIds);
 
-	// Build prompt_id → meeting map for inline context. We intentionally do NOT
-	// fetch exact_location here — it's private data that only needs to load on
-	// /meetings/[id]. Keeping it out of the profile loader:
-	//   (a) eliminates the N+1 RPC per meeting,
-	//   (b) matches the design principle that exact locations are revealed on
-	//       the meeting detail surface, not in a list view.
+	// Build prompt_id → meeting map for inline context. The profile card is the
+	// same gathering card the conversation page shows, so active meetings also
+	// carry exact_location + the anonymised room count (fetched in a parallel
+	// pass below — cancelled/past records stay bare).
 	// Prefer scheduled/awaiting_feedback meetings over cancelled/completed.
 	const meetingsByPromptId: Record<
 		string,
 		{
 			id: string;
+			slot_id: string | null;
 			scheduled_time: string;
 			duration_minutes: number;
 			general_area: string | null;
@@ -215,6 +216,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 			// must name everyone confirmed — not just the first one. One-on-one
 			// conversations yield a single-element array and render exactly as before.
 			partner_usernames: string[];
+			// Confirmed joiners beyond the identified pins — rendered as neutral
+			// circles, mirroring the conversation page's attendee view.
+			anonymous_count: number;
+			exact_location: LocationRef | null;
 			state: string;
 			cancelled_by_me: boolean;
 			cancelled_by_username: string | null;
@@ -256,16 +261,52 @@ export const load: PageServerLoad = async ({ locals }) => {
 		];
 		meetingsByPromptId[m.prompt_id] = {
 			id: m.id,
+			slot_id: repSlot,
 			scheduled_time: m.scheduled_time,
 			duration_minutes: m.duration_minutes,
 			general_area: m.general_area,
 			partner_username: partnerUsernames[0] ?? 'anonymous',
 			partner_usernames: partnerUsernames,
+			anonymous_count: 0,
+			exact_location: null,
 			state: m.state,
 			cancelled_by_me: canceller?.cancelled_by === userId,
 			cancelled_by_username: canceller?.cancelled_by_username ?? null
 		};
 	}
+
+	// Parity pass: the profile card shows the same gathering card as the
+	// conversation page, so active representative meetings need exact_location
+	// (SECURITY DEFINER RPC — participants only) and the slot's confirmed-joiner
+	// count (viewer-safe count-only RPC). One parallel fan-out across the few
+	// active cards; cancelled/past records skip it.
+	// TODO(perf): 2 RPCs per active meeting (location + occupancy). If profile P99
+	// regresses with members holding many active gatherings, replace with a batch
+	// RPC taking meeting-id/prompt-id arrays.
+	const promptQuery = new SupabasePromptQueryService(locals.supabase);
+	const authoredSet = new Set(authoredPromptIds);
+	await Promise.all(
+		Object.entries(meetingsByPromptId)
+			.filter(([, m]) => activeStates.includes(m.state))
+			.map(async ([promptId, m]) => {
+				const [locationDetail, occupancy] = await Promise.all([
+					locals.supabase
+						.rpc('get_meeting_with_location', { p_meeting_id: m.id })
+						.then(({ data }) => (Array.isArray(data) ? data[0] : data) ?? null),
+					m.slot_id
+						? promptQuery.getSlotOccupancy(promptId)
+						: Promise.resolve({} as Record<string, number>)
+				]);
+				m.exact_location = locationDetail?.exact_location ?? null;
+				const occupied = m.slot_id ? (occupancy[m.slot_id] ?? 0) : 0;
+				// The author already sees every joiner identified, so anything beyond
+				// the named pins is anonymised; an attendee's identified pins are the
+				// host + their own seat — the other joiners stay neutral circles.
+				m.anonymous_count = authoredSet.has(promptId)
+					? othersBeyond(occupied, m.partner_usernames.length)
+					: othersBeyond(occupied, 1);
+			})
+	);
 
 	return {
 		prompts,

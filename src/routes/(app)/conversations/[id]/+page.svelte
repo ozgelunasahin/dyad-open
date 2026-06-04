@@ -4,16 +4,17 @@
 	import SlotCard from '$lib/components/SlotCard.svelte';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
-	import MeetingCard from '$lib/components/MeetingCard.svelte';
 	import PublishSheet from '$lib/components/PublishSheet.svelte';
 	import type { SubmitSlot } from '$lib/domain/types';
 	import { capture } from '$lib/analytics';
 	import { copy } from '$lib/copy';
-	import ParticipantsStack from '$lib/components/ParticipantsStack.svelte';
+	import GatheringCard from '$lib/components/GatheringCard.svelte';
+	import UserHandle from '$lib/components/UserHandle.svelte';
 	import { formatShortDate as formatDate } from '$lib/utils/dates.js';
 	import { buildResponseRows, ACTIVE_MEETING_STATES } from '$lib/domain/response-rows.js';
 
 	import { isSlotFull } from '$lib/domain/time-slot.js';
+	import { othersBeyond } from '$lib/domain/gathering.js';
 
 	let { data }: { data: PageData } = $props();
 
@@ -345,7 +346,7 @@
 			{copy.conversation.youWrote(formatDate(data.prompt.published_at))}
 		{:else}
 			on {formatDate(data.prompt.published_at)},
-			<a href="/users/{data.prompt.author_username}" class="meta-author">
+			<a href="/users/{data.prompt.author_username}" class="meta-author user-handle">
 				{data.prompt.author_display_name ?? '@' + data.prompt.author_username}
 			</a>
 			wrote
@@ -415,22 +416,31 @@
 					     author's own offered times should never render greyed out. Who's on
 					     the slot is shown as name-buttons, not a count. -->
 					<div class="slot-group">
-						<SlotCard
-							startTime={slot.start_time}
-							durationMinutes={slot.duration_minutes}
-							area={slot.general_area}
-							exactLocation={slot.exact_location ?? null}
-						>
-							{#if joining.length > 0}
-								<ParticipantsStack
-									participants={joining.map((m) => ({
-										id: m.id,
-										name: m.partner_username ?? 'anonymous',
-										href: `/meetings/${m.id}`
-									}))}
-								/>
-							{/if}
-						</SlotCard>
+						{#if joining.length > 0}
+							<!-- A slot with confirmed joiners IS a gathering — same card,
+							     same meeting tone, same click-through as everywhere else.
+							     Pins link to member pages; the card opens the meeting
+							     (any pair shows the whole gathering). -->
+							<GatheringCard
+								startTime={slot.start_time}
+								durationMinutes={slot.duration_minutes}
+								area={slot.general_area}
+								exactLocation={slot.exact_location ?? null}
+								participants={joining.map((m) => ({
+									id: m.id,
+									name: m.partner_username ?? 'anonymous',
+									href: m.partner_username ? `/users/${m.partner_username}` : undefined
+								}))}
+								meetingHref="/meetings/{joining[0].id}"
+							/>
+						{:else}
+							<SlotCard
+								startTime={slot.start_time}
+								durationMinutes={slot.duration_minutes}
+								area={slot.general_area}
+								exactLocation={slot.exact_location ?? null}
+							/>
+						{/if}
 					</div>
 				{/each}
 			</section>
@@ -446,7 +456,11 @@
 				<p class="section-label">{copy.conversation.responsesHeading}</p>
 				{#each responseRows as row (row.key)}
 					<div class="response-card">
-						<span class="response-meta">{copy.conversation.respondedBy(row.username, formatDate(row.createdAt))}</span>
+						<span class="response-meta">
+							{copy.conversation.respondedByPrefix(formatDate(row.createdAt))}
+							<UserHandle username={row.username} />
+							{copy.conversation.wroteSuffix}
+						</span>
 						{#if row.body}<p class="response-body">{row.body}</p>{/if}
 						{#if row.status === 'pending'}
 							{#if row.message}<p class="inv-message">{row.message}</p>{/if}
@@ -501,19 +515,21 @@
 	<!-- Available times + invitation flow (non-authors only) -->
 	{#if !isOwnPrompt}
 		{#if data.myMeeting}
-			<!-- Confirmed: meeting scheduled. Same <MeetingCard> used on the author
-			     view and the profile surface — a meeting is symmetric regardless
-			     of who initiated the conversation. -->
+			<!-- Confirmed: the unified gathering card. The full room — the host
+			     identified, the viewer's own pin ("you"), and neutral circles for
+			     the other joiners (count from the viewer-safe occupancy RPC,
+			     never who). -->
 			<section class="slots-section">
-				<a href="/meetings/{data.myMeeting.id}" class="meeting-card-link">
-					<MeetingCard
-						partnerUsername={data.prompt.author_username}
-						scheduledTime={data.myMeeting.scheduled_time}
-						durationMinutes={data.myMeeting.duration_minutes}
-						generalArea={data.myMeeting.general_area}
-						exactLocation={data.myMeeting.exact_location}
-					/>
-				</a>
+				<GatheringCard
+					startTime={data.myMeeting.scheduled_time}
+					durationMinutes={data.myMeeting.duration_minutes}
+					area={data.myMeeting.general_area}
+					exactLocation={data.myMeeting.exact_location}
+					participants={[{ id: 'host', name: data.prompt.author_username, href: `/users/${data.prompt.author_username}` }]}
+					self={{ name: data.username || copy.common.you, href: data.username ? `/users/${data.username}` : undefined }}
+					anonymousCount={othersBeyond(occupiedOn(data.myMeeting.slot_id), 1)}
+					meetingHref="/meetings/{data.myMeeting.id}"
+				/>
 			</section>
 		{:else}
 			<section class="slots-section">
@@ -534,12 +550,13 @@
 					     session — sendInvite keeps `invitedSlotIds` + `invitationBySlotId`
 					     in sync so the withdraw action works without a page reload). -->
 					{#each data.prompt.available_slots.filter(s => invitedSlotIds.has(s.id)) as slot}
-						<MeetingCard
-							partnerUsername={data.prompt.author_username}
-							scheduledTime={slot.start_time}
+						<SlotCard
+							tone="meeting"
+							startTime={slot.start_time}
 							durationMinutes={slot.duration_minutes}
-							generalArea={slot.general_area}
+							area={slot.general_area}
 							invitedPending
+							pendingNote={copy.conversation.invitationPending(data.prompt.author_username)}
 							onWithdraw={invitationBySlotId[slot.id] ? () => withdrawInvitation(slot.id) : undefined}
 							withdrawing={withdrawingSlotId === slot.id}
 						/>
@@ -625,8 +642,8 @@
 		color: var(--text-muted);
 		margin: 0 0 var(--space-6);
 	}
-	.meta-author { color: var(--text-muted); text-decoration: none; }
-	.meta-author:hover { color: var(--text-primary); }
+	/* Base tint only — hover comes from the shared .user-handle treatment. */
+	.meta-author { color: var(--text-muted); }
 	.body { font-size: var(--text-md); line-height: var(--leading-relaxed); margin-bottom: var(--space-10); }
 	.body :global(p) { margin: 0 0 0.75em; }
 	.body :global(h1), .body :global(h2) { margin: 1.2em 0 0.5em; font-weight: 500; }
@@ -673,20 +690,12 @@
 		100% { opacity: 0; }
 	}
 
-	/* MeetingCard inside an <a> — strip link chrome so the card reads cleanly,
-	 * but keep it hoverable/clickable for navigation to the meeting detail page. */
-	.meeting-card-link {
-		display: block;
-		text-decoration: none;
-		color: inherit;
-		transition: opacity 0.15s;
-	}
-	.meeting-card-link:hover { opacity: var(--opacity-hover-card); }
+	/* Gathering-card chrome (overlay link, hover) lives in GatheringCard. */
 
 	/* Invitation flow */
 	.invite-question { font-size: var(--text-md); color: var(--text-muted); margin: 0 0 var(--space-4); }
 
-	/* Withdraw button lives inside MeetingCard's invitedPending state. */
+	/* Withdraw button lives inside SlotCard's invitedPending state. */
 
 	/* Prior cancellation note — quiet blockquote, no red, no border. The note
 	 * carries context without demanding attention. */

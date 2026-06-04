@@ -9,12 +9,6 @@
 	}
 </script>
 
-<button class="back-pill" onclick={() => history.back()} aria-label="Go back">
-	<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-		<path d="M12 15l-5-5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-	</svg>
-</button>
-
 <div class="content">
 	<div class="profile-header">
 		{#if data.profile.display_name}
@@ -48,35 +42,13 @@
 	{/if}
 </div>
 
-<FloatingNav variant="default" />
+<!-- Back lives in the nav pill (variant="detail"), like every detail surface. -->
+<FloatingNav variant="detail" attentionCount={data.attentionCount ?? 0} />
 
 <style>
-	.back-pill {
-		position: fixed;
-		top: var(--space-4);
-		left: var(--space-4);
-		z-index: 800;
-		width: 40px;
-		height: 40px;
-		border-radius: var(--radius-pill);
-		background: var(--bg-canvas);
-		backdrop-filter: blur(12px);
-		-webkit-backdrop-filter: blur(12px);
-		box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
-		border: none;
-		color: var(--text-primary);
-		font-size: var(--text-lg);
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-	.back-pill:hover { opacity: var(--opacity-hover-btn); }
-
 	.content {
 		width: 100%;
 		max-width: var(--content-standard);
-		padding-top: calc(var(--space-4) + 40px + var(--space-4));
 		padding-bottom: var(--nav-clearance);
 	}
 
