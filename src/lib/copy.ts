@@ -12,6 +12,23 @@
  *        <p>{copy.conversation.responsePlaceholder}</p>
  */
 
+/**
+ * Format a list of usernames as an @-tagged, human-readable phrase:
+ *   []                      → ''
+ *   ['tom']                 → '@tom'
+ *   ['tom','sophie']        → '@tom and @sophie'
+ *   ['tom','sophie','kai']  → '@tom, @sophie and 1 other'
+ * Used where a single meeting slot hosts a small group (multiple co-participants).
+ */
+function formatNameList(usernames: string[]): string {
+	const tagged = usernames.map((u) => `@${u}`);
+	if (tagged.length === 0) return '';
+	if (tagged.length === 1) return tagged[0];
+	if (tagged.length === 2) return `${tagged[0]} and ${tagged[1]}`;
+	const others = tagged.length - 2;
+	return `${tagged[0]}, ${tagged[1]} and ${others} ${others === 1 ? 'other' : 'others'}`;
+}
+
 export const copy = {
 	// ── Common — shared across multiple pages ───────────────────────────
 	common: {
@@ -97,16 +114,13 @@ export const copy = {
 		sendInvitation: 'Send invitation',
 		sending: 'Sending...',
 		responseSent: 'response sent',
-		invitationSent: (authorUsername: string) => `Invitation sent to @${authorUsername}`,
-		waitingForResponse: 'Waiting for a response.',
-		slotExpired: 'This time has passed',
-		slotInvited: 'Invited',
-		publishedBy: (username: string, date: string) => `on ${date}, @${username} wrote`,
 		youWrote: (date: string) => `on ${date}, you wrote`,
 		respondedBy: (username: string, date: string) => `on ${date}, @${username} wrote`,
 		youResponded: (date: string) => `${date === 'just now' ? 'just now' : `on ${date}`}, you responded`,
 		invitationPending: (authorUsername: string) => `You have invited @${authorUsername}, waiting for them to confirm.`,
 		youMet: (username: string) => `You met @${username}`,
+		// Group gathering: a slot hosting multiple co-participants ("You met @tom and @sophie").
+		youMetMany: (usernames: string[]) => `You met ${formatNameList(usernames)}`,
 		withdrawInvitation: 'Withdraw invitation',
 		withdrawing: 'Withdrawing...',
 		withdrawFailed: 'Couldn\u2019t withdraw. Please try again.',
@@ -114,12 +128,7 @@ export const copy = {
 		declining: 'Declining...',
 		declineMessagePlaceholder: 'Optional: a short message',
 		declineFailed: 'Couldn\u2019t decline. Please try again.',
-		declineNoteLabel: 'Their note',
-		confirmed: 'Confirmed',
-		youAreMeeting: (username: string) => `You are meeting @${username}`,
-		viewMeeting: 'View meeting →',
 		myOfferedTimes: 'Times you offered',
-		myOfferedTimesBooked: 'booked',
 		changeTimes: 'Change times',
 		unpublish: 'Unpublish',
 		unpublishConfirm: 'Take this off the feed and back to drafts? You can republish anytime.',
@@ -128,11 +137,27 @@ export const copy = {
 		deleteTitle: 'Delete conversation',
 		deleteConfirm: 'This will permanently delete the conversation and all its data. This cannot be undone.',
 		failedToDelete: 'Failed to delete.',
-		meetingScheduled: 'Meeting scheduled',
-		meetingCancelled: (username: string, date: string) => `@${username} cancelled this meeting on ${date}`,
-		meetingCancelledByYou: (date: string) => `You cancelled this meeting on ${date}`,
-		cancellationNoteLabel: 'Their note',
-		reinviteHeading: (username: string) => `@${username} cancelled. You can invite them to a new time.`,
+		// Conversation size / capacity (shown to responders near the times).
+		sizeOneOnOne: 'one-on-one',
+		sizeGroup: (others: number) => `small group · up to ${others} other${others === 1 ? '' : 's'}`,
+		// Author's response-spine view: each response carries a quiet status line,
+		// referencing its slot by day + neighbourhood only (the exact place lives
+		// once in "Times you offered"). slotRef is pre-formatted "day · neighbourhood".
+		responsesHeading: 'Responses',
+		statusConfirmed: (slotRef: string | null) => (slotRef ? `confirmed · ${slotRef}` : 'confirmed'),
+		statusMet: (slotRef: string | null) => (slotRef ? `met · ${slotRef}` : 'met'),
+		statusWantsToMeet: (slotRef: string | null) => (slotRef ? `wants to meet · ${slotRef}` : 'wants to meet'),
+		participantCancelled: 'cancelled',
+		// Surfaced to the author when accepting a joiner fails because the slot
+		// is at capacity (or the invitation is otherwise no longer acceptable).
+		conversationFull: 'This conversation is full or no longer available.',
+		// Surfaced to a responder at invite time when the chosen slot is already
+		// at capacity (best-effort guard; accept-time enforcement is the source
+		// of truth and a TOCTOU fill between invite and accept is fine).
+		timeFull: 'This time is full.',
+		// Low-resolution "+N others joining" marker on a slot (excludes the viewer).
+		othersJoining: (n: number) => `+${n} other${n === 1 ? '' : 's'} joining`,
+		slotFull: 'Full',
 	},
 
 	// ── Editor ─────────────────────────────────────────────────────────
@@ -178,6 +203,12 @@ export const copy = {
 		audiencePostingTo: 'Posting to',
 		audienceCommons: '{region} (everyone)',
 		audienceCorner: 'Within the {name} corner',
+		sizeLabel: 'Who you’d like to meet',
+		sizeOneOnOne: 'One-on-one',
+		sizeGroup: 'A small group',
+		sizeMaxOthers: 'up to {n} others',
+		sizeFewer: 'Fewer people',
+		sizeMore: 'More people',
 	},
 
 	// ── Profile ────────────────────────────────────────────────────────
@@ -197,6 +228,10 @@ export const copy = {
 		viewConversation: 'View conversation',
 		wantsToMeet: (username: string) => `@${username} wants to meet`,
 		meetingWith: (username: string) => `Meeting with @${username}`,
+		// Group gathering: a slot hosting multiple co-participants
+		// ("Meeting with @tom and @sophie"). The author of a small-group
+		// conversation sees everyone confirmed on the slot here.
+		meetingWithMany: (usernames: string[]) => `Meeting with ${formatNameList(usernames)}`,
 		meetingCancelled: 'Meeting cancelled',
 		meetingCancelledBy: (username: string) => `@${username} cancelled this meeting`,
 		meetingCancelledByYou: 'You cancelled this meeting',
@@ -266,6 +301,17 @@ export const copy = {
 		// .ics calendar event metadata
 		calendarTitlePrefix: 'dyad: ',
 		calendarFallbackTitle: (username: string) => `Meeting with @${username}`,
+		// Interim safety floor: a gathering participant flags a problem to moderators.
+		reportProblem: 'Report a problem',
+		reportTitle: 'Report a problem',
+		reportBody: 'If something felt unsafe or off about this gathering, tell us. A moderator will read it.',
+		reportLabel: 'What happened?',
+		reportPlaceholder: 'A few sentences. Be honest — it helps us look into it.',
+		reportSubmit: 'Send report',
+		reportSubmitting: 'Sending...',
+		reportCancel: 'Cancel',
+		reportThankYou: 'Thanks — a moderator will look into this.',
+		reportGenericError: 'Couldn’t send the report. Please try again.',
 	},
 
 	// ── Feedback ───────────────────────────────────────────────────────
@@ -287,6 +333,25 @@ export const copy = {
 		submitting: 'Submitting...',
 		revealIntro: (username: string) => `Here's what @${username} shared with you:`,
 		revealIntroFallback: "Here's what they shared with you:",
+	},
+
+	// ── Group feedback ───────────────────────────────────────────────────
+	groupFeedback: {
+		_routes: ['/feedback/group/[id]'],
+		_description: 'Post-gathering feedback for group conversations. One simple form per participant per gathering. Gated — blocks all app access until submitted.',
+		title: 'How was the conversation?',
+		meetAgainQuestion: 'Would you have a conversation with these people again?',
+		yes: 'Yes',
+		no: 'No',
+		commentLabel: 'Anything you want to add?',
+		commentPlaceholder: 'Optional',
+		personalFeedbackLabel: 'Any personal feedback you\'d like to give?',
+		personalFeedbackPlaceholder: 'Optional',
+		submit: 'Submit feedback',
+		submitting: 'Submitting...',
+		thankYou: 'Thank you',
+		submitted: 'Your feedback has been submitted.',
+		continueToDiscover: 'Continue to discover',
 	},
 
 	// ── Waitlist ───────────────────────────────────────────────────────

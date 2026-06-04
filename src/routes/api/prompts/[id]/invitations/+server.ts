@@ -6,6 +6,8 @@ import { SupabaseInvitationService } from '$lib/services/invitation.js';
 import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
 import { handleServiceError } from '$lib/server/handle-service-error.js';
 import { deferEmail, notifyInvitationReceived } from '$lib/server/notification-emails.js';
+import { isSlotFull } from '$lib/domain/time-slot.js';
+import { copy } from '$lib/copy.js';
 
 /** POST /api/prompts/[id]/invitations — create invitation (select slot + message) */
 export const POST: RequestHandler = async ({ params, request, locals, platform }) => {
@@ -51,6 +53,22 @@ export const POST: RequestHandler = async ({ params, request, locals, platform }
 
 	if (prompt.author_id === upactor.id) {
 		return json({ error: 'Cannot invite yourself' }, { status: 400 });
+	}
+
+	// Best-effort capacity guard at invite time. Accept-time enforcement (the
+	// capacity cap in accept_invitation) stays the source of truth, but without
+	// this check a responder could create a pending invitation on an already-full
+	// slot — one the author can never accept (accept throws "full or no longer
+	// available"). We tell the responder the time is full up front instead. A
+	// TOCTOU fill between this check and the accept is fine: accept rejects it.
+	// Occupancy comes from the viewer-safe RPC (responders cannot read meetings
+	// under RLS); we only block when capacity is set AND the slot is at capacity.
+	if (prompt.capacity != null) {
+		const occupancy = await queryService.getSlotOccupancy(params.id);
+		const occupied = occupancy[body.slotId] ?? 0;
+		if (isSlotFull(occupied, prompt.capacity)) {
+			return json({ error: copy.conversation.timeFull }, { status: 409 });
+		}
 	}
 
 	const service = new SupabaseInvitationService(locals.supabase);

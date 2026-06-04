@@ -19,6 +19,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 	const [body, errorResponse] = await parseJsonBody<{
 		slots: TimeSlotInput[];
 		audience_scope?: string | null;
+		capacity?: number | null;
 	}>(request);
 	if (errorResponse) return errorResponse;
 
@@ -58,9 +59,23 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		return json({ error: 'Cover image is required to publish' }, { status: 400 });
 	}
 
+	// Type guard only: capacity must be a number or null. The service
+	// (PromptCommandService.publish) is the canonical bounds validator — it
+	// throws a DomainError for out-of-range values, surfaced as a 400 by
+	// handleServiceError. 1 = one-on-one, 2-7 = small group (up to 8 total
+	// incl. the author). Absent/null lets the service default to one-on-one on
+	// first publish; on republish the stored value is preserved.
+	let validatedCapacity: number | null = null;
+	if (body.capacity !== undefined && body.capacity !== null) {
+		if (typeof body.capacity !== 'number') {
+			return json({ error: 'Group size must be a number' }, { status: 400 });
+		}
+		validatedCapacity = body.capacity;
+	}
+
 	const service = new SupabasePromptCommandService(locals.supabase);
 	try {
-		await service.publish(params.id, upactor.id, body.slots, validatedScope);
+		await service.publish(params.id, upactor.id, body.slots, validatedScope, validatedCapacity);
 		return json({ ok: true });
 	} catch (err) {
 		return handleServiceError(err, '[prompts/publish]');

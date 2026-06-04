@@ -13,6 +13,15 @@
 	let cancelError = $state('');
 	let cancelErrorRef = $state<string | null>(null);
 
+	// Interim safety floor: report a problem about this gathering to moderators.
+	let reportDialog = $state<HTMLDialogElement | undefined>();
+	let reportText = $state('');
+	let reportSubmitting = $state(false);
+	let reportSubmitted = $state(false);
+	let reportError = $state('');
+	const reportTrimmed = $derived(reportText.trim());
+	const canSubmitReport = $derived(!reportSubmitting && reportTrimmed.length >= 10);
+
 	// Cancellation tier mirrors the cancel_meeting RPC: >12h away = early (reason required).
 	const isEarly = $derived(
 		new Date(data.meeting.scheduled_time).getTime() - Date.now() > 12 * 60 * 60 * 1000
@@ -91,6 +100,37 @@
 			cancelling = false;
 		}
 	}
+
+	function openReportDialog() {
+		reportText = '';
+		reportError = '';
+		reportSubmitted = false;
+		reportDialog?.showModal();
+	}
+
+	async function handleReport() {
+		if (!canSubmitReport) return;
+		reportSubmitting = true;
+		reportError = '';
+		try {
+			const res = await fetch(`/api/meetings/${data.meeting.id}/report`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ description: reportTrimmed })
+			});
+			if (res.ok) {
+				reportSubmitted = true;
+				setTimeout(() => reportDialog?.close(), 1500);
+				return;
+			}
+			const body = await res.json().catch(() => ({}));
+			reportError = (body as { error?: string }).error ?? copy.meeting.reportGenericError;
+		} catch {
+			reportError = copy.meeting.reportGenericError;
+		} finally {
+			reportSubmitting = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -99,7 +139,7 @@
 
 <div class="content">
 	<div class="meeting-header">
-		<span class="meeting-with">{copy.profile.meetingWith(data.otherUsername)}</span>
+		<span class="meeting-with">{data.coParticipants.length > 1 ? copy.profile.meetingWithMany(data.coParticipants) : copy.profile.meetingWith(data.otherUsername)}</span>
 		{#if data.meeting.state === 'scheduled'}
 			<button class="calendar-link" onclick={handleAddToCalendar}>{copy.meeting.addToCalendar}</button>
 		{/if}
@@ -247,14 +287,56 @@
 			</div>
 		</dialog>
 	{/if}
+
+	<!-- Report a problem lives in the FloatingNav kebab menu; dialog triggered from there. -->
+	<dialog bind:this={reportDialog} class="report-dialog" aria-labelledby="report-title">
+		{#if reportSubmitted}
+			<div class="report-success">
+				<p>{copy.meeting.reportThankYou}</p>
+			</div>
+		{:else}
+			<div class="report-inner">
+				<h3 id="report-title" class="report-title">{copy.meeting.reportTitle}</h3>
+				<p class="report-body">{copy.meeting.reportBody}</p>
+
+				<div class="field">
+					<label for="report-text">{copy.meeting.reportLabel}</label>
+					<textarea
+						id="report-text"
+						bind:value={reportText}
+						rows={4}
+						maxlength={2000}
+						placeholder={copy.meeting.reportPlaceholder}
+						disabled={reportSubmitting}
+					></textarea>
+				</div>
+
+				{#if reportError}
+					<p class="field-error" role="alert">{reportError}</p>
+				{/if}
+
+				<div class="cancel-actions">
+					<button class="btn-secondary" onclick={() => reportDialog?.close()} disabled={reportSubmitting}>
+						{copy.meeting.reportCancel}
+					</button>
+					<button class="btn-primary" onclick={handleReport} disabled={!canSubmitReport}>
+						{reportSubmitting ? copy.meeting.reportSubmitting : copy.meeting.reportSubmit}
+					</button>
+				</div>
+			</div>
+		{/if}
+	</dialog>
 </div>
 
 <FloatingNav
 	variant="detail"
 	attentionCount={data.attentionCount ?? 0}
-	actions={data.meeting.state === 'scheduled'
-		? [{ label: copy.meeting.cancelMeeting, onclick: openCancelDialog, danger: true }]
-		: []}
+	actions={[
+		...(data.meeting.state === 'scheduled'
+			? [{ label: copy.meeting.cancelMeeting, onclick: openCancelDialog, danger: true }]
+			: []),
+		{ label: copy.meeting.reportProblem, onclick: openReportDialog }
+	]}
 />
 
 <style>
@@ -355,4 +437,37 @@
 	/* .btn-secondary / .btn-danger / .btn-danger--soft live in shared.css */
 
 	.field-error-ref { display: block; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin-top: var(--space-1); }
+
+	/* Report-a-problem dialog — mirrors the cancel dialog chrome. */
+	.report-dialog {
+		border: none;
+		border-radius: var(--radius-card);
+		padding: 0;
+		max-width: 460px;
+		width: calc(100% - var(--space-8));
+		background: var(--bg-canvas);
+		color: var(--text-primary);
+		box-shadow: 0 12px 48px rgba(0, 0, 0, 0.22);
+	}
+	.report-dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
+	.report-inner { padding: var(--space-6); display: flex; flex-direction: column; gap: var(--space-4); }
+	.report-title {
+		font-family: var(--font-serif);
+		font-size: var(--text-2xl);
+		font-weight: normal;
+		line-height: var(--leading-tight);
+		margin: 0;
+	}
+	.report-body {
+		font-size: var(--text-base);
+		color: var(--text-secondary);
+		line-height: var(--leading-relaxed);
+		margin: 0;
+	}
+	.report-success {
+		padding: var(--space-8) var(--space-6);
+		text-align: center;
+		font-size: var(--text-md);
+		color: var(--text-primary);
+	}
 </style>

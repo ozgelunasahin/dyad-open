@@ -18,6 +18,11 @@
 	 */
 	interface Props {
 		partnerUsername: string;
+		/** When a single time slot hosts a small group, the full set of
+		 *  co-participants (the gathering). Takes precedence over
+		 *  `partnerUsername` for the label when it has more than one entry.
+		 *  Omit (or pass a single name) for the ordinary two-person case. */
+		partnerUsernames?: string[];
 		scheduledTime: string; // ISO 8601
 		durationMinutes: number;
 		generalArea?: string | null;
@@ -45,6 +50,7 @@
 
 	let {
 		partnerUsername,
+		partnerUsernames,
 		scheduledTime,
 		durationMinutes,
 		generalArea = null,
@@ -69,13 +75,19 @@
 		invitedPending ? 'invited' : isCancelled ? 'cancelled' : isPast ? 'past' : 'scheduled'
 	);
 
-	const labelText = $derived(
-		state === 'past'
-			? copy.conversation.youMet(partnerUsername)
-			: state === 'invited'
-				? copy.conversation.invitationPending(partnerUsername)
-				: copy.profile.meetingWith(partnerUsername)
+	// The gathering's participants. Falls back to the single partner when no
+	// list is supplied, so ordinary two-person meetings render unchanged.
+	const names = $derived(
+		partnerUsernames && partnerUsernames.length > 0 ? partnerUsernames : [partnerUsername]
 	);
+	const labelText = $derived.by(() => {
+		// An invitation is always to one person — never pluralise the pending state.
+		if (state === 'invited') return copy.conversation.invitationPending(partnerUsername);
+		if (state === 'past') {
+			return names.length > 1 ? copy.conversation.youMetMany(names) : copy.conversation.youMet(names[0]);
+		}
+		return names.length > 1 ? copy.profile.meetingWithMany(names) : copy.profile.meetingWith(names[0]);
+	});
 
 	function formatDate(iso: string): string {
 		return new Date(iso).toLocaleDateString('en-US', {

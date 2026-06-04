@@ -14,6 +14,7 @@ function makePrompt(overrides: Partial<Prompt> = {}): Prompt {
 		published_at: null,
 		hidden_at: null,
 		audience_scope: null,
+		capacity: null,
 		created_at: new Date().toISOString(),
 		updated_at: new Date().toISOString(),
 		...overrides

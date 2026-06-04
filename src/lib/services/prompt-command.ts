@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { JSONContent } from '@tiptap/core';
 import { nanoid } from 'nanoid';
-import type { Prompt, TimeSlotInput } from '$lib/domain/types.js';
+import { MIN_CAPACITY, MAX_CAPACITY, type Prompt, type TimeSlotInput } from '$lib/domain/types.js';
 import { canPublish, canUnpublish } from '$lib/domain/prompt.js';
 import { deriveGeneralArea, validateRegion } from '$lib/services/location.js';
 import { DomainError } from '$lib/domain/errors.js';
@@ -22,7 +22,8 @@ export interface PromptCommandService {
 		promptId: string,
 		authorId: string,
 		slots: TimeSlotInput[],
-		audienceScope?: string | null
+		audienceScope?: string | null,
+		capacity?: number | null
 	): Promise<void>;
 
 	addSlots(promptId: string, authorId: string, slots: TimeSlotInput[]): Promise<void>;
@@ -88,7 +89,8 @@ export class SupabasePromptCommandService implements PromptCommandService {
 		promptId: string,
 		authorId: string,
 		slots: TimeSlotInput[],
-		audienceScope: string | null = null
+		audienceScope: string | null = null,
+		capacity: number | null = null
 	): Promise<void> {
 		const prompt = await this.getOwnPrompt(promptId, authorId);
 
@@ -101,11 +103,28 @@ export class SupabasePromptCommandService implements PromptCommandService {
 			throw new DomainError('Cannot publish: conversation must be a draft with 1–3 valid time slots');
 		}
 
-		// audience_scope is set here, then publish_prompt flips state. Once
-		// published, audience_scope is immutable (no cross-scope promotion).
+		// Capacity is set on first publish and immutable thereafter (mirrors
+		// audience_scope). On a republish (published_at already set) the stored
+		// capacity is preserved, so no edit path can leave a slot with more
+		// accepted meetings than its capacity. On first publish, default to
+		// one-on-one (1) when unset — NULL stays a legacy-only value.
+		const isFirstPublish = prompt.published_at == null;
+		const effectiveCapacity = isFirstPublish ? (capacity ?? 1) : prompt.capacity;
+		if (
+			effectiveCapacity != null &&
+			(!Number.isInteger(effectiveCapacity) ||
+				effectiveCapacity < MIN_CAPACITY ||
+				effectiveCapacity > MAX_CAPACITY)
+		) {
+			throw new DomainError(`Group size must be between ${MIN_CAPACITY} and ${MAX_CAPACITY}`);
+		}
+
+		// audience_scope + capacity are set here, then publish_prompt flips
+		// state. Once published, both are immutable (no cross-scope promotion,
+		// no resize).
 		const { error: scopeError } = await this.supabase
 			.from('prompts')
-			.update({ audience_scope: audienceScope })
+			.update({ audience_scope: audienceScope, capacity: effectiveCapacity })
 			.eq('id', promptId)
 			.eq('author_id', authorId);
 		if (scopeError) {

@@ -29,6 +29,10 @@ export async function cleanTestData(admin?: SupabaseClient): Promise<void> {
 				await client.from('feedback_forms').delete().eq('meeting_id', m.id);
 				await client.from('cancellation_records').delete().eq('meeting_id', m.id);
 			}
+			// group_feedback FK on prompt_id is ON DELETE RESTRICT, so it must be
+			// cleared before the prompt (and before time_slots, which it also
+			// references) is deleted.
+			await client.from('group_feedback').delete().eq('prompt_id', pid);
 			await client.from('meetings').delete().eq('prompt_id', pid);
 			await client.from('prompt_invitations').delete().eq('prompt_id', pid);
 			await client.from('prompt_comments').delete().eq('prompt_id', pid);

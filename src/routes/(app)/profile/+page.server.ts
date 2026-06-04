@@ -210,35 +210,61 @@ export const load: PageServerLoad = async ({ locals }) => {
 			duration_minutes: number;
 			general_area: string | null;
 			partner_username: string;
+			// All co-participants on the gathering's slot. A group conversation is N
+			// two-person meetings sharing one slot, so the author's single profile card
+			// must name everyone confirmed — not just the first one. One-on-one
+			// conversations yield a single-element array and render exactly as before.
+			partner_usernames: string[];
 			state: string;
 			cancelled_by_me: boolean;
 			cancelled_by_username: string | null;
 		}
 	> = {};
 
+	const activeStates = ['scheduled', 'awaiting_feedback'];
+
 	// Sort: active states first, then by most recent scheduled_time
 	const sortedMeetings = [...meetings].sort((a, b) => {
-		const activeStates = ['scheduled', 'awaiting_feedback'];
 		const aActive = activeStates.includes(a.state) ? 0 : 1;
 		const bActive = activeStates.includes(b.state) ? 0 : 1;
 		if (aActive !== bActive) return aActive - bActive;
 		return new Date(b.scheduled_time).getTime() - new Date(a.scheduled_time).getTime();
 	});
 
+	// `slot_id` is a real `meetings` column (selected via `*` in getMyMeetings) but
+	// isn't on the Meeting type — read it through a narrow local accessor.
+	const slotIdOf = (m: (typeof meetings)[number]) => (m as { slot_id?: string }).slot_id ?? null;
+
+	// One card per conversation. The representative meeting (first after the sort —
+	// active and most recent) defines the card. When it's an active gathering we
+	// aggregate every co-participant the viewer can see on that slot. RLS scopes
+	// `meetings` to rows the viewer participates in, so the author (a participant in
+	// every pair on their own slot) gets the whole group, while a joiner sees only
+	// their own pair — no inter-participant identity leak (see DESIGN.md).
 	for (const m of sortedMeetings) {
-		if (!(m.prompt_id in meetingsByPromptId)) {
-			const canceller = cancellers.get(m.id) ?? null;
-			meetingsByPromptId[m.prompt_id] = {
-				id: m.id,
-				scheduled_time: m.scheduled_time,
-				duration_minutes: m.duration_minutes,
-				general_area: m.general_area,
-				partner_username: partnerUsernameMap.get(getPartnerId(m, userId)) ?? 'anonymous',
-				state: m.state,
-				cancelled_by_me: canceller?.cancelled_by === userId,
-				cancelled_by_username: canceller?.cancelled_by_username ?? null
-			};
-		}
+		if (m.prompt_id in meetingsByPromptId) continue;
+		const canceller = cancellers.get(m.id) ?? null;
+		const repSlot = slotIdOf(m);
+		const groupMeetings =
+			activeStates.includes(m.state) && repSlot
+				? sortedMeetings.filter(
+						(x) => x.prompt_id === m.prompt_id && slotIdOf(x) === repSlot && activeStates.includes(x.state)
+					)
+				: [m];
+		const partnerUsernames = [
+			...new Set(groupMeetings.map((x) => partnerUsernameMap.get(getPartnerId(x, userId)) ?? 'anonymous'))
+		];
+		meetingsByPromptId[m.prompt_id] = {
+			id: m.id,
+			scheduled_time: m.scheduled_time,
+			duration_minutes: m.duration_minutes,
+			general_area: m.general_area,
+			partner_username: partnerUsernames[0] ?? 'anonymous',
+			partner_usernames: partnerUsernames,
+			state: m.state,
+			cancelled_by_me: canceller?.cancelled_by === userId,
+			cancelled_by_username: canceller?.cancelled_by_username ?? null
+		};
 	}
 
 	return {

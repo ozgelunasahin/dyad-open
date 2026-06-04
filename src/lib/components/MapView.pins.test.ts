@@ -41,7 +41,8 @@ function makePrompt(id: string, slots: TimeSlot[]): PromptSummary {
 		published_at: '2026-05-09T10:00:00Z',
 		region: 'berlin',
 		audience_scope: null,
-		audience_scope_name: null
+		audience_scope_name: null,
+		capacity: null
 	};
 }
 

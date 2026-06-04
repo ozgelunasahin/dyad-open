@@ -135,15 +135,32 @@ export const handle: Handle = async ({ event, resolve }) => {
 			const gateService = new SupabaseGateService(event.locals.supabase);
 			const gateStatus = await gateService.checkGate(user.id);
 
-			if (gateStatus.gated && gateStatus.feedbackFormId) {
+			if (gateStatus.gated && gateStatus.kind === 'one_on_one') {
 				if (pathname.startsWith('/api/')) {
-					return new Response(JSON.stringify({ error: 'gated', feedbackFormId: gateStatus.feedbackFormId }), {
+					// Body mirrors the GateStatus discriminated union ({kind, formId}) so
+					// programmatic callers handle both gate kinds with one shape.
+					return new Response(JSON.stringify({ error: 'gated', kind: gateStatus.kind, formId: gateStatus.formId }), {
 						status: 403,
 						headers: { 'Content-Type': 'application/json' }
 					});
 				}
 				// Store in locals so the layout renders the feedback modal instead of redirecting
-				(event.locals as any).pendingFeedbackFormId = gateStatus.feedbackFormId;
+				(event.locals as any).pendingFeedbackFormId = gateStatus.formId;
+			} else if (gateStatus.gated && gateStatus.kind === 'group') {
+				// Group feedback (R5/U11): one simple group-level form per gathering.
+				// Routed to a dedicated /feedback/group/[id] page (which is gate-exempt
+				// under the /feedback prefix). Unlike the one-on-one modal path, this
+				// redirects — the group form is a standalone page with no reveal state.
+				if (pathname.startsWith('/api/')) {
+					return new Response(JSON.stringify({ error: 'gated', kind: gateStatus.kind, formId: gateStatus.formId }), {
+						status: 403,
+						headers: { 'Content-Type': 'application/json' }
+					});
+				}
+				return new Response(null, {
+					status: 302,
+					headers: { Location: `/feedback/group/${gateStatus.formId}` }
+				});
 			}
 		}
 	}

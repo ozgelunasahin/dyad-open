@@ -266,7 +266,7 @@
 		showPublishSheet = true;
 	}
 
-	async function handlePublish(submitted: SubmitSlot[], audienceScope: string | null) {
+	async function handlePublish(submitted: SubmitSlot[], audienceScope: string | null, capacity: number) {
 		publishError = '';
 
 		// Publish requires LocationRef per slot. Drop incomplete drafts (those
@@ -293,10 +293,18 @@
 			const res = await fetch(`/api/prompts/${promptId}/publish`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ slots, audience_scope: audienceScope })
+				body: JSON.stringify({ slots, audience_scope: audienceScope, capacity })
 			});
 			if (res.ok) {
-				capture('conversation_published');
+				// Intent signal for the group-conversations rollout: which mode the
+				// author chose, kept separate from the visible participant count.
+				// `capacity` is the per-slot joiner cap (1 = one-on-one, 2–7 = group),
+				// carried alongside `mode` so realized-size / fill-rate can be derived
+				// against it. See docs/group-conversations-metrics.md.
+				capture('conversation_published', {
+					mode: capacity === 1 ? 'one_on_one' : 'group',
+					capacity
+				});
 				goto(`/conversations/${promptId}`);
 			} else {
 				const err = await res.json().catch(() => ({}));
@@ -481,6 +489,7 @@
 		{publishing}
 		saving={savingSlots}
 		error={publishError}
+		showSizePicker={data.prompt.published_at == null}
 	/>
 {/if}
 

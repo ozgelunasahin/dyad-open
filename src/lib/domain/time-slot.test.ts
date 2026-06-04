@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deriveSlotState, isAvailable, isExpired, isClosing, isDiscoverable } from './time-slot.js';
+import { deriveSlotState, isAvailable, isExpired, isClosing, isDiscoverable, isSlotFull } from './time-slot.js';
 import type { TimeSlot } from './types.js';
 
 function makeSlot(overrides: Partial<TimeSlot> = {}): TimeSlot {
@@ -131,5 +131,32 @@ describe('isDiscoverable', () => {
 		expect(isDiscoverable(available, now)).toBe(true);
 		expect(isDiscoverable(closing, now)).toBe(false);
 		expect(isDiscoverable(expired, now)).toBe(false);
+	});
+});
+
+describe('isSlotFull', () => {
+	it('null capacity is never full (legacy unlimited)', () => {
+		expect(isSlotFull(0, null)).toBe(false);
+		expect(isSlotFull(99, null)).toBe(false);
+	});
+
+	it('undefined capacity is never full', () => {
+		expect(isSlotFull(5, undefined)).toBe(false);
+	});
+
+	it('one-on-one (capacity 1): full once one seat is taken', () => {
+		expect(isSlotFull(0, 1)).toBe(false);
+		expect(isSlotFull(1, 1)).toBe(true);
+		expect(isSlotFull(2, 1)).toBe(true);
+	});
+
+	it('group (capacity 3): open below 3, full at 3 and above', () => {
+		expect(isSlotFull(2, 3)).toBe(false);
+		expect(isSlotFull(3, 3)).toBe(true);
+		expect(isSlotFull(4, 3)).toBe(true);
+	});
+
+	it('empty slot is not full for any positive capacity', () => {
+		expect(isSlotFull(0, 7)).toBe(false);
 	});
 });

@@ -93,13 +93,15 @@ describe('Feedback lifecycle', () => {
 		it('digit is gated (has due form)', async () => {
 			const status = await digitServices.gate.checkGate(SEED_USERS.digit.id);
 			expect(status.gated).toBe(true);
-			expect(status.feedbackFormId).toBeTruthy();
+			expect(status.gated && status.kind).toBe('one_on_one');
+			expect(status.gated && status.formId).toBeTruthy();
 		});
 
 		it('other is gated (has due form)', async () => {
 			const status = await otherServices.gate.checkGate(SEED_USERS.other.id);
 			expect(status.gated).toBe(true);
-			expect(status.feedbackFormId).toBeTruthy();
+			expect(status.gated && status.kind).toBe('one_on_one');
+			expect(status.gated && status.formId).toBeTruthy();
 		});
 	});
 

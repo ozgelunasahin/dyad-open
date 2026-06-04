@@ -13,11 +13,17 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const commentService = new SupabaseCommentService(locals.supabase);
 	const invitationService = new SupabaseInvitationService(locals.supabase);
 
-	const [detail, comments, myComment, myInvitations] = await Promise.all([
+	// Per-slot occupancy (confirmed joiners) for the "+N others joining" marker
+	// and full-slot derivation. Non-authors cannot read `meetings` under RLS, so
+	// this comes via the viewer-safe SECURITY DEFINER RPC — count-only, no
+	// usernames/UUIDs/location. Keyed slotId → active-meeting count. Never an
+	// ordering signal. Independent of `detail`, so fetched in the same batch.
+	const [detail, comments, myComment, myInvitations, slotOccupancy] = await Promise.all([
 		promptService.getPromptDetail(params.id, userId),
 		commentService.getCommentsForPrompt(params.id),
 		commentService.getMyComment(params.id, userId),
-		invitationService.getPendingForPrompt(params.id, userId)
+		invitationService.getPendingForPrompt(params.id, userId),
+		promptService.getSlotOccupancy(params.id)
 	]);
 
 	if (!detail) {
@@ -160,10 +166,19 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			}
 		}
 
-		// Enrich with exact_location via SECURITY DEFINER RPC
-		for (const m of meetings ?? []) {
-			const { data: detail } = await locals.supabase.rpc('get_meeting_with_location', { p_meeting_id: m.id });
-			const d = Array.isArray(detail) ? detail[0] : detail;
+		// Enrich with exact_location via SECURITY DEFINER RPC. One call per meeting,
+		// run in parallel — a full group slot holds up to 7 meetings, and serial
+		// round trips cost 30–80ms each. (A batch/array RPC variant is the proper
+		// fix; tracked as follow-up.)
+		const locationDetails = await Promise.all(
+			(meetings ?? []).map((m) =>
+				locals.supabase
+					.rpc('get_meeting_with_location', { p_meeting_id: m.id })
+					.then(({ data }) => (Array.isArray(data) ? data[0] : data) ?? null)
+			)
+		);
+		(meetings ?? []).forEach((m, i) => {
+			const d = locationDetails[i];
 			const canceller = cancellers.get(m.id) ?? null;
 			promptMeetings.push({
 				id: m.id,
@@ -179,12 +194,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				cancellation_reason: canceller?.reason ?? null,
 				partner_username: partnerMap.get(m.participant_b) ?? null
 			});
-		}
+		});
 	}
 
 	// For non-authors: check if they have a confirmed meeting for this prompt
 	let myMeeting: {
 		id: string;
+		slot_id: string;
 		scheduled_time: string;
 		duration_minutes: number;
 		general_area: string;
@@ -201,10 +217,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	} | null = null;
 
 	if (!isAuthor) {
-		// Step 1: find the meeting ID (RLS restricts to participant rows)
+		// Step 1: find the meeting ID + slot (RLS restricts to participant rows).
+		// slot_id is carried through so the "+N others joining" marker can
+		// exclude the viewer's own seat on that slot.
 		const { data: meetingRow } = await locals.supabase
 			.from('meetings')
-			.select('id')
+			.select('id, slot_id')
 			.eq('prompt_id', params.id)
 			.or(`participant_a.eq.${userId},participant_b.eq.${userId}`)
 			.in('state', ['scheduled', 'awaiting_feedback', 'completed'])
@@ -219,6 +237,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			if (meetingData) {
 				myMeeting = {
 					id: meetingData.id,
+					slot_id: meetingRow.slot_id,
 					scheduled_time: meetingData.scheduled_time,
 					duration_minutes: meetingData.duration_minutes,
 					general_area: meetingData.general_area ?? '',
@@ -274,6 +293,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		promptMeetings,
 		myMeeting,
 		myCancellation,
+		slotOccupancy,
 		user: { id: userId }
 	};
 };

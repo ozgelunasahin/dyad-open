@@ -3,6 +3,7 @@
 	import { onMount, onDestroy, tick } from 'svelte';
 	import { getWeekDates } from '$lib/utils/dates';
 	import LocationSearch from '$lib/components/LocationSearch.svelte';
+	import SizePicker from '$lib/components/SizePicker.svelte';
 	import { copy } from '$lib/copy';
 	import type { LocationRef, SubmitSlot, TimeSlot } from '$lib/domain/types';
 
@@ -15,7 +16,7 @@
 
 	interface Props {
 		onClose: () => void;
-		onPublish?: (slots: SubmitSlot[], audienceScope: string | null) => void;
+		onPublish?: (slots: SubmitSlot[], audienceScope: string | null, capacity: number) => void;
 		onSave?: (slots: SubmitSlot[]) => void;
 		initialSlots?: InitialSlot[];
 		availableScopes?: Array<{ scope: string; name: string }>;
@@ -28,6 +29,10 @@
 		// because removing times is also an option.
 		submitLabel?: string;
 		submittingLabel?: string;
+		// Show the one-on-one / small-group size control. Only the first-publish
+		// flow sets this — capacity is immutable after publish, so the read-view
+		// "Change times" mount must not render a picker that does nothing.
+		showSizePicker?: boolean;
 	}
 
 	let {
@@ -41,11 +46,19 @@
 		saving = false,
 		error = '',
 		submitLabel,
-		submittingLabel
+		submittingLabel,
+		showSizePicker = false
 	}: Props = $props();
 
 	// Empty string means commons (mapped to audience_scope=NULL upstream).
 	let audienceScope = $state<string>('');
+
+	// Conversation size. One-on-one (capacity 1) or a small group, where the
+	// author sets the max number of *others* (1-7 → up to 8 people total incl.
+	// the author). Set at publish; immutable afterwards.
+	let conversationSize = $state<'one' | 'group'>('one');
+	let maxOthers = $state(7);
+	const capacity = $derived(conversationSize === 'one' ? 1 : maxOthers);
 
 	const regionLabel = region.charAt(0).toUpperCase() + region.slice(1);
 
@@ -256,7 +269,7 @@
 	}
 
 	function handlePublish() {
-		onPublish?.(collectSlots(), audienceScope || null);
+		onPublish?.(collectSlots(), audienceScope || null, capacity);
 	}
 
 	function handleSave() {
@@ -443,6 +456,10 @@
 
 		{#if error}
 			<p class="publish-error">{error}</p>
+		{/if}
+
+		{#if showSizePicker}
+			<SizePicker bind:size={conversationSize} bind:maxOthers disabled={publishing || saving} />
 		{/if}
 
 		{#if onPublish && availableScopes.length > 0}

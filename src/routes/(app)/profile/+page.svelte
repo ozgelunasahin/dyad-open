@@ -8,7 +8,7 @@
 	import ConversationCard from '$lib/components/ConversationCard.svelte';
 	import MeetingCard from '$lib/components/MeetingCard.svelte';
 	import { copy } from '$lib/copy';
-	import { formatRelativePast } from '$lib/utils/dates';
+	import { formatRelativePast, formatShortDate as formatDate } from '$lib/utils/dates';
 
 	let { data }: { data: PageData } = $props();
 
@@ -105,6 +105,7 @@
 			duration_minutes: number;
 			general_area: string | null;
 			partner_username: string;
+			partner_usernames: string[];
 			state: string;
 			cancelled_by_me: boolean;
 			cancelled_by_username: string | null;
@@ -130,6 +131,7 @@
 			duration_minutes: m.duration_minutes,
 			general_area: m.general_area,
 			partner_username: m.partner_username,
+			partner_usernames: m.partner_usernames ?? [m.partner_username],
 			state: m.state,
 			cancelled_by_me: m.cancelled_by_me,
 			cancelled_by_username: m.cancelled_by_username
@@ -253,13 +255,6 @@
 		goto(`/profile?tab=${tab}`, { replaceState: true });
 	}
 
-	function formatDate(iso: string): string {
-		return new Date(iso).toLocaleDateString('en-US', {
-			weekday: 'short',
-			month: 'short',
-			day: 'numeric'
-		});
-	}
 	function formatTime(iso: string): string {
 		return new Date(iso).toLocaleTimeString('en-US', {
 			hour: 'numeric',
@@ -376,6 +371,7 @@
 								{@const isCancelled = item.meeting.state === 'cancelled_early' || item.meeting.state === 'cancelled_late'}
 								<MeetingCard
 									partnerUsername={item.meeting.partner_username}
+									partnerUsernames={item.meeting.partner_usernames}
 									scheduledTime={item.meeting.scheduled_time}
 									durationMinutes={item.meeting.duration_minutes}
 									generalArea={item.meeting.general_area}
@@ -409,6 +405,7 @@
 							{@const isCancelled = item.meeting.state === 'cancelled_early' || item.meeting.state === 'cancelled_late'}
 							<MeetingCard
 								partnerUsername={item.meeting.partner_username}
+								partnerUsernames={item.meeting.partner_usernames}
 								scheduledTime={item.meeting.scheduled_time}
 								durationMinutes={item.meeting.duration_minutes}
 								generalArea={item.meeting.general_area}

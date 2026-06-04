@@ -9,8 +9,41 @@
 	import type { SubmitSlot } from '$lib/domain/types';
 	import { capture } from '$lib/analytics';
 	import { copy } from '$lib/copy';
+	import ParticipantsStack from '$lib/components/ParticipantsStack.svelte';
+	import { formatShortDate as formatDate } from '$lib/utils/dates.js';
+	import { buildResponseRows, ACTIVE_MEETING_STATES } from '$lib/domain/response-rows.js';
+
+	import { isSlotFull } from '$lib/domain/time-slot.js';
 
 	let { data }: { data: PageData } = $props();
+
+	// Conversation size label shown near the times. capacity is the per-slot
+	// joiner cap: 1 = one-on-one, ≥2 = small group (up to N others), null = no
+	// label (legacy unlimited).
+	let sizeLabel = $derived.by(() => {
+		const cap = data.prompt.capacity;
+		if (cap === null || cap === undefined) return null;
+		if (cap === 1) return copy.conversation.sizeOneOnOne;
+		return copy.conversation.sizeGroup(cap);
+	});
+
+	// Per-slot occupancy (confirmed joiners), from the viewer-safe RPC.
+	function occupiedOn(slotId: string): number {
+		return data.slotOccupancy?.[slotId] ?? 0;
+	}
+	// Capacity-aware fullness for a slot.
+	function slotIsFull(slotId: string): boolean {
+		return isSlotFull(occupiedOn(slotId), data.prompt.capacity);
+	}
+	// "+N others joining" marker count. Occupancy counts every confirmed joiner
+	// on the slot, INCLUDING the viewer when they hold a seat. The marker is
+	// about OTHERS, so subtract the viewer's own seat on the slot they joined.
+	// A responder inviting to a slot they have not joined sees the raw count.
+	function othersOn(slotId: string): number {
+		const occupied = occupiedOn(slotId);
+		const viewerHasSeatHere = data.myMeeting?.slot_id === slotId;
+		return viewerHasSeatHere ? Math.max(0, occupied - 1) : occupied;
+	}
 
 	// svelte-ignore state_referenced_locally — intentional initial-value capture for editable field
 	let responseText = $state(data.myComment?.body ?? '');
@@ -39,10 +72,6 @@
 	let declineError = $state('');
 	let openDeclineId = $state<string | null>(null);
 	let declineMessage = $state('');
-
-	function formatDate(iso: string): string {
-		return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-	}
 
 	async function submitResponse() {
 		if (!responseText.trim()) return;
@@ -133,14 +162,17 @@
 		}
 	}
 
-	async function acceptInvitation(invitationId: string) {
+	async function acceptInvitation(invitationId: string, slotId: string) {
 		acceptingId = invitationId;
 		acceptError = '';
 		try {
 			const res = await fetch(`/api/invitations/${invitationId}/accept`, { method: 'POST' });
 			if (res.ok) {
 				const { meetingId } = await res.json();
-				capture('invitation_accepted');
+				// Carry the slot identity so realized group size per slot is derivable
+				// (a gathering is the set of accepted meetings sharing one slot).
+				// See docs/group-conversations-metrics.md.
+				capture('invitation_accepted', { slot_id: slotId });
 				goto(`/meetings/${meetingId}`);
 			} else {
 				const err = await res.json().catch(() => ({}));
@@ -275,6 +307,24 @@
 			} else { const e = await res.json().catch(() => ({})); actionError = (e as any).error ?? copy.conversation.failedToDelete; }
 		} catch { actionError = copy.common.networkError; }
 	}
+
+	// ── Author view: response-spine model ───────────────────────────────────
+	// The derivation (status precedence, edge cases, ordering) is a pure,
+	// unit-tested function in $lib/domain/response-rows — this page only wires
+	// loader data in and renders the rows. The exact time/place lives once in
+	// "Times you offered"; status lines reference a slot by day + neighbourhood.
+
+	// Who's joining a slot — the active meetings on it. Rendered as tappable
+	// name-buttons on the "Times you offered" card (each links to its meeting).
+	function joiningOnSlot(slotId: string) {
+		return (data.promptMeetings ?? []).filter(
+			(m) => m.slot_id === slotId && ACTIVE_MEETING_STATES.includes(m.state)
+		);
+	}
+
+	let responseRows = $derived.by(() =>
+		buildResponseRows(data.comments, data.promptMeetings ?? [], data.receivedInvitations ?? [], formatDate)
+	);
 </script>
 
 <svelte:head>
@@ -308,6 +358,10 @@
 		{/if}
 	</div>
 
+	{#if sizeLabel}
+		<p class="size-label">{sizeLabel}</p>
+	{/if}
+
 	{#if isOwnPrompt && data.prompt.state === 'published'}
 		<ConfirmDialog
 			bind:this={unpublishDialog}
@@ -325,20 +379,91 @@
 		/>
 		{#if actionError}<p class="field-error" style="margin-top: var(--space-2)">{actionError}</p>{/if}
 
-		<!-- Author summary: the times they offered + any active meetings against
-		     them. Mirrors the responder-side slot/meeting blocks but read-only. -->
+		<!-- Reusable accept/decline action row for a pending invitation. -->
+		{#snippet inviteActions(invId: string, slotId: string)}
+			{#if openDeclineId === invId}
+				<textarea
+					class="invite-message-textarea"
+					placeholder={copy.conversation.declineMessagePlaceholder}
+					bind:value={declineMessage}
+					rows={3}
+					maxlength={2000}
+					disabled={decliningId === invId}
+				></textarea>
+				{#if declineError}<p class="field-error" role="alert">{declineError}</p>{/if}
+				<div class="invite-actions">
+					<button class="btn-secondary" onclick={cancelDecline} disabled={decliningId === invId}>{copy.common.cancel}</button>
+					<button class="btn-primary" onclick={() => declineInvitation(invId)} disabled={decliningId === invId}>{decliningId === invId ? copy.conversation.declining : copy.conversation.decline}</button>
+				</div>
+			{:else}
+				<div class="invite-actions">
+					<button class="btn-text btn-text--danger" onclick={() => openDecline(invId)} disabled={acceptingId === invId}>{copy.conversation.decline}</button>
+					<button class="btn-primary" onclick={() => acceptInvitation(invId, slotId)} disabled={acceptingId === invId}>{acceptingId === invId ? copy.common.accepting : copy.common.accept}</button>
+				</div>
+			{/if}
+		{/snippet}
+
+		<!-- Times you offered: the schedule reference. Each offered time is shown
+		     once (the exact place lives here, never per response) with a quiet fill
+		     summary. Editing happens via the FloatingNav "change times" action. -->
 		{#if data.prompt.available_slots.length > 0}
 			<section class="my-summary">
 				<p class="section-label">{copy.conversation.myOfferedTimes}</p>
-				{#each data.prompt.available_slots as slot}
-					<SlotCard
-						startTime={slot.start_time}
-						durationMinutes={slot.duration_minutes}
-						area={slot.general_area}
-						exactLocation={slot.exact_location ?? null}
-						invited={slot.accepted}
-					/>
+				{#each data.prompt.available_slots as slot (slot.id)}
+					{@const joining = joiningOnSlot(slot.id)}
+					<!-- No invited/occupied/capacity props here: those dim the card, and the
+					     author's own offered times should never render greyed out. Who's on
+					     the slot is shown as name-buttons, not a count. -->
+					<div class="slot-group">
+						<SlotCard
+							startTime={slot.start_time}
+							durationMinutes={slot.duration_minutes}
+							area={slot.general_area}
+							exactLocation={slot.exact_location ?? null}
+						>
+							{#if joining.length > 0}
+								<ParticipantsStack
+									participants={joining.map((m) => ({
+										id: m.id,
+										name: m.partner_username ?? 'anonymous',
+										href: `/meetings/${m.id}`
+									}))}
+								/>
+							{/if}
+						</SlotCard>
+					</div>
 				{/each}
+			</section>
+		{/if}
+
+		<!-- Responses: the spine. Every responder's words stay visible whatever
+		     their meeting status; a quiet status line annotates that status, and
+		     the slot's time/place is referenced (day + neighbourhood) — never
+		     reprinted. Pending requests are actionable inline; pending-first, then
+		     most-recent. One shape serves one-on-one and small group. -->
+		{#if responseRows.length > 0}
+			<section class="responses-received">
+				<p class="section-label">{copy.conversation.responsesHeading}</p>
+				{#each responseRows as row (row.key)}
+					<div class="response-card">
+						<span class="response-meta">{copy.conversation.respondedBy(row.username, formatDate(row.createdAt))}</span>
+						{#if row.body}<p class="response-body">{row.body}</p>{/if}
+						{#if row.status === 'pending'}
+							{#if row.message}<p class="inv-message">{row.message}</p>{/if}
+							<p class="response-status">{copy.conversation.statusWantsToMeet(row.slotRef)}</p>
+							{@render inviteActions(row.invitationId ?? '', row.slotId ?? '')}
+						{:else if (row.status === 'confirmed' || row.status === 'met') && row.meetingId}
+							{@const label = row.status === 'met' ? copy.conversation.statusMet(row.slotRef) : copy.conversation.statusConfirmed(row.slotRef)}
+							<a href="/meetings/{row.meetingId}" class="response-status response-status--link">{label}</a>
+						{:else if row.status === 'confirmed' || row.status === 'met'}
+							<p class="response-status">{row.status === 'met' ? copy.conversation.statusMet(row.slotRef) : copy.conversation.statusConfirmed(row.slotRef)}</p>
+						{:else if row.status === 'cancelled'}
+							<p class="response-status response-status--muted">{copy.conversation.participantCancelled}{#if row.cancellationReason}: {row.cancellationReason}{/if}</p>
+						{/if}
+						<!-- 'responded' (no time chosen): just the words, no status line. -->
+					</div>
+				{/each}
+				{#if acceptError}<p class="field-error">{acceptError}</p>{/if}
 			</section>
 		{/if}
 
@@ -434,7 +559,10 @@
 							vague={!hasResponse}
 							selected={selectedSlotId === slot.id}
 							invited={invitedSlotIds.has(slot.id)}
-							onclick={hasResponse ? () => { selectedSlotId = selectedSlotId === slot.id ? null : slot.id; } : undefined}
+							occupied={occupiedOn(slot.id)}
+							capacity={data.prompt.capacity}
+							othersJoining={othersOn(slot.id)}
+							onclick={hasResponse && !slotIsFull(slot.id) ? () => { selectedSlotId = selectedSlotId === slot.id ? null : slot.id; } : undefined}
 						/>
 					{/each}
 
@@ -456,141 +584,6 @@
 		{/if}
 	{/if}
 
-	<!-- Author view: responses + their invitations together -->
-	{#if isOwnPrompt && (data.comments.length > 0 || data.receivedInvitations.length > 0)}
-		<section class="responses-received">
-			{#each data.comments as comment}
-				{@const invitation = data.receivedInvitations.find(inv => inv.inviter_id === comment.author_id)}
-				{@const meeting = invitation ? data.promptMeetings?.find(m => m.slot_id === invitation.slot_id) : null}
-				<div class="response-card" class:has-invitation={!!invitation}>
-					<span class="response-meta">{copy.conversation.respondedBy(comment.author_username ?? 'anonymous', formatDate(comment.created_at))}</span>
-					<p class="response-body">{comment.body}</p>
-
-					{#if invitation}
-						<div class="response-invitation">
-							{#if invitation.state === 'accepted' && meeting && (meeting.state === 'cancelled_early' || meeting.state === 'cancelled_late')}
-								<!-- Accepted invitation whose meeting was later cancelled. Any newer
-								     pending re-invitation takes the pending branch because the loader
-								     picks the most-recent invitation per inviter. -->
-								<MeetingCard
-									partnerUsername={comment.author_username ?? 'anonymous'}
-									scheduledTime={meeting.scheduled_time}
-									durationMinutes={invitation.slot_duration_minutes ?? 60}
-									generalArea={meeting.general_area ?? invitation.slot_general_area}
-									exactLocation={meeting.exact_location}
-									cancelled
-									cancelledByMe={meeting.cancelled_by !== null && meeting.cancelled_by === data.user.id}
-									cancelledByUsername={meeting.cancelled_by !== null && meeting.cancelled_by !== data.user.id
-										? (meeting.cancelled_by_username ?? comment.author_username ?? null)
-										: null}
-									cancellationReason={meeting.cancellation_reason}
-								/>
-							{:else if invitation.state === 'accepted' && meeting}
-								<a href="/meetings/{meeting.id}" class="meeting-card-link">
-									<MeetingCard
-										partnerUsername={comment.author_username ?? 'anonymous'}
-										scheduledTime={meeting.scheduled_time}
-										durationMinutes={invitation.slot_duration_minutes ?? 60}
-										generalArea={meeting.general_area ?? invitation.slot_general_area}
-										exactLocation={meeting.exact_location}
-									/>
-								</a>
-							{:else if invitation.state === 'accepted'}
-								<!-- Accepted but meeting record isn't loaded (rare fallback). -->
-								<MeetingCard
-									partnerUsername={comment.author_username ?? 'anonymous'}
-									scheduledTime={invitation.slot_start_time}
-									durationMinutes={invitation.slot_duration_minutes ?? 60}
-									generalArea={invitation.slot_general_area}
-								/>
-							{:else if invitation.state === 'pending'}
-								<SlotCard startTime={invitation.slot_start_time} durationMinutes={invitation.slot_duration_minutes ?? 60} area={invitation.slot_general_area} />
-								{#if invitation.message}
-									<p class="inv-message">{invitation.message}</p>
-								{/if}
-								{#if openDeclineId === invitation.id}
-									<textarea
-										class="invite-message-textarea"
-										placeholder={copy.conversation.declineMessagePlaceholder}
-										bind:value={declineMessage}
-										rows={3}
-										maxlength={2000}
-										disabled={decliningId === invitation.id}
-									></textarea>
-									{#if declineError}<p class="field-error" role="alert">{declineError}</p>{/if}
-									<div class="invite-actions">
-										<button class="btn-secondary" onclick={cancelDecline} disabled={decliningId === invitation.id}>
-											{copy.common.cancel}
-										</button>
-										<button class="btn-primary" onclick={() => declineInvitation(invitation.id)} disabled={decliningId === invitation.id}>
-											{decliningId === invitation.id ? copy.conversation.declining : copy.conversation.decline}
-										</button>
-									</div>
-								{:else}
-									<div class="invite-actions">
-										<button class="btn-text btn-text--danger" onclick={() => openDecline(invitation.id)} disabled={acceptingId === invitation.id}>
-											{copy.conversation.decline}
-										</button>
-										<button class="btn-primary" onclick={() => acceptInvitation(invitation.id)} disabled={acceptingId === invitation.id}>
-											{acceptingId === invitation.id ? copy.common.accepting : copy.common.accept}
-										</button>
-									</div>
-								{/if}
-							{/if}
-						</div>
-					{/if}
-				</div>
-			{/each}
-
-			<!-- Invitations without a matching comment (edge case) -->
-			{#each data.receivedInvitations.filter(inv => !data.comments.some(c => c.author_id === inv.inviter_id)) as inv}
-				<div class="response-card has-invitation">
-					<span class="response-meta">{copy.conversation.respondedBy(inv.inviter_username, formatDate(inv.created_at))}</span>
-					{#if inv.comment_body}
-						<p class="response-body">{inv.comment_body}</p>
-					{/if}
-					<div class="response-invitation">
-						<SlotCard startTime={inv.slot_start_time} durationMinutes={inv.slot_duration_minutes ?? 60} area={inv.slot_general_area} />
-						{#if inv.state === 'pending'}
-							{#if inv.message}
-								<p class="inv-message">{inv.message}</p>
-							{/if}
-							{#if openDeclineId === inv.id}
-								<textarea
-									class="invite-message-textarea"
-									placeholder={copy.conversation.declineMessagePlaceholder}
-									bind:value={declineMessage}
-									rows={3}
-									maxlength={2000}
-									disabled={decliningId === inv.id}
-								></textarea>
-								{#if declineError}<p class="field-error" role="alert">{declineError}</p>{/if}
-								<div class="invite-actions">
-									<button class="btn-secondary" onclick={cancelDecline} disabled={decliningId === inv.id}>
-										{copy.common.cancel}
-									</button>
-									<button class="btn-primary" onclick={() => declineInvitation(inv.id)} disabled={decliningId === inv.id}>
-										{decliningId === inv.id ? copy.conversation.declining : copy.conversation.decline}
-									</button>
-								</div>
-							{:else}
-								<div class="invite-actions">
-									<button class="btn-text btn-text--danger" onclick={() => openDecline(inv.id)} disabled={acceptingId === inv.id}>
-										{copy.conversation.decline}
-									</button>
-									<button class="btn-primary" onclick={() => acceptInvitation(inv.id)} disabled={acceptingId === inv.id}>
-										{acceptingId === inv.id ? copy.common.accepting : copy.common.accept}
-									</button>
-								</div>
-							{/if}
-						{/if}
-					</div>
-				</div>
-			{/each}
-
-			{#if acceptError}<p class="field-error">{acceptError}</p>{/if}
-		</section>
-	{/if}
 </div>
 
 <FloatingNav
@@ -623,6 +616,15 @@
 
 	.title { font-size: var(--text-3xl); font-weight: normal; margin: 0 0 var(--space-2); line-height: var(--leading-tight); }
 	.meta { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin: 0 0 var(--space-8); }
+	/* Conversation size (one-on-one / small group) — quiet coordination label. */
+	.size-label {
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--text-muted);
+		margin: 0 0 var(--space-6);
+	}
 	.meta-author { color: var(--text-muted); text-decoration: none; }
 	.meta-author:hover { color: var(--text-primary); }
 	.body { font-size: var(--text-md); line-height: var(--leading-relaxed); margin-bottom: var(--space-10); }
@@ -646,11 +648,10 @@
 
 	/* Sections */
 	.slots-section { margin-top: var(--space-4); margin-bottom: var(--space-6); }
-	.response-section, .responses-received { margin-top: var(--space-6); padding-top: var(--space-6); border-top: 1px solid var(--border-link); }
+	.response-section { margin-top: var(--space-6); padding-top: var(--space-6); border-top: 1px solid var(--border-link); }
 
-	/* Author summary blocks above .responses-received: list of offered times,
-	   list of scheduled meetings. Quiet typography to match the page idiom — the
-	   section label sits like the existing .meta line, the cards do the work. */
+	/* "Times you offered" — the compact schedule reference. Quiet typography to
+	   match the page idiom; the section label sits like the existing .meta line. */
 	.my-summary { margin-top: var(--space-6); }
 	.my-summary:first-of-type { padding-top: var(--space-6); border-top: 1px solid var(--border-link); }
 	.section-label {
@@ -750,8 +751,25 @@
 	.response-card:last-child { border-bottom: none; }
 	.response-meta { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); display: block; margin-bottom: var(--space-1); }
 	.response-body { font-size: var(--text-base); margin: 0 0 var(--space-1); line-height: var(--leading-normal); }
-	.response-invitation { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--border-link); }
-	.meeting-link { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-success); display: block; margin-bottom: var(--space-2); }
-	.meeting-link:hover { opacity: var(--opacity-hover-card); }
 	.inv-message { font-size: var(--text-sm); color: var(--text-secondary); font-style: italic; margin: var(--space-2) 0 var(--space-3); }
+
+	/* "Times you offered": each slot once, with who's joining nested inside the
+	   card on the right as an overlapping avatar stack (each circle links to its
+	   meeting; hover/focus reveals the handle). Never dimmed. */
+	.slot-group { margin-bottom: var(--space-4); }
+
+	/* Responses: the spine. Single list; words always visible; a quiet status
+	   line annotates meeting state (no coloured badges — the accept/decline
+	   buttons are the actionability signal). */
+	.responses-received { margin-top: var(--space-6); padding-top: var(--space-6); border-top: 1px solid var(--border-link); }
+	.response-status {
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		color: var(--text-secondary);
+		margin: var(--space-2) 0 0;
+	}
+	.response-status--muted { color: var(--text-muted); }
+	.response-status--link { display: inline-block; text-decoration: none; color: var(--text-link); }
+	.response-status--link::after { content: ' →'; } /* nav affordance — decorative, not copy */
+	.response-status--link:hover { text-decoration: underline; }
 </style>

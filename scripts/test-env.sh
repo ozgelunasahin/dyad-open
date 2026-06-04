@@ -45,8 +45,14 @@ fi
 # We remap ANON_KEY → PUBLIC_SUPABASE_ANON_KEY etc. to match the app's env
 # variable names.
 
+# `supabase status -o env` can emit non-assignment lines alongside the keys —
+# e.g. a leading "Stopped services: [...]" line when optional services
+# (imgproxy, edge runtime, pooler) aren't up, or a CLI update banner. Eval only
+# the KEY="value" assignment lines so those don't get run as bogus commands
+# (which previously failed the whole script with `Stopped: command not found`).
+ENV_ASSIGNMENTS=$(printf '%s\n' "$ENV_OUTPUT" | grep -E '^[A-Za-z_][A-Za-z0-9_]*=' || true)
 # shellcheck disable=SC2086
-eval "$ENV_OUTPUT"
+eval "$ENV_ASSIGNMENTS"
 
 if [ -z "${API_URL:-}" ] || [ -z "${ANON_KEY:-}" ] || [ -z "${SERVICE_ROLE_KEY:-}" ]; then
 	echo "error: supabase status -o env did not return expected keys." >&2

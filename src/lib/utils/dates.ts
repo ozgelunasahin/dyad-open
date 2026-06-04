@@ -38,6 +38,15 @@ export function formatHybridDate(iso: string): string {
 	return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
+/** "Sat, Jun 6" — short weekday · month · day, for inline meta/status lines. */
+export function formatShortDate(iso: string): string {
+	return new Date(iso).toLocaleDateString('en-US', {
+		weekday: 'short',
+		month: 'short',
+		day: 'numeric'
+	});
+}
+
 /**
  * Past-looking relative date for "when did this happen":
  * today → "today", yesterday → "yesterday", 2-6 days ago → weekday,

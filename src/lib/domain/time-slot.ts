@@ -34,3 +34,20 @@ export function isClosing(slot: TimeSlot, now: Date = new Date()): boolean {
 export function isDiscoverable(slot: TimeSlot, now: Date = new Date()): boolean {
 	return isAvailable(slot, now);
 }
+
+/**
+ * Is this slot full given its capacity and current occupancy?
+ *
+ * Capacity-aware and intentionally separate from `isAvailable` (which stays
+ * timing-only by design). `capacity` is the prompt's per-slot joiner cap:
+ *   - null  → legacy unlimited, NEVER full
+ *   - N ≥ 1 → full once `occupied` (active accepted meetings on the slot)
+ *             reaches N
+ *
+ * A full slot must not be invitable. This is a pure derivation; the seat count
+ * (`occupied`) comes from the viewer-safe occupancy RPC.
+ */
+export function isSlotFull(occupied: number, capacity: number | null | undefined): boolean {
+	if (capacity === null || capacity === undefined) return false;
+	return occupied >= capacity;
+}

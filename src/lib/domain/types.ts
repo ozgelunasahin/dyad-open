@@ -3,6 +3,12 @@ import type { JSONContent } from '@tiptap/core';
 // Prompt states
 export type PromptState = 'draft' | 'published';
 
+// Per-conversation capacity bounds (max joiners per slot; mirrors the DB CHECK
+// in 20260529100000_add_capacity_to_prompts.sql). 1 = one-on-one; up to 7
+// others = 8 people total including the author. null stays legacy unlimited.
+export const MIN_CAPACITY = 1;
+export const MAX_CAPACITY = 7;
+
 // Location reference stored in time_slots.exact_location JSONB
 export interface LocationRef {
 	place_id: string;
@@ -25,6 +31,9 @@ export interface Prompt {
 	published_at: string | null;
 	hidden_at: string | null;
 	audience_scope: string | null;
+	// Max joiners per slot. null = legacy unlimited; 1 = one-on-one; 2-7 = group
+	// (up to 8 total incl. author). Set at first publish, immutable thereafter.
+	capacity: number | null;
 	created_at: string;
 	updated_at: string;
 }
@@ -77,6 +86,11 @@ export interface PromptSummary {
 	region: string;
 	audience_scope: string | null;
 	audience_scope_name: string | null;
+	// Max joiners per slot (mirrors Prompt.capacity). null = legacy unlimited
+	// or a surface that does not derive capacity (anon landing teaser sets
+	// null); 1 = one-on-one; 2-7 = small group (up to 8 total incl. author).
+	// Required so every construction site is forced to make the choice explicit.
+	capacity: number | null;
 }
 
 export interface PromptDetail extends PromptSummary {
@@ -188,10 +202,33 @@ export interface RevealedFeedback {
 	locked_at: string;
 }
 
-export interface GateStatus {
-	gated: boolean;
-	feedbackFormId: string | null;
+// Group feedback (R5 / U11): one group-level form per participant per group
+// gathering (a slot with >= 2 active meetings). Distinct from the per-pair
+// FeedbackForm used by one-on-one meetings.
+
+export type GroupFeedbackState = 'due' | 'submitted';
+
+export interface GroupFeedback {
+	id: string;
+	prompt_id: string;
+	slot_id: string;
+	reviewer_id: string;
+	meet_again: boolean | null;
+	comment: string | null;
+	personal_feedback: string | null;
+	state: GroupFeedbackState;
+	submitted_at: string | null;
+	created_at: string;
 }
+
+// Discriminated union so invalid states (both form IDs set) are unrepresentable.
+// `kind` distinguishes the one-on-one feedback_forms gate (reveal-capable modal)
+// from the group_feedback gate (standalone redirect page). Mutually exclusive by
+// construction.
+export type GateStatus =
+	| { gated: false }
+	| { gated: true; kind: 'one_on_one'; formId: string }
+	| { gated: true; kind: 'group'; formId: string };
 
 export interface ReputationSignal {
 	id: string;
