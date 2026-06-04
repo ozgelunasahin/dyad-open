@@ -58,6 +58,23 @@
 <svelte:head>
 	<title>The Dyad Zine — dyad.berlin</title>
 	<meta name="description" content="A zine about conversation, connection, and the city. Made in Berlin." />
+	<!-- The masthead is an 11rem Light serif: with font-display swap the
+	     fallback→serif reflow is a visible flash. Preloading the two weights
+	     this page sets means the font is in cache before first paint. -->
+	<link
+		rel="preload"
+		href="/fonts/SangBleuSunrise-Light-WebXL.woff2"
+		as="font"
+		type="font/woff2"
+		crossorigin="anonymous"
+	/>
+	<link
+		rel="preload"
+		href="/fonts/SangBleuSunrise-Regular-WebXL.woff2"
+		as="font"
+		type="font/woff2"
+		crossorigin="anonymous"
+	/>
 </svelte:head>
 
 <div class="page">
@@ -345,7 +362,9 @@
 		margin: var(--space-1) 0 0;
 	}
 
-	/* ── Buttons — small letterpress blocks ───────────────────────────── */
+	/* ── Buttons — the site's filled-button idiom (see shared.css
+	   .btn-primary): flat fill, quiet opacity hover. No letterpress
+	   shadow/press effect — nothing else on the site raises buttons. */
 	.buy-btn {
 		display: inline-flex;
 		align-items: center;
@@ -358,15 +377,11 @@
 		padding: var(--space-3) var(--space-5);
 		text-decoration: none;
 		cursor: pointer;
-		box-shadow: 3px 3px 0 color-mix(in srgb, var(--text-primary) 20%, transparent);
-		transition:
-			transform var(--duration-fast) var(--ease-ink),
-			box-shadow var(--duration-fast) var(--ease-ink);
+		transition: opacity 0.15s;
 	}
 
 	.buy-btn:hover {
-		transform: translate(2px, 2px);
-		box-shadow: 1px 1px 0 color-mix(in srgb, var(--text-primary) 20%, transparent);
+		opacity: var(--opacity-hover-btn);
 	}
 
 	.buy-btn--tier {
@@ -383,13 +398,11 @@
 		background: none;
 		color: var(--text-muted);
 		border: 1px solid var(--border-subtle);
-		box-shadow: none;
 		cursor: default;
 	}
 
 	.buy-btn--soon:hover {
-		transform: none;
-		box-shadow: none;
+		opacity: 1;
 	}
 
 	.fulfillment-note {
