@@ -157,7 +157,9 @@ export function buildResponseRows(
 	}
 
 	// Comment-less accepted inviter (has a meeting, no comment) — rare under the
-	// response-first flow, but surface them so they aren't lost.
+	// response-first flow, but surface them so they aren't lost. The status must
+	// follow the MEETING, not the invitation: an accepted invitation whose
+	// meeting was since cancelled reads 'cancelled', never 'confirmed'.
 	for (const inv of invitations) {
 		if (inv.state !== 'accepted') continue;
 		if (comments.some((c) => c.author_id === inv.inviter_id)) continue;
@@ -166,18 +168,40 @@ export function buildResponseRows(
 				m.partner_username === inv.inviter_username &&
 				(ACTIVE_MEETING_STATES.includes(m.state) || m.state === MET_STATE)
 		);
-		rows.push(
-			newRow({
-				key: `inv:${inv.id}`,
-				username: inv.inviter_username,
-				body: inv.comment_body,
-				createdAt: inv.created_at,
-				status: meeting?.state === MET_STATE ? 'met' : 'confirmed',
-				slotRef: slotRef(meeting?.scheduled_time ?? inv.slot_start_time, meeting?.general_area ?? inv.slot_general_area),
-				meetingId: meeting?.id ?? null,
-				slotId: inv.slot_id
-			})
+		const cancelled = meetings.find(
+			(m) =>
+				m.partner_username === inv.inviter_username &&
+				(m.state === 'cancelled_early' || m.state === 'cancelled_late')
 		);
+		if (meeting) {
+			rows.push(
+				newRow({
+					key: `inv:${inv.id}`,
+					username: inv.inviter_username,
+					body: inv.comment_body,
+					createdAt: inv.created_at,
+					status: meeting.state === MET_STATE ? 'met' : 'confirmed',
+					slotRef: slotRef(meeting.scheduled_time, meeting.general_area),
+					meetingId: meeting.id,
+					slotId: inv.slot_id
+				})
+			);
+		} else if (cancelled) {
+			rows.push(
+				newRow({
+					key: `inv:${inv.id}`,
+					username: inv.inviter_username,
+					body: inv.comment_body,
+					createdAt: inv.created_at,
+					status: 'cancelled',
+					slotRef: slotRef(cancelled.scheduled_time, cancelled.general_area),
+					cancellationReason: cancelled.cancellation_reason ?? null,
+					slotId: inv.slot_id
+				})
+			);
+		}
+		// Neither an active nor a cancelled meeting: nothing truthful to claim —
+		// no row rather than a stale 'confirmed'.
 	}
 
 	// Actionable-first (pending), stable chronological within each group:

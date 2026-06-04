@@ -54,6 +54,9 @@ export interface TimeSlot {
 	general_area_lat: number | null;
 	general_area_lng: number | null;
 	accepted: boolean;
+	/** Set when the author withdrew this time (whole-gathering cancel) —
+	 *  terminal; retired slots are never offered or invitable. */
+	retired_at?: string | null;
 	created_at: string;
 	// exact_location is omitted from non-author surfaces (public view masks it).
 	// Present (or null) only when the loader fetched via get_my_prompt_slots

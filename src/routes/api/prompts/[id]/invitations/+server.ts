@@ -55,6 +55,15 @@ export const POST: RequestHandler = async ({ params, request, locals, platform }
 		return json({ error: 'Cannot invite yourself' }, { status: 400 });
 	}
 
+	// Best-effort availability guard at invite time: the slot must be among the
+	// prompt's offered times (excludes retired — author withdrew the time —
+	// expired, and within-cutoff slots). accept_invitation stays the source of
+	// truth; this surfaces the rejection up front instead of minting a pending
+	// invitation the author can never accept.
+	if (!prompt.available_slots.some((s) => s.id === body.slotId)) {
+		return json({ error: copy.conversation.timeNoLongerOffered }, { status: 409 });
+	}
+
 	// Best-effort capacity guard at invite time. Accept-time enforcement (the
 	// capacity cap in accept_invitation) stays the source of truth, but without
 	// this check a responder could create a pending invitation on an already-full

@@ -80,8 +80,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		general_area_lng: number | null;
 		exact_location: { place_id: string; name: string; address: string; lat: number; lng: number } | null;
 		accepted: boolean;
+		retired_at?: string | null;
 		created_at: string;
-	}> | null) ?? []).map((s) => ({
+	}> | null) ?? [])
+		// Withdrawn times (whole-gathering cancel) are terminal: hydrating one
+		// into the editor would route it through editSlot on save, which now
+		// rejects retired slots and would abort the whole save flow.
+		.filter((s) => !s.retired_at)
+		.map((s) => ({
 		id: s.id,
 		prompt_id: params.id,
 		start_time: s.start_time,

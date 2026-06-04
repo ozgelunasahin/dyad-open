@@ -7,6 +7,17 @@ export interface MeetingService {
 	getDetail(meetingId: string): Promise<MeetingDetail | null>;
 	getMyMeetings(userId: string): Promise<(Meeting & { general_area: string | null })[]>;
 	cancel(meetingId: string, reason?: string): Promise<CancellationTier>;
+	/** Host-only: cancel joiners on the anchor meeting's slot in one act.
+	 *  Without a selection, the ENTIRETY: every live pair cancels and the time
+	 *  is withdrawn. With pairMeetingIds, just those pairs cancel and the time
+	 *  stays open. Returns the tier plus, per affected joiner, THEIR
+	 *  pair-meeting id (meetings RLS hides other pairs' pages, so each email
+	 *  must link the recipient's own). */
+	cancelGathering(
+		meetingId: string,
+		reason?: string,
+		pairMeetingIds?: string[]
+	): Promise<{ tier: CancellationTier; joiners: { joinerId: string; meetingId: string }[] }>;
 }
 
 export class SupabaseMeetingService implements MeetingService {
@@ -63,5 +74,40 @@ export class SupabaseMeetingService implements MeetingService {
 			throw new Error(`Failed to cancel meeting: ${msg}`);
 		}
 		return data as CancellationTier;
+	}
+
+	async cancelGathering(
+		meetingId: string,
+		reason?: string,
+		pairMeetingIds?: string[]
+	): Promise<{ tier: CancellationTier; joiners: { joinerId: string; meetingId: string }[] }> {
+		const { data, error } = await this.supabase.rpc('cancel_gathering', {
+			p_meeting_id: meetingId,
+			p_reason: reason ?? null,
+			p_pair_meeting_ids: pairMeetingIds ?? null
+		});
+
+		if (error) {
+			// cancel_gathering raises the same validation messages as cancel_meeting,
+			// plus 'Not authorized' for non-hosts and 'Nothing selected' for an
+			// empty selection.
+			const msg = error.message ?? '';
+			if (msg.includes('Meeting not found')) throw new DomainError(msg, 404);
+			if (msg.includes('Not authorized')) throw new DomainError(msg, 403);
+			if (msg.includes('Early cancellation requires an explanation')) throw new DomainError(msg, 400);
+			if (msg.includes('Nothing selected')) throw new DomainError(msg, 400);
+			throw new Error(`Failed to cancel gathering: ${msg}`);
+		}
+
+		const rows = (data ?? []) as { tier: CancellationTier; joiner_id: string; meeting_id: string }[];
+		// The RPC raises before returning an empty set (v_cancelled guard) — an
+		// empty result here means a broken contract, not a quiet 'early' default.
+		if (rows.length === 0) {
+			throw new Error('cancel_gathering returned no rows unexpectedly');
+		}
+		return {
+			tier: rows[0].tier,
+			joiners: rows.map((r) => ({ joinerId: r.joiner_id, meetingId: r.meeting_id }))
+		};
 	}
 }

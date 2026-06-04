@@ -157,7 +157,7 @@ export class SupabasePromptQueryService implements PromptQueryService {
 		const promptIds = prompts.map((p) => p.id);
 		const { data: allSlots } = await this.supabase
 			.from('time_slots_public')
-			.select('id, prompt_id, start_time, duration_minutes, general_area, general_area_lat, general_area_lng, accepted, created_at')
+			.select('id, prompt_id, start_time, duration_minutes, general_area, general_area_lat, general_area_lng, accepted, created_at, retired_at')
 			.in('prompt_id', promptIds)
 			.order('start_time', { ascending: true });
 
@@ -244,7 +244,7 @@ export class SupabasePromptQueryService implements PromptQueryService {
 		// Public method: no username lookup needed (landing page anonymises them anyway)
 		const { data: allSlots } = await this.supabase
 			.from('time_slots_public')
-			.select('id, prompt_id, start_time, duration_minutes, general_area, general_area_lat, general_area_lng, accepted, created_at')
+			.select('id, prompt_id, start_time, duration_minutes, general_area, general_area_lat, general_area_lng, accepted, created_at, retired_at')
 			.in('prompt_id', promptIds)
 			.order('start_time', { ascending: true });
 
@@ -321,16 +321,18 @@ export class SupabasePromptQueryService implements PromptQueryService {
 				p_prompt_id: id
 			});
 			// Hide past slots — accepted past slots have meeting representation
-			// elsewhere; non-accepted past slots are functionally dead. The
-			// section reads as "what am I currently offering" rather than a
-			// historical inventory.
+			// elsewhere; non-accepted past slots are functionally dead. Retired
+			// slots (withdrawn via a whole-gathering cancel) are equally not on
+			// offer; their cancelled meetings stay visible via the response
+			// rows. The section reads as "what am I currently offering" rather
+			// than a historical inventory.
 			availableSlots = ((ownSlots ?? []) as TimeSlot[]).filter(
-				(s) => new Date(s.start_time) > now
+				(s) => !s.retired_at && new Date(s.start_time) > now
 			);
 		} else {
 			const { data: publicSlots } = await this.supabase
 				.from('time_slots_public')
-				.select('id, prompt_id, start_time, duration_minutes, general_area, general_area_lat, general_area_lng, accepted, created_at')
+				.select('id, prompt_id, start_time, duration_minutes, general_area, general_area_lat, general_area_lng, accepted, created_at, retired_at')
 				.eq('prompt_id', id)
 				.order('start_time', { ascending: true });
 			availableSlots = (publicSlots ?? []).filter((s) =>
@@ -410,7 +412,7 @@ export class SupabasePromptQueryService implements PromptQueryService {
 	async getAvailableSlots(promptId: string, userId: string): Promise<TimeSlot[]> {
 		const { data: slots } = await this.supabase
 			.from('time_slots_public')
-			.select('id, prompt_id, start_time, duration_minutes, general_area, general_area_lat, general_area_lng, accepted, created_at')
+			.select('id, prompt_id, start_time, duration_minutes, general_area, general_area_lat, general_area_lng, accepted, created_at, retired_at')
 			.eq('prompt_id', promptId)
 			.order('start_time', { ascending: true });
 

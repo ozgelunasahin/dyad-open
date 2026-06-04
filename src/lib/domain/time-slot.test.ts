@@ -39,6 +39,24 @@ describe('deriveSlotState', () => {
 		expect(deriveSlotState(slot, now)).toBe('closing');
 	});
 
+	it('returns "retired" for a withdrawn slot regardless of a future start', () => {
+		const slot = makeSlot({ retired_at: now.toISOString(), start_time: hoursFromNow(48, now) });
+		expect(deriveSlotState(slot, now)).toBe('retired');
+	});
+
+	it('retired takes precedence over expired', () => {
+		const slot = makeSlot({ retired_at: now.toISOString(), start_time: hoursFromNow(-1, now) });
+		expect(deriveSlotState(slot, now)).toBe('retired');
+	});
+
+	it('a retired future slot is not available, closing, expired, or discoverable', () => {
+		const slot = makeSlot({ retired_at: now.toISOString(), start_time: hoursFromNow(48, now) });
+		expect(isAvailable(slot, now)).toBe(false);
+		expect(isClosing(slot, now)).toBe(false);
+		expect(isExpired(slot, now)).toBe(false);
+		expect(isDiscoverable(slot, now)).toBe(false);
+	});
+
 	it('returns "closing" at 6h before start', () => {
 		const slot = makeSlot({ start_time: hoursFromNow(6, now) });
 		expect(deriveSlotState(slot, now)).toBe('closing');

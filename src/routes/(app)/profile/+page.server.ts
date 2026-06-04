@@ -149,7 +149,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		authoredPromptIds.length > 0
 			? locals.supabase
 					.from('time_slots_public')
-					.select('prompt_id, start_time, accepted')
+					.select('prompt_id, start_time, accepted, retired_at')
 					.in('prompt_id', authoredPromptIds)
 					.then(({ data }) => data ?? [])
 			: Promise.resolve([])
@@ -185,7 +185,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 	// meetings still count: a slot can host more than one meeting.
 	const now = Date.now();
 	const hasFutureValidSlotByPromptId: Record<string, boolean> = {};
-	for (const slot of authoredSlotsData as Array<{ prompt_id: string; start_time: string }>) {
+	for (const slot of authoredSlotsData as Array<{
+		prompt_id: string;
+		start_time: string;
+		retired_at?: string | null;
+	}>) {
+		// Withdrawn times (whole-gathering cancel) are not on offer — they must
+		// not keep a conversation in the Started tab (mirrors the detail page).
+		if (slot.retired_at) continue;
 		if (new Date(slot.start_time).getTime() <= now) continue;
 		hasFutureValidSlotByPromptId[slot.prompt_id] = true;
 	}
