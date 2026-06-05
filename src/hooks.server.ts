@@ -23,6 +23,15 @@ const AMSTERDAM_HOSTNAME = 'dyad.amsterdam';
 const SECONDARY_APEX_HOSTNAMES = [AMSTERDAM_HOSTNAME];
 const ALIAS_HOSTNAMES = ['www.dyad.amsterdam'];
 
+// Region a hostname puts a signed-in member into. A multi-region member
+// (grants in several corners across cities) browsing dyad.amsterdam should
+// see the Amsterdam region — its commons plus the Amsterdam corners they
+// hold — not the Berlin default. Region keys index the registry in
+// location.ts. Hosts absent here use the default region.
+const HOST_REGIONS: Record<string, string> = {
+	[AMSTERDAM_HOSTNAME]: 'amsterdam'
+};
+
 export const handle: Handle = async ({ event, resolve }) => {
 	// E2E_LOOPBACK admits localhost when running production builds (`vite preview`)
 	// for Playwright integration. Distinct from ADMIN_DEV_BYPASS so the two
@@ -116,6 +125,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.homeScope = null;
 	event.locals.homeRegion = null;
 	event.locals.accessExpiresAt = null;
+	// Host-derived region (null = default/berlin). Available without a session
+	// — it's purely the hostname — so loaders can switch a member's region
+	// context to match the domain they arrived on.
+	event.locals.hostRegion = HOST_REGIONS[event.url.hostname.replace(/\.$/, '')] ?? null;
 
 	// Redirect old /prompts/ URLs to /conversations/
 	if (event.url.pathname.startsWith('/prompts/')) {

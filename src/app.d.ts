@@ -29,6 +29,12 @@ declare global {
 			/** Region key of the home corner (e.g. 'amsterdam'), or null. */
 			homeRegion: string | null;
 			/**
+			 * Region implied by the request hostname (e.g. dyad.amsterdam →
+			 * 'amsterdam'), or null for the default host. Lets a signed-in
+			 * member's discover context follow the domain they arrived on.
+			 */
+			hostRegion: string | null;
+			/**
 			 * Guest access window end (ISO timestamp), or null for permanent
 			 * members. The access gate in hooks.server.ts blocks expired guests.
 			 */

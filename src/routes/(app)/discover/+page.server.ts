@@ -1,14 +1,19 @@
 import type { PageServerLoad } from './$types';
 import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
-import { DEFAULT_REGION, regionMapCenter } from '$lib/services/location.js';
+import { regionMapCenter, resolveViewRegion } from '$lib/services/location.js';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	// Auth guard handled by (app)/+layout.server.ts
 	const service = new SupabasePromptQueryService(locals.supabase);
 
-	// Corner-exclusive members (guests) see their corner's region; everyone
-	// else sees the commons default. See migration 20260605100200.
-	const region = locals.homeScope ? (locals.homeRegion ?? DEFAULT_REGION) : DEFAULT_REGION;
+	// Guests are pinned to their corner's region; other members follow the
+	// host they arrived on (dyad.amsterdam → Amsterdam), so a multi-region
+	// member sees the region matching the domain. See migration 20260605100200.
+	const region = resolveViewRegion({
+		homeScope: locals.homeScope,
+		homeRegion: locals.homeRegion,
+		hostRegion: locals.hostRegion
+	});
 
 	const [prompts, corpus] = await Promise.all([
 		service.getPublishedPrompts({

@@ -5,6 +5,7 @@ import {
 	validateRegion,
 	regionLabel,
 	regionMapCenter,
+	resolveViewRegion,
 	REGIONS
 } from './location.js';
 
@@ -363,5 +364,34 @@ describe('region registry', () => {
 
 	it('falls back to the Berlin center for unknown regions', () => {
 		expect(regionMapCenter('atlantis')).toEqual(REGIONS.berlin.center);
+	});
+});
+
+describe('resolveViewRegion', () => {
+	it('a guest is pinned to their corner region regardless of host', () => {
+		expect(
+			resolveViewRegion({ homeScope: 'conf', homeRegion: 'amsterdam', hostRegion: 'berlin' })
+		).toBe('amsterdam');
+		expect(
+			resolveViewRegion({ homeScope: 'conf', homeRegion: 'amsterdam', hostRegion: null })
+		).toBe('amsterdam');
+	});
+
+	it('a member follows the host region (dyad.amsterdam → amsterdam)', () => {
+		expect(
+			resolveViewRegion({ homeScope: null, homeRegion: null, hostRegion: 'amsterdam' })
+		).toBe('amsterdam');
+	});
+
+	it('a member on the default host gets the default region', () => {
+		expect(resolveViewRegion({ homeScope: null, homeRegion: null, hostRegion: null })).toBe(
+			'berlin'
+		);
+	});
+
+	it('a guest with a region-less corner falls back to default', () => {
+		expect(
+			resolveViewRegion({ homeScope: 'conf', homeRegion: null, hostRegion: 'amsterdam' })
+		).toBe('berlin');
 	});
 });
