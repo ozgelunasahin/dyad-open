@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { deriveGeneralArea, searchLocations, validateRegion } from './location.js';
+import {
+	deriveGeneralArea,
+	searchLocations,
+	validateRegion,
+	regionLabel,
+	regionMapCenter,
+	REGIONS
+} from './location.js';
 
 describe('searchLocations — Photon mapping and resilience', () => {
 	let fetchSpy: ReturnType<typeof vi.spyOn>;
@@ -106,6 +113,24 @@ describe('searchLocations — Photon mapping and resilience', () => {
 		expect(calledUrl).toContain('lang=en');
 		expect(calledUrl).toContain('bbox=13.09%2C52.34%2C13.76%2C52.68');
 	});
+
+	it('passes the Amsterdam bbox when region=amsterdam', async () => {
+		fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response(JSON.stringify({ features: [] }), { status: 200 })
+		);
+		await searchLocations('test', 'amsterdam');
+		const calledUrl = (fetchSpy.mock.calls[0]?.[0] as string) ?? '';
+		expect(calledUrl).toContain('bbox=4.72%2C52.28%2C5.08%2C52.43');
+	});
+
+	it('falls back to the Berlin bbox for an unknown region', async () => {
+		fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response(JSON.stringify({ features: [] }), { status: 200 })
+		);
+		await searchLocations('test', 'atlantis');
+		const calledUrl = (fetchSpy.mock.calls[0]?.[0] as string) ?? '';
+		expect(calledUrl).toContain('bbox=13.09%2C52.34%2C13.76%2C52.68');
+	});
 });
 
 describe('deriveGeneralArea — Nominatim resilience', () => {
@@ -157,6 +182,28 @@ describe('deriveGeneralArea — Nominatim resilience', () => {
 		});
 		expect(result.generalArea).toBe('Berlin');
 		expect(console.error).toHaveBeenCalled();
+	});
+
+	it('falls through to "Amsterdam" for region=amsterdam, never "Berlin"', async () => {
+		fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response('server error', { status: 500 })
+		);
+		const result = await deriveGeneralArea(
+			{ place_id: 'test', name: 'x', address: 'y', lat: 52.37, lng: 4.9 },
+			'amsterdam'
+		);
+		expect(result.generalArea).toBe('Amsterdam');
+	});
+
+	it('uses the region label when Nominatim returns no usable neighbourhood', async () => {
+		fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response(JSON.stringify({ lat: '52.37', lon: '4.9', address: {} }), { status: 200 })
+		);
+		const result = await deriveGeneralArea(
+			{ place_id: 'test', name: 'x', address: 'y', lat: 52.37, lng: 4.9 },
+			'amsterdam'
+		);
+		expect(result.generalArea).toBe('Amsterdam');
 	});
 
 	it('falls through to "Berlin" when AbortController aborts the fetch (timeout)', async () => {
@@ -268,5 +315,53 @@ describe('validateRegion', () => {
 			lng: 0
 		});
 		expect(errSpy).not.toHaveBeenCalled();
+	});
+
+	it('accepts a central-Amsterdam location for region=amsterdam', () => {
+		expect(
+			validateRegion(
+				{ place_id: 'N1', name: 'De Ceuvel', address: 'Amsterdam-Noord', lat: 52.37, lng: 4.9 },
+				'amsterdam'
+			)
+		).toBe(true);
+	});
+
+	it('rejects a Berlin location for region=amsterdam (and vice versa)', () => {
+		expect(
+			validateRegion(
+				{ place_id: 'N2', name: 'Café Aroma', address: 'Berlin', lat: 52.495, lng: 13.39 },
+				'amsterdam'
+			)
+		).toBe(false);
+		expect(
+			validateRegion(
+				{ place_id: 'N3', name: 'De Ceuvel', address: 'Amsterdam', lat: 52.37, lng: 4.9 },
+				'berlin'
+			)
+		).toBe(false);
+	});
+});
+
+describe('region registry', () => {
+	it('labels known regions and falls back for unknown/null keys', () => {
+		expect(regionLabel('berlin')).toBe('Berlin');
+		expect(regionLabel('amsterdam')).toBe('Amsterdam');
+		expect(regionLabel('atlantis')).toBe('Berlin');
+		expect(regionLabel(null)).toBe('Berlin');
+		expect(regionLabel(undefined)).toBe('Berlin');
+	});
+
+	it('returns [lat, lng] map centers inside each region\'s own bounds', () => {
+		for (const [key, def] of Object.entries(REGIONS)) {
+			const [lat, lng] = regionMapCenter(key);
+			expect(lat).toBeGreaterThan(def.bounds.south);
+			expect(lat).toBeLessThan(def.bounds.north);
+			expect(lng).toBeGreaterThan(def.bounds.west);
+			expect(lng).toBeLessThan(def.bounds.east);
+		}
+	});
+
+	it('falls back to the Berlin center for unknown regions', () => {
+		expect(regionMapCenter('atlantis')).toEqual(REGIONS.berlin.center);
 	});
 });

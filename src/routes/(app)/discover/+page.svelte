@@ -33,7 +33,9 @@
 
 	const ONBOARDING_KEY = 'dyad_onboarding_done';
 	const isWelcome = browser && new URLSearchParams(window.location.search).get('welcome') === '1';
-	let showOnboarding = $state(isWelcome && !localStorage.getItem(ONBOARDING_KEY));
+	// Guests (corner-exclusive members) skip the commons onboarding — its
+	// framing is written for the Berlin commons, not a conference corner.
+	let showOnboarding = $state(isWelcome && !data.isGuest && !localStorage.getItem(ONBOARDING_KEY));
 
 	function finishOnboarding() {
 		if (browser) localStorage.setItem(ONBOARDING_KEY, '1');
@@ -159,7 +161,7 @@
 			slotFilter={mapSlotFilter}
 			onSelectPin={handlePinSelect}
 			onMapClick={closeSheet}
-			initialCenter={mapCenter}
+			initialCenter={mapCenter ?? data.mapCenter}
 			initialZoom={mapZoom}
 			onMoveEnd={(c, z) => { mapCenter = c; mapZoom = z; }}
 		/>

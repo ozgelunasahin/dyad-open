@@ -1,9 +1,9 @@
 import { json, error } from '@sveltejs/kit';
-import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { makeAdminClient } from '$lib/server/supabase-admin';
 import { sendEmail } from '$lib/server/email.js';
 import { nanoid } from 'nanoid';
 import { copy } from '$lib/copy';
+import { APP_ORIGIN } from '$lib/server/app-origin.js';
 import { renderInviteEmail } from './render-invite-email.js';
 import type { RequestHandler } from './$types';
 
@@ -17,12 +17,6 @@ import type { RequestHandler } from './$types';
  * Replaces the former /api/invites endpoint, which leaked admin authority
  * into the user app's API surface.
  */
-
-/** Derive the app origin from the Supabase URL or fall back to production. */
-const APP_ORIGIN =
-	PUBLIC_SUPABASE_URL?.includes('localhost') || PUBLIC_SUPABASE_URL?.includes('127.0.0.1')
-		? 'http://localhost:5173'
-		: 'https://dyad.berlin';
 
 const INVITE_EXPIRY_DAYS = 14;
 const MAX_MESSAGE_LENGTH = 2000;

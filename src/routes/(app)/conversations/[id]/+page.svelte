@@ -620,6 +620,7 @@
 		onClose={() => (showChangeTimesSheet = false)}
 		onPublish={handleChangeTimes}
 		initialSlots={data.prompt.available_slots}
+		region={data.prompt.region}
 		publishing={savingSlots}
 		submitLabel={copy.common.save}
 		submittingLabel={copy.editor.saving}

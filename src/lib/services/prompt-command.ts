@@ -3,13 +3,13 @@ import type { JSONContent } from '@tiptap/core';
 import { nanoid } from 'nanoid';
 import { MIN_CAPACITY, MAX_CAPACITY, type Prompt, type TimeSlotInput } from '$lib/domain/types.js';
 import { canPublish, canUnpublish } from '$lib/domain/prompt.js';
-import { deriveGeneralArea, validateRegion } from '$lib/services/location.js';
+import { deriveGeneralArea, validateRegion, regionLabel, DEFAULT_REGION } from '$lib/services/location.js';
 import { DomainError } from '$lib/domain/errors.js';
 
 export interface PromptCommandService {
 	create(
 		authorId: string,
-		data: { title?: string; body?: JSONContent; coverImageUrl?: string }
+		data: { title?: string; body?: JSONContent; coverImageUrl?: string; region?: string }
 	): Promise<Prompt>;
 
 	update(
@@ -44,7 +44,7 @@ export class SupabasePromptCommandService implements PromptCommandService {
 
 	async create(
 		authorId: string,
-		data: { title?: string; body?: JSONContent; coverImageUrl?: string }
+		data: { title?: string; body?: JSONContent; coverImageUrl?: string; region?: string }
 	): Promise<Prompt> {
 		const id = nanoid();
 		const { data: prompt, error } = await this.supabase
@@ -54,7 +54,11 @@ export class SupabasePromptCommandService implements PromptCommandService {
 				author_id: authorId,
 				title: data.title ?? null,
 				body: data.body ?? null,
-				cover_image_url: data.coverImageUrl ?? null
+				cover_image_url: data.coverImageUrl ?? null,
+				// Region is set explicitly at create time — corner-exclusive
+				// members (guests) write their corner's region; the DB default
+				// covers the commons case but is no longer the only writer.
+				region: data.region ?? DEFAULT_REGION
 			})
 			.select()
 			.single();
@@ -119,19 +123,41 @@ export class SupabasePromptCommandService implements PromptCommandService {
 			throw new DomainError(`Group size must be between ${MIN_CAPACITY} and ${MAX_CAPACITY}`);
 		}
 
-		// audience_scope + capacity are set here, then publish_prompt flips
-		// state. Once published, both are immutable (no cross-scope promotion,
-		// no resize).
+		// A corner with a region pins its conversations to that region: slot
+		// venues validate against the corner's region and the prompt row is
+		// stamped with it. Without this, a Berlin member posting into an
+		// Amsterdam corner (e.g. an organizer seeding the conference) would
+		// produce a region='berlin' conversation that the corner's guests
+		// never see — the corner-exclusive feed filters by region first.
+		// RLS: the publisher holds a grant for the scope (verified by the
+		// publish endpoint), so the scopes SELECT policy admits this read.
+		let effectiveRegion = prompt.region;
+		if (audienceScope) {
+			const { data: scopeRow } = await this.supabase
+				.from('scopes')
+				.select('region')
+				.eq('scope', audienceScope)
+				.maybeSingle();
+			if (scopeRow?.region) effectiveRegion = scopeRow.region;
+		}
+
+		// audience_scope + capacity (+ the corner's region) are set here, then
+		// publish_prompt flips state. Once published, audience_scope and
+		// capacity are immutable (no cross-scope promotion, no resize).
 		const { error: scopeError } = await this.supabase
 			.from('prompts')
-			.update({ audience_scope: audienceScope, capacity: effectiveCapacity })
+			.update({
+				audience_scope: audienceScope,
+				capacity: effectiveCapacity,
+				region: effectiveRegion
+			})
 			.eq('id', promptId)
 			.eq('author_id', authorId);
 		if (scopeError) {
 			throw new Error(`Failed to set audience scope: ${scopeError.message}`);
 		}
 
-		const derivedSlots = await this.deriveSlotRows(slots, prompt.region);
+		const derivedSlots = await this.deriveSlotRows(slots, effectiveRegion);
 		await this.callPublishRpc(promptId, derivedSlots);
 	}
 
@@ -194,9 +220,9 @@ export class SupabasePromptCommandService implements PromptCommandService {
 
 		if (updates.location) {
 			if (!validateRegion(updates.location, prompt.region)) {
-				throw new DomainError('Location is outside Berlin');
+				throw new DomainError(`Location is outside ${regionLabel(prompt.region)}`);
 			}
-			const area = await deriveGeneralArea(updates.location);
+			const area = await deriveGeneralArea(updates.location, prompt.region);
 			fields.exact_location = updates.location;
 			fields.general_area = area.generalArea;
 			fields.general_area_lat = area.centroidLat;
@@ -427,15 +453,15 @@ export class SupabasePromptCommandService implements PromptCommandService {
 		for (const slot of slots) {
 			this.validateSlotFields(slot);
 			if (!validateRegion(slot.location, region)) {
-				throw new DomainError(`"${slot.location.name}" is outside Berlin`);
+				throw new DomainError(`"${slot.location.name}" is outside ${regionLabel(region)}`);
 			}
 		}
 
 		// Reverse-geocode all slots in parallel. Each deriveGeneralArea call
-		// already has a 6s AbortController timeout and falls back to "Berlin"
-		// on failure, so worst-case wall time is ~7s regardless of slot count
-		// instead of N × 7s for the sequential version.
-		const areas = await Promise.all(slots.map((s) => deriveGeneralArea(s.location)));
+		// already has a 6s AbortController timeout and falls back to the
+		// region's label on failure, so worst-case wall time is ~7s regardless
+		// of slot count instead of N × 7s for the sequential version.
+		const areas = await Promise.all(slots.map((s) => deriveGeneralArea(s.location, region)));
 
 		return slots.map((slot, i) => ({
 			...(promptId ? { prompt_id: promptId } : {}),

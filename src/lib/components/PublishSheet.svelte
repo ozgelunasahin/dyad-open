@@ -5,6 +5,7 @@
 	import LocationSearch from '$lib/components/LocationSearch.svelte';
 	import SizePicker from '$lib/components/SizePicker.svelte';
 	import { copy } from '$lib/copy';
+	import { regionLabel as registryRegionLabel } from '$lib/services/location.js';
 	import type { LocationRef, SubmitSlot, TimeSlot } from '$lib/domain/types';
 
 	// initialSlots is the author-loaded slot set with full LocationRef
@@ -20,6 +21,10 @@
 		onSave?: (slots: SubmitSlot[]) => void;
 		initialSlots?: InitialSlot[];
 		availableScopes?: Array<{ scope: string; name: string }>;
+		/** Corner-exclusive members (guests) publish only into their home
+		 *  corner: the audience picker is replaced by static text and the
+		 *  publish payload is pinned to this scope. */
+		homeScope?: { scope: string; name: string } | null;
 		region?: string;
 		publishing?: boolean;
 		saving?: boolean;
@@ -41,7 +46,8 @@
 		onSave,
 		initialSlots = [],
 		availableScopes = [],
-		region = 'Berlin',
+		homeScope = null,
+		region = 'berlin',
 		publishing = false,
 		saving = false,
 		error = '',
@@ -51,7 +57,9 @@
 	}: Props = $props();
 
 	// Empty string means commons (mapped to audience_scope=NULL upstream).
-	let audienceScope = $state<string>('');
+	// Guests are pinned to their home corner — no choice to make.
+	// svelte-ignore state_referenced_locally — intentional initial-value capture
+	let audienceScope = $state<string>(homeScope?.scope ?? '');
 
 	// Conversation size. One-on-one (capacity 1) or a small group, where the
 	// author sets the max number of *others* (1-7 → up to 8 people total incl.
@@ -60,7 +68,7 @@
 	let maxOthers = $state(7);
 	const capacity = $derived(conversationSize === 'one' ? 1 : maxOthers);
 
-	const regionLabel = region.charAt(0).toUpperCase() + region.slice(1);
+	const regionLabel = registryRegionLabel(region);
 
 	const weekDates = getWeekDates();
 	let selectedDays = $state<Set<string>>(new Set());
@@ -448,6 +456,7 @@
 							value={slot.location}
 							onChange={(loc) => updateSlot(date, i, 'location', loc)}
 							placeholder="Search for a place..."
+							{region}
 						/>
 					</div>
 				{/each}
@@ -462,7 +471,14 @@
 			<SizePicker bind:size={conversationSize} bind:maxOthers disabled={publishing || saving} />
 		{/if}
 
-		{#if onPublish && availableScopes.length > 0}
+		{#if onPublish && homeScope}
+			<!-- Guests have exactly one possible audience — a one-option dropdown
+			     is a non-choice, so the corner renders as static text. -->
+			<div class="audience-picker">
+				<span class="audience-label">{copy.editor.audiencePostingTo}</span>
+				<span class="audience-fixed">{copy.editor.audienceCorner.replace('{name}', homeScope.name)}</span>
+			</div>
+		{:else if onPublish && availableScopes.length > 0}
 			<label class="audience-picker">
 				<span class="audience-label">{copy.editor.audiencePostingTo}</span>
 				<select bind:value={audienceScope} disabled={publishing || saving}>
@@ -692,6 +708,10 @@
 		border: 1px solid var(--border-link);
 		border-radius: var(--radius-input);
 		background: var(--bg-canvas);
+	}
+	.audience-fixed {
+		font-size: var(--text-sm);
+		padding: var(--space-2) 0;
 	}
 
 	.sheet-footer {

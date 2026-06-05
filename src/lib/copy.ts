@@ -516,6 +516,40 @@ export const copy = {
 		invitationExpired: 'Invitation expired',
 		invitationExpiredSubtitle: 'This invitation link is no longer valid. It may have expired or already been used.',
 		backToHome: 'Back to home',
+
+		// Group-link join page (shared conference/corner links)
+		groupJoinTitle: 'Join {name}',
+		groupJoinSubtitle: 'Create your account to join the conversations in this corner.',
+		groupLinkUnknown: 'This link isn\'t valid',
+		groupLinkUnknownSubtitle: 'Check that you copied the whole link, or ask the organizers for a fresh one.',
+		groupLinkClosed: 'Joining has closed',
+		groupLinkClosedSubtitle: 'This corner is no longer taking new members through this link.',
+		groupLinkFull: 'This corner is full',
+		groupLinkFullSubtitle: 'All the places through this link are taken — ask the organizers.',
+		groupLinkRevoked: 'This link is no longer available',
+		groupLinkRevokedSubtitle: 'The organizers have switched this link off. Ask them for a current one.',
+		groupAlreadyMember: 'You already have an account',
+		groupAlreadyMemberSubtitle: 'You\'re signed in — corner access is granted by the organizers.',
+		groupGoToDiscover: 'Go to discover',
+		groupEmailRegistered: 'An account with this email already exists. Log in instead.',
+		groupTooManyAttempts: 'Too many attempts — wait a moment and try again.',
+		groupSetupFailed: 'Could not finish setting up your account. Please try again.',
+		// Action-time redemption failures (link state changed between page
+		// load and submit). Compact inline-error variants of the page states.
+		groupJoinErrors: {
+			full: 'This corner is full — ask the organizers.',
+			closed: 'Joining through this link has closed.',
+			revoked: 'This link is no longer available.',
+			unknown: 'This link isn\'t valid.'
+		},
+
+		// Access-ended page (expired guest access, /access-ended)
+		accessEndedTitle: 'Your access has ended',
+		accessEndedSubtitleWithCorner: 'Your time in {name} has come to an end. Thank you for being part of it.',
+		accessEndedSubtitle: 'Your guest access has come to an end. Thank you for being part of it.',
+		accessEndedForwardPath: 'Want to keep using dyad? Ask the organizers about staying on.',
+		accessEndedPageTitle: 'access ended - dyad',
+		logOut: 'log out',
 	},
 
 	// ── Admin ──────────────────────────────────────────────────────────

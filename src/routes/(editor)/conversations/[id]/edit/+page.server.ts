@@ -4,6 +4,7 @@ import { requireIdentity } from '$lib/services/identity.js';
 import type { Prompt } from '$lib/domain/types.js';
 import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
 import { SupabaseScopeService } from '$lib/services/scope.js';
+import { DEFAULT_REGION } from '$lib/services/location.js';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const upactor = requireIdentity(locals);
@@ -25,7 +26,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			body: null,
 			cover_image_url: null,
 			state: 'draft',
-			region: 'berlin',
+			// Corner-exclusive members (guests) draft in their corner's region;
+			// the create endpoint stamps the same region on the real row.
+			region: locals.homeScope ? (locals.homeRegion ?? DEFAULT_REGION) : DEFAULT_REGION,
 			published_at: null,
 			hidden_at: null,
 			audience_scope: null,
@@ -33,7 +36,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			created_at: now,
 			updated_at: now
 		};
-		return { prompt: blank, slots: [], myScopes };
+		return { prompt: blank, slots: [], myScopes, homeScope: locals.homeScope };
 	}
 
 	const service = new SupabasePromptQueryService(locals.supabase);
@@ -102,5 +105,5 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		exact_location: s.exact_location ?? null
 	}));
 
-	return { prompt, slots, myScopes };
+	return { prompt, slots, myScopes, homeScope: locals.homeScope };
 };

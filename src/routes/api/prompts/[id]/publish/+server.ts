@@ -47,6 +47,17 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		validatedScope = body.audience_scope;
 	}
 
+	// Corner-exclusive members (guests) publish only into their home corner.
+	// The UI pins the audience (PublishSheet renders it as static text); this
+	// rejects direct API calls targeting the commons or another scope.
+	// locals.homeScope is populated per request by hooks.server.ts.
+	if (locals.homeScope && validatedScope !== locals.homeScope) {
+		return json(
+			{ error: 'Your conversations are published within your corner' },
+			{ status: 403 }
+		);
+	}
+
 	// Verify cover image exists before publishing
 	const { data: prompt } = await locals.supabase
 		.from('prompts')

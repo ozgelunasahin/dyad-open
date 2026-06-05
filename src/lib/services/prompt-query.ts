@@ -9,8 +9,18 @@ import { renderBodyHtmlOrFallback } from '$lib/utils/render-body.js';
 const SNIPPET_LENGTH = 200;
 
 // scopes gate visibility; never use them as a ranking or affinity input.
+//
+// Two modes:
+//   - Commons (homeScope null/absent): the union view — commons posts plus
+//     any corner the viewer holds a grant for.
+//   - Corner-exclusive (homeScope set): guests whose whole app context is
+//     one corner. Only that corner's posts — commons is suppressed. See
+//     migration 20260605100200 (profiles.home_scope).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function applyAudienceFilter(query: any, scopes: string[]): any {
+function applyAudienceFilter(query: any, scopes: string[], homeScope?: string | null): any {
+	if (homeScope) {
+		return query.eq('audience_scope', homeScope);
+	}
 	if (scopes.length === 0) {
 		return query.is('audience_scope', null);
 	}
@@ -47,6 +57,9 @@ export interface PromptQueryService {
 		region: string;
 		userId: string;
 		scopes: string[];
+		/** Corner-exclusive mode: when set, only this corner's prompts are
+		 *  returned (commons suppressed). Pass locals.homeScope. */
+		homeScope?: string | null;
 		limit?: number;
 		cursor?: string;
 	}): Promise<PromptSummary[]>;
@@ -74,12 +87,22 @@ export interface PromptQueryService {
 	 *
 	 *  `scopes` is the viewer's active scope memberships. Pass an empty array
 	 *  for anonymous visitors. Required to gate scoped prompts on the public
-	 *  profile listing. */
-	getPublicProfile(username: string, scopes: string[]): Promise<PublicProfile | null>;
+	 *  profile listing. `homeScope` switches to corner-exclusive mode for
+	 *  guests (commons prompts suppressed). */
+	getPublicProfile(
+		username: string,
+		scopes: string[],
+		homeScope?: string | null
+	): Promise<PublicProfile | null>;
 
 	/** Returns the search corpus for a region. `scopes` is the viewer's active
-	 *  scope memberships; pass an empty array for anonymous callers. */
-	getSearchCorpus(region: string, scopes: string[]): Promise<Array<{ id: string; title: string | null; body_text: string; cover_image_url: string | null }>>;
+	 *  scope memberships; pass an empty array for anonymous callers.
+	 *  `homeScope` switches to corner-exclusive mode for guests. */
+	getSearchCorpus(
+		region: string,
+		scopes: string[],
+		homeScope?: string | null
+	): Promise<Array<{ id: string; title: string | null; body_text: string; cover_image_url: string | null }>>;
 }
 
 export class SupabasePromptQueryService implements PromptQueryService {
@@ -123,6 +146,7 @@ export class SupabasePromptQueryService implements PromptQueryService {
 		region: string;
 		userId: string;
 		scopes: string[];
+		homeScope?: string | null;
 		limit?: number;
 		cursor?: string;
 	}): Promise<PromptSummary[]> {
@@ -139,7 +163,7 @@ export class SupabasePromptQueryService implements PromptQueryService {
 			.eq('state', 'published')
 			.is('hidden_at', null)
 			.eq('region', params.region);
-		query = applyAudienceFilter(query, params.scopes);
+		query = applyAudienceFilter(query, params.scopes, params.homeScope);
 		query = query
 			.order('published_at', { ascending: false })
 			.limit(limit);
@@ -292,6 +316,12 @@ export class SupabasePromptQueryService implements PromptQueryService {
 	}
 
 	async getPromptDetail(id: string, userId: string): Promise<PromptDetail | null> {
+		// Detail access is RLS-governed (20260508180200 closed the R8 gap for
+		// scoped prompts), deliberately NOT filtered by the viewer's home
+		// corner: corner-exclusivity is a listing/feed concept, so a guest who
+		// follows a direct URL to a commons conversation may read it. Commons
+		// content is visible to every authenticated member by design — this is
+		// a curatorial boundary, not a privacy one.
 		const { data: prompt, error } = await this.supabase
 			.from('prompts')
 			.select('*')
@@ -375,17 +405,21 @@ export class SupabasePromptQueryService implements PromptQueryService {
 		};
 	}
 
-	async getSearchCorpus(region: string, scopes: string[]): Promise<Array<{ id: string; title: string | null; body_text: string; cover_image_url: string | null }>> {
+	async getSearchCorpus(
+		region: string,
+		scopes: string[],
+		homeScope?: string | null
+	): Promise<Array<{ id: string; title: string | null; body_text: string; cover_image_url: string | null }>> {
 		// Public-listing semantics: filter scoped prompts to the caller's
-		// granted scopes. Search must not surface prompts the caller cannot
-		// see on the discover feed.
+		// granted scopes (or the home corner only, for guests). Search must not
+		// surface prompts the caller cannot see on the discover feed.
 		let query = this.supabase
 			.from('prompts')
 			.select('id, title, body, cover_image_url')
 			.eq('state', 'published')
 			.is('hidden_at', null)
 			.eq('region', region);
-		query = applyAudienceFilter(query, scopes);
+		query = applyAudienceFilter(query, scopes, homeScope);
 		const { data: prompts } = await query
 			.order('published_at', { ascending: false })
 			.limit(200);
@@ -420,7 +454,11 @@ export class SupabasePromptQueryService implements PromptQueryService {
 		return ((slots ?? []) as TimeSlot[]).filter((s) => isAvailable(s, now));
 	}
 
-	async getPublicProfile(username: string, scopes: string[]): Promise<PublicProfile | null> {
+	async getPublicProfile(
+		username: string,
+		scopes: string[],
+		homeScope?: string | null
+	): Promise<PublicProfile | null> {
 		const { data: profile } = await this.supabase
 			.from('profiles')
 			.select('id, username, display_name')
@@ -430,15 +468,15 @@ export class SupabasePromptQueryService implements PromptQueryService {
 		if (!profile) return null;
 
 		// Public-listing semantics: filter scoped prompts to the caller's
-		// granted scopes. The profile shows only the prompts the caller
-		// would also see on the discover feed.
+		// granted scopes (or the home corner only, for guests). The profile
+		// shows only the prompts the caller would also see on the discover feed.
 		let query = this.supabase
 			.from('prompts')
 			.select('id, title, cover_image_url, published_at')
 			.eq('author_id', profile.id)
 			.eq('state', 'published')
 			.is('hidden_at', null);
-		query = applyAudienceFilter(query, scopes);
+		query = applyAudienceFilter(query, scopes, homeScope);
 		const { data: prompts } = await query
 			.order('published_at', { ascending: false });
 

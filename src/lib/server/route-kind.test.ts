@@ -57,6 +57,39 @@ describe('routeKind — Pages preview admission (D1)', () => {
 	});
 });
 
+describe('routeKind — secondary apex + alias hosts (conference domain)', () => {
+	const AMS_OPTS = {
+		...PROD_OPTS,
+		secondaryApexHostnames: ['dyad.amsterdam'],
+		aliasHostnames: ['www.dyad.amsterdam']
+	} as const;
+
+	it('secondary apex + non-admin path → user (the app is served)', () => {
+		expect(routeKind(new URL('https://dyad.amsterdam/'), AMS_OPTS)).toBe('user');
+		expect(routeKind(new URL('https://dyad.amsterdam/discover'), AMS_OPTS)).toBe('user');
+		expect(routeKind(new URL('https://dyad.amsterdam/join?glink=x'), AMS_OPTS)).toBe('user');
+	});
+
+	it('secondary apex + /admin/* → apex-redirect (admin never served off-canonical)', () => {
+		expect(routeKind(new URL('https://dyad.amsterdam/admin/members'), AMS_OPTS)).toBe('apex-redirect');
+	});
+
+	it('alias host → alias-redirect on every path, including /admin', () => {
+		expect(routeKind(new URL('https://www.dyad.amsterdam/'), AMS_OPTS)).toBe('alias-redirect');
+		expect(routeKind(new URL('https://www.dyad.amsterdam/join?glink=x'), AMS_OPTS)).toBe('alias-redirect');
+		expect(routeKind(new URL('https://www.dyad.amsterdam/admin/members'), AMS_OPTS)).toBe('alias-redirect');
+	});
+
+	it('without the options, the conference hosts stay rejected (back-compat)', () => {
+		expect(routeKind(new URL('https://dyad.amsterdam/'), PROD_OPTS)).toBe('reject');
+		expect(routeKind(new URL('https://www.dyad.amsterdam/'), PROD_OPTS)).toBe('reject');
+	});
+
+	it('trailing FQDN dot is stripped on secondary apex too', () => {
+		expect(routeKind(new URL('https://dyad.amsterdam./discover'), AMS_OPTS)).toBe('user');
+	});
+});
+
 describe('routeKind — non-canonical hostnames are rejected', () => {
 	it('attacker-controlled hostname + non-admin path → reject', () => {
 		expect(routeKind(new URL('https://attacker.example.com/discover'), PROD_OPTS)).toBe('reject');

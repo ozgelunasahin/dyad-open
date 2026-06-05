@@ -6,9 +6,11 @@
 		value: LocationRef | null;
 		onChange: (location: LocationRef | null) => void;
 		placeholder?: string;
+		/** Region key for search bounds (see the region registry in location.ts). */
+		region?: string;
 	}
 
-	let { value, onChange, placeholder = 'Search location...' }: Props = $props();
+	let { value, onChange, placeholder = 'Search location...', region = 'berlin' }: Props = $props();
 
 	type Result = {
 		place_id: string;
@@ -67,7 +69,9 @@
 		abortController = controller;
 		loading = true;
 		try {
-			const res = await fetch(`/api/locations/search?q=${encodeURIComponent(q)}&region=berlin`, {
+			const res = await fetch(
+				`/api/locations/search?q=${encodeURIComponent(q)}&region=${encodeURIComponent(region)}`,
+				{
 				signal: controller.signal
 			});
 			if (controller.signal.aborted) return;

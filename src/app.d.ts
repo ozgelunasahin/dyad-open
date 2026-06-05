@@ -13,12 +13,26 @@ declare global {
 			session: Session | null;
 			identityPort: IdentityPort;
 			/**
-			 * Active (non-revoked) scope memberships for the current user. Empty
-			 * array for anonymous visitors. Populated once per request in
-			 * hooks.server.ts and read by prompt-query.ts listing methods to gate
-			 * scoped prompts. See migration 20260508180000.
+			 * Active (non-revoked, non-retired) scope memberships for the current
+			 * user. Empty array for anonymous visitors. Populated once per request
+			 * in hooks.server.ts via get_my_access_context() and read by
+			 * prompt-query.ts listing methods to gate scoped prompts. See
+			 * migrations 20260508180000 and 20260605100400.
 			 */
 			scopes: string[];
+			/**
+			 * Corner-exclusive context (guest members): the home corner slug, or
+			 * null for commons members. When set, listing surfaces show only this
+			 * corner. See migration 20260605100200.
+			 */
+			homeScope: string | null;
+			/** Region key of the home corner (e.g. 'amsterdam'), or null. */
+			homeRegion: string | null;
+			/**
+			 * Guest access window end (ISO timestamp), or null for permanent
+			 * members. The access gate in hooks.server.ts blocks expired guests.
+			 */
+			accessExpiresAt: string | null;
 		}
 		// interface PageData {}
 		// interface PageState {}

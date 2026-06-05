@@ -42,7 +42,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const prompt = await service.create(upactor.id, {
 			title: body.title,
 			body: body.body as import('@tiptap/core').JSONContent | undefined,
-			coverImageUrl: body.coverImageUrl
+			coverImageUrl: body.coverImageUrl,
+			// Corner-exclusive members (guests) write conversations in their
+			// corner's region — slot locations validate against it at publish.
+			region: locals.homeScope ? (locals.homeRegion ?? undefined) : undefined
 		});
 		return json(prompt, { status: 201 });
 	} catch (err) {

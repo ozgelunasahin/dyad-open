@@ -118,7 +118,12 @@ describe('Admin scope RPCs (Unit 4 RPCs)', () => {
 				'display_name',
 				'granted_at',
 				'revoked_at',
-				'last_active_at'
+				'last_active_at',
+				// Guest fields added for the conference-scope work (20260605100700)
+				// — admin-plane-only by the service_role grant, deliberately in
+				// the projection so the operator can extend/convert guests.
+				'access_expires_at',
+				'home_scope'
 			]);
 			for (const key of Object.keys(row)) {
 				expect(allowedKeys.has(key)).toBe(true);

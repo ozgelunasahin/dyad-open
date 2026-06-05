@@ -7,6 +7,12 @@ export default defineConfig({
 		include: ['src/**/*.test.ts'],
 		environment: 'node'
 	},
+	server: {
+		// Dev-only: admit the conference hostnames so the host routing in
+		// hooks.server.ts can be exercised locally with a Host header or a
+		// hosts-file entry (production host admission lives in route-kind.ts).
+		allowedHosts: ['dyad.amsterdam', 'www.dyad.amsterdam']
+	},
 	plugins: [
 		sveltekit(),
 		SvelteKitPWA({
