@@ -242,6 +242,7 @@ export async function notifySpotCancelled(params: {
 		: '';
 	await dispatch({
 		userId: params.joinerUserId,
+		pref: 'meetingCancelled',
 		subject: 'Your meeting was cancelled',
 		bodyHtml: `
 			<p>The host cancelled your meeting.</p>
@@ -263,6 +264,7 @@ export async function notifyGatheringCancelled(params: {
 		: '';
 	await dispatch({
 		userId: params.joinerUserId,
+		pref: 'meetingCancelled',
 		subject: 'A gathering was called off',
 		bodyHtml: `
 			<p>The host called off the gathering — this time is no longer happening.</p>
