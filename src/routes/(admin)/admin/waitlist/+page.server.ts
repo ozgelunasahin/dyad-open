@@ -9,7 +9,7 @@ export const load: PageServerLoad = async () => {
 	const [{ data: contacts }, { data: invitations }] = await Promise.all([
 		supabase
 			.from('contacts')
-			.select('id, email, name, based_in, freewrite, created_at')
+			.select('id, email, name, based_in, freewrite, referral_source, created_at')
 			.order('created_at', { ascending: false }),
 		supabase
 			.from('invitations')

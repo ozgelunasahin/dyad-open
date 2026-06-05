@@ -45,7 +45,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 		return json({ error: 'Invalid JSON body' }, { status: 400 });
 	}
 
-	const { email, name, based_in, freewrite, expression_url, referred_by_username } = body as Record<string, unknown>;
+	const { email, name, based_in, freewrite, expression_url, referred_by_username, referral_source } = body as Record<string, unknown>;
 
 	if (!email || typeof email !== 'string') {
 		error(400, 'Email is required');
@@ -89,6 +89,14 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 		error(400, 'Referred by username is too long');
 	}
 
+	// "Where did you spot us?" — option key or free text; member-stated, optional.
+	if (referral_source !== undefined && typeof referral_source !== 'string') {
+		error(400, 'Referral source must be a string');
+	}
+	if (typeof referral_source === 'string' && referral_source.length > 120) {
+		error(400, 'Referral source is too long');
+	}
+
 	// Short-circuit: if this email already belongs to a confirmed account,
 	// don't add them to the waitlist again — direct them to log in instead.
 	const { data: alreadyMember } = await locals.supabase.rpc('email_is_registered', {
@@ -115,6 +123,9 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 	}
 	if (typeof referred_by_username === 'string' && referred_by_username.trim()) {
 		insertRow.referred_by_username = referred_by_username.trim();
+	}
+	if (typeof referral_source === 'string' && referral_source.trim()) {
+		insertRow.referral_source = referral_source.trim();
 	}
 
 	let { error: dbError } = await locals.supabase.from('contacts').insert(insertRow);
