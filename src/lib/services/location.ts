@@ -255,6 +255,24 @@ export function regionLabel(region?: string | null): string {
 	return (REGIONS[region ?? DEFAULT_REGION] ?? REGIONS[DEFAULT_REGION]).label;
 }
 
+/**
+ * Region a member's discover/search context should use.
+ *
+ * - A guest (corner-exclusive `homeScope`) is pinned to their corner's
+ *   region wherever they browse — the host never overrides it.
+ * - Everyone else follows the host they arrived on (dyad.amsterdam →
+ *   'amsterdam'), so a multi-region member sees the region matching the
+ *   domain, falling back to the default.
+ */
+export function resolveViewRegion(opts: {
+	homeScope: string | null;
+	homeRegion: string | null;
+	hostRegion: string | null;
+}): string {
+	if (opts.homeScope) return opts.homeRegion ?? DEFAULT_REGION;
+	return opts.hostRegion ?? DEFAULT_REGION;
+}
+
 /** Map center for a region key; unknown/null keys fall back to the default region. */
 export function regionMapCenter(region?: string | null): [number, number] {
 	return (REGIONS[region ?? DEFAULT_REGION] ?? REGIONS[DEFAULT_REGION]).center;
