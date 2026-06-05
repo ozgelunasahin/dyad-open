@@ -1,7 +1,16 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import { copy } from '$lib/copy';
 
 	let { data }: { data: PageData } = $props();
+
+	// Map a stored referral value to its friendly label. Option keys resolve to
+	// their label; free text typed under "other" passes through unchanged.
+	const referralLabels = new Map<string, string>(
+		copy.waitlist.referralOptions.map((o) => [o.value, o.label])
+	);
+	const referralDisplay = (v: string | null | undefined) =>
+		v ? (referralLabels.get(v) ?? v) : null;
 
 	// Per-row compose state: which row is expanded, and what opener + message
 	// the admin has typed for each email. Keyed by email so reopening a row
@@ -94,6 +103,9 @@
 				</div>
 				{#if contact.based_in}
 					<span class="contact-city">{contact.based_in}</span>
+				{/if}
+				{#if referralDisplay(contact.referral_source)}
+					<span class="contact-referral">via {referralDisplay(contact.referral_source)}</span>
 				{/if}
 				{#if contact.freewrite}
 					<p class="contact-freewrite">
@@ -224,6 +236,7 @@
 	.contact-name { font-weight: 500; }
 	.contact-email { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
 	.contact-city { font-size: var(--text-sm); color: var(--text-muted); display: block; margin-bottom: var(--space-1); }
+	.contact-referral { font-size: var(--text-xs); color: var(--text-muted); font-style: italic; display: block; margin-bottom: var(--space-1); }
 	.contact-freewrite { font-size: var(--text-sm); color: var(--text-secondary); margin: var(--space-2) 0; line-height: var(--leading-normal); }
 	.contact-date { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
 

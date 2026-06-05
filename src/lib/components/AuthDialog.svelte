@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { copy } from '$lib/copy';
+	import { env } from '$env/dynamic/public';
 
 	interface Props {
 		mode?: 'waitlist' | 'login';
@@ -20,7 +21,11 @@
 	let name = $state('');
 	let city = $state('');
 	let email = $state('');
-	let newsletterConsent = $state(false);
+	let referralSource = $state('');
+	let referralOther = $state('');
+	// The newsletter opt-in lives on Substack (they are the controller); we
+	// only show the link after signup, and only when the URL is configured.
+	const newsletterUrl = (env.PUBLIC_NEWSLETTER_URL ?? '').trim();
 
 	// Login fields
 	let loginEmail = $state('');
@@ -61,19 +66,16 @@
 					name: name.trim() || undefined,
 					based_in: city.trim() || undefined,
 					freewrite: freewrite.trim(),
-					referred_by_username: dyadRef || undefined
+					referred_by_username: dyadRef || undefined,
+					referral_source:
+						referralSource === 'other'
+							? referralOther.trim() || 'other'
+							: referralSource || undefined
 				})
 			});
 
 			if (res.ok) {
 				success = true;
-				if (newsletterConsent) {
-					fetch('/api/newsletter', {
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({ email: email.trim(), consent: true, source: 'waitlist' })
-					}).catch(() => { /* non-critical */ });
-				}
 			} else if (res.status === 409) {
 				success = true; // Already on waitlist — show friendly message
 				error = 'already';
@@ -125,6 +127,13 @@
 						<p>{copy.waitlist.alreadyOnWaitlist}</p>
 					{:else}
 						<p>{copy.waitlist.thanksForJoining}</p>
+					{/if}
+					{#if newsletterUrl}
+						<!-- The opt-in itself happens on Substack — we hold nothing. -->
+						<p class="newsletter-invite">
+							{copy.waitlist.newsletterInvite}
+							<a href={newsletterUrl} target="_blank" rel="noopener">{copy.waitlist.newsletterCta}</a>
+						</p>
 					{/if}
 				</div>
 			{:else}
@@ -191,9 +200,24 @@
 						<p class="city-note">{copy.waitlist.cityExpansionNote}</p>
 					</label>
 
-					<label class="newsletter-consent">
-						<input type="checkbox" bind:checked={newsletterConsent} />
-						<span>Subscribe to the Dyad newsletter on Substack.</span>
+					<label class="field">
+						<span class="field-label">{copy.waitlist.referralLabel}</span>
+						<select bind:value={referralSource} class="city-select">
+							<option value="">{copy.waitlist.referralSelectPlaceholder}</option>
+							{#each copy.waitlist.referralOptions as opt (opt.value)}
+								<option value={opt.value}>{opt.label}</option>
+							{/each}
+						</select>
+						{#if referralSource === 'other'}
+							<input
+								type="text"
+								bind:value={referralOther}
+								maxlength={120}
+								placeholder={copy.waitlist.referralOtherPlaceholder}
+								class="referral-other"
+							/>
+						{/if}
+						<p class="city-note">{copy.waitlist.referralNote}</p>
 					</label>
 
 					{#if error && error !== 'already'}
@@ -348,24 +372,20 @@
 		line-height: 1.5;
 	}
 
-	.newsletter-consent {
-		display: flex;
-		align-items: flex-start;
-		gap: var(--space-2);
-		cursor: pointer;
-		margin-bottom: var(--space-4);
+	/* "Other" free-text appears under the select when chosen. */
+	.referral-other {
+		margin-top: var(--space-2);
 	}
 
-	.newsletter-consent input[type='checkbox'] {
-		margin-top: 3px;
-		flex-shrink: 0;
-		cursor: pointer;
-	}
-
-	.newsletter-consent span {
+	/* Post-signup newsletter pointer — the opt-in lives on Substack. */
+	.newsletter-invite {
+		margin-top: var(--space-4);
 		font-size: var(--text-sm);
 		color: var(--text-muted);
-		line-height: 1.5;
+		line-height: 1.6;
+	}
+	.newsletter-invite a {
+		color: var(--text-link);
 	}
 
 	.error-msg {

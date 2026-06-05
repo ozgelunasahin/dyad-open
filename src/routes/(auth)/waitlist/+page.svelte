@@ -1,12 +1,17 @@
 <script lang="ts">
 	import CitySearch from '$lib/components/CitySearch.svelte';
 	import { copy } from '$lib/copy';
+	import { env } from '$env/dynamic/public';
 
 	let name = $state('');
 	let email = $state('');
 	let basedIn = $state('');
 	let freewrite = $state('');
-	let newsletterConsent = $state(false);
+	let referralSource = $state('');
+	let referralOther = $state('');
+	// The newsletter opt-in happens on Substack (they are the controller); we
+	// only show the link after signup, and only when the URL is configured.
+	const newsletterUrl = (env.PUBLIC_NEWSLETTER_URL ?? '').trim();
 	let status = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
 	let errorMsg = $state('');
 
@@ -29,7 +34,17 @@
 			const res = await fetch('/api/contact', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ email: email.trim(), name: name.trim() || undefined, based_in: basedIn.trim() || undefined, freewrite: freewrite.trim() || undefined, referred_by_username: referredByUsername })
+				body: JSON.stringify({
+					email: email.trim(),
+					name: name.trim() || undefined,
+					based_in: basedIn.trim() || undefined,
+					freewrite: freewrite.trim() || undefined,
+					referred_by_username: referredByUsername,
+					referral_source:
+						referralSource === 'other'
+							? referralOther.trim() || 'other'
+							: referralSource || undefined
+				})
 			});
 
 			if (!res.ok) {
@@ -38,15 +53,6 @@
 			}
 
 			status = 'sent';
-
-			// Subscribe to newsletter if consent given — fire and forget
-			if (newsletterConsent) {
-				fetch('/api/newsletter', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ email: email.trim(), consent: true })
-				}).catch(() => { /* non-critical */ });
-			}
 		} catch (err) {
 			errorMsg = err instanceof Error ? err.message : copy.waitlist.genericError;
 			status = 'error';
@@ -64,6 +70,13 @@
 
 	{#if status === 'sent'}
 		<div class="success-message">{copy.waitlist.successMessage}</div>
+		{#if newsletterUrl}
+			<!-- The opt-in itself happens on Substack — we hold nothing. -->
+			<p class="newsletter-invite">
+				{copy.waitlist.newsletterInvite}
+				<a href={newsletterUrl} target="_blank" rel="noopener">{copy.waitlist.newsletterCta}</a>
+			</p>
+		{/if}
 	{:else}
 		<form onsubmit={handleSubmit}>
 			<div class="form-group">
@@ -98,14 +111,25 @@
 				/>
 			</div>
 
-			<label class="newsletter-consent">
-				<input
-					type="checkbox"
-					bind:checked={newsletterConsent}
-					disabled={status === 'sending'}
-				/>
-				<span>Subscribe me to the Dyad newsletter on Substack.</span>
-			</label>
+			<div class="field referral-field">
+				<label for="referral-source">{copy.waitlist.referralLabel}</label>
+				<select id="referral-source" bind:value={referralSource} disabled={status === 'sending'}>
+					<option value="">{copy.waitlist.referralSelectPlaceholder}</option>
+					{#each copy.waitlist.referralOptions as opt (opt.value)}
+						<option value={opt.value}>{opt.label}</option>
+					{/each}
+				</select>
+				{#if referralSource === 'other'}
+					<input
+						type="text"
+						bind:value={referralOther}
+						maxlength="120"
+						placeholder={copy.waitlist.referralOtherPlaceholder}
+						disabled={status === 'sending'}
+					/>
+				{/if}
+				<p class="referral-note">{copy.waitlist.referralNote}</p>
+			</div>
 
 			<button type="submit" class="btn-primary btn-primary--block" disabled={status === 'sending'}>
 				{status === 'sending' ? copy.waitlist.sending : copy.waitlist.submitCta}
@@ -216,25 +240,35 @@
 		cursor: not-allowed;
 	}
 
-	.newsletter-consent {
+	/* "Where did you spot us?" — optional, quiet; the note carries the
+	   no-tracking promise. */
+	.referral-field {
 		display: flex;
-		align-items: flex-start;
+		flex-direction: column;
 		gap: var(--space-2);
-		cursor: pointer;
 		margin-bottom: var(--space-5);
 	}
-
-	.newsletter-consent input[type='checkbox'] {
-		width: auto;
-		margin-top: 3px;
-		flex-shrink: 0;
-		cursor: pointer;
-	}
-
-	.newsletter-consent span {
+	.referral-field label {
 		font-size: var(--text-sm);
 		color: var(--text-muted);
+	}
+	.referral-note {
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+		font-style: italic;
+		margin: 0;
 		line-height: 1.5;
+	}
+
+	/* Post-signup newsletter pointer — the opt-in lives on Substack. */
+	.newsletter-invite {
+		margin-top: var(--space-4);
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+		line-height: 1.6;
+	}
+	.newsletter-invite a {
+		color: var(--text-primary);
 	}
 
 	/* .btn-primary / .btn-primary--block live in shared.css */

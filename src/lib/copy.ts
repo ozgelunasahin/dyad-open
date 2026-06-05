@@ -433,6 +433,25 @@ export const copy = {
 		thoughtPlaceholder: 'We wonder',
 		city: 'City',
 		selectCity: 'Select your city',
+		// "Where did you spot us?" — ozge's design (pre-open repo, b4e32ee):
+		// member-stated arrival channel, explicitly framed as not-tracking.
+		referralLabel: 'Where did you spot us?',
+		referralNote: 'We do not track your moves online. Your answer here would help us understand how word travels.',
+		referralOptions: [
+			{ value: 'friend', label: 'Through a friend' },
+			{ value: 'instagram', label: 'Instagram' },
+			{ value: 'twitter', label: 'Twitter / X' },
+			{ value: 'linkedin', label: 'LinkedIn' },
+			{ value: 'event', label: 'An event' },
+			{ value: 'newsletter', label: 'Newsletter' },
+			{ value: 'other', label: 'Other' }
+		],
+		referralSelectPlaceholder: 'Pick one (optional)',
+		referralOtherPlaceholder: 'Tell us where',
+		// Newsletter: the opt-in happens ON Substack (they are the controller —
+		// see 20260417110000_drop_newsletter_subscribers). We hold nothing.
+		newsletterInvite: 'We also write a newsletter — hosted on Substack.',
+		newsletterCta: 'Subscribe on Substack',
 		activeNow: 'Active now',
 		comingSoon: 'Coming soon',
 		cityExpansionNote: 'We\'re currently active in Berlin and will expand to other cities soon.',
