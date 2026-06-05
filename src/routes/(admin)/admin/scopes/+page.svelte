@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import type { ScopeOverviewRow } from './+page.server';
+	import { REGIONS } from '$lib/services/location.js';
 
 	let { data }: { data: PageData } = $props();
 
@@ -9,6 +10,7 @@
 	let newScope = $state('');
 	let newName = $state('');
 	let newDescription = $state('');
+	let newRegion = $state('');
 
 	async function createScope() {
 		creating = true;
@@ -20,7 +22,8 @@
 				body: JSON.stringify({
 					scope: newScope.trim(),
 					name: newName.trim(),
-					description: newDescription.trim() || undefined
+					description: newDescription.trim() || undefined,
+					region: newRegion || undefined
 				})
 			});
 			const body = await res.json();
@@ -31,6 +34,7 @@
 			newScope = '';
 			newName = '';
 			newDescription = '';
+			newRegion = '';
 			location.reload();
 		} catch {
 			createError = 'Network error';
@@ -107,6 +111,17 @@
 				placeholder="One paragraph for the welcome screen."
 				disabled={creating}
 			></textarea>
+		</label>
+		<label class="field">
+			<span>Region</span>
+			<select bind:value={newRegion} disabled={creating}>
+				<option value="">Berlin (default)</option>
+				{#each Object.entries(REGIONS) as [key, def] (key)}
+					{#if key !== 'berlin'}
+						<option value={key}>{def.label}</option>
+					{/if}
+				{/each}
+			</select>
 		</label>
 		{#if createError}
 			<p class="create-error">{createError}</p>
@@ -202,6 +217,7 @@
 		color: var(--text-muted);
 	}
 	.field input,
+	.field select,
 	.field textarea {
 		font-family: inherit;
 		font-size: var(--text-sm);

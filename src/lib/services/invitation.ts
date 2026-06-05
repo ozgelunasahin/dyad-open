@@ -85,7 +85,15 @@ export class SupabaseInvitationService implements InvitationService {
 			p_invitation_id: invitationId
 		});
 
-		if (error) throw new Error(`Failed to accept invitation: ${error.message}`);
+		if (error) {
+			// Access-window guard (migration 20260605100500): the slot starts
+			// after one party's guest access ends. Friendly, neutral copy — the
+			// blocked window can be either party's.
+			if ((error.message ?? '').includes('slot_beyond_access_window')) {
+				throw new DomainError('This time is after access ends — choose an earlier time.', 409);
+			}
+			throw new Error(`Failed to accept invitation: ${error.message}`);
+		}
 		// The RPC returns NULL when the slot is full / over capacity, the slot
 		// has expired, or the inviter already has a meeting on it. Surface a
 		// clear reason rather than a silent no-op so the author sees why their

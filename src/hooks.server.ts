@@ -6,10 +6,22 @@ import type { Handle } from '@sveltejs/kit';
 import { createSupabaseAdapter } from '@prefig/upact-supabase';
 import { getAuthorizedAdminOperator } from '$lib/server/admin-auth';
 import { routeKind } from '$lib/server/route-kind';
+import { firstAccessContextRow } from '$lib/server/access-context';
 
 const ADMIN_HOSTNAME = 'admin.dyad.berlin';
 const APEX_HOSTNAME = 'dyad.berlin';
 const PAGES_PREVIEW_HOSTNAME = 'dyad-berlin.pages.dev';
+// Conference host: dyad.amsterdam serves the app itself (attach the domain
+// — and www — to the Pages project). Sessions are host-scoped cookies, so
+// guests who join there live their whole corner experience under this
+// hostname. Joining still requires a generated group link — the QR encodes
+// the full join URL (https://dyad.amsterdam/join?glink=<token>); an
+// anonymous visitor on the bare domain is redirected to the Berlin apex,
+// so possession of the link is the gate. The www variant canonicalizes
+// onto the bare host.
+const AMSTERDAM_HOSTNAME = 'dyad.amsterdam';
+const SECONDARY_APEX_HOSTNAMES = [AMSTERDAM_HOSTNAME];
+const ALIAS_HOSTNAMES = ['www.dyad.amsterdam'];
 
 export const handle: Handle = async ({ event, resolve }) => {
 	// E2E_LOOPBACK admits localhost when running production builds (`vite preview`)
@@ -20,11 +32,24 @@ export const handle: Handle = async ({ event, resolve }) => {
 		devMode: loopbackAdmitted,
 		apexHostname: APEX_HOSTNAME,
 		adminHostname: ADMIN_HOSTNAME,
-		previewHostname: PAGES_PREVIEW_HOSTNAME
+		previewHostname: PAGES_PREVIEW_HOSTNAME,
+		secondaryApexHostnames: SECONDARY_APEX_HOSTNAMES,
+		aliasHostnames: ALIAS_HOSTNAMES
 	});
 
 	if (kind === 'reject') {
 		return new Response(null, { status: 404 });
+	}
+
+	// www.dyad.amsterdam canonicalizes onto the bare conference host,
+	// path preserved. 302 (not 301) — the host setup may still evolve.
+	if (kind === 'alias-redirect') {
+		return new Response(null, {
+			status: 302,
+			headers: {
+				Location: `https://${AMSTERDAM_HOSTNAME}${event.url.pathname}${event.url.search}`
+			}
+		});
 	}
 
 	// Backwards compat: old apex /admin/* bookmarks redirect to the admin host.
@@ -88,6 +113,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.session = session;
 	event.locals.user = user;
 	event.locals.scopes = [];
+	event.locals.homeScope = null;
+	event.locals.homeRegion = null;
+	event.locals.accessExpiresAt = null;
 
 	// Redirect old /prompts/ URLs to /conversations/
 	if (event.url.pathname.startsWith('/prompts/')) {
@@ -95,13 +123,33 @@ export const handle: Handle = async ({ event, resolve }) => {
 		return new Response(null, { status: 302, headers: { Location: newPath } });
 	}
 
+	// An anonymous visitor on the conference host's bare domain has nothing
+	// to do there — without a join link, dyad.amsterdam redirects to the
+	// Berlin apex. Signed-in guests (!user guard) and the QR's
+	// /join?glink=... path are unaffected.
+	if (
+		!user &&
+		event.url.pathname === '/' &&
+		event.url.hostname.replace(/\.$/, '') === AMSTERDAM_HOSTNAME
+	) {
+		return new Response(null, {
+			status: 302,
+			headers: { Location: `https://${APEX_HOSTNAME}/` }
+		});
+	}
+
 	// Feedback gate: block app access when user has due feedback
 	if (user) {
 		const pathname = event.url.pathname;
 
-		// Skip gate for static assets, auth routes, feedback routes, and admin.
-		// The same exemption list applies to the scope-membership query below —
-		// avoids running an extra DB query on every static-asset request.
+		// Exemption list — load-bearing for THREE concerns that all live in the
+		// non-exempt block below: (1) the per-request context/scope query,
+		// (2) the access gate (expired guests), (3) the feedback gate. A path
+		// listed here skips all three. When adding a path, consider each
+		// concern: an expired guest must always be able to reach auth routes
+		// (/auth, /api/auth, /logout), the legal pages, the access-ended page
+		// itself, and static assets — otherwise they cannot even log out or
+		// read the privacy policy.
 		const isExempt =
 			pathname.startsWith('/_app/') ||
 			pathname.startsWith('/feedback') ||
@@ -110,6 +158,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			pathname.startsWith('/api/vocabulary') ||
 			pathname.startsWith('/auth') ||
 			pathname.startsWith('/logout') ||
+			pathname.startsWith('/access-ended') ||
 			pathname.endsWith('.webmanifest') ||
 			pathname.startsWith('/service-worker') ||
 			pathname.startsWith('/favicon') ||
@@ -117,18 +166,54 @@ export const handle: Handle = async ({ event, resolve }) => {
 			pathname.startsWith('/datenschutz');
 
 		if (!isExempt) {
-			// Load active scope memberships once per request. The discover-feed
-			// query and the public profile query in prompt-query.ts read this
-			// to gate scoped prompts. See migration 20260508180000 for the
-			// scope primitive; identity_scopes RLS limits SELECT to own rows.
-			const { data: scopeRows } = await event.locals.supabase
-				.from('identity_scopes')
-				.select('scope')
-				.eq('identity_id', user.id)
-				.is('revoked_at', null);
-			event.locals.scopes = (scopeRows ?? []).map((r) => r.scope as string);
+			// Load the access context once per request: active scope memberships
+			// (non-revoked, non-retired), the guest access window, and the home
+			// corner + region. One SECURITY DEFINER round trip replaces the raw
+			// identity_scopes select — see migration 20260605100400. The
+			// discover-feed query and the public profile query in prompt-query.ts
+			// read locals.scopes/homeScope to gate scoped prompts.
+			const { data: ctxRows, error: ctxError } = await event.locals.supabase.rpc(
+				'get_my_access_context'
+			);
+			if (ctxError) {
+				// Fail open, consistent with the feedback gate and the meeting
+				// advancement below: a transient DB error must not lock every
+				// member out. The cost is one request where an expired guest
+				// passes the gate and a corner member sees commons defaults —
+				// logged so repeated failures are visible in log tailing.
+				console.error('[hooks] get_my_access_context failed:', ctxError.message);
+			}
+			const ctx = firstAccessContextRow(ctxRows);
+			event.locals.scopes = ctx?.scopes ?? [];
+			event.locals.homeScope = ctx?.home_scope ?? null;
+			event.locals.homeRegion = ctx?.home_region ?? null;
+			event.locals.accessExpiresAt = ctx?.access_expires_at ?? null;
 
-			// Advance any meetings whose scheduled_time has passed — creates feedback_forms with state='due'
+			// Access gate: a guest whose window has ended is blocked before any
+			// further work — no meeting advancement, no feedback gates. Page
+			// navigations land on /access-ended (exempt above, so it stays
+			// reachable); API calls get the same two-shape treatment as the
+			// feedback gate. See migration 20260605100200 and plan R10/R11.
+			if (
+				event.locals.accessExpiresAt &&
+				new Date(event.locals.accessExpiresAt).getTime() < Date.now()
+			) {
+				if (pathname.startsWith('/api/')) {
+					return new Response(JSON.stringify({ error: 'access_ended' }), {
+						status: 403,
+						headers: { 'Content-Type': 'application/json' }
+					});
+				}
+				return new Response(null, {
+					status: 302,
+					headers: { Location: '/access-ended' }
+				});
+			}
+
+			// Advance any meetings whose scheduled_time has passed — creates feedback_forms with state='due'.
+			// Pre-existing posture note: this RPC is invoked on the request-scoped
+			// client; its grants govern what it may do. Left untouched here — the
+			// access gate above simply ensures expired guests never trigger it.
 			try { await event.locals.supabase.rpc('advance_scheduled_meetings'); } catch { /* fail open */ }
 
 			const { SupabaseGateService } = await import('$lib/services/gate.js');

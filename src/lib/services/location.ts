@@ -131,12 +131,19 @@ export async function searchLocations(
 	return data.features.map(toSearchResult);
 }
 
-/** Derive general area (neighbourhood name + centroid) from an exact location. */
-export async function deriveGeneralArea(location: LocationRef): Promise<{
+/** Derive general area (neighbourhood name + centroid) from an exact location.
+ *  The region's display label is the fallback when reverse geocoding fails or
+ *  returns no usable neighbourhood — an Amsterdam slot must never be labelled
+ *  "Berlin". */
+export async function deriveGeneralArea(
+	location: LocationRef,
+	region: string = DEFAULT_REGION
+): Promise<{
 	generalArea: string;
 	centroidLat: number;
 	centroidLng: number;
 }> {
+	const fallbackArea = regionLabel(region);
 	const params = new URLSearchParams({
 		lat: String(location.lat),
 		lon: String(location.lng),
@@ -152,14 +159,14 @@ export async function deriveGeneralArea(location: LocationRef): Promise<{
 		// Timeout or network failure -- do not block publish on an external geocoder.
 		console.error('[location] nominatim reverse failed, falling through to generic area:', err);
 		return {
-			generalArea: 'Berlin',
+			generalArea: fallbackArea,
 			centroidLat: location.lat,
 			centroidLng: location.lng
 		};
 	}
 	if (!res.ok) {
 		return {
-			generalArea: 'Berlin',
+			generalArea: fallbackArea,
 			centroidLat: location.lat,
 			centroidLng: location.lng
 		};
@@ -168,7 +175,7 @@ export async function deriveGeneralArea(location: LocationRef): Promise<{
 	const data: NominatimReverseResult = await res.json();
 	const addr = data.address;
 	const area =
-		addr?.suburb || addr?.neighbourhood || addr?.city_district || addr?.postcode || 'Berlin';
+		addr?.suburb || addr?.neighbourhood || addr?.city_district || addr?.postcode || fallbackArea;
 
 	// Use the reverse-geocoded result's coordinates as the centroid
 	// (this is the neighbourhood center, not the exact input location).
@@ -216,11 +223,45 @@ export function validateRegion(location: LocationRef, region: string = 'berlin')
 	return inside;
 }
 
-// Region definitions
+// Region registry — the single source for region data (R9). A region key is
+// what scopes.region stores; bounds drive search + validation, center drives
+// the map, label drives user-facing copy and reverse-geocode fallbacks.
 
-const regionBounds: Record<string, { north: number; south: number; east: number; west: number }> = {
-	berlin: { north: 52.68, south: 52.34, east: 13.76, west: 13.09 }
+export interface RegionDef {
+	bounds: { north: number; south: number; east: number; west: number };
+	/** Map center as [lat, lng] (Leaflet order). */
+	center: [number, number];
+	/** User-facing display name. */
+	label: string;
+}
+
+export const DEFAULT_REGION = 'berlin';
+
+export const REGIONS: Record<string, RegionDef> = {
+	berlin: {
+		bounds: { north: 52.68, south: 52.34, east: 13.76, west: 13.09 },
+		center: [52.52, 13.405],
+		label: 'Berlin'
+	},
+	amsterdam: {
+		bounds: { north: 52.43, south: 52.28, east: 5.08, west: 4.72 },
+		center: [52.37, 4.895],
+		label: 'Amsterdam'
+	}
 };
+
+/** Display label for a region key; unknown/null keys fall back to the default region. */
+export function regionLabel(region?: string | null): string {
+	return (REGIONS[region ?? DEFAULT_REGION] ?? REGIONS[DEFAULT_REGION]).label;
+}
+
+/** Map center for a region key; unknown/null keys fall back to the default region. */
+export function regionMapCenter(region?: string | null): [number, number] {
+	return (REGIONS[region ?? DEFAULT_REGION] ?? REGIONS[DEFAULT_REGION]).center;
+}
+
+const regionBounds: Record<string, { north: number; south: number; east: number; west: number }> =
+	Object.fromEntries(Object.entries(REGIONS).map(([key, def]) => [key, def.bounds]));
 
 function regionCenter(b: { north: number; south: number; east: number; west: number }) {
 	return { lat: (b.north + b.south) / 2, lng: (b.east + b.west) / 2 };

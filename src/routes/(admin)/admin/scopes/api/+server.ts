@@ -1,5 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { makeAdminClient } from '$lib/server/supabase-admin';
+import { parseJsonBody } from '$lib/server/parse-body.js';
+import { REGIONS } from '$lib/services/location.js';
 import type { RequestHandler } from './$types';
 
 /**
@@ -22,26 +24,30 @@ const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 const MAX_NAME = 100;
 const MAX_DESCRIPTION = 1000;
 
-async function readJson(request: Request): Promise<Record<string, unknown> | null> {
-	try {
-		return (await request.json()) as Record<string, unknown>;
-	} catch {
-		return null;
-	}
-}
-
 export const POST: RequestHandler = async ({ request }) => {
 	const supabase = makeAdminClient();
-	const body = await readJson(request);
-	if (!body) return json({ error: 'Invalid JSON body' }, { status: 400 });
+	const [body, errorResponse] = await parseJsonBody(request);
+	if (errorResponse) return errorResponse;
 
-	const { scope, name, description } = body;
+	const { scope, name, description, region } = body;
 
 	if (typeof scope !== 'string' || !SLUG_RE.test(scope)) {
 		return json(
 			{ error: 'scope must be a URL-safe slug (lowercase, digits, hyphens)' },
 			{ status: 400 }
 		);
+	}
+	// Optional region — must be a key in the region registry. NULL means the
+	// Berlin default (see migration 20260605100000).
+	let validatedRegion: string | null = null;
+	if (region !== undefined && region !== null && region !== '') {
+		if (typeof region !== 'string' || !(region in REGIONS)) {
+			return json(
+				{ error: `region must be one of: ${Object.keys(REGIONS).join(', ')}` },
+				{ status: 400 }
+			);
+		}
+		validatedRegion = region;
 	}
 	if (typeof name !== 'string' || !name.trim()) {
 		return json({ error: 'name is required' }, { status: 400 });
@@ -71,6 +77,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		name: name.trim(),
 		description:
 			typeof description === 'string' && description.trim() ? description.trim() : null,
+		region: validatedRegion,
 		created_by: null
 	});
 
@@ -87,8 +94,8 @@ export const POST: RequestHandler = async ({ request }) => {
 
 export const PATCH: RequestHandler = async ({ request }) => {
 	const supabase = makeAdminClient();
-	const body = await readJson(request);
-	if (!body) return json({ error: 'Invalid JSON body' }, { status: 400 });
+	const [body, errorResponse] = await parseJsonBody(request);
+	if (errorResponse) return errorResponse;
 
 	const { scope, retired } = body;
 	if (typeof scope !== 'string' || !SLUG_RE.test(scope)) {

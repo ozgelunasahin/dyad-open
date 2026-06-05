@@ -485,6 +485,9 @@
 		onSave={handleSaveSlots}
 		initialSlots={data.slots}
 		availableScopes={data.myScopes}
+		homeScope={data.homeScope
+			? (data.myScopes.find((s) => s.scope === data.homeScope) ?? { scope: data.homeScope, name: data.homeScope })
+			: null}
 		region={data.prompt.region}
 		{publishing}
 		saving={savingSlots}

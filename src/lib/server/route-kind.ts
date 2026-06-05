@@ -3,7 +3,7 @@
  * load-bearing protection against admin admission on non-canonical hostnames
  * — see SECURITY.md and `tests/security-poc/admin-bypass-hostname.test.ts`.
  */
-export type RouteKind = 'admin' | 'apex-redirect' | 'user' | 'reject';
+export type RouteKind = 'admin' | 'apex-redirect' | 'user' | 'reject' | 'alias-redirect';
 
 export interface RouteKindOptions {
 	devMode: boolean;
@@ -16,6 +16,20 @@ export interface RouteKindOptions {
 	 * string disables preview admission entirely.
 	 */
 	previewHostname: string;
+	/**
+	 * Additional user-plane hostnames that serve the app itself (e.g.
+	 * `dyad.amsterdam` for conference guests). `/admin` paths on these hosts
+	 * redirect to the canonical admin host exactly like the apex — the admin
+	 * plane is never served from a non-canonical hostname (SECURITY.md).
+	 * Optional; defaults to none.
+	 */
+	secondaryApexHostnames?: readonly string[];
+	/**
+	 * Hostnames that 302 to a canonical host (e.g. `www.dyad.amsterdam` →
+	 * `dyad.amsterdam`), path preserved. Every path redirects — including
+	 * `/admin`. Optional; defaults to none.
+	 */
+	aliasHostnames?: readonly string[];
 }
 
 export function routeKind(url: URL, opts: RouteKindOptions): RouteKind {
@@ -29,6 +43,14 @@ export function routeKind(url: URL, opts: RouteKindOptions): RouteKind {
 
 	if (hostname === opts.adminHostname) {
 		return 'admin';
+	}
+
+	if (opts.secondaryApexHostnames?.includes(hostname)) {
+		return isAdminPath ? 'apex-redirect' : 'user';
+	}
+
+	if (opts.aliasHostnames?.includes(hostname)) {
+		return 'alias-redirect';
 	}
 
 	if (opts.devMode && (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]')) {

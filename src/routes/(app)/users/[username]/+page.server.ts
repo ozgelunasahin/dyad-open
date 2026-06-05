@@ -4,7 +4,7 @@ import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const service = new SupabasePromptQueryService(locals.supabase);
-	const profile = await service.getPublicProfile(params.username, locals.scopes);
+	const profile = await service.getPublicProfile(params.username, locals.scopes, locals.homeScope);
 
 	if (!profile) {
 		error(404, 'User not found');

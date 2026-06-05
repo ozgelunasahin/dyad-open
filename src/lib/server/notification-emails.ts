@@ -137,6 +137,23 @@ async function dispatch(params: DispatchParams): Promise<void> {
 		if (!recipient) return;
 		if (!recipient.prefs[params.pref]) return;
 
+		// Access-expired guests get no mail (plan R14) — they cannot act on
+		// anything the message describes. This check lives here (not in
+		// resolveRecipient) because the expiry is a profiles field, while
+		// resolveRecipient reads only notification_settings.
+		const admin = makeAdminClient();
+		const { data: profileRow } = await admin
+			.from('profiles')
+			.select('access_expires_at')
+			.eq('id', params.userId)
+			.maybeSingle();
+		if (
+			profileRow?.access_expires_at &&
+			new Date(profileRow.access_expires_at).getTime() < Date.now()
+		) {
+			return;
+		}
+
 		await sendEmail({
 			to: recipient.email,
 			subject: params.subject,

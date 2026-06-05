@@ -104,6 +104,8 @@ Navigation is via `FloatingNav` on every page that needs it; there is no shared 
 
 Admin authentication is gated by Cloudflare Access at the edge — operator identity lives in Cloudflare's identity layer, not in dyad. See `src/lib/server/admin-auth.ts` for the implementation and `SECURITY.md` for the threat model.
 
+**Conference host.** `dyad.amsterdam` (and `www`, which 302s to the bare host) is served as a secondary user-plane hostname when attached to the Pages project as a custom domain — see `src/lib/server/route-kind.ts`. Joining still requires a generated group link; the QR encodes the full join URL (`https://dyad.amsterdam/join?glink=<token>`). An anonymous visitor on the bare domain is redirected to `dyad.berlin`; signed-in guests get the app. `/admin` on these hosts redirects to the canonical admin host.
+
 ## Database
 
 Schema defined in `supabase/migrations/` (source of truth). Key tables:

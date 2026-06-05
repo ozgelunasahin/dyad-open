@@ -19,6 +19,106 @@
 		<h1>{copy.auth.welcomeToDyad}</h1>
 		<p class="subtitle">{form.message}</p>
 		<a href="/login" class="submit-btn cta-link">{copy.auth.signIn}</a>
+	{:else if data.kind === 'group-authed'}
+		<h1>{copy.auth.groupAlreadyMember}</h1>
+		<p class="subtitle">{copy.auth.groupAlreadyMemberSubtitle}</p>
+		<a href="/discover" class="submit-btn cta-link">{copy.auth.groupGoToDiscover}</a>
+	{:else if data.kind === 'group' && data.state !== 'open'}
+		{#if data.state === 'full'}
+			<h1>{copy.auth.groupLinkFull}</h1>
+			<p class="subtitle">{copy.auth.groupLinkFullSubtitle}</p>
+		{:else if data.state === 'closed'}
+			<h1>{copy.auth.groupLinkClosed}</h1>
+			<p class="subtitle">{copy.auth.groupLinkClosedSubtitle}</p>
+		{:else if data.state === 'revoked'}
+			<h1>{copy.auth.groupLinkRevoked}</h1>
+			<p class="subtitle">{copy.auth.groupLinkRevokedSubtitle}</p>
+		{:else}
+			<h1>{copy.auth.groupLinkUnknown}</h1>
+			<p class="subtitle">{copy.auth.groupLinkUnknownSubtitle}</p>
+		{/if}
+		<a href="/" class="back-link">{copy.auth.backToHome}</a>
+	{:else if data.kind === 'group'}
+		<h1>{copy.auth.groupJoinTitle.replace('{name}', data.scopeName ?? 'dyad')}</h1>
+		<p class="subtitle">{copy.auth.groupJoinSubtitle}</p>
+
+		{#if form?.error}
+			<div class="error-message">{form.error}</div>
+		{/if}
+
+		<form
+			method="POST"
+			action="?/groupJoin"
+			use:enhance={() => {
+				loading = true;
+				return async ({ result, update }) => {
+					loading = false;
+					if (result.type === 'success') {
+						await update({ reset: false });
+					} else {
+						await update();
+					}
+				};
+			}}
+		>
+			<input type="hidden" name="glink" value={data.glink} />
+
+			<div class="form-group">
+				<label for="email" class="sr-only">{copy.auth.email}</label>
+				<input
+					type="email"
+					id="email"
+					name="email"
+					required
+					autocomplete="email"
+					placeholder={copy.auth.emailPlaceholder}
+					disabled={loading}
+				/>
+			</div>
+
+			<div class="form-group">
+				<label for="username" class="sr-only">{copy.auth.usernamePlaceholder}</label>
+				<input
+					type="text"
+					id="username"
+					name="username"
+					bind:value={username}
+					required
+					autocomplete="username"
+					placeholder={copy.auth.usernamePlaceholder}
+					disabled={loading}
+					minlength={3}
+					maxlength={30}
+					pattern="[a-z0-9_\-]+"
+					title={copy.auth.usernameTitle}
+				/>
+				<p class="hint">{copy.auth.usernameHintLong}<strong>@username</strong></p>
+			</div>
+
+			<div class="form-group">
+				<label for="password" class="sr-only">{copy.auth.password}</label>
+				<input
+					type="password"
+					id="password"
+					name="password"
+					bind:value={password}
+					required
+					autocomplete="new-password"
+					placeholder={copy.auth.passwordWithMinPlaceholder}
+					disabled={loading}
+					minlength={8}
+				/>
+			</div>
+
+			<button type="submit" class="btn-primary btn-primary--block" disabled={loading}>
+				{loading ? copy.auth.creatingAccount : copy.auth.createAccount}
+			</button>
+		</form>
+
+		<p class="switch-auth">
+			{copy.auth.alreadyHaveAccount}
+			<a href="/login" class="link-btn">{copy.auth.signIn}</a>
+		</p>
 	{:else if !data.valid}
 		<h1>{copy.auth.invitationExpired}</h1>
 		<p class="subtitle">{copy.auth.invitationExpiredSubtitle}</p>
