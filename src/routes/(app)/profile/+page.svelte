@@ -441,7 +441,11 @@
 	.content {
 		width: 100%;
 		max-width: var(--content-standard);
-		padding-bottom: var(--nav-clearance);
+		padding: var(--space-8) var(--space-8) var(--nav-clearance);
+	}
+
+	@media (max-width: 900px) {
+		.content { padding: var(--space-6) var(--space-4) var(--nav-clearance); }
 	}
 
 	/* Profile card — clean identity */

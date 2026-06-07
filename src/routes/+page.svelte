@@ -1,610 +1,783 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { fade } from 'svelte/transition';
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import type { PageData } from './$types';
-	import type { PromptSummary } from '$lib/domain/types';
-	import ConversationCard from '$lib/components/ConversationCard.svelte';
-	import BottomSheet from '$lib/components/BottomSheet.svelte';
 	import AuthDialog from '$lib/components/AuthDialog.svelte';
 
-	function slotDates(slots: { start_time: string }[]): string {
-		const dates = new Set<string>();
-		for (const s of slots) {
-			const d = new Date(s.start_time);
-			dates.add(d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' }));
-		}
-		return [...dates].join(' · ');
-	}
-
-	function uniqueAreas(slots: { general_area: string }[]): string {
-		return slots
-			.map((s) => s.general_area)
-			.filter((v, i, a) => a.indexOf(v) === i)
-			.join(', ');
-	}
-
 	let { data }: { data: PageData } = $props();
-
-	let mapCenter = $state<[number, number] | null>(null);
-	let mapZoom = $state<number | null>(null);
-	let selectedPinPrompts = $state<PromptSummary[]>([]);
-	let fullscreenPinPrompts = $state<PromptSummary[]>([]);
-	let scrolledPastHero = $state(false);
-	let mapFullscreen = $state(false);
-
 	let authDialog = $state<AuthDialog | undefined>();
-
-	onMount(() => {
-		function handleScroll() {
-			scrolledPastHero = window.scrollY > window.innerHeight * 0.5;
-		}
-		window.addEventListener('scroll', handleScroll, { passive: true });
-		return () => window.removeEventListener('scroll', handleScroll);
-	});
 
 	function openAuth(mode: 'waitlist' | 'login') {
 		authDialog?.show(mode);
 	}
 
-	function handlePinSelect(prompts: PromptSummary[], _area: string) {
-		if (window.innerWidth <= 768) {
-			// Mobile: go fullscreen directly, skip hero-map sheet
-			mapFullscreen = true;
-			setTimeout(() => { fullscreenPinPrompts = prompts; }, 320);
-		} else {
-			selectedPinPrompts = prompts;
-		}
+	function formatDate(iso: string) {
+		return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
 	}
 
-	function handleMapMove(center: [number, number], zoom: number) {
-		mapCenter = center;
-		mapZoom = zoom;
+	// Community-care, multigenerational topics
+	const topics = [
+		{ topic: 'grief and gratitude',             city: 'Berlin' },
+		{ topic: 'what we owe each other',          city: 'Berlin' },
+		{ topic: 'care across generations',         city: 'Berlin' },
+		{ topic: 'how to stay when it\'s hard',     city: 'Berlin' },
+		{ topic: 'what a neighbourhood could be',   city: 'Berlin' },
+		{ topic: 'building across difference',      city: 'Berlin' },
+		{ topic: 'collective memory',               city: 'Berlin' },
+		{ topic: 'solidarity in practice',          city: 'Berlin' },
+	];
+
+	let topicIndex = $state(0);
+	let animating = $state(false);
+
+	import { onMount } from 'svelte';
+
+	function goTo(i: number) {
+		if (animating) return;
+		animating = true;
+		setTimeout(() => {
+			topicIndex = (i + topics.length) % topics.length;
+			animating = false;
+		}, 160);
 	}
+
+	function next() { goTo(topicIndex + 1); }
+	function prev() { goTo(topicIndex - 1); }
+
+	onMount(() => {
+		const t = setInterval(next, 3800);
+		return () => clearInterval(t);
+	});
+
+	const current = $derived(topics[topicIndex]);
+
+	// Changelog — hardcoded for now, will come from DB
+	const changelog = [
+		{ date: '2026-06-07', version: '0.2', note: 'Redesign: editorial landing, DFOS-style discover grid, Assembly governance area.' },
+		{ date: '2026-06-05', version: '0.1.9', note: 'Amsterdam conversations seeded. PublicSpaces Conference integration. Map defaults to Amsterdam.' },
+		{ date: '2026-05-28', version: '0.1.8', note: 'Private beta live. 100+ real conversations. 1,000+ inbound requests at €2–3 CAC.' },
+		{ date: '2026-04-15', version: '0.1.5', note: 'Feedback gate, post-meeting reflections, and steward ownership structure committed.' },
+		{ date: '2026-03-01', version: '0.1', note: 'First real meetings in Berlin. Invitation flow, slot booking, and map view shipped.' },
+		{ date: '2025-12-01', version: '0.0.1', note: 'MVP: conversation prompts, scheduling, Supabase, Cloudflare Pages. First commit.' },
+	];
 </script>
 
 <svelte:head>
 	<title>dyad.</title>
-	<meta name="description" content="Find your people, talk to them face to face." />
+	<meta name="description" content="A collectively owned offline social network. Find the people worth talking to." />
 </svelte:head>
 
-<div class="landing">
-	<!-- Left: fixed hero panel -->
-	<div class="left-col">
-		<div class="left-top">
-			<img src="/images/logo.png" alt="dyad." class="logo" />
-			<div class="top-city-row">
-				<span class="city-dot" aria-hidden="true"></span>
-				<span class="city-name">BERLIN</span>
-			</div>
-			<a href="/why" class="why-link top-why-link">our origins</a>
-		</div>
-
-		<!-- Map preview — fills empty space on mobile, hidden on desktop -->
-		<div class="hero-map">
-			{#await import('$lib/components/MapView.svelte')}
-				<div class="hero-map-placeholder"></div>
-			{:then { default: HeroMap }}
-				<HeroMap
-					prompts={data.prompts}
-					initialCenter={mapCenter}
-					initialZoom={mapZoom ?? 12}
-					onSelectPin={handlePinSelect}
-					onMoveEnd={handleMapMove}
-					scrollWheelZoom={false}
-					onMapClick={() => selectedPinPrompts = []}
-				/>
-			{:catch}
-				<div class="hero-map-placeholder"></div>
-			{/await}
-			<button
-				class="hero-map-expand"
-				onclick={() => mapFullscreen = true}
-				aria-label="Full screen map"
-			>
-				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-					<path d="M10 2h4v4M6 14H2v-4M14 2l-5 5M2 14l5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-				</svg>
-			</button>
-			{#if selectedPinPrompts.length > 0}
-				<div class="hero-sheet-wrap">
-					<BottomSheet prompts={selectedPinPrompts} onClose={() => selectedPinPrompts = []} onCardClick={() => openAuth('waitlist')} hideAuthor navClearance={false} />
-				</div>
-			{/if}
-		</div>
-
-		<div class="hero-center">
-			<h1 class="hero-statement"><span class="left">Dyad is</span><span class="right">a network for</span><span class="right">face to face</span><span class="right">sensemaking.</span></h1>
-		</div>
-
-		<div class="hero-bottom">
-			<div class="city-row">
-				<span class="city-dot" aria-hidden="true"></span>
-				<span class="city-name">BERLIN</span>
-			</div>
-
-			<div class="hero-actions">
-				<button class="join-btn" onclick={() => openAuth('waitlist')}>
-					join waitlist
-				</button>
-				<button class="login-btn" onclick={() => openAuth('login')}>
-					log in
-				</button>
-				<button class="theme-toggle theme-toggle-inline" onclick={() => themeStore.toggle()} aria-label="Toggle theme">
-					{#if themeStore.current === 'light'}
-						<svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-							<circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5" />
-							<path d="M8 1V2.5M8 13.5V15M1 8H2.5M13.5 8H15M3.05 3.05L4.11 4.11M11.89 11.89L12.95 12.95M3.05 12.95L4.11 11.89M11.89 4.11L12.95 3.05" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-						</svg>
-					{:else}
-						<svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-							<path d="M14 8.5A6 6 0 117.5 2a4.5 4.5 0 006.5 6.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-						</svg>
-					{/if}
-				</button>
-			</div>
-		</div>
-
-		<footer class="page-footer"></footer>
-	</div>
-
-	<!-- Right: map on desktop, list on mobile -->
-	<div class="right-col">
-		<div class="right-map">
-			{#await import('$lib/components/MapView.svelte')}
-				<div class="hero-map-placeholder"></div>
-			{:then { default: RightMap }}
-				<RightMap
-					prompts={data.prompts}
-					initialCenter={mapCenter}
-					initialZoom={mapZoom ?? 12}
-					onSelectPin={handlePinSelect}
-					onMoveEnd={handleMapMove}
-					scrollWheelZoom={true}
-					onMapClick={() => selectedPinPrompts = []}
-				/>
-			{:catch}
-				<div class="hero-map-placeholder"></div>
-			{/await}
-			{#if selectedPinPrompts.length > 0}
-				<div class="right-sheet-wrap">
-					<BottomSheet prompts={selectedPinPrompts} onClose={() => selectedPinPrompts = []} onCardClick={() => openAuth('waitlist')} hideAuthor navClearance={false} />
-				</div>
-			{/if}
-		</div>
-		<div class="prompt-list">
-			{#if data.prompts && data.prompts.length > 0}
-				{#each data.prompts as prompt}
-					<ConversationCard
-						title={prompt.title ?? 'Untitled'}
-						coverUrl={prompt.cover_image_url}
-						snippet={prompt.body_snippet}
-						metaLeft={slotDates(prompt.available_slots)}
-						metaRight={uniqueAreas(prompt.available_slots)}
-						onclick={() => openAuth('waitlist')}
-					/>
-				{/each}
-			{:else}
-				<div class="empty-state">
-					<p>Conversations are starting soon.</p>
-					<button class="join-btn" onclick={() => openAuth('waitlist')}>
-						Join the waitlist
-					</button>
-				</div>
-			{/if}
-		</div>
-	</div>
-</div>
-
-<!-- Full-screen map overlay -->
-{#if mapFullscreen}
-	<div class="map-overlay" transition:fade={{ duration: 380 }}>
-		{#await import('$lib/components/MapView.svelte')}
-			<p class="map-loading">Loading map...</p>
-		{:then { default: FullMap }}
-			<FullMap
-				prompts={data.prompts}
-				initialCenter={mapCenter}
-				initialZoom={mapZoom}
-				onSelectPin={(prompts) => fullscreenPinPrompts = prompts}
-				onMoveEnd={handleMapMove}
-				onMapClick={() => fullscreenPinPrompts = []}
-			/>
-		{/await}
-		{#if fullscreenPinPrompts.length > 0}
-			<div class="overlay-sheet-wrap">
-				<BottomSheet prompts={fullscreenPinPrompts} onClose={() => fullscreenPinPrompts = []} onCardClick={() => openAuth('waitlist')} hideAuthor navClearance={false} />
-			</div>
-		{/if}
-		<button class="map-overlay-close" onclick={() => { mapFullscreen = false; fullscreenPinPrompts = []; selectedPinPrompts = []; }} aria-label="Close map">
-			<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-				<path d="M2 2l12 12M14 2L2 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-			</svg>
+<div class="landing-shell">
+<!-- ── HEADER ── -->
+<header class="site-header">
+	<img src="/images/logo.png" alt="dyad." class="logo" />
+	<nav class="header-nav">
+		<a href="/why" class="nav-link">our origins</a>
+		<a href="/newsletter" class="nav-link">field notes</a>
+		<button class="nav-link" onclick={() => themeStore.toggle()} aria-label="Toggle theme">
+			{#if themeStore.current === 'light'}☀{:else}☾{/if}
 		</button>
+		<button class="nav-link" onclick={() => openAuth('login')}>log in</button>
+		<button class="btn-join" onclick={() => openAuth('waitlist')}>join</button>
+	</nav>
+</header>
+
+<!-- ── HERO (100vh, Geneva-style rotating) ── -->
+<section class="hero">
+	<!-- Left: rotating headline + fixed CTA -->
+	<div class="hero-left">
+		<div class="hero-headline">
+			<p class="hero-line1">Find people to talk about</p>
+			<h1 class="hero-topic" class:hero-topic--out={animating}>{current.topic}</h1>
+			<p class="hero-line3">in {current.city}, in person.</p>
+		</div>
+
+		<div class="hero-bottom-group">
+			<div class="hero-sub-row">
+				<img src="/images/logo.png" alt="dyad." class="hero-logo" />
+			</div>
+			<div class="hero-actions">
+				<button class="btn-join btn-join--hero" onclick={() => openAuth('waitlist')}>join waitlist</button>
+				<button class="btn-secondary" onclick={() => openAuth('login')}>log in</button>
+			</div>
+		</div>
 	</div>
-{/if}
+
+	<!-- Right: featured conversation card, swaps with topic -->
+	<div class="hero-right">
+		{#if data.prompts.length > 0}
+			{@const featured = data.prompts[topicIndex % data.prompts.length]}
+			<a
+				href="#"
+				class="hero-card"
+				class:hero-card--out={animating}
+				onclick={(e) => { e.preventDefault(); openAuth('waitlist'); }}
+			>
+				{#if featured.cover_image_url}
+					<img src={featured.cover_image_url} alt="" class="hero-card-img" />
+				{:else}
+					<div class="hero-card-placeholder"></div>
+				{/if}
+				<div class="hero-card-overlay">
+					<span class="hero-card-tag"></span>
+					<p class="hero-card-title">{featured.title}</p>
+					<span class="hero-card-area">Berlin ↗</span>
+				</div>
+			</a>
+		{/if}
+	</div>
+</section>
+
+<!-- ── ARE.NA-STYLE FOOTER ── -->
+<footer class="arena-footer">
+	<div class="arena-footer-inner">
+		<div class="arena-col">
+			<span class="arena-mark">∗∗</span>
+			<a href="/why" class="arena-link arena-link--bold">About &amp; mission</a>
+			<a href="/newsletter" class="arena-link arena-link--bold">Field notes</a>
+			<a href="https://github.com/dyad-berlin" class="arena-link arena-link--bold" target="_blank" rel="noopener">Open source</a>
+			<a href="/why" class="arena-link arena-link--bold">Team</a>
+			<a href="/assembly" class="arena-link arena-link--bold">Assembly</a>
+		</div>
+
+		<div class="arena-col">
+			<span class="arena-col-label">Product</span>
+			<a href="/discover" class="arena-link">Conversations</a>
+			<a href="/discover" class="arena-link">Map</a>
+			<a href="/assembly" class="arena-link">Governance</a>
+			<a href="/conversations/new" class="arena-link">Start a conversation</a>
+		</div>
+
+		<div class="arena-col">
+			<span class="arena-col-label">Community</span>
+			<button class="arena-link arena-link--btn" onclick={() => openAuth('waitlist')}>Join waitlist</button>
+			<a href="/why" class="arena-link">Our story</a>
+			<a href="/newsletter" class="arena-link">Zine</a>
+			<a href="/assembly" class="arena-link">Monthly Assembly</a>
+		</div>
+
+		<div class="arena-col">
+			<span class="arena-col-label">Ecosystem</span>
+			<a href="https://publicspaces.net" class="arena-link" target="_blank" rel="noopener">PublicSpaces</a>
+			<a href="https://purpose-economy.org" class="arena-link" target="_blank" rel="noopener">Purpose Foundation</a>
+			<a href="https://github.com/dyad-berlin" class="arena-link" target="_blank" rel="noopener">GitHub</a>
+		</div>
+
+		<div class="arena-col">
+			<span class="arena-col-label">Info</span>
+			<a href="mailto:luna@dyad.berlin" class="arena-link arena-link--bold">Contact</a>
+			<a href="/impressum" class="arena-link arena-link--bold">Impressum</a>
+			<a href="/datenschutz" class="arena-link arena-link--bold">Datenschutz</a>
+			<a href="/impressum" class="arena-link arena-link--bold">Press</a>
+		</div>
+	</div>
+</footer>
+
+</div><!-- /.landing-shell -->
 
 <AuthDialog bind:this={authDialog} />
 
 <style>
-	/* ── Split layout ─────────────────────────────────────────── */
-	.landing {
-		display: grid;
-		grid-template-columns: 50% 50%;
-		height: 100vh;
-		overflow: hidden;
+	:global(body) { margin: 0; }
+
+	/* ── Page shell ── */
+	:global(.landing-shell) {
+		display: flex;
+		flex-direction: column;
 		background: var(--bg-canvas);
 	}
 
-	/* ── Left column ──────────────────────────────────────────── */
-	.left-col {
-		height: 100vh;
-		display: flex;
-		flex-direction: column;
-		padding: var(--space-6) var(--space-10) var(--space-6);
-		box-sizing: border-box;
-		border-right: 1px solid var(--border-link);
-		overflow: hidden;
-		position: relative;
-	}
-
-	.left-top {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
+	/* ── Header ── */
+	.site-header {
 		flex-shrink: 0;
-		height: 48px;
-		overflow: hidden;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 16px 48px;
+		background: var(--bg-canvas);
+		border-bottom: 1px solid var(--border-link);
 	}
-
-	/* City indicator in top bar — hidden on desktop, shown on mobile */
-	.top-city-row { display: none; }
 
 	.logo {
-		height: 28px;
-		max-height: 100%;
+		height: 22px;
 		width: auto;
-		flex-shrink: 0;
-		filter: brightness(0) opacity(0.4);
+		filter: brightness(0) opacity(0.35);
 	}
 	:global([data-theme='dark']) .logo { filter: none; }
 
-	.beta-label {
-		font-family: var(--font-mono);
-		font-size: var(--text-xs);
-		letter-spacing: 0.06em;
-		color: var(--text-muted);
-	}
-
-	.hero-center {
-		margin: auto 0;
-	}
-
-	.hero-statement {
-		font-size: clamp(3rem, 5.8vw, 7.5rem);
-		font-weight: normal;
-		line-height: 1;
-		letter-spacing: -0.01em;
-		margin: 0;
-		color: var(--text-primary);
-		text-align: justify;
-		text-align-last: justify;
-	}
-
-	.hero-statement :global(.right) {
-		display: block;
-		text-align: right;
-		text-align-last: right;
-	}
-
-	.hero-statement :global(.left) {
-		display: block;
-		text-align: left;
-		text-align-last: left;
-	}
-
-	.hero-bottom {
-		padding-bottom: var(--space-6);
-	}
-
-	.why-link {
-		display: block;
-		font-size: clamp(0.78rem, 1vw, 0.88rem);
-		font-style: italic;
-		color: var(--text-muted);
-		opacity: 0.6;
-		text-decoration: none;
-		margin: 0 0 var(--space-5);
-	}
-	.why-link:hover { opacity: 1; }
-	.top-why-link { color: var(--text-primary); opacity: 1; font-style: normal; display: inline; align-self: center; margin: 0; }
-
-	.city-row {
+	.header-nav {
 		display: flex;
 		align-items: center;
-		gap: var(--space-2);
-		margin-bottom: var(--space-6);
+		gap: 4px;
 	}
 
-	.city-dot {
-		width: 6px;
-		height: 6px;
-		border-radius: 50%;
-		background: var(--color-success);
-		flex-shrink: 0;
-		animation: pulse var(--duration-ambient) ease-in-out infinite;
-	}
-
-	@keyframes pulse {
-		0%, 100% { opacity: 1; }
-		50% { opacity: 0.4; }
-	}
-
-	.city-name {
+	.nav-link {
+		background: none;
+		border: none;
+		cursor: pointer;
 		font-family: var(--font-mono);
-		font-size: var(--text-xs);
-		font-weight: 500;
-		letter-spacing: 0.1em;
+		font-size: 11px;
+		letter-spacing: 0.06em;
+		color: var(--text-muted);
+		padding: 6px 12px;
+		border-radius: var(--radius-input);
+		text-decoration: none;
+		transition: color 0.15s;
+	}
+	.nav-link:hover { color: var(--text-primary); }
+
+	.btn-join {
+		background: var(--text-primary);
+		color: var(--bg-canvas);
+		border: none;
+		cursor: pointer;
+		font-family: var(--font-mono);
+		font-size: 11px;
+		letter-spacing: 0.08em;
+		padding: 8px 20px;
+		border-radius: var(--radius-pill);
+		transition: opacity 0.15s;
+	}
+	.btn-join:hover { opacity: 0.82; }
+	.btn-join--hero {
+		font-size: 15px;
+		padding: 14px 36px;
+		border-radius: var(--radius-pill);
+	}
+
+	.btn-secondary {
+		background: none;
+		border: none;
+		cursor: pointer;
+		font-family: var(--font-mono);
+		font-size: 13px;
+		letter-spacing: 0.04em;
+		color: var(--text-muted);
+		padding: 8px 4px;
+		transition: color 0.15s;
+	}
+	.btn-secondary:hover { color: var(--text-primary); }
+
+	/* ── Hero — exactly 100vh including header ── */
+	.hero {
+		height: calc(100vh - 56px); /* 56px = header height */
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		padding: 48px 48px 32px;
+		gap: 48px;
+		align-items: center;
+		box-sizing: border-box;
+	}
+
+	.hero-left {
+		display: flex;
+		flex-direction: column;
+		justify-content: space-between;
+		padding: 8px 0;
+	}
+
+	.hero-bottom-group {
+		display: flex;
+		flex-direction: column;
+		gap: 20px;
+	}
+
+	/* Geneva-style rotating headline */
+	.hero-headline { display: flex; flex-direction: column; gap: 0; }
+
+	.hero-line1 {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: clamp(1.6rem, 3vw, 3rem);
+		font-weight: 300;
+		color: var(--text-muted);
+		margin: 0;
+		line-height: 1.1;
+	}
+
+	h1.hero-topic {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: clamp(2.4rem, 5vw, 5.5rem);
+		font-weight: 400;
+		color: var(--text-primary);
+		margin: 0;
+		line-height: 1.0;
+		letter-spacing: -0.02em;
+		transition: opacity 0.16s ease;
+	}
+
+	.hero-topic--out { opacity: 0; }
+
+	.hero-line3 {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: clamp(1.6rem, 3vw, 3rem);
+		font-weight: 300;
+		color: var(--text-muted);
+		margin: 0;
+		line-height: 1.1;
+	}
+
+	.hero-sub-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 16px;
+	}
+
+	.hero-brand { display: flex; align-items: center; gap: 16px; }
+
+	.hero-logo {
+		height: 28px;
+		width: auto;
+		filter: brightness(0) opacity(0.3);
+	}
+	:global([data-theme='dark']) .hero-logo { filter: brightness(0) invert(1) opacity(0.5); }
+
+	.hero-oneliner {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: clamp(1rem, 1.6vw, 1.4rem);
+		font-weight: 300;
+		letter-spacing: -0.01em;
 		color: var(--text-muted);
 	}
+
+	.hero-nav-arrows { display: flex; gap: 8px; }
+
+	.arrow-btn {
+		background: none;
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-input);
+		width: 32px;
+		height: 32px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		color: var(--text-muted);
+		font-size: 14px;
+		transition: background 0.12s, color 0.12s;
+	}
+	.arrow-btn:hover { background: var(--bg-control); color: var(--text-primary); }
 
 	.hero-actions {
 		display: flex;
 		align-items: center;
-		gap: var(--space-4);
+		gap: 16px;
 	}
 
-	.join-btn {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--space-2);
-		font-size: var(--text-base);
-		color: var(--bg-canvas);
-		background: var(--text-primary);
-		border: 1px solid var(--text-primary);
-		border-radius: var(--radius-input);
-		padding: var(--space-3) var(--space-5);
-		cursor: pointer;
-		transition: opacity 0.15s;
-	}
-	.join-btn:hover { opacity: var(--opacity-hover-btn); }
-	.arrow { font-size: var(--text-sm); }
-
-	.login-btn {
-		font-family: var(--font-mono);
-		font-size: var(--text-xs);
-		letter-spacing: 0.06em;
-		color: var(--text-muted);
-		background: none;
-		border: none;
-		cursor: pointer;
-		padding: var(--space-2);
-	}
-	.login-btn:hover { color: var(--text-primary); }
-
-	/* ── Page footer (inside left-col) ───────────────────────── */
-	.page-footer {
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: var(--space-3) var(--space-10);
-		box-sizing: border-box;
-	}
-
-	.theme-toggle {
-		background: none;
-		border: none;
-		color: var(--text-muted);
-		cursor: pointer;
-		padding: var(--space-1);
-	}
-	.theme-toggle:hover { color: var(--text-primary); }
-	.theme-toggle-inline { display: flex; margin-left: auto; }
-
-	.legal-links {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-	}
-
-	.legal-link {
-		font-family: var(--font-mono);
-		font-size: var(--text-xs);
-		color: var(--text-muted);
-		letter-spacing: 0.02em;
-	}
-	.legal-link:hover { color: var(--text-primary); }
-	.legal-sep { color: var(--text-muted); font-size: var(--text-xs); }
-
-	/* ── Hero map (mobile only) ──────────────────────────────── */
-	.hero-map { display: none; }
-
-	/* ── Right column ─────────────────────────────────────────── */
-	.right-col {
-		height: 100vh;
-		display: flex;
-		flex-direction: column;
-		position: relative;
-		overflow: hidden;
-		transform: translateZ(0); /* contain position:fixed children */
-	}
-
-	.right-map {
-		position: absolute;
-		inset: 0;
-	}
-
-	.right-map :global(.map-container) {
-		position: absolute;
-		inset: 0;
-	}
-
-	.right-col .prompt-list {
-		display: none;
-	}
-
-	/* ── Right-col sheet wrap (contains fixed BottomSheet inside right-col) */
-	.right-sheet-wrap {
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		z-index: 600;
-	}
-
-	/* ── Full-screen map overlay ─────────────────────────────── */
-	.map-overlay {
-		position: fixed;
-		inset: 0;
-		z-index: 1000;
-		background: var(--bg-canvas);
-	}
-
-	.map-overlay :global(.map-container) {
-		position: absolute;
-		inset: 0;
-	}
-
-	.map-overlay-close {
-		position: absolute;
-		top: var(--space-4);
-		right: var(--space-4);
-		z-index: 1010;
-		background: var(--bg-glass);
-		backdrop-filter: blur(8px);
-		-webkit-backdrop-filter: blur(8px);
-		border: none;
-		border-radius: 50%;
-		width: 40px;
-		height: 40px;
+	/* Hero right: featured conversation card */
+	.hero-right {
 		display: flex;
 		align-items: center;
 		justify-content: center;
+	}
+
+	.hero-card {
+		width: 100%;
+		max-width: 480px;
+		position: relative;
+		border-radius: 16px;
+		overflow: hidden;
+		border: 1px solid var(--border-link);
+		background: var(--bg-control);
+	}
+
+	.hero-card-img {
+		width: 100%;
+		aspect-ratio: 4/3;
+		object-fit: cover;
+		display: block;
+	}
+
+	.hero-card-placeholder {
+		width: 100%;
+		aspect-ratio: 4/3;
+		background: var(--bg-control);
+	}
+
+	.hero-card-body {
+		padding: 20px 24px;
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
+		gap: 16px;
+	}
+
+	.hero-card-title {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 1rem;
+		font-weight: 400;
+		line-height: 1.3;
+		margin: 0;
 		color: var(--text-primary);
-		cursor: pointer;
-	}
-
-	.overlay-sheet-wrap {
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		z-index: 1005;
-	}
-
-	/* ── List ─────────────────────────────────────────────────── */
-	.prompt-list {
 		flex: 1;
-		padding: 0 var(--space-4);
 	}
 
-	.empty-state {
-		padding: var(--space-10);
-		text-align: center;
+	.hero-card-area {
+		font-family: var(--font-mono);
+		font-size: 10px;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: rgba(255,255,255,0.7);
+	}
+
+	/* hero card overlay (new design) */
+	.hero-card-overlay {
+		position: absolute;
+		bottom: 0; left: 0; right: 0;
+		padding: 32px 20px 20px;
+		background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%);
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+
+	.hero-card-tag {
+		font-family: var(--font-mono);
+		font-size: 10px;
+		letter-spacing: 0.1em;
+		color: rgba(255,255,255,0.5);
+	}
+
+	/* ── Are.na-style footer ── */
+	.arena-footer {
+		background: #d8d8e8;
+		padding: 64px 48px 80px;
+	}
+	:global([data-theme='dark']) .arena-footer { background: #1a1a2e; }
+
+	.arena-footer-inner {
+		display: grid;
+		grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr;
+		gap: 40px;
+		max-width: 1440px;
+		margin: 0 auto;
+	}
+
+	.arena-col {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.arena-mark {
+		font-size: 18px;
+		color: var(--text-primary);
+		margin-bottom: 8px;
+		display: block;
+	}
+
+	.arena-col-label {
+		font-family: var(--font-mono);
+		font-size: 11px;
+		letter-spacing: 0.08em;
+		color: var(--text-muted);
+		margin-bottom: 6px;
+		display: block;
+	}
+
+	.arena-link {
+		font-size: 14px;
+		font-weight: 400;
+		color: var(--text-primary);
+		text-decoration: none;
+		transition: opacity 0.15s;
+		line-height: 1.6;
+	}
+	.arena-link:hover { opacity: 0.55; }
+	.arena-link--bold { font-weight: 500; }
+	.arena-link--btn {
+		background: none;
+		border: none;
+		cursor: pointer;
+		padding: 0;
+		text-align: left;
+		font-size: 14px;
+		font-weight: 500;
+		color: var(--text-primary);
+		font-family: inherit;
+		transition: opacity 0.15s;
+	}
+	.arena-link--btn:hover { opacity: 0.55; }
+
+	@media (max-width: 900px) {
+		.arena-footer-inner { grid-template-columns: 1fr 1fr; gap: 32px; }
+		.arena-footer { padding: 48px 24px 64px; }
+	}
+
+	.section-label {
+		display: block;
+		font-family: var(--font-mono);
+		font-size: 10px;
+		letter-spacing: 0.14em;
+		text-transform: uppercase;
+		color: var(--text-muted);
+		margin-bottom: 32px;
+	}
+
+	/* ── Not building ── */
+	.not-building {
+		margin-top: 64px;
+		padding-top: 48px;
+		border-top: 1px solid var(--border-link);
+	}
+
+	/* ── Docs ── */
+	.docs-grid {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 80px;
+		margin-bottom: 64px;
+	}
+
+	.docs-h2 {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: clamp(1.6rem, 2.8vw, 2.4rem);
+		font-weight: 300;
+		line-height: 1.2;
+		letter-spacing: -0.01em;
+		margin: 0;
+		color: var(--text-primary);
+	}
+
+	.docs-right p {
+		font-size: 14px;
+		line-height: 1.7;
+		color: var(--text-muted);
+		margin: 0 0 16px;
+	}
+
+	.docs-links {
+		display: flex;
+		gap: 24px;
+		flex-wrap: wrap;
+		margin-top: 8px;
+	}
+
+	.doc-link {
+		font-family: var(--font-mono);
+		font-size: 11px;
+		letter-spacing: 0.06em;
+		color: var(--text-muted);
+		text-decoration: none;
+		transition: color 0.15s;
+	}
+	.doc-link:hover { color: var(--text-primary); }
+
+	/* Principles */
+	.principles {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 1px;
+		background: var(--border-link);
+		border: 1px solid var(--border-link);
+	}
+
+	.principle {
+		background: var(--bg-canvas);
+		padding: 32px 28px;
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+	}
+
+	.principle-n {
+		font-family: var(--font-mono);
+		font-size: 10px;
+		letter-spacing: 0.1em;
 		color: var(--text-muted);
 	}
 
-	.empty-state p { margin: 0 0 var(--space-4); }
+	.principle-title {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 1rem;
+		font-weight: 400;
+		margin: 0;
+		color: var(--text-primary);
+	}
 
-	.map-loading { text-align: center; color: var(--text-muted); padding: var(--space-10); }
+	.principle-body {
+		font-size: 13px;
+		line-height: 1.6;
+		color: var(--text-muted);
+		margin: 0;
+	}
 
-	/* ── Mobile ───────────────────────────────────────────────── */
+	/* ── Changelog ── */
+	.changelog {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.changelog-row {
+		display: grid;
+		grid-template-columns: 110px 60px 1fr;
+		gap: 24px;
+		align-items: baseline;
+		padding: 16px 0;
+		border-bottom: 1px solid var(--border-link);
+	}
+	.changelog-row:first-child { border-top: 1px solid var(--border-link); }
+
+	.changelog-date {
+		font-family: var(--font-mono);
+		font-size: 11px;
+		letter-spacing: 0.06em;
+		color: var(--text-muted);
+	}
+
+	.changelog-version {
+		font-family: var(--font-mono);
+		font-size: 11px;
+		letter-spacing: 0.06em;
+		color: var(--text-muted);
+		opacity: 0.6;
+	}
+
+	.changelog-note {
+		font-size: 14px;
+		line-height: 1.5;
+		color: var(--text-primary);
+		margin: 0;
+	}
+
+	/* ── Field Notes ── */
+	.notes-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		margin-bottom: 32px;
+	}
+	.notes-header .section-label { margin-bottom: 0; }
+
+	.notes-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 32px;
+	}
+
+	.note-card {
+		text-decoration: none;
+		color: inherit;
+		display: flex;
+		flex-direction: column;
+		gap: 16px;
+		transition: opacity 0.15s;
+	}
+	.note-card:hover { opacity: 0.72; }
+
+	.note-img {
+		width: 100%;
+		aspect-ratio: 4/3;
+		overflow: hidden;
+		background: var(--bg-control);
+	}
+	.note-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+	.note-body { display: flex; flex-direction: column; gap: 8px; }
+
+	.note-title {
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 1.05rem;
+		font-weight: 400;
+		line-height: 1.3;
+		margin: 0;
+		color: var(--text-primary);
+	}
+
+	.note-teaser {
+		font-size: 13px;
+		line-height: 1.6;
+		color: var(--text-muted);
+		margin: 0;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
+
+	.note-date {
+		font-family: var(--font-mono);
+		font-size: 10px;
+		letter-spacing: 0.06em;
+		color: var(--text-muted);
+	}
+
+	/* ── Footer (Are.na style) ── */
+	.site-footer {
+		background: var(--bg-control);
+		padding: 80px 48px;
+	}
+
+	.footer-grid {
+		display: grid;
+		grid-template-columns: 1.5fr 1fr 1fr 1fr;
+		gap: 48px;
+	}
+
+	.footer-logo {
+		height: 20px;
+		width: auto;
+		filter: brightness(0) opacity(0.3);
+		display: block;
+		margin-bottom: 28px;
+	}
+	:global([data-theme='dark']) .footer-logo { filter: brightness(0) invert(1) opacity(0.3); }
+
+	.footer-col-title {
+		display: block;
+		font-family: var(--font-mono);
+		font-size: 10px;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: var(--text-muted);
+		margin-bottom: 16px;
+	}
+
+	.footer-nav {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+	}
+
+	.footer-link {
+		font-size: 14px;
+		font-weight: 500;
+		color: var(--text-primary);
+		text-decoration: none;
+		transition: opacity 0.15s;
+		font-family: inherit;
+	}
+	.footer-link:hover { opacity: 0.55; }
+	.footer-link--btn {
+		background: none;
+		border: none;
+		cursor: pointer;
+		text-align: left;
+		padding: 0;
+		font-size: 14px;
+		font-weight: 500;
+		font-family: inherit;
+		color: var(--text-primary);
+		transition: opacity 0.15s;
+	}
+	.footer-link--btn:hover { opacity: 0.55; }
+
+	/* ── Responsive ── */
+	@media (max-width: 1024px) {
+		.principles { grid-template-columns: repeat(2, 1fr); }
+		.footer-grid { grid-template-columns: 1fr 1fr; gap: 40px; }
+	}
+
 	@media (max-width: 768px) {
-		.landing {
-			display: flex;
-			flex-direction: column;
-			/* 100dvh tracks the visible viewport as mobile browser chrome
-			 * expands/collapses; 100vh keeps a bigger area fixed, which
-			 * clipped the hero content on short phones. */
-			height: 100dvh;
-			overflow: hidden;
-		}
-
-		.left-col {
-			height: 100dvh;
-			min-height: unset;
-			border-right: none;
-			border-bottom: none;
-			padding: var(--space-6) var(--space-4) var(--space-4);
-			transform: translateZ(0); /* contain position:fixed BottomSheet within 100vh */
-		}
-
-		.hero-center { margin: auto 0; }
-		.top-city-row { display: none; }
-
-		/* Map takes whatever leftover space is between the top bar and the
-		 * hero content, with a floor so it stays a usable map on very short
-		 * viewports. hero-content gets its natural height — no margin-top:auto
-		 * pushing it out of view when the viewport shrinks. */
-		.hero-map {
-			display: block;
-			flex: 1 1 auto;
-			min-height: 220px;
-			margin: var(--space-3) 0;
-			border-radius: var(--radius-card);
-			overflow: hidden;
-			position: relative;
-		}
-
-		.hero-map :global(.map-container) {
-			position: absolute;
-			inset: 0;
-		}
-
-		.hero-map-expand {
-			position: absolute;
-			bottom: var(--space-3);
-			left: var(--space-3);
-			z-index: 500;
-			background: var(--bg-glass);
-			backdrop-filter: blur(8px);
-			-webkit-backdrop-filter: blur(8px);
-			border: none;
-			border-radius: var(--radius-card);
-			padding: var(--space-2);
-			color: var(--text-primary);
-			cursor: pointer;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-		}
-
-		.hero-map-placeholder {
-			width: 100%;
-			height: 100%;
-			background: var(--bg-control);
-		}
-
-		.hero-sheet-wrap {
-			position: absolute;
-			bottom: 0;
-			left: 0;
-			right: 0;
-			z-index: 600;
-		}
-
-		/* Sheet fills from viewport bottom up to map */
-		.hero-sheet-wrap :global(.sheet) {
-			max-height: calc(100vh - 45vh - 96px);
-			border-radius: var(--radius-card) var(--radius-card) 0 0;
-		}
-
-		.hero-actions { padding-bottom: 0; }
-
-		.page-footer { display: none; }
-		.theme-toggle-inline { display: flex; }
-
-		.right-col {
-			display: none;
-		}
-
-		.right-col .prompt-list {
-			display: block;
-			overflow-y: auto;
-		}
+		.site-header { padding: 14px 24px; }
+		.hero { grid-template-columns: 1fr; padding: 80px 24px 48px; gap: 40px; }
+		.hero-right { display: none; }
+		.section { padding: 60px 24px; }
+		.docs-grid { grid-template-columns: 1fr; gap: 32px; }
+		.principles { grid-template-columns: 1fr; }
+		.notes-grid { grid-template-columns: 1fr; }
+		.changelog-row { grid-template-columns: 90px 1fr; gap: 12px; }
+		.changelog-version { display: none; }
+		.footer-grid { grid-template-columns: 1fr 1fr; }
+		.site-footer { padding: 48px 24px; }
 	}
 </style>

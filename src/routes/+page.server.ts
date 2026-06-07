@@ -1,6 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
+import { ISSUES } from '$lib/newsletter.js';
 
 export const load: PageServerLoad = async ({ locals, setHeaders }) => {
 	if (locals.user) {
@@ -9,15 +10,34 @@ export const load: PageServerLoad = async ({ locals, setHeaders }) => {
 
 	setHeaders({ 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' });
 
-	const prompts = await new SupabasePromptQueryService(locals.supabase)
-		.getPublishedPromptsPublic({ region: 'berlin', limit: 8 });
+	const [prompts, dbPosts] = await Promise.all([
+		new SupabasePromptQueryService(locals.supabase)
+			.getPublishedPromptsPublic({ region: 'berlin', limit: 12 }),
+		locals.supabase
+			.from('newsletter_posts')
+			.select('slug, title, published_at, teaser, cover_image_url, tags')
+			.eq('published', true)
+			.order('published_at', { ascending: false })
+			.limit(3)
+			.then(r => r.data)
+	]);
 
-	// Anonymise author data for public landing page — real usernames must not reach the client
 	const anonymisedPrompts = prompts.map(p => ({
 		...p,
-		author_username: '•'.repeat(p.author_username.length),
+		author_username: '',
 		author_id: ''
 	}));
 
-	return { prompts: anonymisedPrompts };
+	const fieldNotes = (dbPosts && dbPosts.length > 0)
+		? dbPosts
+		: ISSUES.slice(0, 3).map(i => ({
+			slug: i.slug,
+			title: i.title,
+			published_at: i.date,
+			teaser: i.teaser,
+			cover_image_url: i.coverImage ?? null,
+			tags: i.tags ?? []
+		}));
+
+	return { prompts: anonymisedPrompts, fieldNotes };
 };

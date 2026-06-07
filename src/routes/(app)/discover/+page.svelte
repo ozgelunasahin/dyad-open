@@ -52,13 +52,13 @@
 		url.searchParams.delete('welcome');
 		window.history.replaceState({}, '', url);
 	}
-	let viewMode = $state<'list' | 'map'>('map');
-	let mapCenter = $state<[number, number] | null>(null);
-	let mapZoom = $state<number | null>(null);
+	let viewMode = $state<'grid' | 'map'>('grid');
+	let mapCenter = $state<[number, number] | null>([52.52, 13.405]);
+	let mapZoom = $state<number | null>(12);
 
 	export const snapshot: Snapshot<{ center: [number, number] | null; zoom: number | null }> = {
 		capture: () => ({ center: mapCenter, zoom: mapZoom }),
-		restore: (value) => { mapCenter = value.center; mapZoom = value.zoom; }
+		restore: (value: { center: [number, number] | null; zoom: number | null }) => { mapCenter = value.center; mapZoom = value.zoom; }
 	};
 	let searchOpen = $state(false);
 	let selectedPinPrompts = $state<PromptSummary[]>([]);
@@ -148,51 +148,59 @@
 		<MapView
 			prompts={filteredPrompts}
 			onSelectPin={handlePinSelect}
+			onCardClick={(prompt) => goto(`/conversations/${prompt.id}`)}
 			onMapClick={closeSheet}
 			initialCenter={mapCenter}
 			initialZoom={mapZoom}
 			onMoveEnd={(c, z) => { mapCenter = c; mapZoom = z; }}
 		/>
+		{#if selectedPinPrompts.length > 0}
+			<div class="map-sheet-wrap">
+				<BottomSheet
+					prompts={selectedPinPrompts}
+					onClose={closeSheet}
+					onCardClick={(id) => goto(`/conversations/${id}`)}
+					navClearance={true}
+				/>
+			</div>
+		{/if}
 	</div>
-	{#if selectedPinPrompts.length > 0}
-		<BottomSheet prompts={selectedPinPrompts} />
-	{/if}
 {:else}
-<div class="content">
-			{#if data.prompts.length === 0}
-				<div class="empty-state">
-					<p>{copy.discover.noConversations}</p>
-					<p class="empty-hint">{copy.discover.checkBackSoon}</p>
-					<a href="/conversations/new" class="btn-primary btn-primary--sm" style="margin-top: var(--space-4); display: inline-block; text-decoration: none;">{copy.discover.startConversation}</a>
-				</div>
-			{:else if filteredPrompts.length === 0}
-					<div class="empty-state">
-						<p>{copy.discover.noMatchingFilters}</p>
-						<button class="clear-filters-link" onclick={clearFilters}>{copy.common.clearFilters}</button>
-					</div>
-				{:else}
-					<div class="prompt-list">
-						{#each filteredPrompts as prompt}
-							<ConversationCard
-								title={prompt.title ?? 'Untitled'}
-								coverUrl={prompt.cover_image_url}
-								snippet={prompt.body_snippet}
-								metaLeft={slotDates(prompt.available_slots)}
-								metaRight={uniqueAreas(prompt.available_slots)}
-								href={`/conversations/${prompt.id}`}
-							/>
-						{/each}
-					</div>
-				{/if}
-		</div>
-	{/if}
+	<div class="content">
+		{#if data.prompts.length === 0}
+			<div class="empty-state">
+				<p>{copy.discover.noConversations}</p>
+				<p class="empty-hint">{copy.discover.checkBackSoon}</p>
+				<a href="/conversations/new" class="btn-primary btn-primary--sm" style="margin-top: var(--space-4); display: inline-block; text-decoration: none;">{copy.discover.startConversation}</a>
+			</div>
+		{:else if filteredPrompts.length === 0}
+			<div class="empty-state">
+				<p>{copy.discover.noMatchingFilters}</p>
+				<button class="clear-filters-link" onclick={clearFilters}>{copy.common.clearFilters}</button>
+			</div>
+		{:else}
+			<div class="prompt-list">
+				{#each filteredPrompts as prompt}
+					<ConversationCard
+						title={prompt.title ?? 'Untitled'}
+						coverUrl={prompt.cover_image_url}
+						snippet={prompt.body_snippet}
+						metaLeft={slotDates(prompt.available_slots)}
+						metaRight={uniqueAreas(prompt.available_slots)}
+						href={`/conversations/${prompt.id}`}
+					/>
+				{/each}
+			</div>
+		{/if}
+	</div>
+{/if}
 
 <div class="floating-nav-wrapper">
 	<FloatingNav
 		variant="discover"
-		active={viewMode === 'map' ? 'map' : ''}
+		active={viewMode === 'map' ? 'map' : 'grid'}
 		attentionCount={data.attentionCount ?? 0}
-		onMapClick={() => viewMode = viewMode === 'map' ? 'list' : 'map'}
+		onMapClick={() => viewMode = viewMode === 'map' ? 'grid' : 'map'}
 		{weekDates}
 		selectedDays={selectedDates}
 		onToggleDay={toggleDate}
@@ -215,33 +223,209 @@
 
 <style>
 	.floating-nav-wrapper { display: block; }
+
+	/* ── Map view ── */
 	.map-pane {
 		position: fixed;
-		top: 0;
-		right: 0;
+		inset: 0;
+	}
+
+	.map-sheet-wrap {
+		position: absolute;
 		bottom: 0;
 		left: 0;
+		right: 0;
+		z-index: 600;
 	}
 
-	.content {
+	/* ── DFOS grid view ── */
+	.discover-grid-pane {
+		min-height: 100vh;
+		padding: 32px 32px 120px;
+	}
+
+	.discover-grid-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 24px;
+	}
+
+	.discover-kicker {
+		font-family: var(--font-mono);
+		font-size: 11px;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--text-muted);
+	}
+
+	.new-convo-link {
+		font-family: var(--font-mono);
+		font-size: 11px;
+		letter-spacing: 0.06em;
+		color: var(--text-muted);
+		text-decoration: none;
+		transition: color 0.15s;
+	}
+	.new-convo-link:hover { color: var(--text-primary); }
+
+	/* ── DFOS card grid ── */
+	.dfos-grid {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: 12px;
+	}
+
+	.dfos-card {
+		position: relative;
+		border-radius: 16px;
+		overflow: hidden;
+		text-decoration: none;
+		display: block;
+		background: #111;
+		aspect-ratio: 4 / 3;
+		cursor: pointer;
+	}
+
+	/* Cover image */
+	.dfos-cover {
+		position: absolute;
+		inset: 0;
+		transition: transform 0.4s ease;
+	}
+	.dfos-card:hover .dfos-cover { transform: scale(1.03); }
+
+	.dfos-cover img {
 		width: 100%;
-		max-width: var(--content-wide);
-		padding-bottom: var(--nav-clearance);
+		height: 100%;
+		object-fit: cover;
+		display: block;
 	}
 
+	.dfos-cover-placeholder {
+		width: 100%;
+		height: 100%;
+		background: #1a1a1a;
+	}
+
+	/* Arrow top-right, appears on hover */
+	.dfos-arrow {
+		position: absolute;
+		top: 14px;
+		right: 14px;
+		width: 32px;
+		height: 32px;
+		border-radius: 50%;
+		background: rgba(255,255,255,0.12);
+		backdrop-filter: blur(8px);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 14px;
+		color: #fff;
+		opacity: 0;
+		transform: scale(0.8);
+		transition: opacity 0.2s ease, transform 0.2s ease;
+		z-index: 2;
+	}
+	.dfos-card:hover .dfos-arrow {
+		opacity: 1;
+		transform: scale(1);
+	}
+
+	/* Bottom overlay */
+	.dfos-overlay {
+		position: absolute;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		padding: 48px 16px 16px;
+		background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 60%, transparent 100%);
+		z-index: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 0;
+	}
+
+	.dfos-info {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+	}
+
+	/* Small community icon — first letter */
+	.dfos-icon {
+		width: 32px;
+		height: 32px;
+		border-radius: 8px;
+		background: rgba(255,255,255,0.15);
+		backdrop-filter: blur(4px);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 14px;
+		color: #fff;
+		flex-shrink: 0;
+		border: 1px solid rgba(255,255,255,0.15);
+	}
+
+	.dfos-text {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		min-width: 0;
+	}
+
+	.dfos-title {
+		font-size: 15px;
+		font-weight: 600;
+		color: #fff;
+		line-height: 1.25;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
+
+	.dfos-area {
+		font-family: var(--font-mono);
+		font-size: 10px;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: rgba(255,255,255,0.55);
+	}
+
+	/* Description: hidden by default, slides up on hover */
+	.dfos-description {
+		margin: 0;
+		font-size: 12px;
+		line-height: 1.5;
+		color: rgba(255,255,255,0.75);
+		max-height: 0;
+		overflow: hidden;
+		opacity: 0;
+		transform: translateY(6px);
+		transition: max-height 0.3s ease, opacity 0.25s ease, transform 0.25s ease;
+		padding-top: 0;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+	}
+	.dfos-card:hover .dfos-description {
+		max-height: 60px;
+		opacity: 1;
+		transform: translateY(0);
+		padding-top: 8px;
+	}
+
+	/* ── Empty / util ── */
 	.empty-state {
 		text-align: center;
 		padding: 4rem 2rem;
 		color: var(--text-muted);
 	}
-
-	.empty-state p {
-		margin: 0.5rem 0;
-	}
-
-	.empty-hint {
-		font-size: var(--text-base);
-	}
+	.empty-state p { margin: 0.5rem 0; }
 
 	.clear-filters-link {
 		background: none;
@@ -252,17 +436,10 @@
 		cursor: pointer;
 		text-decoration: underline;
 	}
-
 	.clear-filters-link:hover { color: var(--text-primary); }
 
-	/* === Prompt list === */
-	.prompt-list {
-		display: flex;
-		flex-direction: column;
-		gap: 0;
-		margin-top: 2rem;
-		margin-bottom: 3rem;
+	@media (max-width: 700px) {
+		.dfos-grid { grid-template-columns: 1fr; }
+		.discover-grid-pane { padding: 20px 16px 100px; }
 	}
-
-	/* .btn-primary / .btn-primary--sm live in shared.css; see ConversationCard.svelte for list items. */
 </style>

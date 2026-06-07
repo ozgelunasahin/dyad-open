@@ -436,7 +436,16 @@
 />
 
 <style>
-	.content { width: 100%; max-width: var(--content-standard); padding-bottom: var(--nav-clearance); }
+	.content {
+		width: 100%;
+		max-width: var(--content-standard);
+		margin: 0 auto;
+		padding: var(--space-8) var(--space-8) var(--nav-clearance);
+	}
+
+	@media (max-width: 900px) {
+		.content { padding: var(--space-6) var(--space-4) var(--nav-clearance); }
+	}
 
 	.cover { width: 100%; max-height: 400px; object-fit: cover; border-radius: var(--radius-card); margin-bottom: var(--space-6); display: block; }
 
