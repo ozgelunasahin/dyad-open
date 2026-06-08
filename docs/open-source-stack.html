@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>dyad. · Open Source Stack</title>
+<style>
+@font-face{font-family:'SangBleu Sunrise';src:url('/Users/ozgesahin/dyad.berlin/static/fonts/SangBleuSunrise-Light-WebXL.woff2') format('woff2');font-weight:300}
+@font-face{font-family:'SangBleu Sunrise';src:url('/Users/ozgesahin/dyad.berlin/static/fonts/SangBleuSunrise-Regular-WebXL.woff2') format('woff2');font-weight:400}
+@font-face{font-family:'SangBleu Sunrise';src:url('/Users/ozgesahin/dyad.berlin/static/fonts/SangBleuSunrise-Medium-WebXL.woff2') format('woff2');font-weight:500}
+
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#0d0d0c;--paper:#f5f3f0;--muted:rgba(13,13,12,.42);
+  --border:rgba(13,13,12,.1);--serif:'SangBleu Sunrise',Georgia,serif;
+  --mono:'Helvetica Neue',Arial,sans-serif;
+  --accent:#5B4FE8;
+}
+html{scroll-behavior:smooth}
+body{background:var(--paper);color:var(--ink);font-family:var(--serif);-webkit-font-smoothing:antialiased}
+
+.w{max-width:1080px;margin:0 auto;padding:0 48px}
+section{padding:80px 0;border-bottom:1px solid var(--border)}
+.k{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:16px}
+h1{font-weight:300;font-size:clamp(2.5rem,5vw,4.2rem);line-height:1.05;letter-spacing:-.025em}
+h2{font-weight:300;font-size:clamp(1.4rem,2.5vw,2rem);line-height:1.1;letter-spacing:-.015em;margin-bottom:28px}
+p{font-size:15px;line-height:1.7;color:var(--muted);max-width:680px;margin-bottom:16px}
+p:last-child{margin-bottom:0}
+strong{color:var(--ink);font-weight:400}
+
+/* cover */
+.cover{min-height:50vh;display:flex;flex-direction:column;justify-content:space-between;padding:52px 48px 44px;max-width:1080px;margin:0 auto;border-bottom:1px solid var(--border)}
+.cmark{font-family:var(--serif);font-weight:300;font-size:1.1rem;letter-spacing:-.01em}
+.cmeta{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--muted);text-align:right;line-height:1.9}
+.csub{font-size:15px;color:var(--muted);max-width:520px;line-height:1.7;margin-top:20px}
+
+/* verdict row */
+.verdict{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--border);border:1px solid var(--border);margin:32px 0}
+.vcard{background:var(--paper);padding:28px 26px}
+.vcard h3{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+.vtag{display:inline-block;font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:3px 9px;border:1px solid;margin-bottom:10px;line-height:1}
+.vtag--yes{color:#2d6a4f;border-color:#2d6a4f;background:rgba(45,106,79,.06)}
+.vtag--maybe{color:#7a5c00;border-color:#7a5c00;background:rgba(122,92,0,.06)}
+.vtag--skip{color:#8b1a1a;border-color:#8b1a1a;background:rgba(139,26,26,.06)}
+.vcard p{font-size:13px;max-width:100%;margin:0;line-height:1.55;color:var(--muted)}
+.vcard strong{font-size:14px}
+
+/* platform cards */
+.platform{padding:60px 0;border-bottom:1px solid var(--border)}
+.platform-header{display:grid;grid-template-columns:1fr auto;align-items:start;gap:24px;margin-bottom:36px}
+.platform-meta{font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--muted);line-height:2;text-align:right}
+.platform-meta span{display:block}
+
+/* two column */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start;margin-top:28px}
+
+/* dimension block */
+.dim{background:rgba(13,13,12,.02);border:1px solid var(--border);padding:24px 26px}
+.dim-label{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;display:block}
+.dim p{font-size:13px;max-width:100%;margin-bottom:10px;line-height:1.6}
+.dim p:last-child{margin-bottom:0}
+
+/* verdict pill inline */
+.pill{display:inline-block;font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:2px 8px;border:1px solid;margin-left:10px;vertical-align:middle;line-height:1.4}
+.pill--yes{color:#2d6a4f;border-color:#2d6a4f;background:rgba(45,106,79,.06)}
+.pill--skip{color:#8b1a1a;border-color:#8b1a1a;background:rgba(139,26,26,.06)}
+.pill--inspect{color:#7a5c00;border-color:#7a5c00;background:rgba(122,92,0,.06)}
+
+/* integration path */
+.path{border-left:1.5px solid var(--ink);padding:2px 0 2px 24px;margin:20px 0}
+.path-label{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;display:block}
+.path p{font-size:13px;color:var(--ink);max-width:100%;line-height:1.5}
+
+/* architecture diagram */
+.arch{font-family:var(--mono);font-size:12px;line-height:1.9;color:var(--ink);background:rgba(13,13,12,.03);border:1px solid var(--border);padding:32px 36px;margin:32px 0;white-space:pre}
+.arch .dim-label{margin-bottom:16px}
+
+/* effort table */
+.effort{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);margin:32px 0}
+.ef-head{background:rgba(13,13,12,.04);padding:14px 18px;font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.ef-cell{background:var(--paper);padding:16px 18px;font-size:13px;color:var(--muted);line-height:1.5}
+.ef-cell strong{color:var(--ink);display:block;margin-bottom:2px}
+
+/* pull quote */
+.pull{border-left:1.5px solid var(--ink);padding:2px 0 2px 30px;margin:44px 0}
+.pull p{font-size:clamp(1rem,1.6vw,1.25rem);color:var(--ink);max-width:760px;line-height:1.5}
+
+footer{border-top:1px solid var(--border);padding:32px 48px;display:flex;justify-content:space-between;align-items:center;max-width:1080px;margin:0 auto}
+.fmark{font-family:var(--serif);font-weight:300;font-size:.9rem;color:var(--muted)}
+.fr{font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--muted);text-align:right;line-height:1.9}
+
+@media(max-width:768px){
+  .cover,.w{padding-left:24px;padding-right:24px}
+  section,.platform{padding:48px 0}
+  .two{grid-template-columns:1fr;gap:20px}
+  .verdict{grid-template-columns:1fr}
+  .effort{grid-template-columns:1fr 1fr}
+  footer{flex-direction:column;gap:12px;align-items:flex-start;padding:24px}
+  .arch{padding:20px;font-size:11px}
+}
+</style>
+</head>
+<body>
+
+<!-- cover -->
+<div class="cover">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start">
+    <span class="cmark">dyad.</span>
+    <div class="cmeta">Research · June 2026<br>Internal document</div>
+  </div>
+  <div>
+    <h1>Open source stack<br>for content moderation<br>and governance.</h1>
+    <p class="csub">Six platforms assessed for fork-and-implement suitability. Two dimensions: automated + community moderation, and participatory governance. Recommendations included.</p>
+  </div>
+</div>
+
+<!-- summary -->
+<div class="w">
+<section>
+  <span class="k">At a glance</span>
+  <h2>Six platforms. Two questions.</h2>
+  <p>Can we fork it for content moderation? Can we fork it for community governance? Every platform below is assessed on those two axes, with a recommendation on whether to fork, integrate via API, borrow the design pattern, or skip.</p>
+
+  <div class="verdict">
+    <div class="vcard">
+      <h3>Content moderation</h3>
+      <span class="vtag vtag--yes">Fork</span>
+      <strong>LocalMod</strong>
+      <p style="margin-top:8px">Python REST API. Fully self-hosted. Toxicity, NSFW text and image, PII, spam, prompt injection. No data leaves your server. MIT license. Drop-in.</p>
+    </div>
+    <div class="vcard">
+      <h3>Community moderation UX</h3>
+      <span class="vtag vtag--maybe">Borrow pattern</span>
+      <strong>SAFEskies</strong>
+      <p style="margin-top:8px">Role-based moderation roles (admin / moderator), transparent moderation logs, community-controlled feed curation. AT Protocol dependency — adapt the logic, not the code.</p>
+    </div>
+    <div class="vcard">
+      <h3>Community-scale decisions</h3>
+      <span class="vtag vtag--yes">Integrate via API</span>
+      <strong>Loomio</strong>
+      <p style="margin-top:8px">Consensus-oriented decision-making. Discussion → proposal → vote. Cooperative-owned, AGPL. REST API integration from dyad's SvelteKit frontend.</p>
+    </div>
+    <div class="vcard">
+      <h3>Institutional governance</h3>
+      <span class="vtag vtag--yes">Integrate via API</span>
+      <strong>Decidim</strong>
+      <p style="margin-top:8px">Full civic engagement suite: assemblies, proposals, budgets, elections, accountability. GraphQL API. AGPL. Run as a standalone service.</p>
+    </div>
+    <div class="vcard">
+      <h3>Pre-decision sense-making</h3>
+      <span class="vtag vtag--yes">Fork upstream</span>
+      <strong>Polis</strong>
+      <p style="margin-top:8px">Opinion clustering, large-group deliberation. Use as the layer before formal proposals. Fork upstream Polis only — not Blacksky's AT Protocol fork.</p>
+    </div>
+    <div class="vcard">
+      <h3>Civic participation</h3>
+      <span class="vtag vtag--skip">Skip</span>
+      <strong>Consul Democracy</strong>
+      <p style="margin-top:8px">Overlaps entirely with Decidim. Less modular, less actively maintained. Decidim covers every use case Consul does, with better documentation.</p>
+    </div>
+  </div>
+</section>
+</div>
+
+<!-- localmod -->
+<div class="w">
+<div class="platform">
+  <div class="platform-header">
+    <div>
+      <span class="k">Content moderation · Automated layer</span>
+      <h2>LocalMod <span class="pill pill--yes">Fork it</span></h2>
+    </div>
+    <div class="platform-meta">
+      <span>MIT license</span>
+      <span>Python</span>
+      <span>116 stars</span>
+      <span>REST API</span>
+    </div>
+  </div>
+
+  <div class="two">
+    <div class="dim">
+      <span class="dim-label">Content moderation</span>
+      <p>This is the right answer for dyad's automated moderation layer. LocalMod runs entirely on your own infrastructure — no content ever leaves your server. That is not a configuration option; it's the architecture.</p>
+      <p>What it classifies, out of the box: <strong>toxicity</strong> (0.75 balanced accuracy, above Amazon Comprehend and Google Perspective), <strong>NSFW text and images</strong>, <strong>PII detection</strong> (1.0 accuracy in benchmarks), <strong>spam</strong> (0.99 F1), and <strong>prompt injection</strong> (0.89 F1).</p>
+      <p>Call it from a SvelteKit API route on content submission. Flag → route to human moderators if needed. The pipeline is: user posts → LocalMod API → severity score → auto-suppress or moderator queue.</p>
+    </div>
+    <div class="dim">
+      <span class="dim-label">Governance</span>
+      <p>Not applicable. LocalMod is a classification tool, not a decision-making platform. It tells you <em>what</em> content might be harmful; it does not decide what to do with it. That decision layer belongs to community moderators using a role-based interface.</p>
+      <p>Pair it with the SAFEskies UX pattern (see below) for the human moderation side of the stack.</p>
+    </div>
+  </div>
+
+  <div class="path">
+    <span class="path-label">Integration path</span>
+    <p>Self-host as a Python API server. dyad's SvelteKit API routes call it on content submission. ~3.5GB of local ML models. One <code>pip install</code>. MIT license — no open-source obligations.</p>
+  </div>
+</div>
+</div>
+
+<!-- safeSkies -->
+<div class="w">
+<div class="platform">
+  <div class="platform-header">
+    <div>
+      <span class="k">Content moderation · Community roles</span>
+      <h2>SAFEskies <span class="pill pill--inspect">Borrow the pattern</span></h2>
+    </div>
+    <div class="platform-meta">
+      <span>MIT license</span>
+      <span>Next.js + React</span>
+      <span>Community feeds</span>
+    </div>
+  </div>
+
+  <div class="two">
+    <div class="dim">
+      <span class="dim-label">Content moderation</span>
+      <p>SAFEskies implements a clean role-based moderation system: <strong>admin</strong> (full control), <strong>moderator</strong> (review and act on flagged content), <strong>member</strong> (flag, report). Transparent moderation logs. Community-controlled curation.</p>
+      <p>The logic is exactly what dyad needs for the human-in-the-loop layer that sits on top of LocalMod's automated flagging.</p>
+      <p>The problem: SAFEskies is built entirely on AT Protocol for identity. Since dyad isn't using AT Protocol, the code can't be directly forked without stripping its entire auth layer. Study the design and decision model; reimplement the role architecture in dyad's SvelteKit + Supabase stack.</p>
+    </div>
+    <div class="dim">
+      <span class="dim-label">Governance</span>
+      <p>SAFEskies is not a governance platform. It handles moderation roles, not community decisions. The two are complementary — moderation determines what content survives; governance determines what the community does.</p>
+    </div>
+  </div>
+
+  <div class="path">
+    <span class="path-label">Integration path</span>
+    <p>Don't fork. Study the admin UX and role model. Build the equivalent natively in Svelte with Supabase RLS backing the permission tiers (admin / moderator / member).</p>
+  </div>
+</div>
+</div>
+
+<!-- loomio -->
+<div class="w">
+<div class="platform">
+  <div class="platform-header">
+    <div>
+      <span class="k">Governance · Community-scale decisions</span>
+      <h2>Loomio <span class="pill pill--yes">Integrate via API</span></h2>
+    </div>
+    <div class="platform-meta">
+      <span>AGPL-3.0</span>
+      <span>Ruby on Rails</span>
+      <span>2,547 stars</span>
+      <span>REST API</span>
+    </div>
+  </div>
+
+  <div class="two">
+    <div class="dim">
+      <span class="dim-label">Content moderation</span>
+      <p>Not a moderation tool. Loomio is decision infrastructure — it governs what communities decide to do, not what content is allowed. The only adjacent use is community-level policy decisions: <em>"should we adopt a code of conduct?"</em>, <em>"who should be our next moderator?"</em> That's governance, not moderation.</p>
+    </div>
+    <div class="dim">
+      <span class="dim-label">Governance</span>
+      <p>This is Loomio's entire purpose, and it's very good at it. The core model is <strong>discussion → proposal → vote</strong>, deliberately consensus-oriented rather than majority-rule. A proposal surfaces objections; the group reaches a workable decision rather than steamrolling a minority.</p>
+      <p>Models: group, discussion, poll (consent, ranked choice, time poll, score), membership, subgroups. Designed to feel like a conversation that reaches a decision — not a formal ballot.</p>
+      <p><strong>Important:</strong> Loomio is itself a worker cooperative. Its governance philosophy matches dyad's steward-ownership model precisely. This is not just a technical fit; it's a values fit.</p>
+    </div>
+  </div>
+
+  <div class="path">
+    <span class="path-label">Integration path</span>
+    <p>Run Loomio as a separate service. dyad's SvelteKit frontend calls it via REST API. Communities using dyad for in-person coordination use Loomio for the decisions that coordination produces. AGPL obligation: publish any modifications to Loomio itself if you run it as a web service.</p>
+  </div>
+</div>
+</div>
+
+<!-- decidim -->
+<div class="w">
+<div class="platform">
+  <div class="platform-header">
+    <div>
+      <span class="k">Governance · Institutional scale</span>
+      <h2>Decidim <span class="pill pill--yes">Integrate via API</span></h2>
+    </div>
+    <div class="platform-meta">
+      <span>AGPL-3.0</span>
+      <span>Ruby on Rails</span>
+      <span>1,764 stars</span>
+      <span>GraphQL API</span>
+    </div>
+  </div>
+
+  <div class="two">
+    <div class="dim">
+      <span class="dim-label">Content moderation</span>
+      <p>Decidim has basic moderation built in — report content, hide content, moderator dashboard. It's adequate for formal civic contexts but not a replacement for LocalMod's automated classification. Think of it as moderation-of-record for proposals and debates, not real-time content filtering.</p>
+    </div>
+    <div class="dim">
+      <span class="dim-label">Governance</span>
+      <p>The most comprehensive platform in this assessment. 28 modules covering everything a formally governed community needs:</p>
+      <p><strong>Assemblies</strong> — permanent participatory bodies with members and working groups. <strong>Proposals</strong> — submit, amend, endorse, vote, track implementation. <strong>Meetings</strong> — agenda, minutes, linked proposals. <strong>Budgets</strong> — participatory budgeting with real allocation. <strong>Elections</strong> — formal voting with auditability. <strong>Blogs</strong> — community editorial publishing. <strong>Collaborative texts</strong> — collective document editing. <strong>Accountability</strong> — track whether commitments were kept.</p>
+      <p>Used by Barcelona, Helsinki, the French government, and dozens of European cities. Decade of production use.</p>
+    </div>
+  </div>
+
+  <div class="path">
+    <span class="path-label">Integration path</span>
+    <p>Run as a standalone service. dyad's SvelteKit frontend talks to <code>decidim-api</code> (GraphQL). Communities never see "Decidim" in the UI — it surfaces through dyad's design. AGPL applies: publish modifications to Decidim itself.</p>
+  </div>
+</div>
+</div>
+
+<!-- polis -->
+<div class="w">
+<div class="platform">
+  <div class="platform-header">
+    <div>
+      <span class="k">Governance · Pre-decision sense-making</span>
+      <h2>Polis <span class="pill pill--yes">Fork upstream</span></h2>
+    </div>
+    <div class="platform-meta">
+      <span>AGPL-3.0</span>
+      <span>JS + Clojure</span>
+      <span>Opinion clustering</span>
+    </div>
+  </div>
+
+  <div class="two">
+    <div class="dim">
+      <span class="dim-label">Content moderation</span>
+      <p>Not applicable. Polis maps opinion space; it does not classify or filter content.</p>
+    </div>
+    <div class="dim">
+      <span class="dim-label">Governance</span>
+      <p>Polis sits before formal governance, not inside it. Large groups, contested topics, no moderator-curated agenda — people vote on statements, Polis clusters the result to show where rough consensus already exists and where divisions are real.</p>
+      <p>The sequence: <strong>Polis</strong> (what does our community actually think?) → <strong>Loomio or Decidim</strong> (what do we formally decide?). Without Polis, communities jump straight to proposals that lack a shared foundation. With it, proposals start from known ground.</p>
+      <p><strong>Note:</strong> Fork upstream Polis, not Blacksky's fork. Blacksky added AT Protocol identity into their fork (the Delphi pipeline). Take the upstream codebase only — and optionally pull Blacksky's Python clustering service as a standalone component, which can run without AT Protocol.</p>
+    </div>
+  </div>
+
+  <div class="path">
+    <span class="path-label">Integration path</span>
+    <p>Run as a separate service. Embed Polis conversations into dyad community pages via API. The math/clustering service (UMAP + HDBSCAN + sentence embeddings) is the most valuable extractable component.</p>
+  </div>
+</div>
+</div>
+
+<!-- consul -->
+<div class="w">
+<div class="platform">
+  <div class="platform-header">
+    <div>
+      <span class="k">Civic participation · Skipped</span>
+      <h2>Consul Democracy <span class="pill pill--skip">Skip</span></h2>
+    </div>
+    <div class="platform-meta">
+      <span>AGPL-3.0</span>
+      <span>Ruby on Rails</span>
+      <span>1,533 stars</span>
+    </div>
+  </div>
+
+  <div class="two">
+    <div class="dim">
+      <span class="dim-label">Why not</span>
+      <p>Consul overlaps almost entirely with Decidim — petitions, proposals, debates, budgets, polls. Originally built for Madrid city government.</p>
+      <p>Decidim is more modular, more actively maintained, has better documentation, a GraphQL API, and is deployed across more European contexts. There is no meaningful advantage to Consul for dyad's use case. Running both would be redundant.</p>
+      <p>If you need one Rails-based civic governance platform: choose Decidim.</p>
+    </div>
+    <div class="dim">
+      <span class="dim-label">What it does have</span>
+      <p>Consul's codebase has strong petition and signature-threshold logic that Decidim's <code>decidim-initiatives</code> module replicates. If you want to study how signature-threshold civic initiatives work in a simpler codebase, Consul is readable. But don't run it as a service.</p>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- architecture -->
+<div class="w">
+<section>
+  <span class="k">Recommendation</span>
+  <h2>The full modular stack.</h2>
+  <p>Rather than forking one monolithic platform, assemble purpose-built tools. Each layer does one thing well. dyad's SvelteKit frontend is the coherent surface that ties them together.</p>
+
+  <div class="pull">
+    <p>A decade of civic technology development, assembled. dyad's job is to make it coherent, local, in-person, and owned by the people using it.</p>
+  </div>
+
+<pre class="arch">
+User submits content
+        ↓
+   LocalMod API          ← automated: toxicity, NSFW, PII, spam (MIT, self-hosted)
+        ↓
+  Human moderators       ← role-based: admin / moderator / member (SAFEskies pattern)
+        ↓
+
+Community wants to deliberate on a contested question
+        ↓
+      Polis              ← large-group opinion mapping, find existing consensus (AGPL)
+        ↓
+
+Community wants to make a formal decision
+        ↓
+     Loomio              ← small/medium groups, consensus-oriented, cooperative (AGPL)
+     Decidim             ← institutional scale, full accountability + proposals (AGPL)
+        ↓
+
+dyad SvelteKit frontend calls all services via API.
+Communities see one coherent product.
+No AT Protocol anywhere.
+</pre>
+
+  <div class="effort">
+    <div class="ef-head">Platform</div>
+    <div class="ef-head">Action</div>
+    <div class="ef-head">Effort</div>
+    <div class="ef-head">Why</div>
+
+    <div class="ef-cell"><strong>LocalMod</strong>MIT · Python</div>
+    <div class="ef-cell">Fork + self-host</div>
+    <div class="ef-cell">Low</div>
+    <div class="ef-cell">Drop-in REST API. Privacy-first automated moderation with no third-party data exposure.</div>
+
+    <div class="ef-cell"><strong>SAFEskies</strong>MIT · Next.js</div>
+    <div class="ef-cell">Borrow pattern</div>
+    <div class="ef-cell">Low</div>
+    <div class="ef-cell">AT Protocol dependency rules out direct fork. Re-implement role model natively in Svelte + Supabase.</div>
+
+    <div class="ef-cell"><strong>Polis</strong>AGPL · JS+Clojure</div>
+    <div class="ef-cell">Fork upstream</div>
+    <div class="ef-cell">Medium</div>
+    <div class="ef-cell">Pre-decision sense-making. Fork upstream only, not Blacksky's AT Protocol fork.</div>
+
+    <div class="ef-cell"><strong>Loomio</strong>AGPL · Rails</div>
+    <div class="ef-cell">Integrate via REST</div>
+    <div class="ef-cell">Medium</div>
+    <div class="ef-cell">Community-scale consensus decisions. Cooperative-owned, values-aligned. Run as a service.</div>
+
+    <div class="ef-cell"><strong>Decidim</strong>AGPL · Rails</div>
+    <div class="ef-cell">Integrate via GraphQL</div>
+    <div class="ef-cell">High</div>
+    <div class="ef-cell">Institutional governance at scale. 28 modules, decade of production use, GraphQL API.</div>
+
+    <div class="ef-cell"><strong>Consul</strong>AGPL · Rails</div>
+    <div class="ef-cell">Skip</div>
+    <div class="ef-cell">—</div>
+    <div class="ef-cell">Fully superseded by Decidim. No unique advantage for dyad's use case.</div>
+  </div>
+</section>
+</div>
+
+<footer>
+  <span class="fmark">dyad.</span>
+  <div class="fr">Internal research · June 2026<br>Not for distribution</div>
+</footer>
+
+</body>
+</html>
