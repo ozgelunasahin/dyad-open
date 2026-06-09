@@ -15,14 +15,6 @@
 </svelte:head>
 
 <div class="page">
-	<header class="header">
-		<a href="/" class="logo-link"><img src="/images/logo.png" alt="dyad." class="logo" /></a>
-		<a href="/newsletter" class="back-link">field notes</a>
-		{#if isAdmin}
-			<a href={postId ? `/admin/newsletter/${postId}` : '/admin/newsletter'} class="edit-link">edit</a>
-		{/if}
-	</header>
-
 	{#if post.cover_image_url}
 		<div class="cover-wrap">
 			<img src={post.cover_image_url} alt={post.title} class="cover" />
@@ -30,6 +22,13 @@
 	{/if}
 
 	<main class="main">
+		<div class="meta-nav">
+			<a href="/newsletter" class="back-link">← field notes</a>
+			{#if isAdmin}
+				<a href={postId ? `/admin/newsletter/${postId}` : '/admin/newsletter'} class="edit-link">edit</a>
+			{/if}
+		</div>
+
 		<article class="article">
 			<div class="article-header">
 				<h1 class="article-title">{post.title}</h1>
@@ -53,27 +52,33 @@
 
 <style>
 	.page {
-		min-height: 100vh;
-		background: var(--bg-canvas);
 		color: var(--text-primary);
 	}
 
-	.header {
+	/* ── Full-bleed cover ─────────────────────────────────────── */
+	.cover-wrap {
+		width: 100%;
+	}
+
+	.cover {
+		width: 100%;
+		height: auto;
+		display: block;
+	}
+
+	/* ── Prose column ─────────────────────────────────────────── */
+	.main {
+		max-width: 680px;
+		margin: 0 auto;
+		padding: 0 var(--space-10) 120px;
+	}
+
+	.meta-nav {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: var(--space-8) var(--space-10);
+		padding: var(--space-6) 0;
 	}
-
-	.logo-link { display: inline-block; }
-
-	.logo {
-		height: 24px;
-		width: auto;
-		display: block;
-		filter: brightness(0) opacity(0.4);
-	}
-	:global([data-theme='dark']) .logo { filter: none; }
 
 	.back-link {
 		font-family: var(--font-mono);
@@ -97,38 +102,11 @@
 	}
 	.edit-link:hover { color: var(--text-primary); }
 
-	/* ── Full-bleed cover ─────────────────────────────────────── */
-	.cover-wrap {
-		width: 100%;
-	}
-
-	.cover {
-		width: 100%;
-		height: auto;
-		display: block;
-	}
-
-	/* ── Prose column ─────────────────────────────────────────── */
-	.main {
-		max-width: 680px;
-		margin: 0 auto;
-		padding: 0 var(--space-10) 120px;
-	}
-
 	.article-header {
 		padding: var(--space-10) 0;
 		border-bottom: 1px solid var(--border-link);
 		margin-bottom: var(--space-10);
 		text-align: center;
-	}
-
-	.article-label {
-		font-family: var(--font-mono);
-		font-size: var(--text-xs);
-		letter-spacing: 0.12em;
-		text-transform: uppercase;
-		color: var(--text-muted);
-		margin: 0 0 var(--space-5);
 	}
 
 	.article-title {
@@ -159,11 +137,6 @@
 	.article-author {
 		font-size: var(--text-sm);
 		color: var(--text-secondary);
-	}
-
-	.byline-sep {
-		color: var(--text-muted);
-		font-size: var(--text-sm);
 	}
 
 	.article-date {
@@ -251,7 +224,6 @@
 	}
 
 	@media (max-width: 600px) {
-		.header { padding: var(--space-6) var(--space-4); }
 		.main { padding: 0 var(--space-4) 80px; }
 	}
 </style>

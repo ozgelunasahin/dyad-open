@@ -9,12 +9,6 @@
 </svelte:head>
 
 <div class="page">
-	<header class="header">
-		<a href="/" class="logo-link"><img src="/images/logo.png" alt="dyad." class="logo" /></a>
-		<h1 class="page-title">field notes</h1>
-		<div class="header-spacer"></div>
-	</header>
-
 	<main class="main">
 		{#if data.posts.length === 0}
 			<p class="empty">No posts published yet.</p>
@@ -49,37 +43,8 @@
 
 <style>
 	.page {
-		min-height: 100vh;
-		background: var(--bg-canvas);
 		color: var(--text-primary);
 	}
-
-	.header {
-		display: grid;
-		grid-template-columns: 1fr auto 1fr;
-		align-items: center;
-		padding: var(--space-6) var(--space-8);
-		border-bottom: 1px solid var(--border-link);
-	}
-
-	.logo-link { display: inline-block; }
-
-	.logo {
-		height: 22px;
-		width: auto;
-		display: block;
-		filter: brightness(0) opacity(0.4);
-	}
-	:global([data-theme='dark']) .logo { filter: none; }
-
-	.page-title {
-		font-size: var(--text-base);
-		font-weight: 400;
-		margin: 0;
-		text-align: center;
-	}
-
-	.header-spacer {}
 
 	.main {
 		padding: var(--space-8);
@@ -162,7 +127,6 @@
 	}
 
 	@media (max-width: 560px) {
-		.header { padding: var(--space-4); }
 		.main { padding: var(--space-4); }
 		.grid { grid-template-columns: 1fr; gap: var(--space-6); }
 		.card-image { aspect-ratio: 4 / 5; }

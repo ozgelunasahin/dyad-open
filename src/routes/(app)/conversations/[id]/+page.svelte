@@ -207,6 +207,25 @@
 		{/if}
 	</div>
 
+	{#if (data as any).mockParticipants}
+		{@const participants = (data as any).mockParticipants as { initial: string; color: string; username: string }[]}
+		<div class="participants-strip">
+			<span class="going-pill">Going</span>
+			<div class="participant-avatars">
+				{#each participants as p, i}
+					<div
+						class="p-avatar"
+						style="background: {p.color}33; color: {p.color}; z-index: {participants.length - i}; left: {i * 22}px;"
+						title="@{p.username}"
+					>{p.initial}</div>
+				{/each}
+			</div>
+			<span class="participant-count" style="margin-left: {participants.length * 22 + 8}px;">
+				{participants.length} {participants.length === 1 ? 'person' : 'people'} going
+			</span>
+		</div>
+	{/if}
+
 	{#if isOwnPrompt && data.prompt.state === 'published'}
 		<ConfirmDialog
 			bind:this={archiveDialog}
@@ -460,6 +479,59 @@
 	.body :global(blockquote) { border-left: 2px solid var(--text-muted); padding-left: var(--space-4); color: var(--text-muted); }
 	.body :global(a) { color: var(--text-link); text-decoration: underline; }
 	.body :global(img) { max-width: 100%; border-radius: var(--radius-input); }
+
+	/* Participant strip */
+	.participants-strip {
+		display: flex;
+		align-items: center;
+		gap: 0;
+		margin-bottom: var(--space-8);
+		padding: var(--space-4) 0;
+		border-top: 1px solid var(--border-link);
+		border-bottom: 1px solid var(--border-link);
+	}
+
+	.going-pill {
+		font-family: var(--font-mono);
+		font-size: 10px;
+		letter-spacing: 0.08em;
+		padding: 4px 12px;
+		border-radius: var(--radius-pill);
+		background: rgba(45, 106, 79, 0.15);
+		color: var(--color-success, #3d9e5a);
+		border: 1px solid rgba(45, 106, 79, 0.25);
+		margin-right: 14px;
+		flex-shrink: 0;
+	}
+
+	.participant-avatars {
+		position: relative;
+		height: 32px;
+		flex-shrink: 0;
+		width: 0; /* collapses — children use absolute positioning */
+	}
+
+	.p-avatar {
+		position: absolute;
+		width: 32px;
+		height: 32px;
+		border-radius: 50%;
+		border: 2px solid var(--bg-canvas);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-family: 'SangBleu Sunrise', Georgia, serif;
+		font-size: 12px;
+		top: 0;
+	}
+
+	.participant-count {
+		position: relative;
+		font-family: var(--font-mono);
+		font-size: 11px;
+		letter-spacing: 0.04em;
+		color: var(--text-muted);
+	}
 
 	.btn-text--danger { color: var(--color-danger); }
 	.btn-text--danger:hover { opacity: var(--opacity-hover-btn); }

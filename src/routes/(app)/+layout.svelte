@@ -46,22 +46,29 @@
 					id: 'gather', label: 'GATHER',
 					items: [
 						{ href: '/discover',   label: 'Conversations', type: 'conversations', badge: null },
-						{ href: '/discover',   label: 'Events',        type: 'events',        badge: null },
+						{ href: '/events',     label: 'Events',        type: 'events',        badge: null },
 					]
 				},
 				{
 					id: 'community', label: 'COMMUNITY',
 					items: [
-						{ href: '#chat',       label: 'Chat',          type: 'chat',          badge: '3' },
+						{ href: '/chat',       label: 'Chat',          type: 'chat',          badge: '3' },
 						{ href: '/newsletter', label: 'Blog',          type: 'blog',          badge: null },
-						{ href: '#members',    label: 'Members',       type: 'members',       badge: null },
+						{ href: '/members',    label: 'Members',       type: 'members',       badge: null },
 					]
 				},
 				{
 					id: 'governance', label: 'GOVERNANCE',
 					items: [
 						{ href: '/assembly',   label: 'Assembly',      type: 'assembly',      badge: 'open' },
-						{ href: '/assembly',   label: 'Proposals',     type: 'poll',          badge: '2' },
+					]
+				},
+				{
+					id: 'safety', label: 'TRUST & SAFETY',
+					items: [
+						{ href: '/trust',      label: 'Moderation log',    type: 'safety',    badge: null },
+						{ href: '/trust',      label: 'Community standards',type: 'safety',    badge: null },
+						{ href: '/trust',      label: 'Report an issue',   type: 'safety',    badge: null },
 					]
 				},
 			] as RoomGroup[]
@@ -78,22 +85,28 @@
 					id: 'gather', label: 'GATHER',
 					items: [
 						{ href: '/discover',   label: 'Conversations', type: 'conversations', badge: null },
-						{ href: '/discover',   label: 'Events',        type: 'events',        badge: '1' },
+						{ href: '/events',     label: 'Events',        type: 'events',        badge: '1' },
 					]
 				},
 				{
 					id: 'community', label: 'COMMUNITY',
 					items: [
-						{ href: '#chat',       label: 'Chat',          type: 'chat',          badge: '7' },
+						{ href: '/chat',       label: 'Chat',          type: 'chat',          badge: '7' },
 						{ href: '/newsletter', label: 'Field Notes',   type: 'blog',          badge: null },
-						{ href: '#members',    label: 'Members',       type: 'members',       badge: null },
+						{ href: '/members',    label: 'Members',       type: 'members',       badge: null },
 					]
 				},
 				{
 					id: 'governance', label: 'GOVERNANCE',
 					items: [
 						{ href: '/assembly',   label: 'Assembly',      type: 'assembly',      badge: null },
-						{ href: '/assembly',   label: 'Polling',       type: 'poll',          badge: null },
+					]
+				},
+				{
+					id: 'safety', label: 'TRUST & SAFETY',
+					items: [
+						{ href: '/assembly',   label: 'Moderation log',    type: 'safety',    badge: null },
+						{ href: '/assembly',   label: 'Community standards',type: 'safety',    badge: null },
 					]
 				},
 			] as RoomGroup[]
@@ -115,14 +128,21 @@
 				{
 					id: 'community', label: 'COMMUNITY',
 					items: [
-						{ href: '#chat',       label: 'Chat',          type: 'chat',          badge: null },
+						{ href: '/chat',       label: 'Chat',          type: 'chat',          badge: null },
 						{ href: '/newsletter', label: 'Updates',       type: 'blog',          badge: null },
 					]
 				},
 				{
 					id: 'governance', label: 'GOVERNANCE',
 					items: [
-						{ href: '/assembly',   label: 'Proposals',     type: 'poll',          badge: '3' },
+						{ href: '/assembly',   label: 'Assembly',      type: 'assembly',      badge: null },
+					]
+				},
+				{
+					id: 'safety', label: 'TRUST & SAFETY',
+					items: [
+						{ href: '/assembly',   label: 'Moderation log',    type: 'safety',    badge: null },
+						{ href: '/assembly',   label: 'Community standards',type: 'safety',    badge: null },
 					]
 				},
 			] as RoomGroup[]
@@ -139,13 +159,13 @@
 					id: 'gather', label: 'GATHER',
 					items: [
 						{ href: '/discover',   label: 'Conversations', type: 'conversations', badge: null },
-						{ href: '/discover',   label: 'Events',        type: 'events',        badge: null },
+						{ href: '/events',     label: 'Events',        type: 'events',        badge: null },
 					]
 				},
 				{
 					id: 'community', label: 'COMMUNITY',
 					items: [
-						{ href: '#chat',       label: 'Chat',          type: 'chat',          badge: '1' },
+						{ href: '/chat',       label: 'Chat',          type: 'chat',          badge: '1' },
 						{ href: '/newsletter', label: 'Reading list',  type: 'blog',          badge: null },
 					]
 				},
@@ -168,7 +188,7 @@
 				{
 					id: 'community', label: 'COMMUNITY',
 					items: [
-						{ href: '#chat',       label: 'Secure chat',   type: 'chat',          badge: null },
+						{ href: '/chat',       label: 'Secure chat',   type: 'chat',          badge: null },
 						{ href: '/newsletter', label: 'Documents',     type: 'blog',          badge: null },
 					]
 				},
@@ -197,7 +217,7 @@
 				{
 					id: 'community', label: 'COMMUNITY',
 					items: [
-						{ href: '#chat',       label: 'Chat',          type: 'chat',          badge: null },
+						{ href: '/chat',       label: 'Chat',          type: 'chat',          badge: null },
 					]
 				},
 			] as RoomGroup[]
@@ -209,6 +229,9 @@
 
 	let activeCommunityId = $state('dyad-berlin');
 	const activeCommunity = $derived(communities.find(c => c.id === activeCommunityId) ?? communities[0]);
+
+	// Mobile community drawer
+	let mobileDrawerOpen = $state(false);
 
 	// Discover / application modal
 	let discoverOpen = $state(false);
@@ -475,6 +498,8 @@
 									<svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3"/><path d="M8 5v3l2 2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
 								{:else if item.type === 'poll'}
 									<svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="2" y="9" width="3" height="5" rx="0.5" stroke="currentColor" stroke-width="1.3"/><rect x="6.5" y="5" width="3" height="9" rx="0.5" stroke="currentColor" stroke-width="1.3"/><rect x="11" y="2" width="3" height="12" rx="0.5" stroke="currentColor" stroke-width="1.3"/></svg>
+								{:else if item.type === 'safety'}
+									<svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 2L2 5v4c0 3.3 2.5 6.1 6 7 3.5-.9 6-3.7 6-7V5L8 2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
 								{/if}
 							</span>
 							<span class="room-label">{item.label}</span>
@@ -508,6 +533,71 @@
 	</main>
 
 </div>
+
+<!-- ── MOBILE COMMUNITY DRAWER ── -->
+{#if mobileDrawerOpen}
+	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+	<div class="mobile-drawer-backdrop" onclick={() => mobileDrawerOpen = false}></div>
+	<div class="mobile-drawer" role="dialog" aria-label="Communities">
+		<div class="mobile-drawer-header">
+			<span class="mobile-drawer-title">Communities</span>
+			<button class="mobile-drawer-close" onclick={() => mobileDrawerOpen = false} aria-label="Close">
+				<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 2l12 12M14 2L2 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+			</button>
+		</div>
+		<div class="mobile-drawer-communities">
+			{#each communities as c}
+				<button
+					class="mobile-community-row"
+					class:mobile-community-row--active={activeCommunityId === c.id}
+					onclick={() => { activeCommunityId = c.id; mobileDrawerOpen = false; }}
+				>
+					<div class="mobile-community-icon" class:mobile-community-icon--private={c.type === 'private'}>
+						{#if c.type === 'private'}
+							<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="3" y="7" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M5 7V5a3 3 0 016 0v2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+						{:else if c.image}
+							<img src={c.image} alt={c.name} />
+						{:else}
+							<span>{c.initial}</span>
+						{/if}
+					</div>
+					<div class="mobile-community-info">
+						<span class="mobile-community-name">{c.name}</span>
+						<span class="mobile-community-type">{c.type}</span>
+					</div>
+				</button>
+			{/each}
+		</div>
+		<div class="mobile-drawer-footer">
+			<button class="mobile-drawer-discover" onclick={() => { mobileDrawerOpen = false; discoverOpen = true; }}>
+				<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.4"/><path d="M10.5 5.5l-2 4-4 2 2-4 4-2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+				Discover more spaces
+			</button>
+		</div>
+	</div>
+{/if}
+
+<!-- ── MOBILE SIDEBAR BACKDROP ── -->
+{#if sidebarExpanded}
+	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+	<div class="mobile-sidebar-backdrop" onclick={toggleSidebar}></div>
+{/if}
+
+<!-- ── MOBILE BOTTOM NAV ── -->
+<nav class="mobile-nav" aria-label="Mobile navigation">
+	<button class="mobile-nav-btn" onclick={toggleSidebar} aria-label="Toggle sidebar">
+		<svg width="20" height="20" viewBox="0 0 16 16" fill="none"><rect x="2" y="4" width="12" height="1.4" rx="0.7" fill="currentColor"/><rect x="2" y="7.3" width="8" height="1.4" rx="0.7" fill="currentColor"/><rect x="2" y="10.6" width="10" height="1.4" rx="0.7" fill="currentColor"/></svg>
+		<span class="mobile-nav-label">Menu</span>
+	</button>
+	<button class="mobile-nav-btn" onclick={() => discoverOpen = true} aria-label="Discover spaces">
+		<svg width="20" height="20" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.4"/><path d="M10.5 5.5l-2 4-4 2 2-4 4-2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+		<span class="mobile-nav-label">Discover</span>
+	</button>
+	<a class="mobile-nav-btn" href="/conversations/new" aria-label="New conversation">
+		<svg width="20" height="20" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.4"/><path d="M8 5v6M5 8h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+		<span class="mobile-nav-label">New</span>
+	</a>
+</nav>
 
 <!-- ── DISCOVER COMMUNITIES MODAL ── -->
 {#if discoverOpen}
@@ -1063,6 +1153,7 @@
 		overflow-y: auto;
 		height: 100vh;
 		background: var(--bg-canvas);
+		position: relative;
 	}
 
 	/* ── Discover modal ── */
@@ -1492,18 +1583,250 @@
 	}
 	.apply-submit:hover { opacity: 0.82; }
 
+	/* ── Mobile bottom nav ── */
+	.mobile-nav {
+		display: none;
+		position: fixed;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		height: 56px;
+		background: var(--bg-canvas);
+		border-top: 1px solid var(--border-link);
+		align-items: center;
+		justify-content: space-around;
+		z-index: 950;
+		padding: 0 32px;
+	}
+
+	.mobile-nav-btn {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 3px;
+		background: none;
+		border: none;
+		cursor: pointer;
+		color: var(--text-muted);
+		text-decoration: none;
+		padding: 4px 16px;
+		transition: color 0.15s;
+	}
+	.mobile-nav-btn:hover { color: var(--text-primary); }
+
+	.mobile-nav-label {
+		font-family: var(--font-mono);
+		font-size: 9px;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+	}
+
+	/* ── Mobile community drawer ── */
+	.mobile-drawer-backdrop {
+		display: none;
+		position: fixed;
+		inset: 0;
+		background: rgba(0,0,0,0.4);
+		z-index: 940;
+	}
+
+	.mobile-drawer {
+		display: none;
+		position: fixed;
+		left: 0;
+		top: 0;
+		bottom: 56px;
+		width: 280px;
+		background: var(--bg-canvas);
+		border-right: 1px solid var(--border-link);
+		z-index: 945;
+		flex-direction: column;
+		overflow: hidden;
+	}
+
+	.mobile-drawer-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 20px 20px 16px;
+		border-bottom: 1px solid var(--border-link);
+	}
+
+	.mobile-drawer-title {
+		font-family: var(--font-mono);
+		font-size: 11px;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: var(--text-muted);
+	}
+
+	.mobile-drawer-close {
+		background: none;
+		border: none;
+		cursor: pointer;
+		color: var(--text-muted);
+		padding: 4px;
+		display: flex;
+		align-items: center;
+	}
+
+	.mobile-drawer-communities {
+		flex: 1;
+		overflow-y: auto;
+		padding: 8px 0;
+	}
+
+	.mobile-community-row {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		width: 100%;
+		padding: 10px 20px;
+		background: none;
+		border: none;
+		cursor: pointer;
+		text-align: left;
+		color: var(--text-secondary);
+		transition: background 0.12s;
+	}
+	.mobile-community-row:hover { background: var(--bg-control); }
+	.mobile-community-row--active { color: var(--text-primary); background: var(--bg-control); }
+
+	.mobile-community-icon {
+		width: 36px;
+		height: 36px;
+		border-radius: 10px;
+		overflow: hidden;
+		flex-shrink: 0;
+		background: var(--bg-control);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 14px;
+	}
+	.mobile-community-icon img { width: 100%; height: 100%; object-fit: cover; }
+	.mobile-community-icon--private { background: var(--bg-control); color: var(--text-muted); }
+
+	.mobile-community-info {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		min-width: 0;
+	}
+
+	.mobile-community-name {
+		font-size: 14px;
+		font-weight: 500;
+		color: inherit;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.mobile-community-type {
+		font-family: var(--font-mono);
+		font-size: 10px;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--text-muted);
+	}
+
+	.mobile-drawer-footer {
+		padding: 12px 20px;
+		border-top: 1px solid var(--border-link);
+	}
+
+	.mobile-drawer-discover {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		background: none;
+		border: none;
+		cursor: pointer;
+		color: var(--text-muted);
+		font-family: var(--font-mono);
+		font-size: 11px;
+		letter-spacing: 0.06em;
+		padding: 0;
+		transition: color 0.15s;
+	}
+	.mobile-drawer-discover:hover { color: var(--text-primary); }
+
+	.mobile-sidebar-backdrop {
+		display: none;
+		position: fixed;
+		inset: 0;
+		bottom: 56px;
+		background: rgba(0,0,0,0.5);
+		z-index: 910;
+	}
+
+	@media (max-width: 900px) {
+		.mobile-drawer-backdrop { display: block; }
+		.mobile-drawer { display: flex; }
+		.mobile-sidebar-backdrop { display: block; }
+	}
+
 	/* ── Mobile: collapse sidebar ── */
 	@media (max-width: 900px) {
-		.app-shell {
+		.app-shell,
+		.app-shell.sidebar-expanded {
 			grid-template-columns: 1fr;
-			grid-template-rows: 1fr auto;
+			grid-template-rows: 1fr;
+			width: 100%;
 		}
 
-		.community-strip { display: none; }
-		.rooms-panel { display: none; }
+		/* Hidden by default — shown as overlay when expanded */
+		.community-strip {
+			display: none;
+			position: fixed;
+			top: 0;
+			left: 0;
+			bottom: 56px;
+			z-index: 920;
+			width: 64px;
+		}
+
+		.rooms-panel {
+			display: none;
+			position: fixed;
+			top: 0;
+			left: 64px;
+			bottom: 56px;
+			z-index: 920;
+			width: 240px;
+			visibility: visible !important;
+			pointer-events: auto !important;
+		}
+
+		/* Backdrop handled by real div — see .mobile-sidebar-backdrop below */
+
+		/* Show both panels when expanded */
+		.app-shell.sidebar-expanded .community-strip {
+			display: flex;
+		}
+
+		.app-shell.sidebar-expanded .rooms-panel {
+			display: flex;
+		}
 
 		.app-main {
 			height: calc(100vh - 56px);
+			width: 100%;
+		}
+
+		.mobile-nav { display: flex; }
+
+		.discover-modal {
+			width: 100%;
+			max-width: 100%;
+			max-height: 92vh;
+			border-radius: var(--radius-card) var(--radius-card) 0 0;
+			margin-top: auto;
+		}
+
+		.modal-backdrop {
+			align-items: flex-end;
 		}
 	}
 </style>

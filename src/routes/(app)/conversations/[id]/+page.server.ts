@@ -4,8 +4,41 @@ import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
 import { SupabaseCommentService } from '$lib/services/comment.js';
 import { SupabaseInvitationService } from '$lib/services/invitation.js';
 import { loadCancellersFor } from '$lib/services/cancellation-query.js';
+import { MOCK_PROMPTS, MOCK_PROMPT_BODIES, MOCK_PARTICIPANTS } from '$lib/data/mock-prompts.js';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
+	// Serve mock conversations without hitting Supabase
+	if (params.id.startsWith('mock-')) {
+		const mock = MOCK_PROMPTS.find(p => p.id === params.id);
+		if (!mock) redirect(302, '/discover');
+		const paragraphs = MOCK_PROMPT_BODIES[params.id] ?? [mock!.body_snippet];
+		const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+		return {
+			prompt: {
+				...mock,
+				state: 'published' as const,
+				body: {
+					type: 'doc',
+					content: paragraphs.map(p => ({
+						type: 'paragraph',
+						content: [{ type: 'text', text: p }]
+					}))
+				},
+				body_html: paragraphs.map(p => `<p>${esc(p)}</p>`).join('\n'),
+			},
+			comments: [],
+			myComment: null,
+			invitedSlotIds: [],
+			myInvitationBySlotId: {},
+			receivedInvitations: [],
+			promptMeetings: [],
+			myMeeting: null,
+			myCancellation: null,
+			user: { id: locals.user!.id },
+			mockParticipants: MOCK_PARTICIPANTS[params.id] ?? null,
+		};
+	}
+
 	const userId = locals.user!.id;
 	const promptService = new SupabasePromptQueryService(locals.supabase);
 	const commentService = new SupabaseCommentService(locals.supabase);
@@ -253,6 +286,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		promptMeetings,
 		myMeeting,
 		myCancellation,
-		user: { id: userId }
+		user: { id: userId },
+		mockParticipants: null,
 	};
 };

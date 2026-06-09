@@ -52,7 +52,7 @@
 		url.searchParams.delete('welcome');
 		window.history.replaceState({}, '', url);
 	}
-	let viewMode = $state<'grid' | 'map'>('grid');
+	let viewMode = $state<'grid' | 'map'>('map');
 	let mapCenter = $state<[number, number] | null>([52.52, 13.405]);
 	let mapZoom = $state<number | null>(12);
 
@@ -226,7 +226,7 @@
 
 	/* ── Map view ── */
 	.map-pane {
-		position: fixed;
+		position: absolute;
 		inset: 0;
 	}
 
