@@ -45,3 +45,24 @@ export function formatSlotTimeRange(iso: string, durationMinutes: number): strin
 	const fmt = (d: Date) => d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 	return `${fmt(start)}–${fmt(end)}`;
 }
+
+/** Short date: "Mon 16 Jun" */
+export function formatShortDate(iso: string): string {
+	return new Date(iso).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+/** Relative past: "2 days ago", "just now", "3 weeks ago" */
+export function formatRelativePast(iso: string): string {
+	const diffMs = Date.now() - new Date(iso).getTime();
+	const diffMins = Math.floor(diffMs / 60_000);
+	if (diffMins < 2) return 'just now';
+	if (diffMins < 60) return `${diffMins} minutes ago`;
+	const diffHours = Math.floor(diffMins / 60);
+	if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+	const diffDays = Math.floor(diffHours / 24);
+	if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
+	const diffWeeks = Math.floor(diffDays / 7);
+	if (diffWeeks < 5) return `${diffWeeks} week${diffWeeks === 1 ? '' : 's'} ago`;
+	const diffMonths = Math.floor(diffDays / 30);
+	return `${diffMonths} month${diffMonths === 1 ? '' : 's'} ago`;
+}

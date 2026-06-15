@@ -441,6 +441,57 @@
 			{/each}
 		</div>
 
+		<!-- Desktop only: group nav (mobile uses community menu sheet via topbar) -->
+		<nav class="rooms-nav rooms-nav--desktop" aria-label="Spaces">
+			{#each activeCommunity.groups as group}
+				{@const groupKey = `${activeCommunity.id}-${group.id}`}
+				{@const collapsed = collapsedGroups[groupKey] ?? true}
+
+				<button
+					class="rooms-group-header"
+					onclick={() => collapsedGroups = { ...collapsedGroups, [groupKey]: !collapsed }}
+					aria-expanded={!collapsed}
+				>
+					<svg width="10" height="10" viewBox="0 0 10 10" fill="none" class="group-chevron" class:group-chevron--collapsed={collapsed}>
+						<path d="M2 4l3 3 3-3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+					</svg>
+					{group.label}
+				</button>
+
+				{#if !collapsed}
+					{#each group.items as item}
+						<a href={item.href} class="room-item" class:room-item--active={isActive(item.href)}>
+							<span class="room-icon" aria-hidden="true">
+								{#if item.type === 'conversations'}
+									<svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 7l6-5 6 5v7a1 1 0 01-1 1H3a1 1 0 01-1-1V7z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+								{:else if item.type === 'events'}
+									<svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="11" rx="1" stroke="currentColor" stroke-width="1.3"/><path d="M5 1v4M11 1v4M2 7h12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+								{:else if item.type === 'chat'}
+									<svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 3a1 1 0 011-1h10a1 1 0 011 1v7a1 1 0 01-1 1H6l-4 3V3z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+								{:else if item.type === 'blog'}
+									<svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="1" stroke="currentColor" stroke-width="1.3"/><path d="M5 5h6M5 8h6M5 11h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+								{:else if item.type === 'members'}
+									<svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="6" cy="5" r="2.5" stroke="currentColor" stroke-width="1.3"/><circle cx="11" cy="5" r="2" stroke="currentColor" stroke-width="1.2"/><path d="M1 14c0-2.8 2.2-5 5-5s5 2.2 5 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M11 10c1.7 0 3 1.3 3 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+								{:else if item.type === 'assembly'}
+									<svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3"/><path d="M8 5v3l2 2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+								{:else if item.type === 'poll'}
+									<svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="2" y="9" width="3" height="5" rx="0.5" stroke="currentColor" stroke-width="1.3"/><rect x="6.5" y="5" width="3" height="9" rx="0.5" stroke="currentColor" stroke-width="1.3"/><rect x="11" y="2" width="3" height="12" rx="0.5" stroke="currentColor" stroke-width="1.3"/></svg>
+								{:else if item.type === 'safety'}
+									<svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 2L2 5v4c0 3.3 2.5 6.1 6 7 3.5-.9 6-3.7 6-7V5L8 2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+								{:else}
+									<svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 7l6-5 6 5v7a1 1 0 01-1 1H3a1 1 0 01-1-1V7z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+								{/if}
+							</span>
+							<span class="room-label">{item.label}</span>
+							{#if item.badge}
+								<span class="room-badge" class:room-badge--text={isNaN(Number(item.badge))}>{item.badge}</span>
+							{/if}
+						</a>
+					{/each}
+				{/if}
+			{/each}
+		</nav>
+
 		<div class="rooms-footer">
 			{#if activeCommunity.type === 'private'}
 				<div class="private-notice">
@@ -453,6 +504,11 @@
 					New conversation
 				</a>
 			{/if}
+
+			<a href="/logout" class="rooms-logout-btn" data-sveltekit-reload>
+				<svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M10 11l4-3-4-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 8H6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M6 3H3a1 1 0 00-1 1v8a1 1 0 001 1h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+				Log out
+			</a>
 		</div>
 	</aside>
 
@@ -1225,6 +1281,11 @@
 		gap: 2px;
 	}
 
+	/* Group nav only shows on desktop — mobile uses the community menu sheet */
+	@media (max-width: 900px) {
+		.rooms-nav--desktop { display: none; }
+	}
+
 	.room-item {
 		display: flex;
 		align-items: center;
@@ -1289,6 +1350,27 @@
 		background: var(--bg-control);
 		color: var(--text-primary);
 		border-style: solid;
+	}
+
+	.rooms-logout-btn {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin-top: 8px;
+		padding: 8px 10px;
+		border-radius: var(--radius-input);
+		text-decoration: none;
+		color: var(--text-muted);
+		font-family: var(--font-mono);
+		font-size: 11px;
+		letter-spacing: 0.04em;
+		transition: background 0.12s, color 0.12s;
+		width: 100%;
+		box-sizing: border-box;
+	}
+	.rooms-logout-btn:hover {
+		background: var(--bg-control);
+		color: var(--text-primary);
 	}
 
 

@@ -84,6 +84,7 @@
 		overflow-y: auto;
 		padding: var(--space-5);
 		padding-bottom: var(--nav-clearance);
+		z-index: 850;
 	}
 
 	.sheet.no-nav {
@@ -95,7 +96,7 @@
 	.sheet-backdrop {
 		position: fixed;
 		inset: 0;
-		z-index: 599;
+		z-index: 849;
 	}
 
 	.sheet-close {

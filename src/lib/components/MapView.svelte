@@ -88,15 +88,27 @@
 			// Escape HTML attributes to prevent XSS from user-controlled URLs/titles
 			const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 			const imgSrc = pin.prompt.cover_image_url;
-			const html = imgSrc
-				? `<img src="${esc(imgSrc)}" alt="" class="marker-img" />`
-				: `<div class="marker-placeholder">${esc((pin.prompt.title ?? '?')[0])}</div>`;
+			const disc = imgSrc
+				? `<img src="${esc(imgSrc)}" alt="" class="poi-img" />`
+				: `<div class="poi-ph">${esc((pin.prompt.title ?? '?')[0])}</div>`;
+			const title = esc(pin.prompt.title ?? 'Untitled');
+			const sub = pin.area ? esc(pin.area) : '';
+
+			// Tactile floating marker: a cover disc lifted off the map (ground
+			// shadow + ring + accent badge) with a label beside it.
+			const html = `
+				<div class="poi-ground"></div>
+				<div class="poi-disc">${disc}<span class="poi-badge"></span></div>
+				<div class="poi-label">
+					<span class="poi-title">${title}</span>
+					${sub ? `<span class="poi-sub">${sub}</span>` : ''}
+				</div>`;
 
 			const icon = L.divIcon({
 				html,
-				className: 'marker-pin',
-				iconSize: [44, 44],
-				iconAnchor: [22, 22]
+				className: 'poi-icon',
+				iconSize: [46, 46],
+				iconAnchor: [23, 23]
 			});
 
 			const marker = L.marker(pin.position, { icon });
@@ -205,42 +217,135 @@
 		height: 100%;
 	}
 
-	:global(.marker-pin) {
+	/* ── Tactile floating POI marker ── */
+	:global(.poi-icon) {
 		background: none !important;
 		border: none !important;
+		overflow: visible !important;
 	}
 
-	:global(.marker-img) {
-		width: 44px !important;
-		height: 44px !important;
+	/* Ground shadow — sells the lift off the map */
+	:global(.poi-ground) {
+		position: absolute;
+		left: 50%;
+		bottom: -7px;
+		width: 30px;
+		height: 9px;
+		transform: translateX(-50%);
+		background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.32) 0%, rgba(0, 0, 0, 0.12) 45%, transparent 72%);
+		filter: blur(1px);
+		pointer-events: none;
+		transition: transform 0.18s ease, opacity 0.18s ease;
+	}
+
+	/* The floating disc */
+	:global(.poi-disc) {
+		position: absolute;
+		inset: 0;
+		width: 46px;
+		height: 46px;
+		border-radius: 50%;
+		background: #fff;
+		padding: 3px;
+		box-sizing: border-box;
+		box-shadow:
+			0 8px 16px rgba(0, 0, 0, 0.26),
+			0 2px 5px rgba(0, 0, 0, 0.22),
+			inset 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+		transition: transform 0.18s cubic-bezier(0.2, 0, 0.2, 1), box-shadow 0.18s ease;
+		will-change: transform;
+	}
+
+	:global(.poi-img) {
+		width: 100%;
+		height: 100%;
 		border-radius: 50%;
 		object-fit: cover;
-		border: 2px solid var(--bg-canvas);
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-		box-sizing: border-box;
 		display: block;
-		aspect-ratio: 1;
+	}
+
+	:global(.poi-ph) {
+		width: 100%;
+		height: 100%;
+		border-radius: 50%;
+		background: #2a2a32;
+		color: #fff;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 18px;
+		font-weight: 500;
+	}
+
+	/* Accent badge dot */
+	:global(.poi-badge) {
+		position: absolute;
+		top: -1px;
+		right: -1px;
+		width: 14px;
+		height: 14px;
+		border-radius: 50%;
+		background: #f5a623;
+		border: 2.5px solid #fff;
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+	}
+
+	/* Label beside the disc */
+	:global(.poi-label) {
+		position: absolute;
+		left: 54px;
+		top: 50%;
+		transform: translateY(-50%);
+		display: flex;
+		flex-direction: column;
+		gap: 1px;
+		max-width: 150px;
+		pointer-events: none;
+	}
+
+	:global(.poi-title) {
+		font-family: var(--font-sans, system-ui, sans-serif);
+		font-size: 13px;
+		font-weight: 600;
+		line-height: 1.2;
+		color: #1a1a1a;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+		text-shadow: 0 1px 2px rgba(255, 255, 255, 0.9), 0 0 4px rgba(255, 255, 255, 0.7);
+	}
+
+	:global(.poi-sub) {
+		font-family: var(--font-sans, system-ui, sans-serif);
+		font-size: 11px;
+		font-style: italic;
+		line-height: 1.2;
+		color: #6b6b73;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		text-shadow: 0 1px 2px rgba(255, 255, 255, 0.9);
+	}
+
+	/* Hover: lift higher, shadow spreads */
+	:global(.poi-icon:hover) { z-index: 1000 !important; }
+	:global(.poi-icon:hover .poi-disc) {
+		transform: translateY(-4px) scale(1.07);
+		box-shadow:
+			0 16px 28px rgba(0, 0, 0, 0.3),
+			0 4px 8px rgba(0, 0, 0, 0.24),
+			inset 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+	}
+	:global(.poi-icon:hover .poi-ground) {
+		transform: translateX(-50%) scale(1.15);
+		opacity: 0.85;
 	}
 
 	:global(.leaflet-control-attribution) {
 		font-size: 9px !important;
 		background: rgba(255, 255, 255, 0.6) !important;
 		padding: 2px 5px !important;
-	}
-
-	:global(.marker-placeholder) {
-		width: 44px;
-		height: 44px;
-		border-radius: 50%;
-		background: var(--text-primary);
-		color: var(--bg-canvas);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: var(--text-xl);
-		font-weight: 500;
-		border: 2px solid var(--bg-canvas);
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-		box-sizing: border-box;
 	}
 </style>
