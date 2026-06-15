@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
 	import type { FeedbackFormState, RevealedFeedback } from '$lib/domain/types';
+	import { capture } from '$lib/analytics';
 	import { copy } from '$lib/copy';
 
 	let { data }: { data: PageData } = $props();
@@ -71,6 +72,7 @@
 				})
 			});
 			if (res.ok) {
+				capture('feedback_submitted');
 				const result = await res.json();
 				if (result.state === 'locked' && result.revealed) {
 					// Both submitted — show reveal immediately
@@ -83,10 +85,10 @@
 				}
 			} else {
 				const err = await res.json().catch(() => ({}));
-				submitError = (err as any).error ?? 'Failed to submit';
+				submitError = (err as any).error ?? copy.common.submitFailed;
 			}
 		} catch {
-			submitError = 'Network error. Please try again.';
+			submitError = copy.common.networkError;
 		} finally {
 			submitting = false;
 		}
@@ -189,14 +191,16 @@
 
 		<div class="actions">
 			<button class="back-btn" onclick={() => userStep = 'met'}>{copy.common.back}</button>
-			<button class="submit-btn" onclick={handleSubmit} disabled={submitting || !shareWithPerson.trim()}>
+			<button class="btn-primary flex-1" onclick={handleSubmit} disabled={submitting || !shareWithPerson.trim()}>
 				{submitting ? copy.feedback.submitting : copy.feedback.submitFeedback}
 			</button>
 		</div>
 	{/if}
 
 	<div class="sign-out-section">
-		<a href="/logout">{copy.nav.signOut}</a>
+		<form method="POST" action="/logout" class="sign-out-form">
+			<button type="submit">{copy.nav.signOut}</button>
+		</form>
 	</div>
 </div>
 
@@ -237,7 +241,10 @@
 		font-size: var(--text-sm);
 		color: var(--text-muted);
 	}
-	.sign-out-section a { color: var(--text-muted); text-decoration: underline; }
+	.sign-out-section a,
+	.sign-out-section button { color: var(--text-muted); text-decoration: underline; }
+	.sign-out-section .sign-out-form { margin: 0; padding: 0; }
+	.sign-out-section button { background: none; border: none; cursor: pointer; font: inherit; }
 
 	.meeting-context { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin: 0; }
 	.page-title { font-size: var(--text-xl); font-weight: 500; margin: 0; }
@@ -304,19 +311,8 @@
 		color: var(--text-muted);
 		cursor: pointer;
 	}
-	.submit-btn {
-		flex: 1;
-		font-size: var(--text-base);
-		padding: var(--space-3) var(--space-6);
-		background: var(--text-primary);
-		color: var(--bg-canvas);
-		border: 1px solid var(--text-primary);
-		border-radius: var(--radius-input);
-		cursor: pointer;
-		transition: opacity 0.15s;
-	}
-	.submit-btn:hover { opacity: var(--opacity-hover-btn); }
-	.submit-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+	/* .btn-primary lives in shared.css; .flex-1 is a local utility for the dialog footer. */
+	.flex-1 { flex: 1; }
 
 	/* Waiting state */
 	.waiting-state { display: flex; flex-direction: column; gap: var(--space-3); }

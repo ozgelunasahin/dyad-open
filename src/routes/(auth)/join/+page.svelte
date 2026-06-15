@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import type { ActionData, PageData } from './$types';
+	import { copy } from '$lib/copy';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	let loading = $state(false);
@@ -10,21 +11,121 @@
 </script>
 
 <svelte:head>
-	<title>Join dyad. - cultivating a culture of conversation</title>
+	<title>{copy.auth.joinPageTitle}</title>
 </svelte:head>
 
 <div class="auth-card">
 	{#if form?.success}
-		<h1>Welcome to dyad.</h1>
+		<h1>{copy.auth.welcomeToDyad}</h1>
 		<p class="subtitle">{form.message}</p>
-		<a href="/login" class="submit-btn cta-link">Sign in</a>
+		<a href="/login" class="submit-btn cta-link">{copy.auth.signIn}</a>
+	{:else if data.kind === 'group-authed'}
+		<h1>{copy.auth.groupAlreadyMember}</h1>
+		<p class="subtitle">{copy.auth.groupAlreadyMemberSubtitle}</p>
+		<a href="/discover" class="submit-btn cta-link">{copy.auth.groupGoToDiscover}</a>
+	{:else if data.kind === 'group' && data.state !== 'open'}
+		{#if data.state === 'full'}
+			<h1>{copy.auth.groupLinkFull}</h1>
+			<p class="subtitle">{copy.auth.groupLinkFullSubtitle}</p>
+		{:else if data.state === 'closed'}
+			<h1>{copy.auth.groupLinkClosed}</h1>
+			<p class="subtitle">{copy.auth.groupLinkClosedSubtitle}</p>
+		{:else if data.state === 'revoked'}
+			<h1>{copy.auth.groupLinkRevoked}</h1>
+			<p class="subtitle">{copy.auth.groupLinkRevokedSubtitle}</p>
+		{:else}
+			<h1>{copy.auth.groupLinkUnknown}</h1>
+			<p class="subtitle">{copy.auth.groupLinkUnknownSubtitle}</p>
+		{/if}
+		<a href="/" class="back-link">{copy.auth.backToHome}</a>
+	{:else if data.kind === 'group'}
+		<h1>{copy.auth.groupJoinTitle.replace('{name}', data.scopeName ?? 'dyad')}</h1>
+		<p class="subtitle">{copy.auth.groupJoinSubtitle}</p>
+
+		{#if form?.error}
+			<div class="error-message">{form.error}</div>
+		{/if}
+
+		<form
+			method="POST"
+			action="?/groupJoin"
+			use:enhance={() => {
+				loading = true;
+				return async ({ result, update }) => {
+					loading = false;
+					if (result.type === 'success') {
+						await update({ reset: false });
+					} else {
+						await update();
+					}
+				};
+			}}
+		>
+			<input type="hidden" name="glink" value={data.glink} />
+
+			<div class="form-group">
+				<label for="email" class="sr-only">{copy.auth.email}</label>
+				<input
+					type="email"
+					id="email"
+					name="email"
+					required
+					autocomplete="email"
+					placeholder={copy.auth.emailPlaceholder}
+					disabled={loading}
+				/>
+			</div>
+
+			<div class="form-group">
+				<label for="username" class="sr-only">{copy.auth.usernamePlaceholder}</label>
+				<input
+					type="text"
+					id="username"
+					name="username"
+					bind:value={username}
+					required
+					autocomplete="username"
+					placeholder={copy.auth.usernamePlaceholder}
+					disabled={loading}
+					minlength={3}
+					maxlength={30}
+					pattern="[a-z0-9_\-]+"
+					title={copy.auth.usernameTitle}
+				/>
+				<p class="hint">{copy.auth.usernameHintLong}<strong>@username</strong></p>
+			</div>
+
+			<div class="form-group">
+				<label for="password" class="sr-only">{copy.auth.password}</label>
+				<input
+					type="password"
+					id="password"
+					name="password"
+					bind:value={password}
+					required
+					autocomplete="new-password"
+					placeholder={copy.auth.passwordWithMinPlaceholder}
+					disabled={loading}
+					minlength={8}
+				/>
+			</div>
+
+			<button type="submit" class="btn-primary btn-primary--block" disabled={loading}>
+				{loading ? copy.auth.creatingAccount : copy.auth.createAccount}
+			</button>
+		</form>
+
+		<p class="switch-auth">
+			{copy.auth.alreadyHaveAccount}
+			<a href="/login" class="link-btn">{copy.auth.signIn}</a>
+		</p>
 	{:else if !data.valid}
-		<h1>Invitation expired</h1>
-		<p class="subtitle">This invitation link is no longer valid. It may have expired or already been used.</p>
-		<a href="/" class="back-link">Back to home</a>
+		<h1>{copy.auth.invitationExpired}</h1>
+		<p class="subtitle">{copy.auth.invitationExpiredSubtitle}</p>
+		<a href="/" class="back-link">{copy.auth.backToHome}</a>
 	{:else}
-		<h1>You're invited</h1>
-		<p class="subtitle">Create your account to join the conversation.</p>
+		<h1>{copy.auth.youreInvited}</h1>
+		<p class="subtitle">{copy.auth.createAccountSubtitle}</p>
 
 		{#if form?.error}
 			<div class="error-message">{form.error}</div>
@@ -48,7 +149,7 @@
 			<input type="hidden" name="token" value={data.token} />
 
 			<div class="form-group">
-				<label for="email">Email</label>
+				<label for="email" class="sr-only">{copy.auth.email}</label>
 				<input
 					type="email"
 					id="email"
@@ -56,11 +157,12 @@
 					value={data.email}
 					readonly
 					autocomplete="email"
+					placeholder={copy.auth.emailPlaceholder}
 				/>
 			</div>
 
 			<div class="form-group">
-				<label for="username">Username</label>
+				<label for="username" class="sr-only">{copy.auth.usernamePlaceholder}</label>
 				<input
 					type="text"
 					id="username"
@@ -68,17 +170,18 @@
 					bind:value={username}
 					required
 					autocomplete="username"
+					placeholder={copy.auth.usernamePlaceholder}
 					disabled={loading}
 					minlength={3}
 					maxlength={30}
 					pattern="[a-z0-9_\-]+"
-					title="Lowercase letters, numbers, underscores, and hyphens only"
+					title={copy.auth.usernameTitle}
 				/>
-				<p class="hint">This will be your public URL: dyad.berlin/<strong>@username</strong></p>
+				<p class="hint">{copy.auth.usernameHintLong}<strong>@username</strong></p>
 			</div>
 
 			<div class="form-group">
-				<label for="password">Password</label>
+				<label for="password" class="sr-only">{copy.auth.password}</label>
 				<input
 					type="password"
 					id="password"
@@ -86,10 +189,10 @@
 					bind:value={password}
 					required
 					autocomplete="new-password"
+					placeholder={copy.auth.passwordWithMinPlaceholder}
 					disabled={loading}
 					minlength={8}
 				/>
-				<p class="hint">At least 8 characters</p>
 			</div>
 
 			<div class="form-group checkbox-group">
@@ -100,18 +203,18 @@
 						checked
 						disabled={loading}
 					/>
-					<span>I'm based in Berlin</span>
+					<span>{copy.auth.berlinBased}</span>
 				</label>
 			</div>
 
-			<button type="submit" class="submit-btn" disabled={loading}>
-				{loading ? 'Creating account...' : 'Create account'}
+			<button type="submit" class="btn-primary btn-primary--block" disabled={loading}>
+				{loading ? copy.auth.creatingAccount : copy.auth.createAccount}
 			</button>
 		</form>
 
 		<p class="switch-auth">
-			Already have an account?
-			<a href="/login" class="link-btn">Sign in</a>
+			{copy.auth.alreadyHaveAccount}
+			<a href="/login" class="link-btn">{copy.auth.signIn}</a>
 		</p>
 	{/if}
 </div>
@@ -207,28 +310,7 @@
 		cursor: pointer;
 	}
 
-	.submit-btn {
-		width: 100%;
-		padding: var(--space-3);
-		background: var(--text-primary);
-		color: var(--bg-canvas);
-		border: none;
-		border-radius: var(--radius-input);
-		font-size: var(--text-lg);
-		font-family: inherit;
-		cursor: pointer;
-		transition: opacity 0.2s;
-		margin-top: var(--space-2);
-	}
-
-	.submit-btn:hover:not(:disabled) {
-		opacity: var(--opacity-hover-btn);
-	}
-
-	.submit-btn:disabled {
-		opacity: var(--opacity-disabled);
-		cursor: not-allowed;
-	}
+	/* .btn-primary / .btn-primary--block live in shared.css */
 
 	.cta-link {
 		display: inline-block;

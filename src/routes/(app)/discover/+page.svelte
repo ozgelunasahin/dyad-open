@@ -7,26 +7,35 @@
 	import BottomSheet from '$lib/components/BottomSheet.svelte';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
 	import SearchOverlay from '$lib/components/SearchOverlay.svelte';
-	import PromptListItem from '$lib/components/PromptListItem.svelte';
+	import ConversationCard from '$lib/components/ConversationCard.svelte';
+
+	function slotDates(slots: { start_time: string }[]): string {
+		const dates = new Set<string>();
+		for (const s of slots) {
+			const d = new Date(s.start_time);
+			dates.add(d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' }));
+		}
+		return [...dates].join(' · ');
+	}
+
+	function uniqueAreas(slots: { general_area: string }[]): string {
+		return slots
+			.map((s) => s.general_area)
+			.filter((v, i, a) => a.indexOf(v) === i)
+			.join(', ');
+	}
 	import OnboardingModal from '$lib/components/OnboardingModal.svelte';
 	import { getWeekDates } from '$lib/utils/dates';
 	import type { Snapshot } from './$types';
 	import { copy } from '$lib/copy';
-	import { capture } from '$lib/analytics';
 
 	let { data }: { data: PageData } = $props();
 
 	const ONBOARDING_KEY = 'dyad_onboarding_done';
 	const isWelcome = browser && new URLSearchParams(window.location.search).get('welcome') === '1';
-	let showOnboarding = $state(isWelcome && !localStorage.getItem(ONBOARDING_KEY));
-
-	if (isWelcome && !localStorage.getItem(ONBOARDING_KEY)) {
-		// Read referral cookie for attribution
-		const dyadRef = browser
-			? document.cookie.split('; ').find(r => r.startsWith('dyad_ref='))?.split('=')[1]
-			: undefined;
-		capture('user_signed_up', { referred_by: dyadRef || null });
-	}
+	// Guests (corner-exclusive members) skip the commons onboarding — its
+	// framing is written for the Berlin commons, not a conference corner.
+	let showOnboarding = $state(isWelcome && !data.isGuest && !localStorage.getItem(ONBOARDING_KEY));
 
 	function finishOnboarding() {
 		if (browser) localStorage.setItem(ONBOARDING_KEY, '1');
@@ -45,17 +54,14 @@
 		restore: (value) => { mapCenter = value.center; mapZoom = value.zoom; }
 	};
 	let searchOpen = $state(false);
-	let selectedPinPrompts = $state<PromptSummary[]>([]);
-	let selectedPinArea = $state('');
+	let selectedPinItems = $state<Array<{ prompt: PromptSummary; slots: TimeSlot[] }>>([]);
 
-	function handlePinSelect(prompts: PromptSummary[], area: string) {
-		selectedPinPrompts = prompts;
-		selectedPinArea = area;
+	function handlePinSelect(items: Array<{ prompt: PromptSummary; slots: TimeSlot[] }>, _area: string) {
+		selectedPinItems = items;
 	}
 
 	function closeSheet() {
-		selectedPinPrompts = [];
-		selectedPinArea = '';
+		selectedPinItems = [];
 	}
 
 	const weekDates = getWeekDates();
@@ -99,6 +105,16 @@
 		);
 	});
 
+	// Slot-level predicate for the map: a Wednesday-only filter should drop the
+	// Tuesday-Mitte pin even on conversations that have a Wednesday slot
+	// elsewhere. `filteredPrompts` already narrows the conversation list; this
+	// narrows the pin set within each conversation.
+	let mapSlotFilter = $derived(
+		hasFilters
+			? (slot: TimeSlot) => slotMatchesDate(slot, selectedDates) && slotMatchesArea(slot, selectedAreas)
+			: undefined
+	);
+
 	function toggleDate(date: string) {
 		const next = new Set(selectedDates);
 		if (next.has(date)) next.delete(date);
@@ -110,6 +126,17 @@
 		selectedDates = new Set();
 		selectedAreas = new Set();
 	}
+
+	// Reset the BottomSheet selection whenever the filter state changes — otherwise
+	// the sheet keeps displaying conversations that are no longer on the filtered
+	// map. Per-slot pins make this gap more visible because clicks pull more items
+	// into the sheet. Reading the Sets directly tracks identity reassignment
+	// (toggleDate/clearFilters create new Set instances each time).
+	$effect(() => {
+		if (selectedDates && selectedAreas) {
+			selectedPinItems = [];
+		}
+	});
 
 	/** Format slot dates for display, e.g. "Fri 28 · Sat 29" */
 	/** Format a single slot's time, e.g. "7:30 PM" */
@@ -131,15 +158,16 @@
 	<div class="map-pane">
 		<MapView
 			prompts={filteredPrompts}
+			slotFilter={mapSlotFilter}
 			onSelectPin={handlePinSelect}
 			onMapClick={closeSheet}
-			initialCenter={mapCenter}
+			initialCenter={mapCenter ?? data.mapCenter}
 			initialZoom={mapZoom}
 			onMoveEnd={(c, z) => { mapCenter = c; mapZoom = z; }}
 		/>
 	</div>
-	{#if selectedPinPrompts.length > 0}
-		<BottomSheet prompts={selectedPinPrompts} />
+	{#if selectedPinItems.length > 0}
+		<BottomSheet items={selectedPinItems} />
 	{/if}
 {:else}
 <div class="content">
@@ -147,7 +175,7 @@
 				<div class="empty-state">
 					<p>{copy.discover.noConversations}</p>
 					<p class="empty-hint">{copy.discover.checkBackSoon}</p>
-					<a href="/conversations/new" class="start-prompt-btn" style="margin-top: var(--space-4); display: inline-block;">{copy.discover.startConversation}</a>
+					<a href="/conversations/new" class="btn-primary btn-primary--sm" style="margin-top: var(--space-4); display: inline-block; text-decoration: none;">{copy.discover.startConversation}</a>
 				</div>
 			{:else if filteredPrompts.length === 0}
 					<div class="empty-state">
@@ -157,7 +185,15 @@
 				{:else}
 					<div class="prompt-list">
 						{#each filteredPrompts as prompt}
-							<PromptListItem {prompt} href="/conversations/{prompt.id}" />
+							<ConversationCard
+								title={prompt.title ?? 'Untitled'}
+								coverUrl={prompt.cover_image_url}
+								snippet={prompt.body_snippet}
+								metaLeft={slotDates(prompt.available_slots)}
+								metaRight={uniqueAreas(prompt.available_slots)}
+								href={`/conversations/${prompt.id}`}
+								audienceScopeName={prompt.audience_scope_name}
+							/>
 						{/each}
 					</div>
 				{/if}
@@ -241,18 +277,5 @@
 		margin-bottom: 3rem;
 	}
 
-	.start-prompt-btn {
-				font-size: var(--text-sm);
-		padding: var(--space-2) var(--space-5);
-		border: 1px solid var(--text-primary);
-		border-radius: var(--radius-input);
-		background: var(--text-primary);
-		color: var(--bg-canvas);
-		text-decoration: none;
-		transition: opacity 0.15s;
-	}
-
-	.start-prompt-btn:hover { opacity: var(--opacity-hover-btn); }
-
-	/* Prompt list item styles are in PromptListItem.svelte */
+	/* .btn-primary / .btn-primary--sm live in shared.css; see ConversationCard.svelte for list items. */
 </style>

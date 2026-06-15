@@ -353,4 +353,13 @@
 	}
 
 	a.link-btn { text-decoration: underline; }
+
+	@media (max-width: 640px) {
+		.auth-dialog {
+			width: calc(100% - 32px);
+			margin: auto 16px;
+			max-height: calc(100svh - 48px);
+			overflow-y: auto;
+		}
+	}
 </style>

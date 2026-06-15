@@ -1,0 +1,24 @@
+-- Admin identity: out-of-port channel decision
+--
+-- Decision: admin identity is NOT modelled as a column on profiles (or any
+-- application-owned table). Admin is an operator role, not a user attribute.
+-- It sits above the upact port, not inside it.
+--
+-- The upact privacy minima protect users from the application. Admins are
+-- operators of the application — they need to see things users cannot, and
+-- the substrate-native capability mechanism (Supabase app_metadata.role,
+-- or OIDC group claims after a provider swap) is the correct channel for
+-- this. That channel is explicitly out-of-port.
+--
+-- For the Supabase phase: admin is signalled by app_metadata.role = 'admin'
+-- (JWT claim, set via Admin API, immutable from the client side).
+-- To grant admin: UPDATE auth.users SET raw_app_meta_data =
+--   raw_app_meta_data || '{"role": "admin"}'::jsonb WHERE email = '<email>';
+--
+-- After a provider swap: replace the app_metadata check in hooks.server.ts
+-- with the equivalent substrate-native claim (e.g., OIDC group membership).
+-- The admin panel RLS policies in 20260408_admin_panel.sql will also need
+-- to be updated at that time — but only at that time.
+--
+-- This migration is intentionally empty. It exists to record this decision
+-- in the migration history at the point where the alternative was considered.

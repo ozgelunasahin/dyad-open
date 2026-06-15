@@ -85,6 +85,7 @@
 <div class="floating-nav-anchor" class:top={position === 'top'} class:bottom={position === 'bottom'} class:wide={variant === 'discover'}>
 	<nav class="floating-nav" class:default-variant={variant === 'default'} aria-label="Navigation">
 	{#if variant === 'discover'}
+		<!-- Map / list toggle -->
 		<button
 			class="nav-btn"
 			class:active-icon={active === 'map'}
@@ -103,6 +104,14 @@
 			{/if}
 		</button>
 
+		<!-- Plus — center, prominent -->
+		<a href="/conversations/new" class="plus-btn" aria-label="Start a conversation">
+			<svg width="22" height="22" viewBox="0 0 20 20" fill="none">
+				<path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+			</svg>
+		</a>
+
+		<!-- Calendar filter -->
 		{#if showDateFilter}
 			<button
 				class="nav-btn"
@@ -117,29 +126,6 @@
 				</svg>
 			</button>
 		{/if}
-
-		<!-- Plus — center, prominent -->
-		<a href="/conversations/new" class="plus-btn" aria-label="Start a conversation">
-			<svg width="22" height="22" viewBox="0 0 20 20" fill="none">
-				<path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-			</svg>
-		</a>
-
-		<!-- Search icon -->
-		<button class="nav-btn" aria-label="Search" onclick={onSearchClick}>
-			<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-				<circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.6"/>
-				<path d="M14 14l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-			</svg>
-		</button>
-
-		<a href="/profile" class="nav-btn" aria-label="Profile">
-			<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-				<circle cx="10" cy="7" r="3.5" stroke="currentColor" stroke-width="1.6"/>
-				<path d="M3 18c0-3.3 3.1-6 7-6s7 2.7 7 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-			</svg>
-			{#if attentionCount > 0}<span class="badge-dot"><span class="sr-only">{attentionCount} notifications</span></span>{/if}
-		</a>
 	{:else if variant === 'default'}
 		<!-- Default variant: Discover [editor controls?] Profile -->
 		<a href="/discover" class="nav-btn" aria-label="Discover map">

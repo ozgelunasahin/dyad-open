@@ -1,5 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { FeedbackForm, FeedbackFormState, RevealedFeedback } from '$lib/domain/types.js';
+import type {
+	FeedbackForm,
+	FeedbackFormState,
+	RevealedFeedback,
+	GroupFeedback,
+	GroupFeedbackState
+} from '$lib/domain/types.js';
 
 export interface FeedbackInput {
 	did_meet: boolean;
@@ -11,12 +17,20 @@ export interface FeedbackInput {
 	platform_comments?: string;
 }
 
+export interface GroupFeedbackInput {
+	meet_again: boolean;
+	comment?: string;
+	personal_feedback?: string;
+}
+
 export interface FeedbackService {
 	getMyForm(meetingId: string, userId: string): Promise<FeedbackForm | null>;
 	getFormById(formId: string, userId: string): Promise<FeedbackForm | null>;
 	submit(formId: string, data: FeedbackInput): Promise<FeedbackFormState>;
 	getRevealedFeedback(meetingId: string, userId: string): Promise<RevealedFeedback[]>;
 	getVocabulary(): Promise<string[]>;
+	getGroupFormById(formId: string, userId: string): Promise<GroupFeedback | null>;
+	submitGroupFeedback(formId: string, data: GroupFeedbackInput): Promise<GroupFeedbackState>;
 }
 
 export class SupabaseFeedbackService implements FeedbackService {
@@ -85,5 +99,31 @@ export class SupabaseFeedbackService implements FeedbackService {
 
 		if (error) throw new Error(`Failed to load vocabulary: ${error.message}`);
 		return (data ?? []).map((d) => d.word);
+	}
+
+	// ── Group feedback (R5 / U11) ──────────────────────────────────────────
+
+	async getGroupFormById(formId: string, userId: string): Promise<GroupFeedback | null> {
+		const { data, error } = await this.supabase
+			.from('group_feedback')
+			.select('id, prompt_id, slot_id, reviewer_id, meet_again, comment, personal_feedback, state, submitted_at, created_at')
+			.eq('id', formId)
+			.eq('reviewer_id', userId)
+			.maybeSingle();
+
+		if (error) throw new Error(`Failed to load group feedback form: ${error.message}`);
+		return data as GroupFeedback | null;
+	}
+
+	async submitGroupFeedback(formId: string, data: GroupFeedbackInput): Promise<GroupFeedbackState> {
+		const { data: result, error } = await this.supabase.rpc('submit_group_feedback', {
+			p_form_id: formId,
+			p_meet_again: data.meet_again,
+			p_comment: data.comment ?? null,
+			p_personal_feedback: data.personal_feedback ?? null
+		});
+
+		if (error) throw new Error(`Failed to submit group feedback: ${error.message}`);
+		return result as GroupFeedbackState;
 	}
 }

@@ -41,6 +41,8 @@
 		"vitest": "^4.0.17"
 	},
 	"dependencies": {
+		"@prefig/upact": "^0.1.1",
+		"@prefig/upact-supabase": "^0.1.0",
 		"@supabase/ssr": "^0.8.0",
 		"@supabase/supabase-js": "^2.90.1",
 		"@sveltejs/adapter-cloudflare": "^7.2.5",
@@ -54,6 +56,7 @@
 		"@types/leaflet": "^1.9.21",
 		"@vite-pwa/sveltekit": "^1.1.0",
 		"isomorphic-dompurify": "^2.35.0",
+		"jose": "^6.2.3",
 		"leaflet": "^1.9.4",
 		"nanoid": "^5.1.6",
 		"posthog-js": "^1.364.4"

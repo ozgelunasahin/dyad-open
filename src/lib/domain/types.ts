@@ -1,7 +1,20 @@
 import type { JSONContent } from '@tiptap/core';
 
+// Default email-notification preference when a member has no explicit value.
+// Mirrors the per-event `profiles.email_*` column defaults (TRUE; see
+// migration 20260604090000) and is the single source for the
+// nullish-coalescing fallback at every read site that may encounter a
+// missing/null row.
+export const EMAIL_NOTIFICATIONS_DEFAULT = true;
+
 // Prompt states
-export type PromptState = 'draft' | 'published' | 'archived';
+export type PromptState = 'draft' | 'published';
+
+// Per-conversation capacity bounds (max joiners per slot; mirrors the DB CHECK
+// in 20260529100000_add_capacity_to_prompts.sql). 1 = one-on-one; up to 7
+// others = 8 people total including the author. null stays legacy unlimited.
+export const MIN_CAPACITY = 1;
+export const MAX_CAPACITY = 7;
 
 // Location reference stored in time_slots.exact_location JSONB
 export interface LocationRef {
@@ -23,7 +36,11 @@ export interface Prompt {
 	state: PromptState;
 	region: string;
 	published_at: string | null;
-	archived_at: string | null;
+	hidden_at: string | null;
+	audience_scope: string | null;
+	// Max joiners per slot. null = legacy unlimited; 1 = one-on-one; 2-7 = group
+	// (up to 8 total incl. author). Set at first publish, immutable thereafter.
+	capacity: number | null;
 	created_at: string;
 	updated_at: string;
 }
@@ -37,8 +54,15 @@ export interface TimeSlot {
 	general_area_lat: number | null;
 	general_area_lng: number | null;
 	accepted: boolean;
+	/** Set when the author withdrew this time (whole-gathering cancel) —
+	 *  terminal; retired slots are never offered or invitable. */
+	retired_at?: string | null;
 	created_at: string;
-	// exact_location intentionally omitted from public type
+	// exact_location is omitted from non-author surfaces (public view masks it).
+	// Present (or null) only when the loader fetched via get_my_prompt_slots
+	// (author path); the RPC returns full time_slots rows where the column
+	// can be null.
+	exact_location?: LocationRef | null;
 }
 
 export interface TimeSlotWithLocation extends TimeSlot {
@@ -50,6 +74,11 @@ export interface TimeSlotInput {
 	duration_minutes: number;
 	location: LocationRef;
 }
+
+// Slot submitted from the publish sheet back to the editor for diff
+// computation. dbId is set when the draft was hydrated from an existing
+// time_slots row; absent when the draft is freshly added in the sheet.
+export type SubmitSlot = TimeSlotInput & { dbId?: string };
 
 // Discover feed types
 
@@ -65,10 +94,17 @@ export interface PromptSummary {
 	soonest_slot: string | null; // ISO 8601 of earliest available slot
 	published_at: string;
 	region: string;
+	audience_scope: string | null;
+	audience_scope_name: string | null;
+	// Max joiners per slot (mirrors Prompt.capacity). null = legacy unlimited
+	// or a surface that does not derive capacity (anon landing teaser sets
+	// null); 1 = one-on-one; 2-7 = small group (up to 8 total incl. author).
+	// Required so every construction site is forced to make the choice explicit.
+	capacity: number | null;
 }
 
 export interface PromptDetail extends PromptSummary {
-	state: 'draft' | 'published' | 'archived';
+	state: PromptState;
 	body: JSONContent;
 	body_html: string; // server-rendered TipTap HTML (sanitized)
 }
@@ -176,10 +212,33 @@ export interface RevealedFeedback {
 	locked_at: string;
 }
 
-export interface GateStatus {
-	gated: boolean;
-	feedbackFormId: string | null;
+// Group feedback (R5 / U11): one group-level form per participant per group
+// gathering (a slot with >= 2 active meetings). Distinct from the per-pair
+// FeedbackForm used by one-on-one meetings.
+
+export type GroupFeedbackState = 'due' | 'submitted';
+
+export interface GroupFeedback {
+	id: string;
+	prompt_id: string;
+	slot_id: string;
+	reviewer_id: string;
+	meet_again: boolean | null;
+	comment: string | null;
+	personal_feedback: string | null;
+	state: GroupFeedbackState;
+	submitted_at: string | null;
+	created_at: string;
 }
+
+// Discriminated union so invalid states (both form IDs set) are unrepresentable.
+// `kind` distinguishes the one-on-one feedback_forms gate (reveal-capable modal)
+// from the group_feedback gate (standalone redirect page). Mutually exclusive by
+// construction.
+export type GateStatus =
+	| { gated: false }
+	| { gated: true; kind: 'one_on_one'; formId: string }
+	| { gated: true; kind: 'group'; formId: string };
 
 export interface ReputationSignal {
 	id: string;

@@ -1,24 +1,50 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
+	import { goto, invalidateAll } from '$app/navigation';
 	import SlotCard from '$lib/components/SlotCard.svelte';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
-	import { copy } from '$lib/copy';
+	import PublishSheet from '$lib/components/PublishSheet.svelte';
+	import type { SubmitSlot } from '$lib/domain/types';
 	import { capture } from '$lib/analytics';
+	import { copy } from '$lib/copy';
+	import GatheringCard from '$lib/components/GatheringCard.svelte';
+	import UserHandle from '$lib/components/UserHandle.svelte';
+	import { formatShortDate as formatDate } from '$lib/utils/dates.js';
+	import { buildResponseRows, ACTIVE_MEETING_STATES } from '$lib/domain/response-rows.js';
+
+	import { isSlotFull } from '$lib/domain/time-slot.js';
+	import { othersBeyond } from '$lib/domain/gathering.js';
 
 	let { data }: { data: PageData } = $props();
 
-	onMount(() => {
-		capture('conversation_viewed', { prompt_id: data.prompt.id });
-
-		// Track when an invitee loads the page with a pending invite waiting for them
-		const viewerIsAuthor = data.prompt.author_id === data.user?.id;
-		if (!viewerIsAuthor && data.invitedSlotIds.length > 0) {
-			capture('meeting_invite_received', { prompt_id: data.prompt.id });
-		}
+	// Conversation size label shown near the times. capacity is the per-slot
+	// joiner cap: 1 = one-on-one, ≥2 = small group (up to N others), null = no
+	// label (legacy unlimited).
+	let sizeLabel = $derived.by(() => {
+		const cap = data.prompt.capacity;
+		if (cap === null || cap === undefined) return null;
+		if (cap === 1) return copy.conversation.sizeOneOnOne;
+		return copy.conversation.sizeGroup(cap);
 	});
+
+	// Per-slot occupancy (confirmed joiners), from the viewer-safe RPC.
+	function occupiedOn(slotId: string): number {
+		return data.slotOccupancy?.[slotId] ?? 0;
+	}
+	// Capacity-aware fullness for a slot.
+	function slotIsFull(slotId: string): boolean {
+		return isSlotFull(occupiedOn(slotId), data.prompt.capacity);
+	}
+	// "+N others joining" marker count. Occupancy counts every confirmed joiner
+	// on the slot, INCLUDING the viewer when they hold a seat. The marker is
+	// about OTHERS, so subtract the viewer's own seat on the slot they joined.
+	// A responder inviting to a slot they have not joined sees the raw count.
+	function othersOn(slotId: string): number {
+		const occupied = occupiedOn(slotId);
+		const viewerHasSeatHere = data.myMeeting?.slot_id === slotId;
+		return viewerHasSeatHere ? Math.max(0, occupied - 1) : occupied;
+	}
 
 	// svelte-ignore state_referenced_locally — intentional initial-value capture for editable field
 	let responseText = $state(data.myComment?.body ?? '');
@@ -33,6 +59,8 @@
 	let inviteError = $state('');
 	// svelte-ignore state_referenced_locally — intentional initial-value capture for local tracking
 	let invitedSlotIds = $state(new Set(data.invitedSlotIds ?? []));
+	// svelte-ignore state_referenced_locally
+	let invitationBySlotId = $state<Record<string, string>>({ ...(data.myInvitationBySlotId ?? {}) });
 
 	let selectedSlot = $derived(data.prompt.available_slots.find(s => s.id === selectedSlotId));
 
@@ -40,9 +68,11 @@
 	let acceptingId = $state<string | null>(null);
 	let acceptError = $state('');
 
-	function formatDate(iso: string): string {
-		return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-	}
+	// Author: decline invitation (with optional message)
+	let decliningId = $state<string | null>(null);
+	let declineError = $state('');
+	let openDeclineId = $state<string | null>(null);
+	let declineMessage = $state('');
 
 	async function submitResponse() {
 		if (!responseText.trim()) return;
@@ -55,15 +85,15 @@
 				body: JSON.stringify({ body: responseText.trim() })
 			});
 			if (res.ok) {
+				capture('response_sent');
 				responseStatus = 'sent';
-				capture('conversation_responded', { prompt_id: data.prompt.id });
 			} else {
 				const err = await res.json().catch(() => ({}));
-				responseError = (err as any).error ?? 'Failed to send';
+				responseError = (err as any).error ?? copy.common.sendFailed;
 				responseStatus = 'error';
 			}
 		} catch {
-			responseError = 'Network error';
+			responseError = copy.common.networkError;
 			responseStatus = 'error';
 		}
 	}
@@ -79,97 +109,231 @@
 				body: JSON.stringify({ slotId: selectedSlotId, message: inviteMessage.trim() || undefined })
 			});
 			if (res.ok) {
-				if (selectedSlotId) invitedSlotIds = new Set([...invitedSlotIds, selectedSlotId]);
+				const invitation = await res.json().catch(() => null) as { id?: string } | null;
+				if (selectedSlotId) {
+					invitedSlotIds = new Set([...invitedSlotIds, selectedSlotId]);
+					if (invitation?.id) {
+						invitationBySlotId = { ...invitationBySlotId, [selectedSlotId]: invitation.id };
+					}
+				}
+				capture('invitation_sent');
 				inviteStatus = 'sent';
-				capture('meeting_invite_sent', { prompt_id: data.prompt.id });
 			} else {
 				const err = await res.json().catch(() => ({}));
-				const rawError = (err as any).error ?? 'Failed to send invitation';
-				inviteError = rawError.includes('uq_one_pending_invitation')
-					? 'You already have a pending invitation for this time.'
-					: rawError;
+				inviteError = (err as any).error ?? copy.common.sendFailed;
 				inviteStatus = 'error';
 			}
 		} catch {
-			inviteError = 'Network error';
+			inviteError = copy.common.networkError;
 			inviteStatus = 'error';
 		}
 	}
 
-	async function acceptInvitation(invitationId: string) {
+	// Withdrawing a pending invitation is a free action per design principles —
+	// no confirmation dialog, no reason required, no consequences. Uses the
+	// local invitationBySlotId which covers both server-loaded and just-sent
+	// invitations (kept in sync by sendInvite).
+	let withdrawingSlotId = $state<string | null>(null);
+	let withdrawError = $state('');
+	async function withdrawInvitation(slotId: string) {
+		const invitationId = invitationBySlotId[slotId];
+		if (!invitationId) return;
+		withdrawingSlotId = slotId;
+		withdrawError = '';
+		try {
+			const res = await fetch(`/api/invitations/${invitationId}`, { method: 'DELETE' });
+			if (res.ok) {
+				capture('invitation_withdrawn');
+				invitedSlotIds = new Set([...invitedSlotIds].filter(id => id !== slotId));
+				const { [slotId]: _, ...rest } = invitationBySlotId;
+				invitationBySlotId = rest;
+				inviteStatus = 'idle';
+				selectedSlotId = null;
+				await invalidateAll();
+			} else {
+				// Keep local state untouched so the UI stays truthful — the server
+				// invitation is still live and will reappear on reload.
+				const body = await res.json().catch(() => ({}));
+				withdrawError = (body as { error?: string }).error ?? copy.conversation.withdrawFailed;
+			}
+		} catch {
+			withdrawError = copy.common.networkError;
+		} finally {
+			withdrawingSlotId = null;
+		}
+	}
+
+	async function acceptInvitation(invitationId: string, slotId: string) {
 		acceptingId = invitationId;
 		acceptError = '';
 		try {
 			const res = await fetch(`/api/invitations/${invitationId}/accept`, { method: 'POST' });
 			if (res.ok) {
 				const { meetingId } = await res.json();
-				capture('meeting_invite_accepted', { prompt_id: data.prompt.id, meeting_id: meetingId });
+				// Carry the slot identity so realized group size per slot is derivable
+				// (a gathering is the set of accepted meetings sharing one slot).
+				// See docs/group-conversations-metrics.md.
+				capture('invitation_accepted', { slot_id: slotId });
 				goto(`/meetings/${meetingId}`);
 			} else {
 				const err = await res.json().catch(() => ({}));
-				acceptError = (err as any).error ?? 'Failed to accept';
+				acceptError = (err as any).error ?? copy.common.genericError;
 			}
 		} catch {
-			acceptError = 'Network error';
+			acceptError = copy.common.networkError;
 		} finally {
 			acceptingId = null;
 		}
 	}
 
+	function openDecline(invitationId: string) {
+		openDeclineId = invitationId;
+		declineMessage = '';
+		declineError = '';
+	}
+
+	function cancelDecline() {
+		openDeclineId = null;
+		declineMessage = '';
+		declineError = '';
+	}
+
+	async function declineInvitation(invitationId: string) {
+		decliningId = invitationId;
+		declineError = '';
+		try {
+			const reason = declineMessage.trim();
+			const res = await fetch(`/api/invitations/${invitationId}/decline`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(reason ? { reason } : {})
+			});
+			if (res.ok) {
+				capture('invitation_declined');
+				openDeclineId = null;
+				declineMessage = '';
+				await invalidateAll();
+			} else {
+				const err = await res.json().catch(() => ({}));
+				declineError = (err as { error?: string }).error ?? copy.conversation.declineFailed;
+			}
+		} catch {
+			declineError = copy.common.networkError;
+		} finally {
+			decliningId = null;
+		}
+	}
+
 	let isOwnPrompt = $derived(data.prompt.author_id === data.user?.id);
-	let archiveDialog = $state<ConfirmDialog | undefined>();
+	let unpublishDialog = $state<ConfirmDialog | undefined>();
 	let deleteDialog = $state<ConfirmDialog | undefined>();
 	let actionError = $state('');
-	let actionsOpen = $state(false);
+	let showChangeTimesSheet = $state(false);
+	let savingSlots = $state(false);
+	/* action-menu state now lives inside FloatingNav (variant="detail"). */
 
-	async function archivePrompt() {
+	// Add / edit / remove slots from the read-view "Change times" sheet.
+	// Mirrors the editor's handleSaveSlots diff pattern. Past slots aren't
+	// in data.prompt.available_slots (filtered by the loader), so they
+	// don't appear in the diff source — they stay untouched.
+	async function handleChangeTimes(submitted: SubmitSlot[], _audienceScope: string | null) {
+		const initialIds = new Set(data.prompt.available_slots.map((s) => s.id));
+		const submittedIds = new Set(
+			submitted.filter((s) => s.dbId).map((s) => s.dbId as string)
+		);
+		const remove = [...initialIds].filter((id) => !submittedIds.has(id));
+		const edit = submitted
+			.filter((s) => s.dbId)
+			.map((s) => {
+				const updates: Record<string, unknown> = {
+					start_time: s.start_time,
+					duration_minutes: s.duration_minutes
+				};
+				if (s.location) updates.location = s.location;
+				return { slotId: s.dbId as string, updates };
+			});
+		const add = submitted
+			.filter((s) => !s.dbId && s.location)
+			.map((s) => ({
+				start_time: s.start_time,
+				duration_minutes: s.duration_minutes,
+				location: s.location
+			}));
+		if (add.length === 0 && edit.length === 0 && remove.length === 0) {
+			showChangeTimesSheet = false;
+			return;
+		}
+		savingSlots = true;
+		try {
+			const res = await fetch(`/api/prompts/${data.prompt.id}/slots`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ add, edit, remove })
+			});
+			if (res.ok) {
+				capture('slots_changed', {
+					added: add.length,
+					edited: edit.length,
+					removed: remove.length
+				});
+				showChangeTimesSheet = false;
+				await invalidateAll();
+			} else {
+				const e = await res.json().catch(() => ({}));
+				actionError = (e as { error?: string }).error ?? copy.common.genericError;
+			}
+		} catch {
+			actionError = copy.common.networkError;
+		} finally {
+			savingSlots = false;
+		}
+	}
+
+	async function unpublishPrompt() {
 		try {
 			const res = await fetch(`/api/prompts/${data.prompt.id}/unpublish`, { method: 'POST' });
-			if (res.ok) goto('/profile?view=conversations');
-			else { const e = await res.json().catch(() => ({})); actionError = (e as any).error ?? copy.conversation.failedToArchive; }
+			if (res.ok) {
+				capture('conversation_unpublished');
+				goto(`/conversations/${data.prompt.id}/edit`);
+			} else { const e = await res.json().catch(() => ({})); actionError = (e as any).error ?? copy.conversation.failedToUnpublish; }
 		} catch { actionError = copy.common.networkError; }
 	}
 
 	async function deletePrompt() {
 		try {
 			const res = await fetch(`/api/prompts/${data.prompt.id}`, { method: 'DELETE' });
-			if (res.ok) goto('/profile?view=conversations');
-			else { const e = await res.json().catch(() => ({})); actionError = (e as any).error ?? copy.conversation.failedToDelete; }
+			if (res.ok) {
+				capture('conversation_deleted', { origin: 'read_view' });
+				goto('/profile?view=conversations');
+			} else { const e = await res.json().catch(() => ({})); actionError = (e as any).error ?? copy.conversation.failedToDelete; }
 		} catch { actionError = copy.common.networkError; }
 	}
+
+	// ── Author view: response-spine model ───────────────────────────────────
+	// The derivation (status precedence, edge cases, ordering) is a pure,
+	// unit-tested function in $lib/domain/response-rows — this page only wires
+	// loader data in and renders the rows. The exact time/place lives once in
+	// "Times you offered"; status lines reference a slot by day + neighbourhood.
+
+	// Who's joining a slot — the active meetings on it. Rendered as tappable
+	// name-buttons on the "Times you offered" card (each links to its meeting).
+	function joiningOnSlot(slotId: string) {
+		return (data.promptMeetings ?? []).filter(
+			(m) => m.slot_id === slotId && ACTIVE_MEETING_STATES.includes(m.state)
+		);
+	}
+
+	let responseRows = $derived.by(() =>
+		buildResponseRows(data.comments, data.promptMeetings ?? [], data.receivedInvitations ?? [], formatDate)
+	);
 </script>
 
 <svelte:head>
 	<title>{data.prompt.title ?? 'Conversation'} - dyad.berlin</title>
 </svelte:head>
 
-<button class="back-pill" onclick={() => history.back()} aria-label="Go back">
-	<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-		<path d="M12 15l-5-5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-	</svg>
-</button>
-
-{#if isOwnPrompt && data.prompt.state === 'published'}
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div class="action-menu-wrap">
-		<button class="action-pill" onclick={() => actionsOpen = !actionsOpen} aria-label="Actions">
-			<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-				<circle cx="5" cy="10" r="1.5" fill="currentColor"/>
-				<circle cx="10" cy="10" r="1.5" fill="currentColor"/>
-				<circle cx="15" cy="10" r="1.5" fill="currentColor"/>
-			</svg>
-		</button>
-		{#if actionsOpen}
-			<!-- svelte-ignore a11y_click_events_have_key_events -->
-			<div class="action-backdrop" onclick={() => actionsOpen = false}></div>
-			<div class="action-dropdown">
-				<a href="/conversations/{data.prompt.id}/edit" class="action-item" onclick={() => actionsOpen = false}>{copy.conversation.edit}</a>
-				<button class="action-item" onclick={() => { actionsOpen = false; archiveDialog?.open(); }}>{copy.conversation.archive}</button>
-				<button class="action-item action-item--danger" onclick={() => { actionsOpen = false; deleteDialog?.open(); }}>{copy.conversation.delete}</button>
-			</div>
-		{/if}
-	</div>
-{/if}
+<!-- Back navigation + kebab actions live on the FloatingNav (variant="detail"),
+     not as separate fixed-position pills. -->
 
 <div class="content">
 	{#if data.prompt.cover_image_url}
@@ -178,28 +342,34 @@
 
 	<h1 class="title">{data.prompt.title}</h1>
 	<p class="meta">
-		on {formatDate(data.prompt.published_at)},
-		<a href="/users/{data.prompt.author_username}" class="meta-author">
-			{data.prompt.author_display_name ?? '@' + data.prompt.author_username}
-		</a>
-		wrote
+		{#if isOwnPrompt}
+			{copy.conversation.youWrote(formatDate(data.prompt.published_at))}
+		{:else}
+			on {formatDate(data.prompt.published_at)},
+			<a href="/users/{data.prompt.author_username}" class="meta-author user-handle">
+				{data.prompt.author_display_name ?? '@' + data.prompt.author_username}
+			</a>
+			wrote
+		{/if}
 	</p>
 
 	<div class="body">
 		{#if data.prompt.body_html}
 			{@html data.prompt.body_html}
-		{:else if data.prompt.body_snippet}
-			<p>{data.prompt.body_snippet}</p>
 		{/if}
 	</div>
 
+	{#if sizeLabel}
+		<p class="size-label">{sizeLabel}</p>
+	{/if}
+
 	{#if isOwnPrompt && data.prompt.state === 'published'}
 		<ConfirmDialog
-			bind:this={archiveDialog}
-			title={copy.conversation.archive}
-			message={copy.conversation.archiveConfirm}
-			confirmLabel={copy.conversation.archive}
-			onConfirm={archivePrompt}
+			bind:this={unpublishDialog}
+			title={copy.conversation.unpublish}
+			message={copy.conversation.unpublishConfirm}
+			confirmLabel={copy.conversation.unpublish}
+			onConfirm={unpublishPrompt}
 		/>
 		<ConfirmDialog
 			bind:this={deleteDialog}
@@ -209,6 +379,108 @@
 			onConfirm={deletePrompt}
 		/>
 		{#if actionError}<p class="field-error" style="margin-top: var(--space-2)">{actionError}</p>{/if}
+
+		<!-- Reusable accept/decline action row for a pending invitation. -->
+		{#snippet inviteActions(invId: string, slotId: string)}
+			{#if openDeclineId === invId}
+				<textarea
+					class="invite-message-textarea"
+					placeholder={copy.conversation.declineMessagePlaceholder}
+					bind:value={declineMessage}
+					rows={3}
+					maxlength={2000}
+					disabled={decliningId === invId}
+				></textarea>
+				{#if declineError}<p class="field-error" role="alert">{declineError}</p>{/if}
+				<div class="invite-actions">
+					<button class="btn-secondary" onclick={cancelDecline} disabled={decliningId === invId}>{copy.common.cancel}</button>
+					<button class="btn-primary" onclick={() => declineInvitation(invId)} disabled={decliningId === invId}>{decliningId === invId ? copy.conversation.declining : copy.conversation.decline}</button>
+				</div>
+			{:else}
+				<div class="invite-actions">
+					<button class="btn-text btn-text--danger" onclick={() => openDecline(invId)} disabled={acceptingId === invId}>{copy.conversation.decline}</button>
+					<button class="btn-primary" onclick={() => acceptInvitation(invId, slotId)} disabled={acceptingId === invId}>{acceptingId === invId ? copy.common.accepting : copy.common.accept}</button>
+				</div>
+			{/if}
+		{/snippet}
+
+		<!-- Times you offered: the schedule reference. Each offered time is shown
+		     once (the exact place lives here, never per response) with a quiet fill
+		     summary. Editing happens via the FloatingNav "change times" action. -->
+		{#if data.prompt.available_slots.length > 0}
+			<section class="my-summary">
+				<p class="section-label">{copy.conversation.myOfferedTimes}</p>
+				{#each data.prompt.available_slots as slot (slot.id)}
+					{@const joining = joiningOnSlot(slot.id)}
+					<!-- No invited/occupied/capacity props here: those dim the card, and the
+					     author's own offered times should never render greyed out. Who's on
+					     the slot is shown as name-buttons, not a count. -->
+					<div class="slot-group">
+						{#if joining.length > 0}
+							<!-- A slot with confirmed joiners IS a gathering — same card,
+							     same meeting tone, same click-through as everywhere else.
+							     Pins link to member pages; the card opens the meeting
+							     (any pair shows the whole gathering). -->
+							<GatheringCard
+								startTime={slot.start_time}
+								durationMinutes={slot.duration_minutes}
+								area={slot.general_area}
+								exactLocation={slot.exact_location ?? null}
+								participants={joining.map((m) => ({
+									id: m.id,
+									name: m.partner_username ?? 'anonymous',
+									href: m.partner_username ? `/users/${m.partner_username}` : undefined
+								}))}
+								meetingHref="/meetings/{joining[0].id}"
+							/>
+						{:else}
+							<SlotCard
+								startTime={slot.start_time}
+								durationMinutes={slot.duration_minutes}
+								area={slot.general_area}
+								exactLocation={slot.exact_location ?? null}
+							/>
+						{/if}
+					</div>
+				{/each}
+			</section>
+		{/if}
+
+		<!-- Responses: the spine. Every responder's words stay visible whatever
+		     their meeting status; a quiet status line annotates that status, and
+		     the slot's time/place is referenced (day + neighbourhood) — never
+		     reprinted. Pending requests are actionable inline; pending-first, then
+		     most-recent. One shape serves one-on-one and small group. -->
+		{#if responseRows.length > 0}
+			<section class="responses-received">
+				<p class="section-label">{copy.conversation.responsesHeading}</p>
+				{#each responseRows as row (row.key)}
+					<div class="response-card">
+						<span class="response-meta">
+							{copy.conversation.respondedByPrefix(formatDate(row.createdAt))}
+							<UserHandle username={row.username} />
+							{copy.conversation.wroteSuffix}
+						</span>
+						{#if row.body}<p class="response-body">{row.body}</p>{/if}
+						{#if row.status === 'pending'}
+							{#if row.message}<p class="inv-message">{row.message}</p>{/if}
+							<p class="response-status">{copy.conversation.statusWantsToMeet(row.slotRef)}</p>
+							{@render inviteActions(row.invitationId ?? '', row.slotId ?? '')}
+						{:else if (row.status === 'confirmed' || row.status === 'met') && row.meetingId}
+							{@const label = row.status === 'met' ? copy.conversation.statusMet(row.slotRef) : copy.conversation.statusConfirmed(row.slotRef)}
+							<a href="/meetings/{row.meetingId}" class="response-status response-status--link">{label}</a>
+						{:else if row.status === 'confirmed' || row.status === 'met'}
+							<p class="response-status">{row.status === 'met' ? copy.conversation.statusMet(row.slotRef) : copy.conversation.statusConfirmed(row.slotRef)}</p>
+						{:else if row.status === 'cancelled'}
+							<p class="response-status response-status--muted">{copy.conversation.participantCancelled}{#if row.cancellationReason}: {row.cancellationReason}{/if}</p>
+						{/if}
+						<!-- 'responded' (no time chosen): just the words, no status line. -->
+					</div>
+				{/each}
+				{#if acceptError}<p class="field-error">{acceptError}</p>{/if}
+			</section>
+		{/if}
+
 	{/if}
 
 	<!-- Response section (non-authors only) -->
@@ -216,7 +488,12 @@
 		<section class="response-section">
 			{#if hasResponse}
 				<div class="my-response">
-					<p class="meta">{copy.conversation.youResponded(data.myComment ? formatDate(data.myComment.updated_at) : 'just now')}</p>
+					<p class="meta">
+						{copy.conversation.youResponded(data.myComment ? formatDate(data.myComment.updated_at) : 'just now')}
+						{#if responseStatus === 'sent'}
+							<span class="response-sent-flag" aria-live="polite">· {copy.conversation.responseSent}</span>
+						{/if}
+					</p>
 					<p class="my-response-text">{responseStatus === 'sent' ? responseText : data.myComment?.body}</p>
 				</div>
 			{:else}
@@ -238,44 +515,53 @@
 	<!-- Available times + invitation flow (non-authors only) -->
 	{#if !isOwnPrompt}
 		{#if data.myMeeting}
-			<!-- Confirmed: meeting scheduled -->
+			<!-- Confirmed: the unified gathering card. The full room — the host
+			     identified, the viewer's own pin ("you"), and neutral circles for
+			     the other joiners (count from the viewer-safe occupancy RPC,
+			     never who). -->
 			<section class="slots-section">
-				<div class="confirmed-card">
-					<span class="confirmed-label">{copy.conversation.confirmed}</span>
-					<p class="confirmed-title">{copy.conversation.youAreMeeting(data.prompt.author_username)}</p>
-					<SlotCard
-						startTime={data.myMeeting.scheduled_time}
-						durationMinutes={data.myMeeting.duration_minutes}
-						area={data.myMeeting.general_area}
-						exactLocation={data.myMeeting.exact_location}
-					/>
-					<a href="/meetings/{data.myMeeting.id}" class="view-meeting-link">{copy.conversation.viewMeeting}</a>
-				</div>
+				<GatheringCard
+					startTime={data.myMeeting.scheduled_time}
+					durationMinutes={data.myMeeting.duration_minutes}
+					area={data.myMeeting.general_area}
+					exactLocation={data.myMeeting.exact_location}
+					participants={[{ id: 'host', name: data.prompt.author_username, href: `/users/${data.prompt.author_username}` }]}
+					self={{ name: data.username || copy.common.you, href: data.username ? `/users/${data.username}` : undefined }}
+					anonymousCount={othersBeyond(occupiedOn(data.myMeeting.slot_id), 1)}
+					meetingHref="/meetings/{data.myMeeting.id}"
+				/>
 			</section>
-		{:else if data.prompt.available_slots.length > 0}
+		{:else}
 			<section class="slots-section">
-				{#if inviteStatus === 'sent'}
-					<!-- Just sent this session -->
-					{#if selectedSlot}
-						<SlotCard
-							startTime={selectedSlot.start_time}
-							durationMinutes={selectedSlot.duration_minutes}
-							area={selectedSlot.general_area}
-							invited={true}
-							invitedNote={copy.conversation.invitationPending(data.prompt.author_username)}
-						/>
-					{/if}
+				{#if data.myCancellation?.reason}
+					<!-- Quiet note from the canceller. Shown whether or not slots are
+					     available, so the context isn't hidden when a late cancel
+					     leaves the prompt with no open slots to re-invite on. -->
+					<blockquote class="prior-cancel-note">
+						{data.myCancellation.reason}
+						<cite>— @{data.myCancellation.cancelled_by_username ?? data.prompt.author_username}</cite>
+					</blockquote>
+				{/if}
+
+				{#if data.prompt.available_slots.length === 0}
+					<!-- No open slots is fine; the note above (if any) is all the context needed. -->
 				{:else if invitedSlotIds.size > 0}
-					<!-- Server-loaded: invitation already pending -->
+					<!-- Pending invitation (either server-loaded or just-sent this
+					     session — sendInvite keeps `invitedSlotIds` + `invitationBySlotId`
+					     in sync so the withdraw action works without a page reload). -->
 					{#each data.prompt.available_slots.filter(s => invitedSlotIds.has(s.id)) as slot}
 						<SlotCard
+							tone="meeting"
 							startTime={slot.start_time}
 							durationMinutes={slot.duration_minutes}
 							area={slot.general_area}
-							invited={true}
-							invitedNote={copy.conversation.invitationPending(data.prompt.author_username)}
+							invitedPending
+							pendingNote={copy.conversation.invitationPending(data.prompt.author_username)}
+							onWithdraw={invitationBySlotId[slot.id] ? () => withdrawInvitation(slot.id) : undefined}
+							withdrawing={withdrawingSlotId === slot.id}
 						/>
 					{/each}
+					{#if withdrawError}<p class="field-error" role="alert">{withdrawError}</p>{/if}
 				{:else}
 					<!-- Normal invite flow -->
 					{#if hasResponse}
@@ -290,7 +576,10 @@
 							vague={!hasResponse}
 							selected={selectedSlotId === slot.id}
 							invited={invitedSlotIds.has(slot.id)}
-							onclick={hasResponse ? () => { selectedSlotId = selectedSlotId === slot.id ? null : slot.id; } : undefined}
+							occupied={occupiedOn(slot.id)}
+							capacity={data.prompt.capacity}
+							othersJoining={othersOn(slot.id)}
+							onclick={hasResponse && !slotIsFull(slot.id) ? () => { selectedSlotId = selectedSlotId === slot.id ? null : slot.id; } : undefined}
 						/>
 					{/each}
 
@@ -312,176 +601,50 @@
 		{/if}
 	{/if}
 
-	<!-- Author view: responses + their invitations together -->
-	{#if isOwnPrompt && (data.comments.length > 0 || data.receivedInvitations.length > 0)}
-		<section class="responses-received">
-			{#each data.comments as comment}
-				{@const invitation = data.receivedInvitations.find(inv => inv.inviter_id === comment.author_id)}
-				{@const meeting = invitation ? data.promptMeetings?.find(m => m.slot_id === invitation.slot_id) : null}
-				<div class="response-card" class:has-invitation={!!invitation}>
-					<span class="response-meta">@{comment.author_username ?? 'anonymous'} · {formatDate(comment.created_at)}</span>
-					<p class="response-body">{comment.body}</p>
-
-					{#if invitation}
-						<div class="response-invitation">
-							{#if meeting && (meeting.state === 'cancelled_early' || meeting.state === 'cancelled_late')}
-								<div class="meeting-inline">
-									<span class="meeting-inline-detail">{formatDate(invitation.slot_start_time)} · {invitation.slot_general_area}</span>
-									{#if meeting.exact_location}
-										<span class="meeting-inline-location">{meeting.exact_location.name}</span>
-										<span class="meeting-inline-address">{meeting.exact_location.address}</span>
-									{/if}
-									<span class="meeting-inline-status cancelled">{copy.conversation.meetingCancelled(comment.author_username ?? 'someone', formatDate(meeting.resolved_at ?? meeting.scheduled_time))}</span>
-								</div>
-							{:else if invitation.state === 'accepted' && meeting}
-								<a href="/meetings/{meeting.id}" class="meeting-inline" style="text-decoration: none; color: inherit; display: block;">
-									<span class="meeting-inline-label">{copy.conversation.meetingScheduled}</span>
-									<span class="meeting-inline-detail">{formatDate(meeting.scheduled_time)} · {meeting.general_area ?? invitation.slot_general_area}</span>
-									{#if meeting.exact_location}
-										<span class="meeting-inline-location">{meeting.exact_location.name}</span>
-										<span class="meeting-inline-address">{meeting.exact_location.address}</span>
-									{/if}
-								</a>
-							{:else if invitation.state === 'accepted'}
-								<div class="meeting-inline">
-									<span class="meeting-inline-detail">{formatDate(invitation.slot_start_time)} · {invitation.slot_general_area}</span>
-								</div>
-							{:else if invitation.state === 'pending'}
-								<SlotCard startTime={invitation.slot_start_time} durationMinutes={invitation.slot_duration_minutes ?? 60} area={invitation.slot_general_area} />
-								{#if invitation.message}
-									<p class="inv-message">{invitation.message}</p>
-								{/if}
-								<button class="btn-primary" onclick={() => acceptInvitation(invitation.id)} disabled={acceptingId === invitation.id}>
-									{acceptingId === invitation.id ? copy.common.accepting : copy.common.accept}
-								</button>
-							{/if}
-						</div>
-					{/if}
-				</div>
-			{/each}
-
-			<!-- Invitations without a matching comment (edge case) -->
-			{#each data.receivedInvitations.filter(inv => !data.comments.some(c => c.author_id === inv.inviter_id)) as inv}
-				<div class="response-card has-invitation">
-					<span class="response-meta">@{inv.inviter_username} · {formatDate(inv.created_at)}</span>
-					{#if inv.comment_body}
-						<p class="response-body">{inv.comment_body}</p>
-					{/if}
-					<div class="response-invitation">
-						<SlotCard startTime={inv.slot_start_time} durationMinutes={inv.slot_duration_minutes ?? 60} area={inv.slot_general_area} />
-						{#if inv.state === 'pending'}
-							{#if inv.message}
-								<p class="inv-message">{inv.message}</p>
-							{/if}
-							<button class="btn-primary" onclick={() => acceptInvitation(inv.id)} disabled={acceptingId === inv.id}>
-								{acceptingId === inv.id ? copy.common.accepting : copy.common.accept}
-							</button>
-						{/if}
-					</div>
-				</div>
-			{/each}
-
-			{#if acceptError}<p class="field-error">{acceptError}</p>{/if}
-		</section>
-	{/if}
 </div>
 
-<FloatingNav variant="default" attentionCount={data.attentionCount ?? 0} />
+<FloatingNav
+	variant="detail"
+	attentionCount={data.attentionCount ?? 0}
+	actions={isOwnPrompt && data.prompt.state === 'published'
+		? [
+				{ label: copy.conversation.changeTimes, onclick: () => (showChangeTimesSheet = true) },
+				{ label: copy.conversation.unpublish, onclick: () => unpublishDialog?.open() },
+				{ label: copy.conversation.delete, onclick: () => deleteDialog?.open(), danger: true }
+			]
+		: []}
+/>
+
+{#if showChangeTimesSheet}
+	<PublishSheet
+		onClose={() => (showChangeTimesSheet = false)}
+		onPublish={handleChangeTimes}
+		initialSlots={data.prompt.available_slots}
+		region={data.prompt.region}
+		publishing={savingSlots}
+		submitLabel={copy.common.save}
+		submittingLabel={copy.editor.saving}
+	/>
+{/if}
 
 <style>
-	.content { width: 100%; max-width: var(--content-standard); }
-
-	.back-pill {
-		position: fixed;
-		top: var(--space-4);
-		left: var(--space-4);
-		z-index: 800;
-		width: 40px;
-		height: 40px;
-		border-radius: var(--radius-pill);
-		background: var(--bg-canvas);
-		backdrop-filter: blur(12px);
-		-webkit-backdrop-filter: blur(12px);
-		box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
-		border: none;
-		color: var(--text-primary);
-		font-size: var(--text-lg);
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-	.back-pill:hover { opacity: var(--opacity-hover-btn); }
-
-	.action-menu-wrap {
-		position: fixed;
-		top: var(--space-4);
-		right: calc(var(--space-4) + 40px + var(--space-2));
-		z-index: 800;
-	}
-
-	.action-pill {
-		width: 40px;
-		height: 40px;
-		border-radius: var(--radius-pill);
-		background: var(--bg-canvas);
-		backdrop-filter: blur(12px);
-		-webkit-backdrop-filter: blur(12px);
-		box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
-		border: none;
-		color: var(--text-primary);
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-	.action-pill:hover { opacity: var(--opacity-hover-btn); }
-
-	.action-backdrop {
-		position: fixed;
-		inset: 0;
-		z-index: 799;
-	}
-
-	.action-dropdown {
-		position: absolute;
-		top: calc(100% + var(--space-2));
-		right: 0;
-		background: var(--bg-canvas);
-		border-radius: var(--radius-card);
-		box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
-		min-width: 140px;
-		overflow: hidden;
-		z-index: 801;
-		display: flex;
-		flex-direction: column;
-	}
-
-	.action-item {
-		font-size: var(--text-base);
-		font-family: inherit;
-		padding: var(--space-3) var(--space-4);
-		background: none;
-		border: none;
-		text-align: left;
-		color: var(--text-primary);
-		cursor: pointer;
-		text-decoration: none;
-		display: block;
-		transition: background 0.12s;
-	}
-	.action-item:hover { background: var(--bg-control); }
-	.action-item--danger { color: var(--color-danger); }
-
-	.content { width: 100%; max-width: var(--content-standard); padding-top: calc(var(--space-4) + 40px + var(--space-4)); }
+	.content { width: 100%; max-width: var(--content-standard); padding-bottom: var(--nav-clearance); }
 
 	.cover { width: 100%; max-height: 400px; object-fit: cover; border-radius: var(--radius-card); margin-bottom: var(--space-6); display: block; }
 
 	.title { font-size: var(--text-3xl); font-weight: normal; margin: 0 0 var(--space-2); line-height: var(--leading-tight); }
 	.meta { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin: 0 0 var(--space-8); }
-	.meta-author { color: var(--text-muted); text-decoration: none; }
-	.meta-author:hover { color: var(--text-primary); }
-
+	/* Conversation size (one-on-one / small group) — quiet coordination label. */
+	.size-label {
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--text-muted);
+		margin: 0 0 var(--space-6);
+	}
+	/* Base tint only — hover comes from the shared .user-handle treatment. */
+	.meta-author { color: var(--text-muted); }
 	.body { font-size: var(--text-md); line-height: var(--leading-relaxed); margin-bottom: var(--space-10); }
 	.body :global(p) { margin: 0 0 0.75em; }
 	.body :global(h1), .body :global(h2) { margin: 1.2em 0 0.5em; font-weight: 500; }
@@ -492,51 +655,70 @@
 	.btn-text--danger { color: var(--color-danger); }
 	.btn-text--danger:hover { opacity: var(--opacity-hover-btn); }
 
+	/* Accept / Decline action row beneath an invitation card. */
+	.invite-actions {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		margin-top: var(--space-3);
+	}
+	.invite-actions :global(.btn-primary) { margin-left: auto; }
+
 	/* Sections */
 	.slots-section { margin-top: var(--space-4); margin-bottom: var(--space-6); }
-	.response-section, .responses-received { margin-top: var(--space-6); padding-top: var(--space-6); border-top: 1px solid var(--border-link); }
+	.response-section { margin-top: var(--space-6); padding-top: var(--space-6); border-top: 1px solid var(--border-link); }
+
+	/* "Times you offered" — the compact schedule reference. Quiet typography to
+	   match the page idiom; the section label sits like the existing .meta line. */
+	.my-summary { margin-top: var(--space-6); }
+	.my-summary:first-of-type { padding-top: var(--space-6); border-top: 1px solid var(--border-link); }
+	.section-label {
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+		margin: 0 0 var(--space-3);
+	}
 
 	.my-response { margin-bottom: var(--space-6); }
 	.my-response-text { font-size: var(--text-md); line-height: var(--leading-relaxed); margin: 0 0 var(--space-2); }
-
-	/* Confirmed meeting card */
-	.confirmed-card {
-		padding: var(--space-5);
-		background: var(--bg-meeting-tint);
-		border: 1px solid color-mix(in srgb, var(--color-success) 20%, transparent);
-		border-radius: var(--radius-card);
-	}
-
-	.confirmed-label {
-		display: block;
-		font-size: var(--text-xs);
-		font-weight: 600;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
+	.response-sent-flag {
 		color: var(--color-success);
-		margin-bottom: var(--space-2);
+		font-family: var(--font-mono);
+		animation: response-sent-fade 4s ease-out forwards;
+	}
+	@keyframes response-sent-fade {
+		0%, 60% { opacity: 1; }
+		100% { opacity: 0; }
 	}
 
-	.confirmed-title {
-		font-size: var(--text-md);
-		font-weight: 500;
-		margin: 0 0 var(--space-3);
-		color: var(--text-primary);
-	}
-
-	.view-meeting-link {
-		display: inline-block;
-		font-size: var(--text-sm);
-		font-weight: 500;
-		color: var(--color-success);
-		text-decoration: none;
-		margin-top: var(--space-1);
-	}
-
-	.view-meeting-link:hover { opacity: var(--opacity-hover-btn); }
+	/* Gathering-card chrome (overlay link, hover) lives in GatheringCard. */
 
 	/* Invitation flow */
 	.invite-question { font-size: var(--text-md); color: var(--text-muted); margin: 0 0 var(--space-4); }
+
+	/* Withdraw button lives inside SlotCard's invitedPending state. */
+
+	/* Prior cancellation note — quiet blockquote, no red, no border. The note
+	 * carries context without demanding attention. */
+	.prior-cancel-note {
+		font-size: var(--text-base);
+		font-style: italic;
+		color: var(--text-secondary);
+		line-height: var(--leading-relaxed);
+		margin: 0 0 var(--space-5);
+		padding: 0;
+		border: none;
+	}
+	.prior-cancel-note cite {
+		display: block;
+		font-style: normal;
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+		margin-top: var(--space-2);
+	}
+
+
 
 	.invite-message-textarea {
 		width: 100%;
@@ -579,8 +761,25 @@
 	.response-card:last-child { border-bottom: none; }
 	.response-meta { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); display: block; margin-bottom: var(--space-1); }
 	.response-body { font-size: var(--text-base); margin: 0 0 var(--space-1); line-height: var(--leading-normal); }
-	.response-invitation { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--border-link); }
-	.meeting-link { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-success); display: block; margin-bottom: var(--space-2); }
-	.meeting-link:hover { opacity: var(--opacity-hover-card); }
 	.inv-message { font-size: var(--text-sm); color: var(--text-secondary); font-style: italic; margin: var(--space-2) 0 var(--space-3); }
+
+	/* "Times you offered": each slot once, with who's joining nested inside the
+	   card on the right as an overlapping avatar stack (each circle links to its
+	   meeting; hover/focus reveals the handle). Never dimmed. */
+	.slot-group { margin-bottom: var(--space-4); }
+
+	/* Responses: the spine. Single list; words always visible; a quiet status
+	   line annotates meeting state (no coloured badges — the accept/decline
+	   buttons are the actionability signal). */
+	.responses-received { margin-top: var(--space-6); padding-top: var(--space-6); border-top: 1px solid var(--border-link); }
+	.response-status {
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		color: var(--text-secondary);
+		margin: var(--space-2) 0 0;
+	}
+	.response-status--muted { color: var(--text-muted); }
+	.response-status--link { display: inline-block; text-decoration: none; color: var(--text-link); }
+	.response-status--link::after { content: ' →'; } /* nav affordance — decorative, not copy */
+	.response-status--link:hover { text-decoration: underline; }
 </style>

@@ -1,18 +1,19 @@
 import { json } from '@sveltejs/kit';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import type { RequestHandler } from './$types';
-import { requireAuth } from '$lib/server/auth.js';
+import { requireIdentity } from '$lib/services/identity.js';
 import { parseJsonBody } from '$lib/server/parse-body.js';
 import { SupabasePromptCommandService } from '$lib/services/prompt-command.js';
 import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
 import { validateTiptapContent } from '$lib/server/validate-tiptap-content.js';
+import { handleServiceError } from '$lib/server/handle-service-error.js';
 
 const MAX_TITLE_LENGTH = 200;
 const STORAGE_URL_PREFIX = `${PUBLIC_SUPABASE_URL}/storage/`;
 
 /** POST /api/prompts — create a draft prompt */
 export const POST: RequestHandler = async ({ request, locals }) => {
-	const user = requireAuth(locals.user);
+	const upactor = requireIdentity(locals);
 
 	const [body, errorResponse] = await parseJsonBody<{
 		title?: string;
@@ -38,22 +39,25 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	const service = new SupabasePromptCommandService(locals.supabase);
 	try {
-		const prompt = await service.create(user.id, {
+		const prompt = await service.create(upactor.id, {
 			title: body.title,
 			body: body.body as import('@tiptap/core').JSONContent | undefined,
-			coverImageUrl: body.coverImageUrl
+			coverImageUrl: body.coverImageUrl,
+			// Corner-exclusive members (guests) write conversations in their
+			// corner's region — slot locations validate against it at publish.
+			region: locals.homeScope ? (locals.homeRegion ?? undefined) : undefined
 		});
 		return json(prompt, { status: 201 });
 	} catch (err) {
-		return json({ error: (err as Error).message }, { status: 400 });
+		return handleServiceError(err, '[prompts]');
 	}
 };
 
 /** GET /api/prompts — list the current user's prompts */
 export const GET: RequestHandler = async ({ locals }) => {
-	const user = requireAuth(locals.user);
+	const upactor = requireIdentity(locals);
 
 	const service = new SupabasePromptQueryService(locals.supabase);
-	const prompts = await service.getMyPrompts(user.id);
+	const prompts = await service.getMyPrompts(upactor.id);
 	return json(prompts);
 };
