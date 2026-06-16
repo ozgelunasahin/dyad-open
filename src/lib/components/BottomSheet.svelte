@@ -38,9 +38,12 @@
 			{#each prompts as prompt}
 				{#snippet cardContent()}
 					{#if prompt.cover_image_url}
-						<img src={prompt.cover_image_url} alt="" class="card-thumb" loading="lazy" />
+						<div class="card-cover">
+							<img src={prompt.cover_image_url} alt="" class="card-cover-img" loading="lazy" />
+						</div>
 					{/if}
 					<div class="card-content">
+						<!-- Forum-style: the title is the hero teaser. -->
 						<h4 class="card-title">{prompt.title}</h4>
 						{#if prompt.body_snippet}
 							<p class="card-snippet">{prompt.body_snippet}</p>
@@ -120,43 +123,57 @@
 	.sheet-body {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-3);
+		gap: var(--space-4);
 	}
 
+	/* dice.fm-style card: soft-rounded cover image, title + meta as plain text
+	   below it. No box, no border — the image and the title do the talking. */
 	.sheet-card {
 		display: flex;
-		gap: var(--space-3);
-		padding: var(--space-3) 0;
+		flex-direction: column;
+		gap: var(--space-2);
+		padding: 0;
 		border: none;
-		border-bottom: 1px solid var(--border-link);
 		background: none;
 		text-decoration: none;
 		text-align: left;
 		color: inherit;
 		width: 100%;
 		cursor: pointer;
+	}
+
+	.sheet-card:hover .card-cover-img { opacity: var(--opacity-hover-card); }
+	.sheet-card:hover .card-title { text-decoration: underline; }
+
+	.card-cover {
+		width: 100%;
+		aspect-ratio: 4 / 3;
+		overflow: hidden;
+		border-radius: var(--radius-card);
+	}
+
+	.card-cover-img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		display: block;
 		transition: opacity 0.15s;
 	}
 
-	.sheet-card:last-child { border-bottom: none; }
-	.sheet-card:hover { opacity: var(--opacity-hover-card); }
+	.card-content { min-width: 0; }
 
-	.card-thumb {
-		width: 64px;
-		height: 64px;
-		object-fit: cover;
-		border-radius: var(--radius-input);
-		flex-shrink: 0;
-	}
-
-	.card-content { flex: 1; min-width: 0; }
-
+	/* Title is the teaser — like a dice/forum thread title. */
 	.card-title {
 		font-size: var(--text-md);
-		font-weight: 500;
+		font-weight: 600;
 		color: var(--text-primary);
 		margin: 0 0 var(--space-1);
-		line-height: 1.3;
+		line-height: var(--leading-tight);
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
 	}
 
 	.card-snippet {
@@ -165,8 +182,8 @@
 		margin: 0 0 var(--space-1);
 		line-height: 1.4;
 		display: -webkit-box;
-		-webkit-line-clamp: 2;
-		line-clamp: 2;
+		-webkit-line-clamp: 1;
+		line-clamp: 1;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 	}

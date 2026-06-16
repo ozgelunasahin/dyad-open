@@ -339,7 +339,7 @@
 					class:community-icon--private={c.type === 'private'}
 					title={c.name}
 					aria-label={c.name}
-					onclick={() => activeCommunityId = c.id}
+					onclick={() => { activeCommunityId = c.id; goto('/discover'); }}
 				>
 					{#if c.type === 'private'}
 						<svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -425,7 +425,7 @@
 				<button
 					class="rooms-community-row"
 					class:rooms-community-row--active={activeCommunityId === c.id}
-					onclick={() => { activeCommunityId = c.id; sidebarExpanded = false; }}
+					onclick={() => { activeCommunityId = c.id; sidebarExpanded = false; goto('/discover'); }}
 				>
 					<div class="rooms-community-icon community-icon" class:community-icon--private={c.type === 'private'}>
 						{#if c.type === 'private'}
@@ -623,7 +623,7 @@
 				<button
 					class="mobile-community-row"
 					class:mobile-community-row--active={activeCommunityId === c.id}
-					onclick={() => { activeCommunityId = c.id; mobileDrawerOpen = false; }}
+					onclick={() => { activeCommunityId = c.id; mobileDrawerOpen = false; goto('/discover'); }}
 				>
 					<div class="mobile-community-icon" class:mobile-community-icon--private={c.type === 'private'}>
 						{#if c.type === 'private'}
@@ -646,6 +646,10 @@
 				<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.4"/><path d="M10.5 5.5l-2 4-4 2 2-4 4-2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
 				Discover more spaces
 			</button>
+			<a href="/logout" class="mobile-drawer-logout">
+				<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M10 11l4-3-4-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 8H6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M6 3H3a1 1 0 00-1 1v8a1 1 0 001 1h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+				Log out
+			</a>
 		</div>
 	</div>
 {/if}
@@ -2057,6 +2061,20 @@
 	}
 	.mobile-drawer-discover:hover { color: var(--text-primary); }
 
+	.mobile-drawer-logout {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		text-decoration: none;
+		color: var(--text-muted);
+		font-family: var(--font-mono);
+		font-size: 11px;
+		letter-spacing: 0.06em;
+		margin-top: 12px;
+		transition: color 0.15s;
+	}
+	.mobile-drawer-logout:hover { color: var(--text-primary); }
+
 	.mobile-sidebar-backdrop {
 		display: none;
 		position: fixed;
@@ -2114,7 +2132,8 @@
 			height: auto;
 			width: 100%;
 			overflow-y: auto;
-			padding: var(--space-4);
+			/* Clear the fixed mobile top bar (top:10px + height:44px). */
+			padding: calc(54px + var(--space-3)) var(--space-4) var(--space-4);
 		}
 
 		.discover-modal {

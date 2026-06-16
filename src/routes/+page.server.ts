@@ -1,8 +1,10 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
+import { regionMapCenter } from '$lib/services/location.js';
 import { MOCK_PROMPTS } from '$lib/data/mock-prompts.ts';
 import type { ConstellationCard } from '$lib/types/constellation.js';
+import type { PromptSummary } from '$lib/domain/types.js';
 import type { JSONContent } from '@tiptap/core';
 
 function extractSnippet(body: unknown): string {
@@ -29,6 +31,8 @@ export const load: PageServerLoad = async ({ locals, setHeaders }) => {
 	setHeaders({ 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' });
 
 	let realCards: ConstellationCard[] = [];
+	// Geo-tagged published conversations for the landing map (Berlin pins).
+	let mapPrompts: PromptSummary[] = [];
 	try {
 		const [published, { data: archivedRows }] = await Promise.all([
 			new SupabasePromptQueryService(locals.supabase)
@@ -41,6 +45,11 @@ export const load: PageServerLoad = async ({ locals, setHeaders }) => {
 				.order('archived_at', { ascending: false })
 				.limit(20),
 		]);
+
+		// Only conversations with a geo-located slot can show a pin on the map.
+		mapPrompts = published.filter((p) =>
+			p.available_slots.some((s) => s.general_area_lat != null && s.general_area_lng != null)
+		);
 
 		realCards = [
 			...published.map((p) => ({
@@ -80,5 +89,17 @@ export const load: PageServerLoad = async ({ locals, setHeaders }) => {
 		})
 	);
 
-	return { cards: [...realCards, ...mockCards] };
+	// When no live conversations have a location yet (e.g. Supabase down in dev),
+	// fall back to mock pins so the map still reads as an inhabited Berlin.
+	const mapPromptsOrMock = mapPrompts.length > 0
+		? mapPrompts
+		: MOCK_PROMPTS.filter((p) =>
+			p.available_slots.some((s) => s.general_area_lat != null && s.general_area_lng != null)
+		);
+
+	return {
+		cards: [...realCards, ...mockCards],
+		mapPrompts: mapPromptsOrMock,
+		mapCenter: regionMapCenter('berlin')
+	};
 };

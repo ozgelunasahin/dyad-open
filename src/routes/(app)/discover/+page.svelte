@@ -4,7 +4,6 @@
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
 	import MapView from '$lib/components/MapView.svelte';
-	import BottomSheet from '$lib/components/BottomSheet.svelte';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
 	import SearchOverlay from '$lib/components/SearchOverlay.svelte';
 	import ConversationCard from '$lib/components/ConversationCard.svelte';
@@ -156,18 +155,43 @@
 
 {#if viewMode === 'map'}
 	<div class="map-pane">
-		<MapView
-			prompts={filteredPrompts}
-			slotFilter={mapSlotFilter}
-			onSelectPin={handlePinSelect}
-			onMapClick={closeSheet}
-			initialCenter={mapCenter ?? data.mapCenter}
-			initialZoom={mapZoom}
-			onMoveEnd={(c, z) => { mapCenter = c; mapZoom = z; }}
-		/>
+		<div class="map-pane-inner">
+			<MapView
+				prompts={filteredPrompts}
+				slotFilter={mapSlotFilter}
+				onSelectPin={handlePinSelect}
+				onMapClick={closeSheet}
+				initialCenter={mapCenter ?? data.mapCenter}
+				initialZoom={mapZoom}
+				onMoveEnd={(c, z) => { mapCenter = c; mapZoom = z; }}
+			/>
+		</div>
 	</div>
 	{#if selectedPinItems.length > 0}
-		<BottomSheet prompts={selectedPinItems} onClose={closeSheet} />
+		{@const prompt = selectedPinItems[0]}
+		<!-- Airbnb-style card floating over the map (same as the landing) -->
+		<div class="map-card">
+			<button class="map-card-close" onclick={closeSheet} aria-label="Close">
+				<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+			</button>
+			<a href="/conversations/{prompt.id}" class="map-card-link">
+				{#if prompt.cover_image_url}
+					<div class="map-card-cover">
+						<img src={prompt.cover_image_url} alt="" />
+					</div>
+				{/if}
+				<div class="map-card-body">
+					<h3 class="map-card-title">{prompt.title}</h3>
+					<div class="map-card-meta">
+						{#if uniqueAreas(prompt.available_slots)}<span>{uniqueAreas(prompt.available_slots)}</span>{/if}
+						{#if slotDates(prompt.available_slots)}<span>{slotDates(prompt.available_slots)}</span>{/if}
+					</div>
+					{#if prompt.body_snippet}
+						<p class="map-card-snippet">{prompt.body_snippet}</p>
+					{/if}
+				</div>
+			</a>
+		</div>
 	{/if}
 {:else}
 <div class="content">
@@ -228,12 +252,97 @@
 
 <style>
 	.floating-nav-wrapper { display: block; }
+	/* Full-bleed map background; the left nav strip sits on top of it. */
 	.map-pane {
 		position: fixed;
-		top: 0;
-		right: 0;
-		bottom: 0;
-		left: 0;
+		inset: 0;
+	}
+
+	.map-pane-inner {
+		width: 100%;
+		height: 100%;
+	}
+
+	/* ── Airbnb-style card floating over the map (same as the landing) ── */
+	.map-card {
+		position: fixed;
+		left: 50%;
+		top: 50%;
+		transform: translate(-50%, -50%);
+		z-index: 1100;
+		width: min(320px, 84vw);
+		background: #fff;
+		border-radius: 16px;
+		overflow: hidden;
+		box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+		text-align: left;
+		animation: map-card-in 0.18s ease;
+	}
+
+	@keyframes map-card-in {
+		from { opacity: 0; transform: translate(-50%, -46%) scale(0.97); }
+		to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+	}
+
+	.map-card-close {
+		position: absolute;
+		top: 10px;
+		right: 10px;
+		z-index: 2;
+		width: 30px;
+		height: 30px;
+		border: none;
+		border-radius: 50%;
+		background: rgba(255, 255, 255, 0.95);
+		color: #222;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+	}
+	.map-card-close:hover { background: #fff; }
+
+	.map-card-link { text-decoration: none; color: inherit; display: block; }
+
+	.map-card-cover { width: 100%; aspect-ratio: 3 / 2; overflow: hidden; }
+	.map-card-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+	.map-card-body { padding: var(--space-4); }
+
+	.map-card-title {
+		font-size: var(--text-md);
+		font-weight: 600;
+		color: #111;
+		margin: 0 0 var(--space-1);
+		line-height: 1.3;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
+
+	.map-card-meta {
+		display: flex;
+		gap: var(--space-3);
+		font-family: var(--font-mono);
+		font-size: 0.68rem;
+		letter-spacing: 0.03em;
+		color: #717171;
+		margin-bottom: var(--space-2);
+	}
+
+	.map-card-snippet {
+		font-size: var(--text-sm);
+		color: #555;
+		line-height: 1.45;
+		margin: 0;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
 	}
 
 	.content {

@@ -89,25 +89,17 @@
 </dialog>
 
 <style>
+	/* Fixed, vertically centered on the right edge — stays put on scroll. */
 	.trigger-group {
 		position: fixed;
-		bottom: var(--space-5);
+		top: 50%;
 		right: var(--space-4);
+		transform: translateY(-50%);
 		display: flex;
-		flex-direction: row;
+		flex-direction: column;
 		gap: var(--space-2);
 		align-items: center;
 		z-index: 900;
-	}
-
-	/* Mobile: move to top-right to avoid FloatingNav overlap */
-	@media (max-width: 430px) {
-		.trigger-group {
-			bottom: auto;
-			top: var(--space-4);
-			left: auto;
-			right: var(--space-4);
-		}
 	}
 
 	.admin-trigger {

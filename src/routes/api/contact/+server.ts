@@ -44,7 +44,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 		return json({ error: 'Invalid JSON body' }, { status: 400 });
 	}
 
-	const { email, name, based_in, freewrite, expression_url, referred_by_username } = body as Record<string, unknown>;
+	const { email, name, based_in, freewrite, expression_url, referral_source, referred_by_username } = body as Record<string, unknown>;
 
 	if (!email || typeof email !== 'string') {
 		error(400, 'Email is required');
@@ -88,6 +88,11 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 		error(400, 'Referred by username is too long');
 	}
 
+	// "Where did you spot us?" — option key or free text; see contacts.referral_source migration.
+	if (typeof referral_source === 'string' && referral_source.length > 120) {
+		error(400, 'Referral source is too long');
+	}
+
 	const insertRow: Record<string, string | null> = {
 		email: email.trim(),
 		name: (typeof name === 'string' ? name.trim() : null) || null,
@@ -96,6 +101,9 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 	};
 	if (typeof expression_url === 'string' && expression_url.trim()) {
 		insertRow.expression_url = expression_url.trim();
+	}
+	if (typeof referral_source === 'string' && referral_source.trim()) {
+		insertRow.referral_source = referral_source.trim();
 	}
 	if (typeof referred_by_username === 'string' && referred_by_username.trim()) {
 		insertRow.referred_by_username = referred_by_username.trim();

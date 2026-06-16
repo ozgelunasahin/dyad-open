@@ -3,6 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { copy } from '$lib/copy';
 	import { capture } from '$lib/analytics';
+	import CitySearch from '$lib/components/CitySearch.svelte';
 
 	interface Props {
 		mode?: 'waitlist' | 'login';
@@ -21,6 +22,14 @@
 	let name = $state('');
 	let city = $state('');
 	let email = $state('');
+	let referralSource = $state('');
+	let referralOther = $state('');
+
+	// "Where did you spot us?" — the value we persist: the typed free text when
+	// "other" is chosen, otherwise the picked option key.
+	const referralValue = $derived(
+		referralSource === 'other' ? referralOther.trim() : referralSource
+	);
 
 	// Login fields
 	let loginEmail = $state('');
@@ -61,13 +70,14 @@
 					name: name.trim() || undefined,
 					based_in: city.trim() || undefined,
 					freewrite: freewrite.trim(),
+					referral_source: referralValue || undefined,
 					referred_by_username: dyadRef || undefined
 				})
 			});
 
 			if (res.ok) {
 				success = true;
-				capture('waitlist_joined', { referred_by: dyadRef || null });
+				capture('waitlist_joined', { referred_by: dyadRef || null, referral_source: referralValue || null });
 			} else if (res.status === 409) {
 				success = true; // Already on waitlist — show friendly message
 				error = 'already';
@@ -146,28 +156,28 @@
 
 					<label class="field">
 						<span class="field-label">{copy.waitlist.city}</span>
-						<select bind:value={city} class="city-select">
-							<option value="">{copy.waitlist.selectCity}</option>
-							<optgroup label={copy.waitlist.activeNow}>
-								<option value="Berlin">Berlin</option>
-							</optgroup>
-							<optgroup label={copy.waitlist.comingSoon}>
-								<option value="Hamburg">Hamburg</option>
-								<option value="Munich">Munich</option>
-								<option value="Vienna">Vienna</option>
-								<option value="Amsterdam">Amsterdam</option>
-								<option value="London">London</option>
-								<option value="Paris">Paris</option>
-								<option value="Barcelona">Barcelona</option>
-								<option value="Lisbon">Lisbon</option>
-								<option value="Copenhagen">Copenhagen</option>
-								<option value="Stockholm">Stockholm</option>
-								<option value="New York">New York</option>
-								<option value="San Francisco">San Francisco</option>
-								<option value="Other">Other</option>
-							</optgroup>
-						</select>
+						<CitySearch bind:value={city} placeholder={copy.waitlist.selectCity} />
 						<p class="city-note">{copy.waitlist.cityExpansionNote}</p>
+					</label>
+
+					<label class="field">
+						<span class="field-label">{copy.waitlist.referralLabel}</span>
+						<select bind:value={referralSource} class="city-select">
+							<option value="">{copy.waitlist.referralSelectPlaceholder}</option>
+							{#each copy.waitlist.referralOptions as opt}
+								<option value={opt.value}>{opt.label}</option>
+							{/each}
+						</select>
+						{#if referralSource === 'other'}
+							<input
+								type="text"
+								bind:value={referralOther}
+								maxlength={120}
+								placeholder={copy.waitlist.referralOtherPlaceholder}
+								class="referral-other"
+							/>
+						{/if}
+						<p class="city-note">{copy.waitlist.referralNote}</p>
 					</label>
 
 					{#if error && error !== 'already'}
@@ -299,6 +309,19 @@
 		cursor: pointer;
 	}
 	.city-select:focus { outline: none; border-color: var(--text-muted); }
+
+	.referral-other {
+		margin-top: var(--space-2);
+		width: 100%;
+		font-size: var(--text-base);
+		padding: var(--space-3);
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-input);
+		background: transparent;
+		color: var(--text-primary);
+		box-sizing: border-box;
+	}
+	.referral-other:focus { outline: none; border-color: var(--text-muted); }
 
 	.city-note {
 		margin: var(--space-2) 0 0;
