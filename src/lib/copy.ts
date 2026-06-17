@@ -93,12 +93,20 @@ export const copy = {
 		metaDescription: 'The offline social network owned by its community.',
 		ogSiteName: 'dyad',
 		ogUrl: 'https://dyad.berlin',
-		rotatingWords: ['writers', 'parents', 'artists', 'neighbours', 'strangers', 'night owls', 'commuters', 'berliners', 'listeners', 'you'],
-		tagline: 'cultivating a culture of conversation',
 		joinWaitlist: 'join waitlist',
 		logIn: 'log in',
-		privateBeta: 'private beta',
-		conversationsStartingSoon: 'Conversations are starting soon.',
+		// Hero headline + supporting line (display copy; sentence case is the
+		// intentional brand styling — see CLAUDE.md § UI conventions).
+		headlineLine1: 'Collectively owned',
+		headlineLine2: 'offline social network',
+		subcopy:
+			'A place online to find conversations, people and communities offline. Open source. Steward-owned. Governed by the communities who use it.',
+		// CTA on the map card that floats over a selected conversation.
+		mapCardCta: 'Join to read & meet',
+		// ZineFooter colophon. Centralized here so the edition/date is config,
+		// not a string literal scattered in a component (no hardcoded dates).
+		zineColophon:
+			'DYAD — Building social technology as civic infrastructure. Draft Edition, June 2026. Currently in beta in Berlin.',
 	},
 
 	// ── Discover ───────────────────────────────────────────────────────

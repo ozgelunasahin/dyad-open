@@ -10,8 +10,12 @@
 	let { data }: { data: PageData } = $props();
 
 	let authDialog = $state<AuthDialog | undefined>();
-	// The conversation opened on the left (Airbnb-style detail pane). Null = grid.
-	let selected = $state<PromptSummary | null>(null);
+	// The pin cluster opened over the map (Airbnb-style card). Co-located
+	// conversations are all kept so the visitor can pick from them; an empty
+	// array means no card is open.
+	let selectedItems = $state<Array<{ prompt: PromptSummary; slots: TimeSlot[] }>>([]);
+	let activeIndex = $state(0);
+	const selected = $derived<PromptSummary | null>(selectedItems[activeIndex]?.prompt ?? null);
 
 	const conversations = $derived<PromptSummary[]>(data.mapPrompts ?? []);
 
@@ -20,12 +24,16 @@
 	}
 
 	function closeConversation() {
-		selected = null;
+		selectedItems = [];
+		activeIndex = 0;
 	}
 
-	// Clicking a map pin opens the nearest conversation as a floating card.
+	// Clicking a map pin opens the cluster of co-located conversations as a
+	// floating card. The first item (closest to the click) is shown by default;
+	// when the cluster holds more than one, the card lets the visitor switch.
 	function handlePinSelect(items: Array<{ prompt: PromptSummary; slots: TimeSlot[] }>) {
-		if (items.length > 0) selected = items[0].prompt;
+		selectedItems = items;
+		activeIndex = 0;
 	}
 
 	function formatDate(iso?: string | null): string {
@@ -58,15 +66,16 @@
 </svelte:head>
 
 <!-- ── Two-pane shell: conversations on the left, map on the right (Airbnb model) ── -->
-<div class="shell">
+<div class="shell" data-theme="dark">
 	<!-- LEFT: intro + footer -->
 	<section class="left">
 			<header class="left-head">
-				<h1 class="left-title">Collectively owned<br />offline social network</h1>
-				<p class="left-sub">A place online to find conversations, people and communities offline. Open source. Steward-owned. Governed by the communities who use it.</p>
+				<h1 class="left-title">{og.headlineLine1}<br />{og.headlineLine2}</h1>
+				<p class="left-sub">{og.subcopy}</p>
 				<div class="left-links">
-					<button class="text-link text-link--strong" onclick={() => openAuth('waitlist')}>Join</button>
-					<a href="/steward-ownership" class="text-link">Explore</a>
+					<!-- href fallbacks so each action degrades without JS -->
+					<a href="/waitlist" class="text-link text-link--strong" data-testid="join-cta" onclick={(e) => { e.preventDefault(); openAuth('waitlist'); }}>Join</a>
+					<a href="/login" class="text-link" onclick={(e) => { e.preventDefault(); openAuth('login'); }}>Log in</a>
 				</div>
 			</header>
 
@@ -111,6 +120,20 @@
 					<button class="map-card-close" onclick={closeConversation} aria-label="Close">
 						<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
 					</button>
+					{#if selectedItems.length > 1}
+						<!-- Co-located conversations: a compact picker so none are discarded. -->
+						<div class="map-card-cluster">
+							{#each selectedItems as item, i}
+								<button
+									class="map-card-cluster-item"
+									class:active={i === activeIndex}
+									onclick={() => (activeIndex = i)}
+								>
+									{item.prompt.title ?? 'Untitled'}
+								</button>
+							{/each}
+						</div>
+					{/if}
 					{#if selected.cover_image_url}
 						<div class="map-card-cover">
 							<img src={selected.cover_image_url} alt={selected.title ? `Cover image for ${selected.title}` : ''} />
@@ -125,7 +148,7 @@
 						{#if selected.body_snippet}
 							<p class="map-card-snippet">{selected.body_snippet}</p>
 						{/if}
-						<button class="map-card-cta" onclick={() => openAuth('waitlist')}>Join to read &amp; meet</button>
+						<a href="/waitlist" class="map-card-cta" onclick={(e) => { e.preventDefault(); openAuth('waitlist'); }}>{og.mapCardCta}</a>
 					</div>
 				</div>
 			{/if}
@@ -133,13 +156,9 @@
 	</aside>
 </div>
 
-<!-- ── Header (always visible) ── -->
+<!-- ── Header (always visible) — wordmark only; the actions live in the hero. ── -->
 <header class="hdr">
 	<a href="/" class="wordmark" aria-label="DYAD">DYAD</a>
-	<nav class="hdr-nav">
-		<a href="/login" class="nav-link" onclick={(e) => { e.preventDefault(); openAuth('login'); }}>Log in</a>
-		<button class="btn-join" onclick={() => openAuth('waitlist')}>Join</button>
-	</nav>
 </header>
 
 <AuthDialog bind:this={authDialog} />
@@ -149,15 +168,28 @@
 
 	/* ── Shell: left content | right map ── */
 	/* Uniform outer margin on all sides + a gap between the two panes; the top
-	   padding clears the fixed header so the map floats below it. */
+	   padding clears the fixed header so the map floats below it.
+	   data-theme="dark" (on the element) resolves the [data-theme='dark']
+	   tokens from app.css. A few values have no clean token — the near-black
+	   surfaces and the deliberately light floating card — so they live as named
+	   locals here rather than scattered literals. */
 	.shell {
+		/* near-black surfaces (deeper than --bg-canvas: #000 reads flat here) */
+		--landing-surface: #040407;
+		--landing-map-surface: #0a0a0d;
+		/* the floating card is an intentionally light surface over the dark map */
+		--landing-card-bg: #fff;
+		--landing-card-ink: #111;
+		--landing-card-ink-soft: #555;
+		--landing-card-ink-muted: #717171;
+
 		position: fixed;
 		inset: 0;
 		display: grid;
 		grid-template-columns: 1.1fr 1fr;
 		grid-template-rows: 1fr;
 		gap: var(--space-6);
-		background: #040407;
+		background: var(--landing-surface);
 		padding: 72px var(--space-6) var(--space-6);
 		box-sizing: border-box;
 	}
@@ -180,7 +212,7 @@
 		font-family: var(--font-serif);
 		font-size: clamp(2rem, 4.4vw, 3rem);
 		font-weight: 700;
-		color: rgba(255, 255, 255, 0.97);
+		color: var(--text-primary);
 		margin: 0 0 var(--space-5);
 		line-height: 1.05;
 		letter-spacing: -0.015em;
@@ -211,7 +243,7 @@
 		letter-spacing: 0.04em;
 		transition: color 0.15s;
 	}
-	.text-link:hover { color: rgba(255, 255, 255, 0.95); }
+	.text-link:hover { color: var(--text-primary); }
 	.text-link--strong { color: rgba(255, 255, 255, 0.85); }
 
 	/* RIGHT — map nested in a soft-edged black container */
@@ -221,8 +253,8 @@
 		position: relative;
 		width: 100%;
 		height: 100%;
-		background: #0a0a0d;
-		border: 1px solid rgba(255, 255, 255, 0.08);
+		background: var(--landing-map-surface);
+		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-card);
 		padding: var(--space-3);
 		box-sizing: border-box;
@@ -237,7 +269,7 @@
 		transform: translate(-50%, -50%);
 		z-index: 1100;
 		width: min(320px, 80%);
-		background: #fff;
+		background: var(--landing-card-bg);
 		border-radius: 16px;
 		overflow: hidden;
 		box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
@@ -267,7 +299,37 @@
 		cursor: pointer;
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 	}
-	.map-card-close:hover { background: #fff; }
+	.map-card-close:hover { background: var(--landing-card-bg); }
+
+	/* Co-located conversation picker (cluster of >1 pin). */
+	.map-card-cluster {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-1);
+		padding: var(--space-3) var(--space-4) 0;
+	}
+
+	.map-card-cluster-item {
+		font-family: var(--font-mono);
+		font-size: 0.64rem;
+		letter-spacing: 0.02em;
+		color: var(--landing-card-ink-muted);
+		background: rgba(0, 0, 0, 0.05);
+		border: none;
+		border-radius: var(--radius-pill);
+		padding: 4px 10px;
+		max-width: 100%;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		cursor: pointer;
+		transition: background 0.15s, color 0.15s;
+	}
+	.map-card-cluster-item:hover { background: rgba(0, 0, 0, 0.09); }
+	.map-card-cluster-item.active {
+		background: var(--landing-card-ink);
+		color: var(--landing-card-bg);
+	}
 
 	.map-card-cover {
 		width: 100%;
@@ -281,7 +343,7 @@
 	.map-card-title {
 		font-size: var(--text-md);
 		font-weight: 600;
-		color: #111;
+		color: var(--landing-card-ink);
 		margin: 0 0 var(--space-1);
 		line-height: 1.3;
 		display: -webkit-box;
@@ -297,13 +359,13 @@
 		font-family: var(--font-mono);
 		font-size: 0.68rem;
 		letter-spacing: 0.03em;
-		color: #717171;
+		color: var(--landing-card-ink-muted);
 		margin-bottom: var(--space-2);
 	}
 
 	.map-card-snippet {
 		font-size: var(--text-sm);
-		color: #555;
+		color: var(--landing-card-ink-soft);
 		line-height: 1.45;
 		margin: 0 0 var(--space-3);
 		display: -webkit-box;
@@ -314,14 +376,18 @@
 	}
 
 	.map-card-cta {
+		display: block;
 		width: 100%;
-		background: #111;
+		box-sizing: border-box;
+		text-align: center;
+		text-decoration: none;
+		background: var(--landing-card-ink);
 		border: none;
 		cursor: pointer;
 		font-family: var(--font-mono);
 		font-size: 0.74rem;
 		letter-spacing: 0.05em;
-		color: #fff;
+		color: var(--landing-card-bg);
 		padding: 10px 16px;
 		border-radius: 100px;
 		transition: background 0.15s;
@@ -339,7 +405,7 @@
 	.map-placeholder {
 		width: 100%;
 		height: 100%;
-		background: #0a0a0d;
+		background: var(--landing-map-surface);
 	}
 
 	/* ── Footer (left column flow) ── */
@@ -350,7 +416,7 @@
 		gap: 0;
 		margin-top: var(--space-5);
 		padding-top: var(--space-4);
-		border-top: 1px solid rgba(255, 255, 255, 0.08);
+		border-top: 1px solid var(--border-subtle);
 	}
 
 	.footer-link {
@@ -392,39 +458,6 @@
 		text-decoration: none;
 		line-height: 1;
 	}
-
-	.hdr-nav { display: flex; align-items: center; gap: 2px; }
-
-	.nav-link {
-		background: none;
-		border: none;
-		cursor: pointer;
-		font-family: var(--font-mono);
-		font-size: 11px;
-		letter-spacing: 0.06em;
-		color: rgba(255, 255, 255, 0.45);
-		padding: 6px 12px;
-		border-radius: 6px;
-		text-decoration: none;
-		transition: color 0.15s;
-	}
-	.nav-link:hover { color: rgba(255, 255, 255, 0.85); }
-
-	.btn-join {
-		background: rgba(255, 255, 255, 0.1);
-		border: 1px solid rgba(255, 255, 255, 0.18);
-		cursor: pointer;
-		font-family: var(--font-mono);
-		font-size: 11px;
-		letter-spacing: 0.08em;
-		color: rgba(255, 255, 255, 0.75);
-		padding: 7px 18px;
-		border-radius: 100px;
-		backdrop-filter: blur(8px);
-		transition: background 0.15s, color 0.15s;
-		margin-left: 6px;
-	}
-	.btn-join:hover { background: rgba(255, 255, 255, 0.18); color: #fff; }
 
 	/* ── Mobile: stack intro above the map ── */
 	/* Mobile: map on top, copy below; page scrolls. */

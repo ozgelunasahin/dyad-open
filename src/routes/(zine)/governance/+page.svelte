@@ -1,30 +1,12 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { useTocScroll } from '$lib/utils/use-toc-scroll.svelte';
 
-	const ids = ['experiment', 'structure', 'decision-making', 'assembly', 'formalize', 'transparency'];
-	let activeId = $state('');
-
-	function isPast(id: string): boolean {
-		const ai = ids.indexOf(activeId);
-		const ii = ids.indexOf(id);
-		return ai > 0 && ii < ai;
-	}
-
-	onMount(() => {
-		const observer = new IntersectionObserver(
-			(entries) => {
-				for (const e of entries) {
-					if (e.isIntersecting) activeId = e.target.id;
-				}
-			},
-			{ rootMargin: '-10% 0px -85% 0px', threshold: 0 }
-		);
-		for (const id of ids) {
-			const el = document.getElementById(id);
-			if (el) observer.observe(el);
-		}
-		return () => observer.disconnect();
-	});
+	// `intro` leads the prose but was missing from the observed ids, so the TOC
+	// never highlighted it. Listed here so the first section spies correctly.
+	const ids = ['intro', 'experiment', 'structure', 'decision-making', 'assembly', 'formalize', 'transparency'];
+	const toc = useTocScroll(ids);
+	const activeId = $derived(toc.activeId);
+	const isPast = (id: string) => toc.isPast(id);
 </script>
 
 <svelte:head>
@@ -163,36 +145,11 @@
 </div>
 
 <style>
-	.page {
-		max-width: 1080px;
-		margin: 0 auto;
-		padding: 80px 48px 120px;
-	}
-
-	.page-intro {
-		margin-bottom: 56px;
-		padding-bottom: 48px;
-		border-bottom: 1px solid rgba(240, 236, 230, 0.07);
-	}
-
-	.page-body {
-		display: grid;
-		grid-template-columns: 160px 1fr;
-		gap: 64px;
-		align-items: start;
-	}
-
-	.section-label {
-		font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
-		font-size: 0.6rem;
-		letter-spacing: 0.1em;
-		text-transform: uppercase;
-		color: rgba(240, 236, 230, 0.28);
-		margin: 0 0 20px;
-	}
-
+	/* Shared zine page chrome (.page, .page-intro, .page-body, .section-label,
+	   .page-attr, TOC, .prose section, .section-h2, .prose p) lives in the
+	   (zine) +layout.svelte. Only page-specific rules remain here. */
 	.page-title {
-		font-family: 'SangBleu Sunrise', Georgia, 'Times New Roman', serif;
+		font-family: var(--font-serif);
 		font-size: clamp(1.5rem, 3vw, 2.4rem);
 		font-weight: 400;
 		color: rgba(240, 236, 230, 0.88);
@@ -202,86 +159,9 @@
 		font-style: italic;
 	}
 
-	.page-attr {
-		font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
-		font-size: 0.62rem;
-		letter-spacing: 0.06em;
-		color: rgba(240, 236, 230, 0.25);
-		margin: 0;
-	}
-
-	/* ── Sticky TOC ── */
-	.toc {
-		position: sticky;
-		top: 80px;
-		height: fit-content;
-	}
-
-	.toc-label {
-		font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
-		font-size: 0.52rem;
-		letter-spacing: 0.12em;
-		text-transform: uppercase;
-		color: rgba(240, 236, 230, 0.2);
-		margin: 0 0 14px;
-	}
-
-	.toc-list {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-		counter-reset: toc-counter;
-	}
-
-	.toc-list li {
-		display: flex;
-		align-items: baseline;
-		gap: 8px;
-		counter-increment: toc-counter;
-		padding: 7px 0;
-		border-bottom: 1px solid rgba(240, 236, 230, 0.04);
-	}
-
-	.toc-list li:last-child { border-bottom: none; }
-
-	.toc-list li::before {
-		content: counter(toc-counter, decimal-leading-zero);
-		font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
-		font-size: 0.48rem;
-		letter-spacing: 0.04em;
-		color: rgba(240, 236, 230, 0.15);
-		flex-shrink: 0;
-		transition: color 0.15s;
-	}
-
-	.toc-list a {
-		font-family: 'SangBleu Sunrise', Georgia, 'Times New Roman', serif;
-		font-size: 0.78rem;
-		font-weight: 300;
-		color: rgba(240, 236, 230, 0.38);
-		text-decoration: none;
-		line-height: 1.35;
-		transition: color 0.15s;
-	}
-
-	.toc-list a:hover { color: rgba(240, 236, 230, 0.75); }
-
-	.toc-list a.active {
-		color: rgba(240, 236, 230, 0.88);
-		font-weight: 400;
-	}
-
-	.toc-list li:has(a.active)::before {
-		color: rgba(240, 236, 230, 0.4);
-	}
-
-	.toc-list a.past {
-		color: rgba(240, 236, 230, 0.18);
-	}
-
 	/* ── Intro ── */
 	.intro-text {
-		font-family: 'SangBleu Sunrise', Georgia, 'Times New Roman', serif;
+		font-family: var(--font-serif);
 		font-size: 1.1rem;
 		font-weight: 300;
 		font-style: italic;
@@ -290,35 +170,8 @@
 		margin: 0 0 20px;
 	}
 
-	/* ── Prose ── */
-	.prose section {
-		padding: 56px 0;
-		border-bottom: 1px solid rgba(240, 236, 230, 0.05);
-	}
-
-	.prose section:first-child { padding-top: 0; }
-	.prose section:last-child { border-bottom: none; }
-
-	.section-h2 {
-		font-family: 'SangBleu Sunrise', Georgia, 'Times New Roman', serif;
-		font-size: clamp(1.3rem, 2.5vw, 1.75rem);
-		font-weight: 400;
-		color: rgba(240, 236, 230, 0.88);
-		margin: 0 0 28px;
-		line-height: 1.2;
-	}
-
-	.prose p {
-		font-family: 'SangBleu Sunrise', Georgia, 'Times New Roman', serif;
-		font-size: 1rem;
-		font-weight: 300;
-		color: rgba(240, 236, 230, 0.6);
-		line-height: 1.8;
-		margin: 0 0 20px;
-	}
-
 	.pull-quote {
-		font-family: 'SangBleu Sunrise', Georgia, 'Times New Roman', serif;
+		font-family: var(--font-serif);
 		font-size: 1.1rem;
 		font-weight: 400;
 		font-style: italic;
@@ -343,7 +196,7 @@
 	}
 
 	.decision-type h3 {
-		font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+		font-family: var(--font-mono);
 		font-size: 0.62rem;
 		letter-spacing: 0.1em;
 		text-transform: uppercase;
@@ -367,7 +220,7 @@
 	}
 
 	.practice h3 {
-		font-family: 'SangBleu Sunrise', Georgia, 'Times New Roman', serif;
+		font-family: var(--font-serif);
 		font-size: 1rem;
 		font-weight: 400;
 		color: rgba(240, 236, 230, 0.8);
@@ -390,7 +243,7 @@
 	}
 
 	.meeting h3 {
-		font-family: 'SangBleu Sunrise', Georgia, 'Times New Roman', serif;
+		font-family: var(--font-serif);
 		font-size: 0.9rem;
 		font-weight: 400;
 		color: rgba(240, 236, 230, 0.8);
@@ -406,7 +259,7 @@
 	}
 
 	.transparency-item h3 {
-		font-family: 'SangBleu Sunrise', Georgia, 'Times New Roman', serif;
+		font-family: var(--font-serif);
 		font-size: 1rem;
 		font-weight: 400;
 		color: rgba(240, 236, 230, 0.8);
@@ -422,9 +275,6 @@
 	}
 
 	@media (max-width: 760px) {
-		.page { padding: 40px 20px 80px; }
-		.page-body { grid-template-columns: 1fr; gap: 0; }
-		.toc { position: static; margin-bottom: 40px; border-bottom: 1px solid rgba(240, 236, 230, 0.07); padding-bottom: 32px; }
 		.decision-types, .meetings-grid { grid-template-columns: 1fr; gap: 16px; }
 		.practices-grid, .transparency-grid { grid-template-columns: 1fr; gap: 20px; }
 	}

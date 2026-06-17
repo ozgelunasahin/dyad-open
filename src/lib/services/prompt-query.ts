@@ -245,9 +245,13 @@ export class SupabasePromptQueryService implements PromptQueryService {
 	}): Promise<PromptSummary[]> {
 		const limit = params.limit ?? 8;
 
-		// Fetch more than needed — some will be filtered out (no available slots).
-		// Anon RLS already filters scoped prompts at the DB level (migration
-		// 20260508180100); the application-layer filter here is defense-in-depth.
+		// Fetch a modest overselect — some rows drop out (no available slots).
+		// A flat ×3 over-fetches badly at larger limits (60 rows at limit 20);
+		// this scales gentler while still leaving headroom to fill `limit`
+		// after slot filtering. Anon RLS already filters scoped prompts at the
+		// DB level (migration 20260508180100); the application-layer
+		// audience_scope filter here is defense-in-depth.
+		const overselect = Math.max(limit + 10, Math.ceil(limit * 1.5));
 		let query = this.supabase
 			.from('prompts')
 			.select('id, author_id, title, body, cover_image_url, published_at, region, audience_scope')
@@ -255,7 +259,7 @@ export class SupabasePromptQueryService implements PromptQueryService {
 			.is('hidden_at', null)
 			.is('audience_scope', null)
 			.order('published_at', { ascending: false })
-			.limit(limit * 3);
+			.limit(overselect);
 
 		if (params.region) {
 			query = query.eq('region', params.region);

@@ -1,4 +1,8 @@
 <!-- Shared zine footer — used by the (zine) layout and the /why page. -->
+<script lang="ts">
+	import { copy } from '$lib/copy';
+</script>
+
 <footer class="zine-footer">
 	<div class="footer-grid">
 		<div class="footer-col">
@@ -30,7 +34,7 @@
 			<a href="/datenschutz" class="footer-link">Privacy</a>
 		</div>
 	</div>
-	<p class="footer-colophon">DYAD — Building social technology as civic infrastructure. Draft Edition, June 2026. Currently in beta in Berlin.</p>
+	<p class="footer-colophon">{copy.landing.zineColophon}</p>
 </footer>
 
 <style>
@@ -58,7 +62,7 @@
 
 	.footer-link {
 		display: block;
-		font-family: 'SangBleu Sunrise', Georgia, 'Times New Roman', serif;
+		font-family: var(--font-serif);
 		font-size: 0.85rem;
 		font-weight: 300;
 		color: rgba(240, 236, 230, 0.4);
