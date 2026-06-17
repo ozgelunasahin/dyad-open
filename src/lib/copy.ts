@@ -440,7 +440,7 @@ export const copy = {
 		whatsOnYourMind: 'Dyad is a curated network of people who see conversation as one of the limited spaces left that celebrates our differences as an asset. Why do you want more or other conversations in your life?',
 		thoughtPlaceholder: 'We wonder',
 		city: 'City',
-		selectCity: 'Select your city',
+		cityPlaceholder: 'Berlin',
 		// "Where did you spot us?" — ozge's design (pre-open repo, b4e32ee):
 		// member-stated arrival channel, explicitly framed as not-tracking.
 		referralLabel: 'Where did you spot us?',
@@ -460,8 +460,6 @@ export const copy = {
 		// see 20260417110000_drop_newsletter_subscribers). We hold nothing.
 		newsletterInvite: 'We also write a newsletter — hosted on Substack.',
 		newsletterCta: 'Subscribe on Substack',
-		activeNow: 'Active now',
-		comingSoon: 'Coming soon',
 		cityExpansionNote: 'We\'re currently active in Berlin and will expand to other cities soon.',
 
 		// /waitlist page

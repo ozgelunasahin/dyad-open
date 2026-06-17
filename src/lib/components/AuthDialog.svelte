@@ -3,6 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { copy } from '$lib/copy';
 	import { env } from '$env/dynamic/public';
+	import CitySearch from './CitySearch.svelte';
 
 	interface Props {
 		mode?: 'waitlist' | 'login';
@@ -10,7 +11,8 @@
 
 	let { mode: initialMode = 'waitlist' }: Props = $props();
 
-	let dialogEl = $state<HTMLDialogElement | undefined>();
+	let open = $state(false);
+	let dialogBox = $state<HTMLElement | undefined>();
 	let currentMode = $state(initialMode);
 	let loading = $state(false);
 	let error = $state('');
@@ -36,12 +38,34 @@
 		error = '';
 		success = false;
 		loading = false;
-		dialogEl?.showModal();
+		open = true;
 	}
 
 	function hide() {
-		dialogEl?.close();
+		open = false;
 	}
+
+	function handleKeydown(e: KeyboardEvent) {
+		if (open && e.key === 'Escape') hide();
+	}
+
+	// A plain fixed overlay, NOT <dialog>.showModal(). The native dialog renders
+	// in the browser top layer, which sits above the page DOM and occludes the
+	// inline popup that extension password managers inject — so they appear not
+	// to fire. A normal overlay keeps the login form in the page's stacking
+	// context, where password managers behave as they do on any page.
+	$effect(() => {
+		if (typeof document === 'undefined') return;
+		document.body.style.overflow = open ? 'hidden' : '';
+		return () => { document.body.style.overflow = ''; };
+	});
+
+	// Native <dialog> auto-focused the first control; preserve that.
+	$effect(() => {
+		if (open && dialogBox) {
+			dialogBox.querySelector<HTMLElement>('input, textarea')?.focus();
+		}
+	});
 
 	function switchMode(mode: 'waitlist' | 'login') {
 		currentMode = mode;
@@ -107,15 +131,20 @@
 	}
 </script>
 
-<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-<dialog
-	bind:this={dialogEl}
-	class="auth-dialog"
-	aria-labelledby="auth-dialog-title"
-	onclick={(e) => { if (e.target === dialogEl) hide(); }}
-	onkeydown={(e) => { if (e.key === 'Escape') hide(); }}
->
-	<div class="dialog-content">
+<svelte:window onkeydown={handleKeydown} />
+
+{#if open}
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div class="auth-overlay" onclick={(e) => { if (e.target === e.currentTarget) hide(); }}>
+		<div
+			class="auth-dialog"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="auth-dialog-title"
+			bind:this={dialogBox}
+		>
+			<div class="dialog-content">
 		<button class="close-btn" onclick={hide} aria-label="Close">&times;</button>
 
 		{#if currentMode === 'waitlist'}
@@ -174,31 +203,11 @@
 						/>
 					</label>
 
-					<label class="field">
+					<div class="field">
 						<span class="field-label">{copy.waitlist.city}</span>
-						<select bind:value={city} class="city-select">
-							<option value="">{copy.waitlist.selectCity}</option>
-							<optgroup label={copy.waitlist.activeNow}>
-								<option value="Berlin">Berlin</option>
-							</optgroup>
-							<optgroup label={copy.waitlist.comingSoon}>
-								<option value="Hamburg">Hamburg</option>
-								<option value="Munich">Munich</option>
-								<option value="Vienna">Vienna</option>
-								<option value="Amsterdam">Amsterdam</option>
-								<option value="London">London</option>
-								<option value="Paris">Paris</option>
-								<option value="Barcelona">Barcelona</option>
-								<option value="Lisbon">Lisbon</option>
-								<option value="Copenhagen">Copenhagen</option>
-								<option value="Stockholm">Stockholm</option>
-								<option value="New York">New York</option>
-								<option value="San Francisco">San Francisco</option>
-								<option value="Other">Other</option>
-							</optgroup>
-						</select>
+						<CitySearch bind:value={city} placeholder={copy.waitlist.cityPlaceholder} />
 						<p class="city-note">{copy.waitlist.cityExpansionNote}</p>
-					</label>
+					</div>
 
 					<label class="field">
 						<span class="field-label">{copy.waitlist.referralLabel}</span>
@@ -245,7 +254,7 @@
 						name="email"
 						bind:value={loginEmail}
 						required
-						autocomplete="email"
+						autocomplete="username"
 						autocapitalize="off"
 						autocorrect="off"
 						spellcheck="false"
@@ -279,22 +288,31 @@
 				{copy.auth.dontHaveAccount} <button class="link-btn" onclick={() => switchMode('waitlist')}>{copy.auth.join}</button>
 			</p>
 		{/if}
+			</div>
+		</div>
 	</div>
-</dialog>
+{/if}
 
 <style>
-	.auth-dialog {
-		border: none;
-		border-radius: var(--radius-card);
-		padding: 0;
-		max-width: 420px;
-		width: calc(100% - var(--space-8));
-		background: var(--bg-canvas);
-		color: var(--text-primary);
+	.auth-overlay {
+		position: fixed;
+		inset: 0;
+		z-index: 1000;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: var(--space-4);
+		box-sizing: border-box;
+		background: rgba(0, 0, 0, 0.5);
+		overflow-y: auto;
 	}
 
-	.auth-dialog::backdrop {
-		background: rgba(0, 0, 0, 0.5);
+	.auth-dialog {
+		max-width: 420px;
+		width: 100%;
+		background: var(--bg-canvas);
+		color: var(--text-primary);
+		border-radius: var(--radius-card);
 	}
 
 	.dialog-content {
