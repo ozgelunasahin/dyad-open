@@ -6,7 +6,6 @@
 	let { data }: { data: PageData } = $props();
 
 	let authDialog = $state<AuthDialog | undefined>();
-	let resourcesOpen = $state(false);
 	// The conversation opened on the left (Airbnb-style detail pane). Null = grid.
 	let selected = $state<PromptSummary | null>(null);
 
@@ -49,43 +48,17 @@
 				<p class="left-sub">a place online to find conversations, people and communities offline. Open source. Steward-owned. Governed by the communities who use it.</p>
 				<div class="left-links">
 					<button class="text-link text-link--strong" onclick={() => openAuth('waitlist')}>join</button>
-					<a href="/field-notes" class="text-link">explore</a>
+					<a href="/why" class="text-link">explore</a>
 				</div>
 			</header>
 
 			<!-- ── Footer (in the left scroll flow) ── -->
 			<footer class="site-footer">
-				<div class="footer-resources-wrap">
-					<button
-						class="footer-link footer-resources-btn"
-						onclick={() => resourcesOpen = !resourcesOpen}
-						aria-expanded={resourcesOpen}
-					>
-						resources
-						<svg class="resources-chevron" class:resources-chevron--open={resourcesOpen} width="8" height="8" viewBox="0 0 8 8" fill="none">
-							<path d="M1 5.5L4 2.5L7 5.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-						</svg>
-					</button>
-
-					{#if resourcesOpen}
-						<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-						<div class="resources-backdrop" onclick={() => resourcesOpen = false}></div>
-						<nav class="resources-panel" aria-label="Resources">
-							<a href="/help" class="resources-item">Help center</a>
-							<a href="/roadmap" class="resources-item">Platform roadmap</a>
-							<a href="/coop-roadmap" class="resources-item">Co-op roadmap</a>
-							<a href="/coop-docs" class="resources-item">Co-op docs</a>
-							<a href="/changelog" class="resources-item">Changelog</a>
-						</nav>
-					{/if}
-				</div>
-
+				<a href="/why" class="footer-link">steward ownership</a>
 				<span class="footer-sep">·</span>
-				<a href="/steward-ownership" class="footer-link">steward ownership</a>
+				<a href="/why" class="footer-link">participatory governance</a>
 				<span class="footer-sep">·</span>
-				<a href="/governance" class="footer-link">participatory governance</a>
-				<span class="footer-sep">·</span>
-				<a href="/community-care" class="footer-link">community care</a>
+				<a href="/why" class="footer-link">community care</a>
 				<span class="footer-sep">·</span>
 				<a href="/impressum" class="footer-link">terms</a>
 				<span class="footer-sep">·</span>
@@ -368,41 +341,6 @@
 		color: rgba(255, 255, 255, 0.12);
 		padding: 0 10px;
 	}
-
-	.footer-resources-wrap { position: relative; display: flex; align-items: center; }
-	.footer-resources-btn { display: flex; align-items: center; gap: 4px; background: none; border: none; cursor: pointer; padding: 0; }
-	.resources-chevron { color: rgba(255, 255, 255, 0.18); transition: transform 0.18s ease, color 0.15s; }
-	.resources-chevron--open { transform: rotate(180deg); color: rgba(255, 255, 255, 0.45); }
-	.resources-backdrop { position: fixed; inset: 0; z-index: 390; }
-
-	.resources-panel {
-		position: absolute;
-		bottom: calc(100% + 10px);
-		left: 0;
-		z-index: 410;
-		background: rgba(12, 12, 16, 0.92);
-		border: 1px solid rgba(255, 255, 255, 0.1);
-		border-radius: 10px;
-		padding: 6px;
-		display: flex;
-		flex-direction: column;
-		gap: 1px;
-		backdrop-filter: blur(16px);
-		min-width: 160px;
-		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-	}
-	.resources-item {
-		font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
-		font-size: 0.65rem;
-		letter-spacing: 0.04em;
-		color: rgba(255, 255, 255, 0.45);
-		text-decoration: none;
-		padding: 7px 12px;
-		border-radius: 6px;
-		white-space: nowrap;
-		transition: background 0.12s, color 0.12s;
-	}
-	.resources-item:hover { background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.85); }
 
 	/* ── Header ── */
 	.hdr {
