@@ -42,7 +42,7 @@
 			const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 			const imgSrc = pin.prompt.cover_image_url;
 			const html = imgSrc
-				? `<img src="${esc(imgSrc)}" alt="" class="marker-img" />`
+				? `<img src="${esc(imgSrc)}" alt="" class="marker-img" loading="lazy" />`
 				: `<div class="marker-placeholder">${esc((pin.prompt.title ?? '?')[0])}</div>`;
 
 			const icon = L.divIcon({

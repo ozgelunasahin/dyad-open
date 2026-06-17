@@ -174,7 +174,7 @@ The internal model uses precise technical terms; user-facing copy uses everyday 
 
 - **Placeholders are the guidance.** No tutorial modals, no persistent labels, no instruction paragraphs above form fields. Once a member types, the placeholder disappears. At key transition points a placeholder may describe what happens next; that is the guidance.
 - **Onboarding is a 4-step modal** on the discover page. After that, members find their way through the interface itself.
-- **Casing** — headings in Title Case, buttons and actions in lowercase, badges and labels in Sentence case.
+- **Casing** — headings in Title Case, buttons and actions in lowercase, badges and labels in Sentence case. Exception: the landing page and the (zine) pages use sentence-case display headings as an intentional brand styling (e.g. "Collectively owned / offline social network"); leave those heading texts as written.
 
 ## Ways of Working
 

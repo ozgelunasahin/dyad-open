@@ -90,15 +90,23 @@ export const copy = {
 		_routes: ['/'],
 		_description: 'Landing page for unauthenticated visitors.',
 		title: 'dyad.',
-		metaDescription: 'A network for face to face sensemaking, in Berlin.',
+		metaDescription: 'The offline social network owned by its community.',
 		ogSiteName: 'dyad',
 		ogUrl: 'https://dyad.berlin',
-		rotatingWords: ['writers', 'parents', 'artists', 'neighbours', 'strangers', 'night owls', 'commuters', 'berliners', 'listeners', 'you'],
-		tagline: 'cultivating a culture of conversation',
 		joinWaitlist: 'join waitlist',
 		logIn: 'log in',
-		privateBeta: 'private beta',
-		conversationsStartingSoon: 'Conversations are starting soon.',
+		// Hero headline + supporting line (display copy; sentence case is the
+		// intentional brand styling — see CLAUDE.md § UI conventions).
+		headlineLine1: 'Collectively owned',
+		headlineLine2: 'offline social network',
+		subcopy:
+			'A place online to find conversations, people and communities offline. Open source. Steward-owned. Governed by the communities who use it.',
+		// CTA on the map card that floats over a selected conversation.
+		mapCardCta: 'Join to read & meet',
+		// ZineFooter colophon. Centralized here so the edition/date is config,
+		// not a string literal scattered in a component (no hardcoded dates).
+		zineColophon:
+			'DYAD — Building social technology as civic infrastructure. Draft Edition, June 2026. Currently in beta in Berlin.',
 	},
 
 	// ── Discover ───────────────────────────────────────────────────────
@@ -432,7 +440,7 @@ export const copy = {
 		whatsOnYourMind: 'Dyad is a curated network of people who see conversation as one of the limited spaces left that celebrates our differences as an asset. Why do you want more or other conversations in your life?',
 		thoughtPlaceholder: 'We wonder',
 		city: 'City',
-		selectCity: 'Select your city',
+		cityPlaceholder: 'Berlin',
 		// "Where did you spot us?" — ozge's design (pre-open repo, b4e32ee):
 		// member-stated arrival channel, explicitly framed as not-tracking.
 		referralLabel: 'Where did you spot us?',
@@ -452,8 +460,6 @@ export const copy = {
 		// see 20260417110000_drop_newsletter_subscribers). We hold nothing.
 		newsletterInvite: 'We also write a newsletter — hosted on Substack.',
 		newsletterCta: 'Subscribe on Substack',
-		activeNow: 'Active now',
-		comingSoon: 'Coming soon',
 		cityExpansionNote: 'We\'re currently active in Berlin and will expand to other cities soon.',
 
 		// /waitlist page

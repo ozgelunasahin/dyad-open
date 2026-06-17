@@ -52,7 +52,7 @@
 					name="email"
 					bind:value={email}
 					required
-					autocomplete="email"
+					autocomplete="username"
 					placeholder={copy.auth.emailPlaceholder}
 					disabled={loading}
 				/>

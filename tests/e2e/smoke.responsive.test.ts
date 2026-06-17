@@ -4,7 +4,11 @@ import { TEST_USERS } from '../helpers/auth.js';
 test.describe('Smoke tests', () => {
 	test('landing page loads for anonymous users', async ({ page }) => {
 		await page.goto('/');
-		await expect(page.locator('.headline')).toBeVisible();
+		await expect(page.locator('.left-title')).toBeVisible();
+		// The hero Join CTA opens the waitlist dialog with its "Join waitlist" button.
+		// Pin to the stable data-testid — the header Join was folded into the hero
+		// action group, so a class/text selector would be ambiguous.
+		await page.locator('[data-testid="join-cta"]').click();
 		await expect(page.getByRole('button', { name: /join waitlist/i })).toBeVisible();
 	});
 

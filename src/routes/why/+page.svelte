@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { env } from '$env/dynamic/public';
+	import ZineFooter from '$lib/components/ZineFooter.svelte';
 
 	// Base URL for page imagery. Falls back to the current Supabase bucket URL
 	// so deployments without the env var set keep rendering identically. Set
@@ -14,11 +15,11 @@
 	<title>Why</title>
 </svelte:head>
 
-<div class="page">
+<div class="page" data-theme="dark">
 
 	<div class="snap-intro">
 		<header class="header">
-			<a href="/"><img src="/images/logo.png" alt="dyad." class="logo" /></a>
+			<a href="/" class="wordmark" aria-label="DYAD">DYAD</a>
 		</header>
 
 		<div class="hero">
@@ -101,6 +102,8 @@
 			<img class="sc sc-lg" style="--x: 48%; --y: 42%; --r: 3deg"  src="{ASSETS}/whyteam2.png" alt="" />
 		</div>
 	</div>
+
+	<ZineFooter />
 </div>
 
 <style>
@@ -213,11 +216,14 @@
 		flex-shrink: 0;
 	}
 
-	.logo {
-		height: 24px;
-		width: auto;
-		display: block;
-		opacity: 0.85;
+	.wordmark {
+		font-family: 'SangBleu Sunrise', Georgia, 'Times New Roman', serif;
+		font-size: 22px;
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		color: rgba(255, 255, 255, 0.85);
+		text-decoration: none;
+		line-height: 1;
 	}
 
 	/* Hero — first viewport */

@@ -1,71 +1,48 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { fade } from 'svelte/transition';
-	import { themeStore } from '$lib/stores/theme.svelte';
-	import { copy } from '$lib/copy';
 	import type { PageData } from './$types';
 	import type { PromptSummary, TimeSlot } from '$lib/domain/types';
-	import ConversationCard from '$lib/components/ConversationCard.svelte';
-	import BottomSheet from '$lib/components/BottomSheet.svelte';
 	import AuthDialog from '$lib/components/AuthDialog.svelte';
-	import RotatingHeadline from '$lib/components/RotatingHeadline.svelte';
+	import { copy } from '$lib/copy';
 
 	const og = copy.landing;
 	const ogImage = `${og.ogUrl}/images/og-card.png`;
 
-	function slotDates(slots: { start_time: string }[]): string {
-		const dates = new Set<string>();
-		for (const s of slots) {
-			const d = new Date(s.start_time);
-			dates.add(d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' }));
-		}
-		return [...dates].join(' · ');
-	}
-
-	function uniqueAreas(slots: { general_area: string }[]): string {
-		return slots
-			.map((s) => s.general_area)
-			.filter((v, i, a) => a.indexOf(v) === i)
-			.join(', ');
-	}
-
 	let { data }: { data: PageData } = $props();
 
-	let mapCenter = $state<[number, number] | null>(null);
-	let mapZoom = $state<number | null>(null);
-	type SelectedPinItem = { prompt: PromptSummary; slots: TimeSlot[] };
-	let selectedPinItems = $state<SelectedPinItem[]>([]);
-	let fullscreenPinItems = $state<SelectedPinItem[]>([]);
-	let scrolledPastHero = $state(false);
-	let mapFullscreen = $state(false);
-
 	let authDialog = $state<AuthDialog | undefined>();
+	// The pin cluster opened over the map (Airbnb-style card). Co-located
+	// conversations are all kept so the visitor can pick from them; an empty
+	// array means no card is open.
+	let selectedItems = $state<Array<{ prompt: PromptSummary; slots: TimeSlot[] }>>([]);
+	let activeIndex = $state(0);
+	const selected = $derived<PromptSummary | null>(selectedItems[activeIndex]?.prompt ?? null);
 
-	onMount(() => {
-		function handleScroll() {
-			scrolledPastHero = window.scrollY > window.innerHeight * 0.5;
-		}
-		window.addEventListener('scroll', handleScroll, { passive: true });
-		return () => window.removeEventListener('scroll', handleScroll);
-	});
+	const conversations = $derived<PromptSummary[]>(data.mapPrompts ?? []);
 
 	function openAuth(mode: 'waitlist' | 'login') {
 		authDialog?.show(mode);
 	}
 
-	function handlePinSelect(items: SelectedPinItem[], _area: string) {
-		if (window.innerWidth <= 768) {
-			// Mobile: go fullscreen directly, skip hero-map sheet
-			mapFullscreen = true;
-			setTimeout(() => { fullscreenPinItems = items; }, 320);
-		} else {
-			selectedPinItems = items;
-		}
+	function closeConversation() {
+		selectedItems = [];
+		activeIndex = 0;
 	}
 
-	function handleMapMove(center: [number, number], zoom: number) {
-		mapCenter = center;
-		mapZoom = zoom;
+	// Clicking a map pin opens the cluster of co-located conversations as a
+	// floating card. The first item (closest to the click) is shown by default;
+	// when the cluster holds more than one, the card lets the visitor switch.
+	function handlePinSelect(items: Array<{ prompt: PromptSummary; slots: TimeSlot[] }>) {
+		selectedItems = items;
+		activeIndex = 0;
+	}
+
+	function formatDate(iso?: string | null): string {
+		if (!iso) return '';
+		return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+	}
+
+	function areaOf(prompt: PromptSummary): string {
+		return prompt.available_slots[0]?.general_area ?? '';
 	}
 </script>
 
@@ -88,543 +65,458 @@
 	<meta name="twitter:image" content={ogImage} />
 </svelte:head>
 
-<div class="landing">
-	<!-- Left: fixed hero panel -->
-	<div class="left-col">
-		<div class="left-top">
-			<img src="/images/logo.png" alt="dyad." class="logo" />
-			<div class="top-city-row">
-				<span class="city-dot" aria-hidden="true"></span>
-				<span class="city-name">BERLIN</span>
-			</div>
-			<a href="/why" class="why-link top-why-link">our origins</a>
-		</div>
-
-		<!-- Map preview — fills empty space on mobile, hidden on desktop -->
-		<div class="hero-map">
-			{#await import('$lib/components/MapView.svelte')}
-				<div class="hero-map-placeholder"></div>
-			{:then { default: HeroMap }}
-				<HeroMap
-					prompts={data.prompts}
-					initialCenter={mapCenter}
-					initialZoom={mapZoom ?? 12}
-					onSelectPin={handlePinSelect}
-					onMoveEnd={handleMapMove}
-					scrollWheelZoom={false}
-					onMapClick={() => selectedPinItems = []}
-				/>
-			{:catch}
-				<div class="hero-map-placeholder"></div>
-			{/await}
-			<button
-				class="hero-map-expand"
-				onclick={() => mapFullscreen = true}
-				aria-label="Full screen map"
-			>
-				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-					<path d="M10 2h4v4M6 14H2v-4M14 2l-5 5M2 14l5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-				</svg>
-			</button>
-			{#if selectedPinItems.length > 0}
-				<div class="hero-sheet-wrap">
-					<BottomSheet items={selectedPinItems} onClose={() => selectedPinItems = []} onCardClick={() => openAuth('waitlist')} hideAuthor navClearance={false} />
+<!-- ── Two-pane shell: conversations on the left, map on the right (Airbnb model) ── -->
+<div class="shell" data-theme="dark">
+	<!-- LEFT: intro + footer -->
+	<section class="left">
+			<header class="left-head">
+				<h1 class="left-title">{og.headlineLine1}<br />{og.headlineLine2}</h1>
+				<p class="left-sub">{og.subcopy}</p>
+				<div class="left-links">
+					<!-- href fallbacks so each action degrades without JS -->
+					<a href="/waitlist" class="btn-join" data-testid="join-cta" onclick={(e) => { e.preventDefault(); openAuth('waitlist'); }}>Join</a>
+					<a href="/login" class="text-link" onclick={(e) => { e.preventDefault(); openAuth('login'); }}>Log in</a>
 				</div>
-			{/if}
-		</div>
+			</header>
 
-		<div class="hero-center">
-			<RotatingHeadline />
-		</div>
+			<!-- ── Footer (in the left scroll flow) ── -->
+			<footer class="site-footer">
+				<a href="/steward-ownership" class="footer-link">Ownership</a>
+				<a href="/governance" class="footer-link">Governance</a>
+				<a href="/community-care" class="footer-link">Community care</a>
+				<!-- Terms + Privacy stay together so a wrap never orphans one of the
+				     legal links on its own line — they break as a pair. -->
+				<span class="footer-legal">
+					<a href="/impressum" class="footer-link">Terms</a>
+					<a href="/datenschutz" class="footer-link">Privacy</a>
+				</span>
+			</footer>
+	</section>
 
-		<div class="hero-bottom">
-			<div class="city-row">
-				<span class="city-dot" aria-hidden="true"></span>
-				<span class="city-name">BERLIN</span>
-			</div>
-
-			<div class="hero-actions">
-				<button class="join-btn" onclick={() => openAuth('waitlist')}>
-					join waitlist
-				</button>
-				<a href="/login" class="login-btn">
-					log in
-				</a>
-				<button class="theme-toggle theme-toggle-inline" onclick={() => themeStore.toggle()} aria-label="Toggle theme">
-					{#if themeStore.current === 'light'}
-						<svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-							<circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5" />
-							<path d="M8 1V2.5M8 13.5V15M1 8H2.5M13.5 8H15M3.05 3.05L4.11 4.11M11.89 11.89L12.95 12.95M3.05 12.95L4.11 11.89M11.89 4.11L12.95 3.05" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-						</svg>
-					{:else}
-						<svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-							<path d="M14 8.5A6 6 0 117.5 2a4.5 4.5 0 006.5 6.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-						</svg>
-					{/if}
-				</button>
-			</div>
-		</div>
-
-		<footer class="page-footer"></footer>
-	</div>
-
-	<!-- Right: map on desktop, list on mobile -->
-	<div class="right-col">
-		<div class="right-map">
-			{#await import('$lib/components/MapView.svelte')}
-				<div class="hero-map-placeholder"></div>
-			{:then { default: RightMap }}
-				<RightMap
-					prompts={data.prompts}
-					initialCenter={mapCenter}
-					initialZoom={mapZoom ?? 12}
-					onSelectPin={handlePinSelect}
-					onMoveEnd={handleMapMove}
-					scrollWheelZoom={true}
-					onMapClick={() => selectedPinItems = []}
-				/>
-			{:catch}
-				<div class="hero-map-placeholder"></div>
-			{/await}
-			{#if selectedPinItems.length > 0}
-				<div class="right-sheet-wrap">
-					<BottomSheet items={selectedPinItems} onClose={() => selectedPinItems = []} onCardClick={() => openAuth('waitlist')} hideAuthor navClearance={false} />
-				</div>
-			{/if}
-		</div>
-		<div class="prompt-list">
-			{#if data.prompts && data.prompts.length > 0}
-				{#each data.prompts as prompt}
-					<ConversationCard
-						title={prompt.title ?? 'Untitled'}
-						coverUrl={prompt.cover_image_url}
-						snippet={prompt.body_snippet}
-						metaLeft={slotDates(prompt.available_slots)}
-						metaRight={uniqueAreas(prompt.available_slots)}
-						onclick={() => openAuth('waitlist')}
+	<!-- RIGHT: map nested in a soft-edged black container -->
+	<aside class="right">
+		<div class="map-frame">
+			<div class="map-inner">
+				{#await import('$lib/components/MapView.svelte')}
+					<div class="map-placeholder"></div>
+				{:then { default: MapView }}
+					<MapView
+						prompts={conversations}
+						initialCenter={data.mapCenter}
+						initialZoom={12}
+						onSelectPin={handlePinSelect}
+						onMapClick={closeConversation}
+						scrollWheelZoom={true}
+						zoomControl={false}
 					/>
-				{/each}
-			{:else}
-				<div class="empty-state">
-					<p>Conversations are starting soon.</p>
-					<button class="join-btn" onclick={() => openAuth('waitlist')}>
-						Join the waitlist
+				{:catch}
+					<div class="map-placeholder"></div>
+				{/await}
+			</div>
+
+			{#if selected}
+				<!-- Airbnb-style card floating on top of the map -->
+				<div class="map-card">
+					<button class="map-card-close" onclick={closeConversation} aria-label="Close">
+						<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
 					</button>
+					{#if selectedItems.length > 1}
+						<!-- Co-located conversations: a compact picker so none are discarded. -->
+						<div class="map-card-cluster">
+							{#each selectedItems as item, i}
+								<button
+									class="map-card-cluster-item"
+									class:active={i === activeIndex}
+									onclick={() => (activeIndex = i)}
+								>
+									{item.prompt.title ?? 'Untitled'}
+								</button>
+							{/each}
+						</div>
+					{/if}
+					{#if selected.cover_image_url}
+						<div class="map-card-cover">
+							<img src={selected.cover_image_url} alt={selected.title ? `Cover image for ${selected.title}` : ''} />
+						</div>
+					{/if}
+					<div class="map-card-body">
+						<h3 class="map-card-title">{selected.title ?? 'Untitled'}</h3>
+						<div class="map-card-meta">
+							{#if areaOf(selected)}<span>{areaOf(selected)}</span>{/if}
+							{#if selected.soonest_slot}<span>{formatDate(selected.soonest_slot)}</span>{/if}
+						</div>
+						{#if selected.body_snippet}
+							<p class="map-card-snippet">{selected.body_snippet}</p>
+						{/if}
+						<a href="/waitlist" class="map-card-cta" onclick={(e) => { e.preventDefault(); openAuth('waitlist'); }}>{og.mapCardCta}</a>
+					</div>
 				</div>
 			{/if}
 		</div>
-	</div>
+	</aside>
 </div>
 
-<!-- Full-screen map overlay -->
-{#if mapFullscreen}
-	<div class="map-overlay" transition:fade={{ duration: 380 }}>
-		{#await import('$lib/components/MapView.svelte')}
-			<p class="map-loading">Loading map...</p>
-		{:then { default: FullMap }}
-			<FullMap
-				prompts={data.prompts}
-				initialCenter={mapCenter}
-				initialZoom={mapZoom}
-				onSelectPin={(items) => fullscreenPinItems = items}
-				onMoveEnd={handleMapMove}
-				onMapClick={() => fullscreenPinItems = []}
-			/>
-		{/await}
-		{#if fullscreenPinItems.length > 0}
-			<div class="overlay-sheet-wrap">
-				<BottomSheet items={fullscreenPinItems} onClose={() => fullscreenPinItems = []} onCardClick={() => openAuth('waitlist')} hideAuthor navClearance={false} />
-			</div>
-		{/if}
-		<button class="map-overlay-close" onclick={() => { mapFullscreen = false; fullscreenPinItems = []; selectedPinItems = []; }} aria-label="Close map">
-			<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-				<path d="M2 2l12 12M14 2L2 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-			</svg>
-		</button>
-	</div>
-{/if}
+<!-- ── Header (always visible) — wordmark only; the actions live in the hero. ── -->
+<header class="hdr">
+	<a href="/" class="wordmark" aria-label="DYAD">DYAD</a>
+</header>
 
 <AuthDialog bind:this={authDialog} />
 
 <style>
-	/* ── Split layout ─────────────────────────────────────────── */
-	.landing {
+	:global(body) { margin: 0; overflow: hidden; }
+
+	/* ── Shell: left content | right map ── */
+	/* Uniform outer margin on all sides + a gap between the two panes; the top
+	   padding clears the fixed header so the map floats below it.
+	   data-theme="dark" (on the element) resolves the [data-theme='dark']
+	   tokens from app.css. A few values have no clean token — the near-black
+	   surfaces and the deliberately light floating card — so they live as named
+	   locals here rather than scattered literals. */
+	.shell {
+		/* near-black surfaces (deeper than --bg-canvas: #000 reads flat here) */
+		--landing-surface: #040407;
+		--landing-map-surface: #0a0a0d;
+		/* the floating card is an intentionally light surface over the dark map */
+		--landing-card-bg: #fff;
+		--landing-card-ink: #111;
+		--landing-card-ink-soft: #555;
+		--landing-card-ink-muted: #717171;
+
+		position: fixed;
+		inset: 0;
 		display: grid;
-		grid-template-columns: 50% 50%;
-		height: 100vh;
-		overflow: hidden;
-		background: var(--bg-canvas);
+		grid-template-columns: 1.1fr 1fr;
+		grid-template-rows: 1fr;
+		gap: var(--space-6);
+		background: var(--landing-surface);
+		/* Uniform inset on all four sides — the map frame should sit the same
+		   distance from the top as from the sides. The fixed header (wordmark
+		   only, over the left column) floats above this; it needs no clearance
+		   reserved here, so the top no longer gets an outsized 72px. */
+		padding: var(--space-6);
+		box-sizing: border-box;
 	}
 
-	/* ── Left column ──────────────────────────────────────────── */
-	.left-col {
-		height: 100vh;
+	/* LEFT — content column: intro sits bottom-left, footer pinned to the bottom */
+	.left {
 		display: flex;
 		flex-direction: column;
-		padding: var(--space-6) var(--space-10) var(--space-6);
+		min-height: 0;
+		overflow-y: auto;
+		padding: var(--space-2) 0;
 		box-sizing: border-box;
-		border-right: 1px solid var(--border-link);
-		overflow: hidden;
-		position: relative;
 	}
 
-	.left-top {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		flex-shrink: 0;
-		height: 48px;
-		overflow: hidden;
-	}
+	/* Push the intro (and the footer beneath it) to the bottom of the column. */
+	.left-head { margin-top: auto; margin-bottom: var(--space-6); }
 
-	/* City indicator in top bar — hidden on desktop, shown on mobile */
-	.top-city-row { display: none; }
-
-	.logo {
-		height: 28px;
-		max-height: 100%;
-		width: auto;
-		flex-shrink: 0;
-		filter: brightness(0) opacity(0.4);
-	}
-	:global([data-theme='dark']) .logo { filter: none; }
-
-	.beta-label {
-		font-family: var(--font-mono);
-		font-size: var(--text-xs);
-		letter-spacing: 0.06em;
-		color: var(--text-muted);
-	}
-
-	.hero-center {
-		margin: auto 0;
-	}
-
-	.hero-statement {
-		font-size: clamp(3rem, 5.8vw, 7.5rem);
-		font-weight: normal;
-		line-height: 1;
-		letter-spacing: -0.01em;
-		margin: 0;
+	/* dice-style hierarchy: a large, heavy headline that dominates the column. */
+	.left-title {
+		font-family: var(--font-serif);
+		font-size: clamp(2rem, 4.4vw, 3rem);
+		font-weight: 700;
 		color: var(--text-primary);
-		text-align: justify;
-		text-align-last: justify;
-	}
-
-	.hero-statement :global(.right) {
-		display: block;
-		text-align: right;
-		text-align-last: right;
-	}
-
-	.hero-statement :global(.left) {
-		display: block;
-		text-align: left;
-		text-align-last: left;
-	}
-
-	.hero-bottom {
-		padding-bottom: var(--space-6);
-	}
-
-	.why-link {
-		display: block;
-		font-size: clamp(0.78rem, 1vw, 0.88rem);
-		font-style: italic;
-		color: var(--text-muted);
-		opacity: 0.6;
-		text-decoration: none;
 		margin: 0 0 var(--space-5);
-	}
-	.why-link:hover { opacity: 1; }
-	.top-why-link { color: var(--text-primary); opacity: 1; font-style: normal; display: inline; align-self: center; margin: 0; }
-
-	.city-row {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		margin-bottom: var(--space-6);
+		line-height: 1.05;
+		letter-spacing: -0.015em;
 	}
 
-	.city-dot {
-		width: 6px;
-		height: 6px;
-		border-radius: 50%;
-		background: var(--color-success);
-		flex-shrink: 0;
-		animation: pulse var(--duration-ambient) ease-in-out infinite;
-	}
-
-	@keyframes pulse {
-		0%, 100% { opacity: 1; }
-		50% { opacity: 0.4; }
-	}
-
-	.city-name {
+	/* Secondary supporting line — clearly below the headline in the hierarchy. */
+	.left-sub {
 		font-family: var(--font-mono);
-		font-size: var(--text-xs);
-		font-weight: 500;
-		letter-spacing: 0.1em;
-		color: var(--text-muted);
+		font-size: 0.82rem;
+		line-height: 1.6;
+		color: rgba(255, 255, 255, 0.55);
+		max-width: 30rem;
+		margin: 0 0 var(--space-5);
+		letter-spacing: -0.005em;
 	}
 
-	.hero-actions {
-		display: flex;
-		align-items: center;
-		gap: var(--space-4);
-	}
+	.left-links { display: flex; gap: var(--space-4); align-items: center; }
 
-	.join-btn {
+	/* Primary action: a light pill on the dark hero so Join is unmistakably the
+	   first thing to do. Log in stays a quiet text link beside it. */
+	.btn-join {
 		display: inline-flex;
 		align-items: center;
-		gap: var(--space-2);
-		font-size: var(--text-base);
-		color: var(--bg-canvas);
 		background: var(--text-primary);
-		border: 1px solid var(--text-primary);
-		border-radius: var(--radius-input);
-		padding: var(--space-3) var(--space-5);
+		color: var(--landing-surface);
+		font-family: var(--font-mono);
+		font-size: 0.82rem;
+		letter-spacing: 0.04em;
+		text-decoration: none;
+		padding: 10px 22px;
+		border: none;
+		border-radius: var(--radius-pill);
 		cursor: pointer;
 		transition: opacity 0.15s;
 	}
-	.join-btn:hover { opacity: var(--opacity-hover-btn); }
-	.arrow { font-size: var(--text-sm); }
+	.btn-join:hover { opacity: 0.88; }
 
-	.login-btn {
-		font-family: var(--font-mono);
-		font-size: var(--text-xs);
-		letter-spacing: 0.06em;
-		color: var(--text-muted);
+	.text-link {
 		background: none;
 		border: none;
 		cursor: pointer;
-		padding: var(--space-2);
-	}
-	.login-btn:hover { color: var(--text-primary); }
-
-	/* ── Page footer (inside left-col) ───────────────────────── */
-	.page-footer {
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: var(--space-3) var(--space-10);
-		box-sizing: border-box;
-	}
-
-	.theme-toggle {
-		background: none;
-		border: none;
-		color: var(--text-muted);
-		cursor: pointer;
-		padding: var(--space-1);
-	}
-	.theme-toggle:hover { color: var(--text-primary); }
-	.theme-toggle-inline { display: flex; margin-left: auto; }
-
-	.legal-links {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-	}
-
-	.legal-link {
 		font-family: var(--font-mono);
-		font-size: var(--text-xs);
-		color: var(--text-muted);
-		letter-spacing: 0.02em;
+		font-size: 0.82rem;
+		color: rgba(255, 255, 255, 0.5);
+		padding: 0;
+		text-decoration: none;
+		letter-spacing: 0.04em;
+		transition: color 0.15s;
 	}
-	.legal-link:hover { color: var(--text-primary); }
-	.legal-sep { color: var(--text-muted); font-size: var(--text-xs); }
+	.text-link:hover { color: var(--text-primary); }
 
-	/* ── Hero map (mobile only) ──────────────────────────────── */
-	.hero-map { display: none; }
+	/* RIGHT — map nested in a soft-edged black container */
+	.right { min-height: 0; box-sizing: border-box; }
 
-	/* ── Right column ─────────────────────────────────────────── */
-	.right-col {
-		height: 100vh;
-		display: flex;
-		flex-direction: column;
+	.map-frame {
 		position: relative;
+		width: 100%;
+		height: 100%;
+		background: var(--landing-map-surface);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-card);
+		padding: var(--space-3);
+		box-sizing: border-box;
+		box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+	}
+
+	/* ── Airbnb-style card floating over the map ── */
+	.map-card {
+		position: absolute;
+		left: 50%;
+		top: 50%;
+		transform: translate(-50%, -50%);
+		z-index: 1100;
+		width: min(320px, 80%);
+		background: var(--landing-card-bg);
+		border-radius: 16px;
 		overflow: hidden;
-		transform: translateZ(0); /* contain position:fixed children */
+		box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+		text-align: left;
+		animation: map-card-in 0.18s ease;
 	}
 
-	.right-map {
+	@keyframes map-card-in {
+		from { opacity: 0; transform: translate(-50%, -46%) scale(0.97); }
+		to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+	}
+
+	.map-card-close {
 		position: absolute;
-		inset: 0;
-	}
-
-	.right-map :global(.map-container) {
-		position: absolute;
-		inset: 0;
-	}
-
-	.right-col .prompt-list {
-		display: none;
-	}
-
-	/* ── Right-col sheet wrap (contains fixed BottomSheet inside right-col) */
-	.right-sheet-wrap {
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		z-index: 600;
-	}
-
-	/* ── Full-screen map overlay ─────────────────────────────── */
-	.map-overlay {
-		position: fixed;
-		inset: 0;
-		z-index: 1000;
-		background: var(--bg-canvas);
-	}
-
-	.map-overlay :global(.map-container) {
-		position: absolute;
-		inset: 0;
-	}
-
-	.map-overlay-close {
-		position: absolute;
-		top: var(--space-4);
-		right: var(--space-4);
-		z-index: 1010;
-		background: var(--bg-glass);
-		backdrop-filter: blur(8px);
-		-webkit-backdrop-filter: blur(8px);
+		top: 10px;
+		right: 10px;
+		z-index: 2;
+		width: 30px;
+		height: 30px;
 		border: none;
 		border-radius: 50%;
-		width: 40px;
-		height: 40px;
+		background: rgba(255, 255, 255, 0.95);
+		color: #222;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		color: var(--text-primary);
 		cursor: pointer;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+	}
+	.map-card-close:hover { background: var(--landing-card-bg); }
+
+	/* Co-located conversation picker (cluster of >1 pin). */
+	.map-card-cluster {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-1);
+		padding: var(--space-3) var(--space-4) 0;
 	}
 
-	.overlay-sheet-wrap {
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		z-index: 1005;
+	.map-card-cluster-item {
+		font-family: var(--font-mono);
+		font-size: 0.64rem;
+		letter-spacing: 0.02em;
+		color: var(--landing-card-ink-muted);
+		background: rgba(0, 0, 0, 0.05);
+		border: none;
+		border-radius: var(--radius-pill);
+		padding: 4px 10px;
+		max-width: 100%;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		cursor: pointer;
+		transition: background 0.15s, color 0.15s;
+	}
+	.map-card-cluster-item:hover { background: rgba(0, 0, 0, 0.09); }
+	.map-card-cluster-item.active {
+		background: var(--landing-card-ink);
+		color: var(--landing-card-bg);
 	}
 
-	/* ── List ─────────────────────────────────────────────────── */
-	.prompt-list {
-		flex: 1;
-		padding: 0 var(--space-4);
+	.map-card-cover {
+		width: 100%;
+		aspect-ratio: 3 / 2;
+		overflow: hidden;
+	}
+	.map-card-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+	.map-card-body { padding: var(--space-4); }
+
+	.map-card-title {
+		font-size: var(--text-md);
+		font-weight: 600;
+		color: var(--landing-card-ink);
+		margin: 0 0 var(--space-1);
+		line-height: 1.3;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
 	}
 
-	.empty-state {
-		padding: var(--space-10);
+	.map-card-meta {
+		display: flex;
+		gap: var(--space-3);
+		font-family: var(--font-mono);
+		font-size: 0.68rem;
+		letter-spacing: 0.03em;
+		color: var(--landing-card-ink-muted);
+		margin-bottom: var(--space-2);
+	}
+
+	.map-card-snippet {
+		font-size: var(--text-sm);
+		color: var(--landing-card-ink-soft);
+		line-height: 1.45;
+		margin: 0 0 var(--space-3);
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
+
+	.map-card-cta {
+		display: block;
+		width: 100%;
+		box-sizing: border-box;
 		text-align: center;
-		color: var(--text-muted);
+		text-decoration: none;
+		background: var(--landing-card-ink);
+		border: none;
+		cursor: pointer;
+		font-family: var(--font-mono);
+		font-size: 0.74rem;
+		letter-spacing: 0.05em;
+		color: var(--landing-card-bg);
+		padding: 10px 16px;
+		border-radius: 100px;
+		transition: background 0.15s;
+	}
+	.map-card-cta:hover { background: #000; }
+
+	.map-inner {
+		width: 100%;
+		height: 100%;
+		overflow: hidden;
+		border-radius: calc(var(--radius-card) - 6px);
 	}
 
-	.empty-state p { margin: 0 0 var(--space-4); }
+	/* Dark-treat the OSM tiles so the bright default map integrates with the
+	   near-black shell. Scoped to the tile pane only — the cover-image pins live
+	   in a separate marker pane and keep full colour, so they pop against it.
+	   Tile gaps / pre-load show the dark map surface, not Leaflet's grey. */
+	.map-inner :global(.leaflet-tile-pane) {
+		filter: grayscale(1) invert(1) brightness(0.92) contrast(0.9);
+	}
+	.map-inner :global(.leaflet-container) {
+		background: var(--landing-map-surface);
+	}
 
-	.map-loading { text-align: center; color: var(--text-muted); padding: var(--space-10); }
+	/* Shown while the map chunk loads, or if it fails to load. */
+	.map-placeholder {
+		width: 100%;
+		height: 100%;
+		background: var(--landing-map-surface);
+	}
 
-	/* ── Mobile ───────────────────────────────────────────────── */
+	/* ── Footer (left column flow) ── */
+	/* Spacing carries the separation — no glyph separators, so a wrap can never
+	   strand a '·' at a line edge. Reads clean on one line (desktop) or two
+	   (mobile). */
+	.site-footer {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		column-gap: var(--space-5);
+		row-gap: var(--space-2);
+		margin-top: var(--space-5);
+		padding-top: var(--space-4);
+		border-top: 1px solid var(--border-subtle);
+	}
+
+	/* The legal pair wraps as one unit; its inner gap matches the footer's
+	   column-gap so spacing stays uniform when it sits inline. */
+	.footer-legal {
+		display: inline-flex;
+		column-gap: var(--space-5);
+	}
+
+	.footer-link {
+		font-family: var(--font-mono);
+		font-size: 0.68rem;
+		letter-spacing: 0.06em;
+		color: rgba(255, 255, 255, 0.4);
+		text-decoration: none;
+		white-space: nowrap;
+		transition: color 0.15s;
+	}
+	.footer-link:hover { color: rgba(255, 255, 255, 0.75); }
+
+	/* ── Header ── */
+	.hdr {
+		position: fixed;
+		top: 0; left: 0; right: 0;
+		z-index: 500;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		/* Match the shell's inset (var(--space-6)): the wordmark's top aligns with
+		   the map frame's top edge, and its left with the left column's content. */
+		padding: var(--space-6);
+		/* No background here — a full-width gradient would haze the top of the
+		   map. The wordmark sits over the dark left column, so it carries its own
+		   shadow for legibility (incl. over the map top when stacked on mobile). */
+	}
+
+	.wordmark {
+		font-family: var(--font-serif);
+		font-size: 22px;
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		color: rgba(255, 255, 255, 0.85);
+		text-decoration: none;
+		line-height: 1;
+		text-shadow: 0 1px 16px rgba(0, 0, 0, 0.7), 0 0 3px rgba(0, 0, 0, 0.5);
+	}
+
+	/* ── Mobile: stack intro above the map ── */
+	/* Mobile: map on top, copy below; page scrolls. */
 	@media (max-width: 768px) {
-		.landing {
-			display: flex;
-			flex-direction: column;
-			/* 100dvh tracks the visible viewport as mobile browser chrome
-			 * expands/collapses; 100vh keeps a bigger area fixed, which
-			 * clipped the hero content on short phones. */
-			height: 100dvh;
-			overflow: hidden;
-		}
-
-		.left-col {
-			height: 100dvh;
-			min-height: unset;
-			border-right: none;
-			border-bottom: none;
-			padding: var(--space-6) var(--space-4) var(--space-4);
-			transform: translateZ(0); /* contain position:fixed BottomSheet within 100vh */
-		}
-
-		.hero-center { margin: auto 0; }
-		.top-city-row { display: none; }
-
-		/* Map takes whatever leftover space is between the top bar and the
-		 * hero content, with a floor so it stays a usable map on very short
-		 * viewports. hero-content gets its natural height — no margin-top:auto
-		 * pushing it out of view when the viewport shrinks. */
-		.hero-map {
-			display: block;
-			flex: 1 1 auto;
-			min-height: 220px;
-			margin: var(--space-3) 0;
-			border-radius: var(--radius-card);
-			overflow: hidden;
+		:global(body) { overflow: auto; }
+		.shell {
 			position: relative;
+			inset: auto;
+			min-height: 100vh;
+			grid-template-columns: 1fr;
+			grid-template-rows: auto auto;
+			gap: var(--space-6);
+			padding: 64px var(--space-5) var(--space-6);
 		}
-
-		.hero-map :global(.map-container) {
-			position: absolute;
-			inset: 0;
-		}
-
-		.hero-map-expand {
-			position: absolute;
-			bottom: var(--space-3);
-			left: var(--space-3);
-			z-index: 500;
-			background: var(--bg-glass);
-			backdrop-filter: blur(8px);
-			-webkit-backdrop-filter: blur(8px);
-			border: none;
-			border-radius: var(--radius-card);
-			padding: var(--space-2);
-			color: var(--text-primary);
-			cursor: pointer;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-		}
-
-		.hero-map-placeholder {
-			width: 100%;
-			height: 100%;
-			background: var(--bg-control);
-		}
-
-		.hero-sheet-wrap {
-			position: absolute;
-			bottom: 0;
-			left: 0;
-			right: 0;
-			z-index: 600;
-		}
-
-		/* Sheet fills from viewport bottom up to map */
-		.hero-sheet-wrap :global(.sheet) {
-			max-height: calc(100vh - 45vh - 96px);
-			border-radius: var(--radius-card) var(--radius-card) 0 0;
-		}
-
-		.hero-actions { padding-bottom: 0; }
-
-		.page-footer { display: none; }
-		.theme-toggle-inline { display: flex; }
-
-		.right-col {
-			display: none;
-		}
-
-		.right-col .prompt-list {
-			display: block;
-			overflow-y: auto;
-		}
+		.right { order: -1; height: 56vh; padding: 0; }
+		.left { order: 0; overflow: visible; padding: 0; }
+		/* On mobile the copy reads top-down under the map (no bottom-pinning). */
+		.left-head { margin-top: 0; }
 	}
 </style>

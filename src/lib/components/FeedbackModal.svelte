@@ -93,12 +93,14 @@
 </dialog>
 
 <style>
+	/* Fixed, vertically centered on the right edge — stays put on scroll. */
 	.trigger-group {
 		position: fixed;
-		bottom: calc(var(--space-5) + env(safe-area-inset-bottom, 0px));
-		left: calc(var(--space-4) + env(safe-area-inset-left, 0px));
+		top: 50%;
+		right: calc(var(--space-4) + env(safe-area-inset-right, 0px));
+		transform: translateY(-50%);
 		display: flex;
-		flex-direction: row;
+		flex-direction: column;
 		gap: var(--space-2);
 		align-items: center;
 		z-index: 900;

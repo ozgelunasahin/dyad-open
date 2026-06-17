@@ -84,6 +84,9 @@
 				selectResult(results[activeIndex]);
 			}
 		} else if (e.key === 'Escape') {
+			// Stop the Escape here so a parent (e.g. AuthDialog's window listener)
+			// doesn't also close — one Escape dismisses the dropdown, not the modal.
+			e.stopPropagation();
 			open = false;
 			activeIndex = -1;
 		}
