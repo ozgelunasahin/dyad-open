@@ -1,630 +1,480 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { fade } from 'svelte/transition';
-	import { themeStore } from '$lib/stores/theme.svelte';
-	import { copy } from '$lib/copy';
 	import type { PageData } from './$types';
 	import type { PromptSummary, TimeSlot } from '$lib/domain/types';
-	import ConversationCard from '$lib/components/ConversationCard.svelte';
-	import BottomSheet from '$lib/components/BottomSheet.svelte';
 	import AuthDialog from '$lib/components/AuthDialog.svelte';
-	import RotatingHeadline from '$lib/components/RotatingHeadline.svelte';
-
-	const og = copy.landing;
-	const ogImage = `${og.ogUrl}/images/og-card.png`;
-
-	function slotDates(slots: { start_time: string }[]): string {
-		const dates = new Set<string>();
-		for (const s of slots) {
-			const d = new Date(s.start_time);
-			dates.add(d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' }));
-		}
-		return [...dates].join(' · ');
-	}
-
-	function uniqueAreas(slots: { general_area: string }[]): string {
-		return slots
-			.map((s) => s.general_area)
-			.filter((v, i, a) => a.indexOf(v) === i)
-			.join(', ');
-	}
 
 	let { data }: { data: PageData } = $props();
 
-	let mapCenter = $state<[number, number] | null>(null);
-	let mapZoom = $state<number | null>(null);
-	type SelectedPinItem = { prompt: PromptSummary; slots: TimeSlot[] };
-	let selectedPinItems = $state<SelectedPinItem[]>([]);
-	let fullscreenPinItems = $state<SelectedPinItem[]>([]);
-	let scrolledPastHero = $state(false);
-	let mapFullscreen = $state(false);
-
 	let authDialog = $state<AuthDialog | undefined>();
+	let resourcesOpen = $state(false);
+	// The conversation opened on the left (Airbnb-style detail pane). Null = grid.
+	let selected = $state<PromptSummary | null>(null);
 
-	onMount(() => {
-		function handleScroll() {
-			scrolledPastHero = window.scrollY > window.innerHeight * 0.5;
-		}
-		window.addEventListener('scroll', handleScroll, { passive: true });
-		return () => window.removeEventListener('scroll', handleScroll);
-	});
+	const conversations = $derived<PromptSummary[]>(data.mapPrompts ?? []);
 
 	function openAuth(mode: 'waitlist' | 'login') {
 		authDialog?.show(mode);
 	}
 
-	function handlePinSelect(items: SelectedPinItem[], _area: string) {
-		if (window.innerWidth <= 768) {
-			// Mobile: go fullscreen directly, skip hero-map sheet
-			mapFullscreen = true;
-			setTimeout(() => { fullscreenPinItems = items; }, 320);
-		} else {
-			selectedPinItems = items;
-		}
+	function closeConversation() {
+		selected = null;
 	}
 
-	function handleMapMove(center: [number, number], zoom: number) {
-		mapCenter = center;
-		mapZoom = zoom;
+	// Clicking a map pin opens the nearest conversation as a floating card.
+	function handlePinSelect(items: Array<{ prompt: PromptSummary; slots: TimeSlot[] }>) {
+		if (items.length > 0) selected = items[0].prompt;
+	}
+
+	function formatDate(iso?: string | null): string {
+		if (!iso) return '';
+		return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+	}
+
+	function areaOf(prompt: PromptSummary): string {
+		return prompt.available_slots[0]?.general_area ?? '';
 	}
 </script>
 
 <svelte:head>
-	<title>{og.title}</title>
-	<meta name="description" content={og.metaDescription} />
-
-	<!-- Open Graph (Facebook, LinkedIn, Slack, iMessage, Discord, Signal, …) -->
-	<meta property="og:title" content={og.title} />
-	<meta property="og:description" content={og.metaDescription} />
-	<meta property="og:url" content={og.ogUrl} />
-	<meta property="og:type" content="website" />
-	<meta property="og:image" content={ogImage} />
-	<meta property="og:site_name" content={og.ogSiteName} />
-
-	<!-- Twitter / X -->
-	<meta name="twitter:card" content="summary_large_image" />
-	<meta name="twitter:title" content={og.title} />
-	<meta name="twitter:description" content={og.metaDescription} />
-	<meta name="twitter:image" content={ogImage} />
+	<title>dyad.</title>
+	<meta name="description" content="The offline social network owned by its community." />
 </svelte:head>
 
-<div class="landing">
-	<!-- Left: fixed hero panel -->
-	<div class="left-col">
-		<div class="left-top">
-			<img src="/images/logo.png" alt="dyad." class="logo" />
-			<div class="top-city-row">
-				<span class="city-dot" aria-hidden="true"></span>
-				<span class="city-name">BERLIN</span>
-			</div>
-			<a href="/why" class="why-link top-why-link">our origins</a>
-		</div>
-
-		<!-- Map preview — fills empty space on mobile, hidden on desktop -->
-		<div class="hero-map">
-			{#await import('$lib/components/MapView.svelte')}
-				<div class="hero-map-placeholder"></div>
-			{:then { default: HeroMap }}
-				<HeroMap
-					prompts={data.prompts}
-					initialCenter={mapCenter}
-					initialZoom={mapZoom ?? 12}
-					onSelectPin={handlePinSelect}
-					onMoveEnd={handleMapMove}
-					scrollWheelZoom={false}
-					onMapClick={() => selectedPinItems = []}
-				/>
-			{:catch}
-				<div class="hero-map-placeholder"></div>
-			{/await}
-			<button
-				class="hero-map-expand"
-				onclick={() => mapFullscreen = true}
-				aria-label="Full screen map"
-			>
-				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-					<path d="M10 2h4v4M6 14H2v-4M14 2l-5 5M2 14l5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-				</svg>
-			</button>
-			{#if selectedPinItems.length > 0}
-				<div class="hero-sheet-wrap">
-					<BottomSheet items={selectedPinItems} onClose={() => selectedPinItems = []} onCardClick={() => openAuth('waitlist')} hideAuthor navClearance={false} />
+<!-- ── Two-pane shell: conversations on the left, map on the right (Airbnb model) ── -->
+<div class="shell">
+	<!-- LEFT: intro + footer -->
+	<section class="left">
+			<header class="left-head">
+				<h1 class="left-title">collectively owned<br />offline social network</h1>
+				<p class="left-sub">a place online to find conversations, people and communities offline. Open source. Steward-owned. Governed by the communities who use it.</p>
+				<div class="left-links">
+					<button class="text-link text-link--strong" onclick={() => openAuth('waitlist')}>join</button>
+					<a href="/field-notes" class="text-link">explore</a>
 				</div>
-			{/if}
-		</div>
+			</header>
 
-		<div class="hero-center">
-			<RotatingHeadline />
-		</div>
-
-		<div class="hero-bottom">
-			<div class="city-row">
-				<span class="city-dot" aria-hidden="true"></span>
-				<span class="city-name">BERLIN</span>
-			</div>
-
-			<div class="hero-actions">
-				<button class="join-btn" onclick={() => openAuth('waitlist')}>
-					join waitlist
-				</button>
-				<a href="/login" class="login-btn">
-					log in
-				</a>
-				<button class="theme-toggle theme-toggle-inline" onclick={() => themeStore.toggle()} aria-label="Toggle theme">
-					{#if themeStore.current === 'light'}
-						<svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-							<circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5" />
-							<path d="M8 1V2.5M8 13.5V15M1 8H2.5M13.5 8H15M3.05 3.05L4.11 4.11M11.89 11.89L12.95 12.95M3.05 12.95L4.11 11.89M11.89 4.11L12.95 3.05" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+			<!-- ── Footer (in the left scroll flow) ── -->
+			<footer class="site-footer">
+				<div class="footer-resources-wrap">
+					<button
+						class="footer-link footer-resources-btn"
+						onclick={() => resourcesOpen = !resourcesOpen}
+						aria-expanded={resourcesOpen}
+					>
+						resources
+						<svg class="resources-chevron" class:resources-chevron--open={resourcesOpen} width="8" height="8" viewBox="0 0 8 8" fill="none">
+							<path d="M1 5.5L4 2.5L7 5.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
 						</svg>
-					{:else}
-						<svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-							<path d="M14 8.5A6 6 0 117.5 2a4.5 4.5 0 006.5 6.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-						</svg>
-					{/if}
-				</button>
-			</div>
-		</div>
-
-		<footer class="page-footer"></footer>
-	</div>
-
-	<!-- Right: map on desktop, list on mobile -->
-	<div class="right-col">
-		<div class="right-map">
-			{#await import('$lib/components/MapView.svelte')}
-				<div class="hero-map-placeholder"></div>
-			{:then { default: RightMap }}
-				<RightMap
-					prompts={data.prompts}
-					initialCenter={mapCenter}
-					initialZoom={mapZoom ?? 12}
-					onSelectPin={handlePinSelect}
-					onMoveEnd={handleMapMove}
-					scrollWheelZoom={true}
-					onMapClick={() => selectedPinItems = []}
-				/>
-			{:catch}
-				<div class="hero-map-placeholder"></div>
-			{/await}
-			{#if selectedPinItems.length > 0}
-				<div class="right-sheet-wrap">
-					<BottomSheet items={selectedPinItems} onClose={() => selectedPinItems = []} onCardClick={() => openAuth('waitlist')} hideAuthor navClearance={false} />
-				</div>
-			{/if}
-		</div>
-		<div class="prompt-list">
-			{#if data.prompts && data.prompts.length > 0}
-				{#each data.prompts as prompt}
-					<ConversationCard
-						title={prompt.title ?? 'Untitled'}
-						coverUrl={prompt.cover_image_url}
-						snippet={prompt.body_snippet}
-						metaLeft={slotDates(prompt.available_slots)}
-						metaRight={uniqueAreas(prompt.available_slots)}
-						onclick={() => openAuth('waitlist')}
-					/>
-				{/each}
-			{:else}
-				<div class="empty-state">
-					<p>Conversations are starting soon.</p>
-					<button class="join-btn" onclick={() => openAuth('waitlist')}>
-						Join the waitlist
 					</button>
+
+					{#if resourcesOpen}
+						<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+						<div class="resources-backdrop" onclick={() => resourcesOpen = false}></div>
+						<nav class="resources-panel" aria-label="Resources">
+							<a href="/help" class="resources-item">Help center</a>
+							<a href="/roadmap" class="resources-item">Platform roadmap</a>
+							<a href="/coop-roadmap" class="resources-item">Co-op roadmap</a>
+							<a href="/coop-docs" class="resources-item">Co-op docs</a>
+							<a href="/changelog" class="resources-item">Changelog</a>
+						</nav>
+					{/if}
+				</div>
+
+				<span class="footer-sep">·</span>
+				<a href="/steward-ownership" class="footer-link">steward ownership</a>
+				<span class="footer-sep">·</span>
+				<a href="/governance" class="footer-link">participatory governance</a>
+				<span class="footer-sep">·</span>
+				<a href="/community-care" class="footer-link">community care</a>
+				<span class="footer-sep">·</span>
+				<a href="/impressum" class="footer-link">terms</a>
+				<span class="footer-sep">·</span>
+				<a href="/datenschutz" class="footer-link">privacy</a>
+			</footer>
+	</section>
+
+	<!-- RIGHT: map nested in a soft-edged black container -->
+	<aside class="right">
+		<div class="map-frame">
+			<div class="map-inner">
+				{#await import('$lib/components/MapView.svelte') then { default: MapView }}
+					<MapView
+						prompts={conversations}
+						initialCenter={data.mapCenter}
+						initialZoom={12}
+						onSelectPin={handlePinSelect}
+						onMapClick={closeConversation}
+						scrollWheelZoom={true}
+						zoomControl={false}
+					/>
+				{/await}
+			</div>
+
+			{#if selected}
+				<!-- Airbnb-style card floating on top of the map -->
+				<div class="map-card">
+					<button class="map-card-close" onclick={closeConversation} aria-label="Close">
+						<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+					</button>
+					{#if selected.cover_image_url}
+						<div class="map-card-cover">
+							<img src={selected.cover_image_url} alt="" />
+						</div>
+					{/if}
+					<div class="map-card-body">
+						<h3 class="map-card-title">{selected.title}</h3>
+						<div class="map-card-meta">
+							{#if areaOf(selected)}<span>{areaOf(selected)}</span>{/if}
+							{#if selected.soonest_slot}<span>{formatDate(selected.soonest_slot)}</span>{/if}
+						</div>
+						{#if selected.body_snippet}
+							<p class="map-card-snippet">{selected.body_snippet}</p>
+						{/if}
+						<button class="map-card-cta" onclick={() => openAuth('waitlist')}>join to read &amp; meet</button>
+					</div>
 				</div>
 			{/if}
 		</div>
-	</div>
+	</aside>
 </div>
 
-<!-- Full-screen map overlay -->
-{#if mapFullscreen}
-	<div class="map-overlay" transition:fade={{ duration: 380 }}>
-		{#await import('$lib/components/MapView.svelte')}
-			<p class="map-loading">Loading map...</p>
-		{:then { default: FullMap }}
-			<FullMap
-				prompts={data.prompts}
-				initialCenter={mapCenter}
-				initialZoom={mapZoom}
-				onSelectPin={(items) => fullscreenPinItems = items}
-				onMoveEnd={handleMapMove}
-				onMapClick={() => fullscreenPinItems = []}
-			/>
-		{/await}
-		{#if fullscreenPinItems.length > 0}
-			<div class="overlay-sheet-wrap">
-				<BottomSheet items={fullscreenPinItems} onClose={() => fullscreenPinItems = []} onCardClick={() => openAuth('waitlist')} hideAuthor navClearance={false} />
-			</div>
-		{/if}
-		<button class="map-overlay-close" onclick={() => { mapFullscreen = false; fullscreenPinItems = []; selectedPinItems = []; }} aria-label="Close map">
-			<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-				<path d="M2 2l12 12M14 2L2 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-			</svg>
-		</button>
-	</div>
-{/if}
+<!-- ── Header (always visible) ── -->
+<header class="hdr">
+	<a href="/" class="wordmark" aria-label="DYAD">DYAD</a>
+	<nav class="hdr-nav">
+		<button class="nav-link" onclick={() => openAuth('login')}>log in</button>
+		<button class="btn-join" onclick={() => openAuth('waitlist')}>join</button>
+	</nav>
+</header>
 
 <AuthDialog bind:this={authDialog} />
 
 <style>
-	/* ── Split layout ─────────────────────────────────────────── */
-	.landing {
-		display: grid;
-		grid-template-columns: 50% 50%;
-		height: 100vh;
-		overflow: hidden;
-		background: var(--bg-canvas);
-	}
+	:global(body) { margin: 0; overflow: hidden; }
 
-	/* ── Left column ──────────────────────────────────────────── */
-	.left-col {
-		height: 100vh;
-		display: flex;
-		flex-direction: column;
-		padding: var(--space-6) var(--space-10) var(--space-6);
-		box-sizing: border-box;
-		border-right: 1px solid var(--border-link);
-		overflow: hidden;
-		position: relative;
-	}
-
-	.left-top {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		flex-shrink: 0;
-		height: 48px;
-		overflow: hidden;
-	}
-
-	/* City indicator in top bar — hidden on desktop, shown on mobile */
-	.top-city-row { display: none; }
-
-	.logo {
-		height: 28px;
-		max-height: 100%;
-		width: auto;
-		flex-shrink: 0;
-		filter: brightness(0) opacity(0.4);
-	}
-	:global([data-theme='dark']) .logo { filter: none; }
-
-	.beta-label {
-		font-family: var(--font-mono);
-		font-size: var(--text-xs);
-		letter-spacing: 0.06em;
-		color: var(--text-muted);
-	}
-
-	.hero-center {
-		margin: auto 0;
-	}
-
-	.hero-statement {
-		font-size: clamp(3rem, 5.8vw, 7.5rem);
-		font-weight: normal;
-		line-height: 1;
-		letter-spacing: -0.01em;
-		margin: 0;
-		color: var(--text-primary);
-		text-align: justify;
-		text-align-last: justify;
-	}
-
-	.hero-statement :global(.right) {
-		display: block;
-		text-align: right;
-		text-align-last: right;
-	}
-
-	.hero-statement :global(.left) {
-		display: block;
-		text-align: left;
-		text-align-last: left;
-	}
-
-	.hero-bottom {
-		padding-bottom: var(--space-6);
-	}
-
-	.why-link {
-		display: block;
-		font-size: clamp(0.78rem, 1vw, 0.88rem);
-		font-style: italic;
-		color: var(--text-muted);
-		opacity: 0.6;
-		text-decoration: none;
-		margin: 0 0 var(--space-5);
-	}
-	.why-link:hover { opacity: 1; }
-	.top-why-link { color: var(--text-primary); opacity: 1; font-style: normal; display: inline; align-self: center; margin: 0; }
-
-	.city-row {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		margin-bottom: var(--space-6);
-	}
-
-	.city-dot {
-		width: 6px;
-		height: 6px;
-		border-radius: 50%;
-		background: var(--color-success);
-		flex-shrink: 0;
-		animation: pulse var(--duration-ambient) ease-in-out infinite;
-	}
-
-	@keyframes pulse {
-		0%, 100% { opacity: 1; }
-		50% { opacity: 0.4; }
-	}
-
-	.city-name {
-		font-family: var(--font-mono);
-		font-size: var(--text-xs);
-		font-weight: 500;
-		letter-spacing: 0.1em;
-		color: var(--text-muted);
-	}
-
-	.hero-actions {
-		display: flex;
-		align-items: center;
-		gap: var(--space-4);
-	}
-
-	.join-btn {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--space-2);
-		font-size: var(--text-base);
-		color: var(--bg-canvas);
-		background: var(--text-primary);
-		border: 1px solid var(--text-primary);
-		border-radius: var(--radius-input);
-		padding: var(--space-3) var(--space-5);
-		cursor: pointer;
-		transition: opacity 0.15s;
-	}
-	.join-btn:hover { opacity: var(--opacity-hover-btn); }
-	.arrow { font-size: var(--text-sm); }
-
-	.login-btn {
-		font-family: var(--font-mono);
-		font-size: var(--text-xs);
-		letter-spacing: 0.06em;
-		color: var(--text-muted);
-		background: none;
-		border: none;
-		cursor: pointer;
-		padding: var(--space-2);
-	}
-	.login-btn:hover { color: var(--text-primary); }
-
-	/* ── Page footer (inside left-col) ───────────────────────── */
-	.page-footer {
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: var(--space-3) var(--space-10);
-		box-sizing: border-box;
-	}
-
-	.theme-toggle {
-		background: none;
-		border: none;
-		color: var(--text-muted);
-		cursor: pointer;
-		padding: var(--space-1);
-	}
-	.theme-toggle:hover { color: var(--text-primary); }
-	.theme-toggle-inline { display: flex; margin-left: auto; }
-
-	.legal-links {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-	}
-
-	.legal-link {
-		font-family: var(--font-mono);
-		font-size: var(--text-xs);
-		color: var(--text-muted);
-		letter-spacing: 0.02em;
-	}
-	.legal-link:hover { color: var(--text-primary); }
-	.legal-sep { color: var(--text-muted); font-size: var(--text-xs); }
-
-	/* ── Hero map (mobile only) ──────────────────────────────── */
-	.hero-map { display: none; }
-
-	/* ── Right column ─────────────────────────────────────────── */
-	.right-col {
-		height: 100vh;
-		display: flex;
-		flex-direction: column;
-		position: relative;
-		overflow: hidden;
-		transform: translateZ(0); /* contain position:fixed children */
-	}
-
-	.right-map {
-		position: absolute;
-		inset: 0;
-	}
-
-	.right-map :global(.map-container) {
-		position: absolute;
-		inset: 0;
-	}
-
-	.right-col .prompt-list {
-		display: none;
-	}
-
-	/* ── Right-col sheet wrap (contains fixed BottomSheet inside right-col) */
-	.right-sheet-wrap {
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		z-index: 600;
-	}
-
-	/* ── Full-screen map overlay ─────────────────────────────── */
-	.map-overlay {
+	/* ── Shell: left content | right map ── */
+	/* Uniform outer margin on all sides + a gap between the two panes; the top
+	   padding clears the fixed header so the map floats below it. */
+	.shell {
 		position: fixed;
 		inset: 0;
-		z-index: 1000;
-		background: var(--bg-canvas);
+		display: grid;
+		grid-template-columns: 1.1fr 1fr;
+		grid-template-rows: 1fr;
+		gap: var(--space-6);
+		background: #040407;
+		padding: 72px var(--space-6) var(--space-6);
+		box-sizing: border-box;
 	}
 
-	.map-overlay :global(.map-container) {
-		position: absolute;
-		inset: 0;
+	/* LEFT — content column: intro sits bottom-left, footer pinned to the bottom */
+	.left {
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
+		overflow-y: auto;
+		padding: var(--space-2) 0;
+		box-sizing: border-box;
 	}
 
-	.map-overlay-close {
+	/* Push the intro (and the footer beneath it) to the bottom of the column. */
+	.left-head { margin-top: auto; margin-bottom: var(--space-6); }
+
+	/* dice-style hierarchy: a large, heavy headline that dominates the column. */
+	.left-title {
+		font-family: 'SangBleu Sunrise', Georgia, 'Times New Roman', serif;
+		font-size: clamp(2rem, 4.4vw, 3rem);
+		font-weight: 700;
+		color: rgba(255, 255, 255, 0.97);
+		margin: 0 0 var(--space-5);
+		line-height: 1.05;
+		letter-spacing: -0.015em;
+	}
+
+	/* Secondary supporting line — clearly below the headline in the hierarchy. */
+	.left-sub {
+		font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+		font-size: 0.82rem;
+		line-height: 1.6;
+		color: rgba(255, 255, 255, 0.55);
+		max-width: 30rem;
+		margin: 0 0 var(--space-5);
+		letter-spacing: -0.005em;
+	}
+
+	.left-links { display: flex; gap: var(--space-5); align-items: baseline; }
+
+	.text-link {
+		background: none;
+		border: none;
+		cursor: pointer;
+		font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+		font-size: 0.82rem;
+		color: rgba(255, 255, 255, 0.5);
+		padding: 0;
+		text-decoration: none;
+		letter-spacing: 0.04em;
+		transition: color 0.15s;
+	}
+	.text-link:hover { color: rgba(255, 255, 255, 0.95); }
+	.text-link--strong { color: rgba(255, 255, 255, 0.85); }
+
+	/* RIGHT — map nested in a soft-edged black container */
+	.right { min-height: 0; box-sizing: border-box; }
+
+	.map-frame {
+		position: relative;
+		width: 100%;
+		height: 100%;
+		background: #0a0a0d;
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: var(--radius-card);
+		padding: var(--space-3);
+		box-sizing: border-box;
+		box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+	}
+
+	/* ── Airbnb-style card floating over the map ── */
+	.map-card {
 		position: absolute;
-		top: var(--space-4);
-		right: var(--space-4);
-		z-index: 1010;
-		background: var(--bg-glass);
-		backdrop-filter: blur(8px);
-		-webkit-backdrop-filter: blur(8px);
+		left: 50%;
+		top: 50%;
+		transform: translate(-50%, -50%);
+		z-index: 1100;
+		width: min(320px, 80%);
+		background: #fff;
+		border-radius: 16px;
+		overflow: hidden;
+		box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+		text-align: left;
+		animation: map-card-in 0.18s ease;
+	}
+
+	@keyframes map-card-in {
+		from { opacity: 0; transform: translate(-50%, -46%) scale(0.97); }
+		to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+	}
+
+	.map-card-close {
+		position: absolute;
+		top: 10px;
+		right: 10px;
+		z-index: 2;
+		width: 30px;
+		height: 30px;
 		border: none;
 		border-radius: 50%;
-		width: 40px;
-		height: 40px;
+		background: rgba(255, 255, 255, 0.95);
+		color: #222;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		color: var(--text-primary);
 		cursor: pointer;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+	}
+	.map-card-close:hover { background: #fff; }
+
+	.map-card-cover {
+		width: 100%;
+		aspect-ratio: 3 / 2;
+		overflow: hidden;
+	}
+	.map-card-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+	.map-card-body { padding: var(--space-4); }
+
+	.map-card-title {
+		font-size: var(--text-md);
+		font-weight: 600;
+		color: #111;
+		margin: 0 0 var(--space-1);
+		line-height: 1.3;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
 	}
 
-	.overlay-sheet-wrap {
+	.map-card-meta {
+		display: flex;
+		gap: var(--space-3);
+		font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+		font-size: 0.68rem;
+		letter-spacing: 0.03em;
+		color: #717171;
+		margin-bottom: var(--space-2);
+	}
+
+	.map-card-snippet {
+		font-size: var(--text-sm);
+		color: #555;
+		line-height: 1.45;
+		margin: 0 0 var(--space-3);
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
+
+	.map-card-cta {
+		width: 100%;
+		background: #111;
+		border: none;
+		cursor: pointer;
+		font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+		font-size: 0.74rem;
+		letter-spacing: 0.05em;
+		color: #fff;
+		padding: 10px 16px;
+		border-radius: 100px;
+		transition: background 0.15s;
+	}
+	.map-card-cta:hover { background: #000; }
+
+	.map-inner {
+		width: 100%;
+		height: 100%;
+		overflow: hidden;
+		border-radius: calc(var(--radius-card) - 6px);
+	}
+
+	/* ── Footer (left column flow) ── */
+	.site-footer {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0;
+		margin-top: var(--space-5);
+		padding-top: var(--space-4);
+		border-top: 1px solid rgba(255, 255, 255, 0.08);
+	}
+
+	.footer-link {
+		font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+		font-size: 0.6rem;
+		letter-spacing: 0.06em;
+		color: rgba(255, 255, 255, 0.25);
+		text-decoration: none;
+		white-space: nowrap;
+		transition: color 0.15s;
+	}
+	.footer-link:hover { color: rgba(255, 255, 255, 0.6); }
+
+	.footer-sep {
+		font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+		font-size: 0.6rem;
+		color: rgba(255, 255, 255, 0.12);
+		padding: 0 10px;
+	}
+
+	.footer-resources-wrap { position: relative; display: flex; align-items: center; }
+	.footer-resources-btn { display: flex; align-items: center; gap: 4px; background: none; border: none; cursor: pointer; padding: 0; }
+	.resources-chevron { color: rgba(255, 255, 255, 0.18); transition: transform 0.18s ease, color 0.15s; }
+	.resources-chevron--open { transform: rotate(180deg); color: rgba(255, 255, 255, 0.45); }
+	.resources-backdrop { position: fixed; inset: 0; z-index: 390; }
+
+	.resources-panel {
 		position: absolute;
-		bottom: 0;
+		bottom: calc(100% + 10px);
 		left: 0;
-		right: 0;
-		z-index: 1005;
+		z-index: 410;
+		background: rgba(12, 12, 16, 0.92);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		border-radius: 10px;
+		padding: 6px;
+		display: flex;
+		flex-direction: column;
+		gap: 1px;
+		backdrop-filter: blur(16px);
+		min-width: 160px;
+		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+	}
+	.resources-item {
+		font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+		font-size: 0.65rem;
+		letter-spacing: 0.04em;
+		color: rgba(255, 255, 255, 0.45);
+		text-decoration: none;
+		padding: 7px 12px;
+		border-radius: 6px;
+		white-space: nowrap;
+		transition: background 0.12s, color 0.12s;
+	}
+	.resources-item:hover { background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.85); }
+
+	/* ── Header ── */
+	.hdr {
+		position: fixed;
+		top: 0; left: 0; right: 0;
+		z-index: 500;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 18px 28px;
+		background: linear-gradient(to bottom, rgba(4, 4, 7, 0.92) 0%, rgba(4, 4, 7, 0.6) 60%, transparent 100%);
 	}
 
-	/* ── List ─────────────────────────────────────────────────── */
-	.prompt-list {
-		flex: 1;
-		padding: 0 var(--space-4);
+	.wordmark {
+		font-family: 'SangBleu Sunrise', Georgia, 'Times New Roman', serif;
+		font-size: 22px;
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		color: rgba(255, 255, 255, 0.85);
+		text-decoration: none;
+		line-height: 1;
 	}
 
-	.empty-state {
-		padding: var(--space-10);
-		text-align: center;
-		color: var(--text-muted);
+	.hdr-nav { display: flex; align-items: center; gap: 2px; }
+
+	.nav-link {
+		background: none;
+		border: none;
+		cursor: pointer;
+		font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+		font-size: 11px;
+		letter-spacing: 0.06em;
+		color: rgba(255, 255, 255, 0.45);
+		padding: 6px 12px;
+		border-radius: 6px;
+		text-decoration: none;
+		transition: color 0.15s;
 	}
+	.nav-link:hover { color: rgba(255, 255, 255, 0.85); }
 
-	.empty-state p { margin: 0 0 var(--space-4); }
+	.btn-join {
+		background: rgba(255, 255, 255, 0.1);
+		border: 1px solid rgba(255, 255, 255, 0.18);
+		cursor: pointer;
+		font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+		font-size: 11px;
+		letter-spacing: 0.08em;
+		color: rgba(255, 255, 255, 0.75);
+		padding: 7px 18px;
+		border-radius: 100px;
+		backdrop-filter: blur(8px);
+		transition: background 0.15s, color 0.15s;
+		margin-left: 6px;
+	}
+	.btn-join:hover { background: rgba(255, 255, 255, 0.18); color: #fff; }
 
-	.map-loading { text-align: center; color: var(--text-muted); padding: var(--space-10); }
-
-	/* ── Mobile ───────────────────────────────────────────────── */
+	/* ── Mobile: stack intro above the map ── */
+	/* Mobile: map on top, copy below; page scrolls. */
 	@media (max-width: 768px) {
-		.landing {
-			display: flex;
-			flex-direction: column;
-			/* 100dvh tracks the visible viewport as mobile browser chrome
-			 * expands/collapses; 100vh keeps a bigger area fixed, which
-			 * clipped the hero content on short phones. */
-			height: 100dvh;
-			overflow: hidden;
-		}
-
-		.left-col {
-			height: 100dvh;
-			min-height: unset;
-			border-right: none;
-			border-bottom: none;
-			padding: var(--space-6) var(--space-4) var(--space-4);
-			transform: translateZ(0); /* contain position:fixed BottomSheet within 100vh */
-		}
-
-		.hero-center { margin: auto 0; }
-		.top-city-row { display: none; }
-
-		/* Map takes whatever leftover space is between the top bar and the
-		 * hero content, with a floor so it stays a usable map on very short
-		 * viewports. hero-content gets its natural height — no margin-top:auto
-		 * pushing it out of view when the viewport shrinks. */
-		.hero-map {
-			display: block;
-			flex: 1 1 auto;
-			min-height: 220px;
-			margin: var(--space-3) 0;
-			border-radius: var(--radius-card);
-			overflow: hidden;
+		:global(body) { overflow: auto; }
+		.shell {
 			position: relative;
+			inset: auto;
+			min-height: 100vh;
+			grid-template-columns: 1fr;
+			grid-template-rows: auto auto;
+			gap: var(--space-6);
+			padding: 64px var(--space-5) var(--space-6);
 		}
-
-		.hero-map :global(.map-container) {
-			position: absolute;
-			inset: 0;
-		}
-
-		.hero-map-expand {
-			position: absolute;
-			bottom: var(--space-3);
-			left: var(--space-3);
-			z-index: 500;
-			background: var(--bg-glass);
-			backdrop-filter: blur(8px);
-			-webkit-backdrop-filter: blur(8px);
-			border: none;
-			border-radius: var(--radius-card);
-			padding: var(--space-2);
-			color: var(--text-primary);
-			cursor: pointer;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-		}
-
-		.hero-map-placeholder {
-			width: 100%;
-			height: 100%;
-			background: var(--bg-control);
-		}
-
-		.hero-sheet-wrap {
-			position: absolute;
-			bottom: 0;
-			left: 0;
-			right: 0;
-			z-index: 600;
-		}
-
-		/* Sheet fills from viewport bottom up to map */
-		.hero-sheet-wrap :global(.sheet) {
-			max-height: calc(100vh - 45vh - 96px);
-			border-radius: var(--radius-card) var(--radius-card) 0 0;
-		}
-
-		.hero-actions { padding-bottom: 0; }
-
-		.page-footer { display: none; }
-		.theme-toggle-inline { display: flex; }
-
-		.right-col {
-			display: none;
-		}
-
-		.right-col .prompt-list {
-			display: block;
-			overflow-y: auto;
-		}
+		.right { order: -1; height: 56vh; padding: 0; }
+		.left { order: 0; overflow: visible; padding: 0; }
+		/* On mobile the copy reads top-down under the map (no bottom-pinning). */
+		.left-head { margin-top: 0; }
 	}
 </style>
