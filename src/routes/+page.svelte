@@ -74,22 +74,22 @@
 				<p class="left-sub">{og.subcopy}</p>
 				<div class="left-links">
 					<!-- href fallbacks so each action degrades without JS -->
-					<a href="/waitlist" class="text-link text-link--strong" data-testid="join-cta" onclick={(e) => { e.preventDefault(); openAuth('waitlist'); }}>Join</a>
+					<a href="/waitlist" class="btn-join" data-testid="join-cta" onclick={(e) => { e.preventDefault(); openAuth('waitlist'); }}>Join</a>
 					<a href="/login" class="text-link" onclick={(e) => { e.preventDefault(); openAuth('login'); }}>Log in</a>
 				</div>
 			</header>
 
 			<!-- ── Footer (in the left scroll flow) ── -->
 			<footer class="site-footer">
-				<a href="/steward-ownership" class="footer-link">Steward ownership</a>
-				<span class="footer-sep">·</span>
-				<a href="/governance" class="footer-link">Participatory governance</a>
-				<span class="footer-sep">·</span>
-				<a href="/community-care" class="footer-link">Trust, safety &amp; community care</a>
-				<span class="footer-sep">·</span>
-				<a href="/impressum" class="footer-link">Terms</a>
-				<span class="footer-sep">·</span>
-				<a href="/datenschutz" class="footer-link">Privacy</a>
+				<a href="/steward-ownership" class="footer-link">Ownership</a>
+				<a href="/governance" class="footer-link">Governance</a>
+				<a href="/community-care" class="footer-link">Community care</a>
+				<!-- Terms + Privacy stay together so a wrap never orphans one of the
+				     legal links on its own line — they break as a pair. -->
+				<span class="footer-legal">
+					<a href="/impressum" class="footer-link">Terms</a>
+					<a href="/datenschutz" class="footer-link">Privacy</a>
+				</span>
 			</footer>
 	</section>
 
@@ -190,7 +190,11 @@
 		grid-template-rows: 1fr;
 		gap: var(--space-6);
 		background: var(--landing-surface);
-		padding: 72px var(--space-6) var(--space-6);
+		/* Uniform inset on all four sides — the map frame should sit the same
+		   distance from the top as from the sides. The fixed header (wordmark
+		   only, over the left column) floats above this; it needs no clearance
+		   reserved here, so the top no longer gets an outsized 72px. */
+		padding: var(--space-6);
 		box-sizing: border-box;
 	}
 
@@ -229,7 +233,26 @@
 		letter-spacing: -0.005em;
 	}
 
-	.left-links { display: flex; gap: var(--space-5); align-items: baseline; }
+	.left-links { display: flex; gap: var(--space-4); align-items: center; }
+
+	/* Primary action: a light pill on the dark hero so Join is unmistakably the
+	   first thing to do. Log in stays a quiet text link beside it. */
+	.btn-join {
+		display: inline-flex;
+		align-items: center;
+		background: var(--text-primary);
+		color: var(--landing-surface);
+		font-family: var(--font-mono);
+		font-size: 0.82rem;
+		letter-spacing: 0.04em;
+		text-decoration: none;
+		padding: 10px 22px;
+		border: none;
+		border-radius: var(--radius-pill);
+		cursor: pointer;
+		transition: opacity 0.15s;
+	}
+	.btn-join:hover { opacity: 0.88; }
 
 	.text-link {
 		background: none;
@@ -244,7 +267,6 @@
 		transition: color 0.15s;
 	}
 	.text-link:hover { color: var(--text-primary); }
-	.text-link--strong { color: rgba(255, 255, 255, 0.85); }
 
 	/* RIGHT — map nested in a soft-edged black container */
 	.right { min-height: 0; box-sizing: border-box; }
@@ -401,6 +423,17 @@
 		border-radius: calc(var(--radius-card) - 6px);
 	}
 
+	/* Dark-treat the OSM tiles so the bright default map integrates with the
+	   near-black shell. Scoped to the tile pane only — the cover-image pins live
+	   in a separate marker pane and keep full colour, so they pop against it.
+	   Tile gaps / pre-load show the dark map surface, not Leaflet's grey. */
+	.map-inner :global(.leaflet-tile-pane) {
+		filter: grayscale(1) invert(1) brightness(0.92) contrast(0.9);
+	}
+	.map-inner :global(.leaflet-container) {
+		background: var(--landing-map-surface);
+	}
+
 	/* Shown while the map chunk loads, or if it fails to load. */
 	.map-placeholder {
 		width: 100%;
@@ -409,33 +442,37 @@
 	}
 
 	/* ── Footer (left column flow) ── */
+	/* Spacing carries the separation — no glyph separators, so a wrap can never
+	   strand a '·' at a line edge. Reads clean on one line (desktop) or two
+	   (mobile). */
 	.site-footer {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0;
+		column-gap: var(--space-5);
+		row-gap: var(--space-2);
 		margin-top: var(--space-5);
 		padding-top: var(--space-4);
 		border-top: 1px solid var(--border-subtle);
 	}
 
+	/* The legal pair wraps as one unit; its inner gap matches the footer's
+	   column-gap so spacing stays uniform when it sits inline. */
+	.footer-legal {
+		display: inline-flex;
+		column-gap: var(--space-5);
+	}
+
 	.footer-link {
 		font-family: var(--font-mono);
-		font-size: 0.6rem;
+		font-size: 0.68rem;
 		letter-spacing: 0.06em;
-		color: rgba(255, 255, 255, 0.25);
+		color: rgba(255, 255, 255, 0.4);
 		text-decoration: none;
 		white-space: nowrap;
 		transition: color 0.15s;
 	}
-	.footer-link:hover { color: rgba(255, 255, 255, 0.6); }
-
-	.footer-sep {
-		font-family: var(--font-mono);
-		font-size: 0.6rem;
-		color: rgba(255, 255, 255, 0.12);
-		padding: 0 10px;
-	}
+	.footer-link:hover { color: rgba(255, 255, 255, 0.75); }
 
 	/* ── Header ── */
 	.hdr {
@@ -445,8 +482,12 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		padding: 18px 28px;
-		background: linear-gradient(to bottom, rgba(4, 4, 7, 0.92) 0%, rgba(4, 4, 7, 0.6) 60%, transparent 100%);
+		/* Match the shell's inset (var(--space-6)): the wordmark's top aligns with
+		   the map frame's top edge, and its left with the left column's content. */
+		padding: var(--space-6);
+		/* No background here — a full-width gradient would haze the top of the
+		   map. The wordmark sits over the dark left column, so it carries its own
+		   shadow for legibility (incl. over the map top when stacked on mobile). */
 	}
 
 	.wordmark {
@@ -457,6 +498,7 @@
 		color: rgba(255, 255, 255, 0.85);
 		text-decoration: none;
 		line-height: 1;
+		text-shadow: 0 1px 16px rgba(0, 0, 0, 0.7), 0 0 3px rgba(0, 0, 0, 0.5);
 	}
 
 	/* ── Mobile: stack intro above the map ── */
