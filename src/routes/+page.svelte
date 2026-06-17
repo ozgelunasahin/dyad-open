@@ -137,7 +137,7 @@
 <header class="hdr">
 	<a href="/" class="wordmark" aria-label="DYAD">DYAD</a>
 	<nav class="hdr-nav">
-		<button class="nav-link" onclick={() => openAuth('login')}>log in</button>
+		<a href="/login" class="nav-link" onclick={(e) => { e.preventDefault(); openAuth('login'); }}>log in</a>
 		<button class="btn-join" onclick={() => openAuth('waitlist')}>join</button>
 	</nav>
 </header>
