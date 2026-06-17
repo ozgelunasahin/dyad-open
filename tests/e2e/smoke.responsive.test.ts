@@ -4,7 +4,9 @@ import { TEST_USERS } from '../helpers/auth.js';
 test.describe('Smoke tests', () => {
 	test('landing page loads for anonymous users', async ({ page }) => {
 		await page.goto('/');
-		await expect(page.locator('.headline')).toBeVisible();
+		await expect(page.locator('.left-title')).toBeVisible();
+		// The join CTA opens the waitlist dialog with its "Join waitlist" button.
+		await page.getByRole('button', { name: /^join$/i }).first().click();
 		await expect(page.getByRole('button', { name: /join waitlist/i })).toBeVisible();
 	});
 
