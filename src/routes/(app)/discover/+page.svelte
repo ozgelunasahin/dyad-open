@@ -38,7 +38,14 @@
 	let showOnboarding = $state(isWelcome && !data.isGuest && !localStorage.getItem(ONBOARDING_KEY));
 
 	function finishOnboarding() {
-		if (browser) localStorage.setItem(ONBOARDING_KEY, '1');
+		if (browser) {
+			localStorage.setItem(ONBOARDING_KEY, '1');
+			// Persist completion to Supabase (profiles.onboarded = true). That
+			// DB change is what promotes the member into the Resend "member"
+			// segment via the resend-sync webhook. Fire-and-forget: the modal
+			// closes instantly off localStorage regardless of this call.
+			fetch('/api/onboarding/complete', { method: 'POST' }).catch(() => {});
+		}
 		showOnboarding = false;
 		// Clean up the ?welcome=1 param from the URL without a page reload
 		const url = new URL(window.location.href);
