@@ -63,16 +63,25 @@ async function rf(
 	}
 }
 
-/** Ensure the contact exists. Resend 409/422 on an already-present contact is
- *  fine — segment membership is what we actually reconcile below. */
-async function ensureContact(email: string, firstName?: string): Promise<void> {
-	const res = await rf('/contacts', 'POST', {
-		email,
-		first_name: firstName || undefined,
-		unsubscribed: false
-	});
+/** Split a full name into Resend's first_name / last_name fields. */
+function splitName(name?: string): { first_name?: string; last_name?: string } {
+	const trimmed = (name ?? '').trim();
+	if (!trimmed) return {};
+	const parts = trimmed.split(/\s+/);
+	return { first_name: parts[0], last_name: parts.slice(1).join(' ') || undefined };
+}
+
+/** Ensure the contact exists with its name. Resend 409/422 on an already-present
+ *  contact is fine — but POST won't update an existing contact's name, so PATCH
+ *  it too so names stay current (and backfill onto contacts Resend already had). */
+async function ensureContact(email: string, name?: string): Promise<void> {
+	const nameFields = splitName(name);
+	const res = await rf('/contacts', 'POST', { email, unsubscribed: false, ...nameFields });
 	if (res && !res.ok && res.status !== 409 && res.status !== 422) {
 		console.error('[resend-segments] ensureContact:', res.status, await res.text());
+	}
+	if (name) {
+		await rf(`/contacts/${encodeURIComponent(email)}`, 'PATCH', nameFields);
 	}
 }
 
@@ -101,7 +110,7 @@ async function removeFromSegment(email: string, id: string): Promise<void> {
 export async function syncContactSegment(
 	email: string,
 	target: Segment,
-	opts: { firstName?: string } = {}
+	opts: { name?: string } = {}
 ): Promise<boolean> {
 	if (!resendSegmentsConfigured()) {
 		console.error('[resend-segments] skipped: RESEND_API_KEY / RESEND_SEGMENT_* not configured');
@@ -115,7 +124,7 @@ export async function syncContactSegment(
 		return false;
 	}
 
-	await ensureContact(normalized, opts.firstName);
+	await ensureContact(normalized, opts.name);
 	await addToSegment(normalized, targetId);
 
 	// Strip membership from the other two segments so the contact lands in

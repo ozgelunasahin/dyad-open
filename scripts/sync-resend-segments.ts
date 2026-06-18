@@ -73,23 +73,41 @@ async function segmentCall(path: string, method: 'POST' | 'DELETE'): Promise<Res
 	});
 }
 
-async function ensureContact(email: string) {
+/** Split a full name into Resend's first_name / last_name fields. */
+function splitName(name?: string): { first_name?: string; last_name?: string } {
+	const trimmed = (name ?? '').trim();
+	if (!trimmed) return {};
+	const parts = trimmed.split(/\s+/);
+	return { first_name: parts[0], last_name: parts.slice(1).join(' ') || undefined };
+}
+
+async function ensureContact(email: string, name?: string) {
 	const res = await fetch(`${RESEND_API}/contacts`, {
 		method: 'POST',
 		headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-		body: JSON.stringify({ email, unsubscribed: false })
+		body: JSON.stringify({ email, unsubscribed: false, ...splitName(name) })
 	});
 	if (!res.ok && res.status !== 409 && res.status !== 422) {
 		console.warn(`  ensureContact ${email}: ${res.status}`);
+		return;
+	}
+	// POST won't overwrite an existing contact's name, so PATCH it too — this is
+	// what backfills names onto the contacts Resend already had.
+	if (name) {
+		await fetch(`${RESEND_API}/contacts/${encodeURIComponent(email)}`, {
+			method: 'PATCH',
+			headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+			body: JSON.stringify(splitName(name))
+		});
 	}
 }
 
-async function reconcile(email: string, segment: string) {
+async function reconcile(email: string, segment: string, name?: string) {
 	if (DRY_RUN) {
-		console.log(`  [dry-run] ${email} -> ${segment}`);
+		console.log(`  [dry-run] ${email} -> ${segment}${name ? ` (${name})` : ''}`);
 		return;
 	}
-	await ensureContact(email);
+	await ensureContact(email, name);
 	for (const [seg, id] of Object.entries(SEGMENT_IDS)) {
 		if (!id) continue;
 		const method = seg === segment ? 'POST' : 'DELETE';
@@ -107,12 +125,20 @@ async function main() {
 	});
 
 	const [{ data: contacts }, { data: invitations }] = await Promise.all([
-		supabase.from('contacts').select('email'),
+		supabase.from('contacts').select('email, name'),
 		supabase.from('invitations').select('email')
 	]);
 
+	// Names only live on the contacts (waitlist) table — invitations carry no
+	// name. Build a lookup so we can attach it when upserting to Resend.
+	const nameByEmail = new Map<string, string>();
 	const emails = new Set<string>();
-	for (const r of contacts ?? []) if (r.email) emails.add(String(r.email).trim().toLowerCase());
+	for (const r of contacts ?? []) {
+		if (!r.email) continue;
+		const email = String(r.email).trim().toLowerCase();
+		emails.add(email);
+		if (r.name) nameByEmail.set(email, String(r.name));
+	}
 	for (const r of invitations ?? []) if (r.email) emails.add(String(r.email).trim().toLowerCase());
 
 	console.log(`Reconciling ${emails.size} contacts${DRY_RUN ? ' (dry run — no Resend writes)' : ''}...`);
@@ -128,7 +154,7 @@ async function main() {
 			counts.unknown++;
 			continue;
 		}
-		await reconcile(email, segment as string);
+		await reconcile(email, segment as string, nameByEmail.get(email));
 		counts[segment as string] = (counts[segment as string] ?? 0) + 1;
 	}
 

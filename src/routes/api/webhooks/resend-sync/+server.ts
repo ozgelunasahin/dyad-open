@@ -69,11 +69,11 @@ export const POST: RequestHandler = async ({ request }) => {
 	// Resolve the email this change is about. contacts/invitations carry it
 	// directly; profiles only carries the user id, so look it up via auth admin.
 	let email: string | undefined;
-	let firstName: string | undefined;
+	let name: string | undefined;
 
 	if (payload.table === 'contacts' || payload.table === 'invitations') {
 		if (typeof row.email === 'string') email = row.email;
-		if (typeof row.name === 'string') firstName = row.name;
+		if (typeof row.name === 'string') name = row.name;
 	} else if (payload.table === 'profiles') {
 		const id = typeof row.id === 'string' ? row.id : undefined;
 		if (id) {
@@ -81,8 +81,8 @@ export const POST: RequestHandler = async ({ request }) => {
 			if (error) console.error('[resend-sync] getUserById failed:', error.message);
 			email = data?.user?.email ?? undefined;
 		}
-		if (typeof row.display_name === 'string') firstName = row.display_name;
-		else if (typeof row.username === 'string') firstName = row.username;
+		if (typeof row.display_name === 'string') name = row.display_name;
+		else if (typeof row.username === 'string') name = row.username;
 	} else {
 		// Webhook attached to an unexpected table — accept so Supabase doesn't
 		// retry, but do nothing.
@@ -107,6 +107,6 @@ export const POST: RequestHandler = async ({ request }) => {
 		return json({ ok: true, email, segment: null });
 	}
 
-	await syncContactSegment(email, segment as Segment, { firstName });
+	await syncContactSegment(email, segment as Segment, { name });
 	return json({ ok: true, email, segment });
 };

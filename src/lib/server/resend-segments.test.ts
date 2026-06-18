@@ -64,23 +64,30 @@ describe('resend-segments', () => {
 		configureFetchOk(fetchMock);
 
 		const result = await syncContactSegment('Person@Example.com', 'invited', {
-			firstName: 'Pat'
+			name: 'Pat Kim'
 		});
 
 		expect(result).toBe(true);
 
 		const calls = fetchMock.mock.calls.map(([url, init]) => ({ url, method: init.method }));
-		// 1 ensureContact + 1 add + 2 removes
-		expect(calls).toHaveLength(4);
+		// 1 ensureContact POST + 1 name PATCH + 1 add + 2 removes
+		expect(calls).toHaveLength(5);
 
-		// Contact upsert — email lowercased, first name forwarded, never /emails.
+		// Contact upsert — email lowercased, name split first/last, never /emails.
 		const ensure = fetchMock.mock.calls[0];
 		expect(ensure[0]).toBe('https://api.resend.com/contacts');
 		expect(ensure[1].method).toBe('POST');
 		const body = JSON.parse(ensure[1].body);
 		expect(body.email).toBe('person@example.com');
 		expect(body.first_name).toBe('Pat');
+		expect(body.last_name).toBe('Kim');
 		expect(body.unsubscribed).toBe(false);
+
+		// Name is also PATCHed so it updates an already-present contact.
+		expect(calls).toContainEqual({
+			url: 'https://api.resend.com/contacts/person%40example.com',
+			method: 'PATCH'
+		});
 
 		// Added to invited, removed from waitlist + member.
 		expect(calls).toContainEqual({
