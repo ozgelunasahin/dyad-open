@@ -35,7 +35,8 @@
 		"db:health": "bash scripts/check-supabase.sh",
 		"setup": "npx supabase start && npx supabase db reset && npm run db:env",
 		"reset": "npx supabase db reset",
-		"feedback": "npx tsx scripts/fetch-feedback.ts"
+		"feedback": "npx tsx scripts/fetch-feedback.ts",
+		"sync:resend": "npx tsx scripts/sync-resend-segments.ts"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
