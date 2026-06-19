@@ -95,6 +95,8 @@
 		<p class="email-error">{emailError}</p>
 	{/if}
 
+	<p class="prefs-note">{copy.preferences.notificationPrefsNote}</p>
+
 	<section class="events" class:off={!savedEmail}>
 		<p class="section-label">{copy.preferences.emailPrefsHeading}</p>
 		{#each FLAGS as flag (flag.key)}
@@ -178,6 +180,15 @@
 		margin: var(--space-2) 0 0;
 		font-size: var(--text-sm);
 		color: var(--text-danger, #b03a2e);
+	}
+
+	/* Default-off / change-anytime framing, shown where the controls live. */
+	.prefs-note {
+		margin: var(--space-4) 0 0;
+		max-width: 360px;
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+		line-height: var(--leading-relaxed);
 	}
 
 	.events {
