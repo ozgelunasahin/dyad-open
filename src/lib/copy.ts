@@ -319,7 +319,7 @@ export const copy = {
 		// Must not reference a sign-up/account email or treat contact as identity.
 		notificationPrefsLink: 'preferences',
 		notificationOnboarding:
-			"You can get notified when someone responds to you or if a meeting is confirmed or changes. By default we don't send you notifications. If you'd like to receive them, you can decide what kind you'd like and how in your {link}. You can always change this later.",
+			"You can get notified when someone responds to you, or when a meeting is confirmed or changes. By default we don't send you notifications. If you'd like to receive them, you can choose which ones and how in your {link}. You can always change this later.",
 		notificationPrefsNote:
 			"By default, dyad doesn't send notifications. Choose what you'd like to receive; you can change this anytime.",
 	},
