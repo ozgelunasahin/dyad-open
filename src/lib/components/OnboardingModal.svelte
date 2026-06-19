@@ -8,9 +8,8 @@
 	const isLast = $derived(step === totalSteps - 1);
 
 	// The optional notifications step renders notificationOnboarding with
-	// "preferences" as an inline link; split the copy on its {link} marker.
-	const onboardingBefore = copy.preferences.notificationOnboarding.split('{link}')[0] ?? '';
-	const onboardingAfter = copy.preferences.notificationOnboarding.split('{link}')[1] ?? '';
+	// "preferences" as an inline link; split once on its {link} marker.
+	const onboardingParts = copy.preferences.notificationOnboarding.split('{link}');
 
 	function next() {
 		if (!isLast) {
@@ -96,7 +95,7 @@
 		{:else if step === 3}
 			<div class="content">
 				<h2 id="onboarding-title">Hear back.</h2>
-				<p>{onboardingBefore}<a href="/profile/preferences" onclick={finish}>{copy.preferences.notificationPrefsLink}</a>{onboardingAfter}</p>
+				<p>{onboardingParts[0] ?? ''}<a href="/profile/preferences" onclick={finish}>{copy.preferences.notificationPrefsLink}</a>{onboardingParts[1] ?? ''}</p>
 			</div>
 			<div class="actions">
 				<button class="cta-btn" onclick={next}>Continue</button>

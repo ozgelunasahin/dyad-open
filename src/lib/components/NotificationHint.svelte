@@ -9,12 +9,12 @@
 	// existing opt-in form. It never names email and never captures an address.
 	let { message }: { message: string } = $props();
 
-	const before = $derived(message.split('{link}')[0] ?? '');
-	const after = $derived(message.split('{link}')[1] ?? '');
+	// Split once on the {link} marker; the gap is where the link renders.
+	const parts = $derived(message.split('{link}'));
 </script>
 
 <p class="notification-hint">
-	{before}<a href="/profile/preferences">{copy.preferences.notificationHintLink}</a>{after}
+	{parts[0] ?? ''}<a href="/profile/preferences">{copy.preferences.notificationHintLink}</a>{parts[1] ?? ''}
 </p>
 
 <style>
