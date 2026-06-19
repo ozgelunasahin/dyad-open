@@ -232,13 +232,6 @@
 		{/if}
 	{/if}
 
-	<!-- An upcoming meeting is a notification moment: offer to be notified if it
-	     changes. Scheduled-only (a cancelled/past meeting has nothing to notify
-	     about) and self-silencing once an address is set. -->
-	{#if data.meeting.state === 'scheduled' && !data.hasNotificationEmail}
-		<NotificationHint message={copy.preferences.notificationHintMeeting} />
-	{/if}
-
 	<div class="detail-grid">
 		<div class="detail-row">
 			<span class="label">{copy.meeting.when}</span>
@@ -345,6 +338,14 @@
 				</div>
 			{/each}
 		</section>
+	{/if}
+
+	<!-- An upcoming meeting is a notification moment: offer to be notified if it
+	     changes, beside the controls that change it. Scheduled-only (a cancelled
+	     or past meeting has nothing to notify about) and self-silencing once an
+	     address is set. -->
+	{#if data.meeting.state === 'scheduled' && !data.hasNotificationEmail}
+		<NotificationHint message={copy.preferences.notificationHintMeeting} />
 	{/if}
 
 	<!-- Page-level actions: this is the place to act on a meeting, so the
