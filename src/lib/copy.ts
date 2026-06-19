@@ -294,9 +294,9 @@ export const copy = {
 
 	// ── Preferences ────────────────────────────────────────────────────
 	preferences: {
-		_routes: ['/profile/preferences'],
+		_routes: ['/profile/preferences', '/conversations/[id]', '/meetings/[id]', '/discover'],
 		_description:
-			'Notification settings. Email is strictly opt-in: members add an address to receive notification emails; per-event toggles refine which events. No address, no mail.',
+			'Notification settings. Email is strictly opt-in: members add an address to receive notification emails; per-event toggles refine which events. No address, no mail. The notificationHint*/notificationOnboarding strings surface this opt-in elsewhere (conversation, meeting, onboarding) — channel-agnostic, possibility-framed, never naming email; {link} marks where the linked words render and point to /profile/preferences.',
 		title: 'Preferences',
 		backToProfile: '← profile',
 		emailPlaceholder: 'Add an email address to turn on notifications',
@@ -307,6 +307,21 @@ export const copy = {
 		prefInvitationReceived: 'New invitations',
 		prefInvitationAnswered: 'Replies to my invitations',
 		prefMeetingCancelled: 'Cancelled meetings',
+		// Contextual hint (NotificationHint): one quiet, channel-agnostic line at a
+		// notification moment. {link} marks where notificationHintLink renders as a
+		// link to /profile/preferences. Possibility, not instruction; never says "email".
+		notificationHintLink: 'get notified',
+		notificationHintInvited: (username: string) => `You can {link} if @${username} accepts.`,
+		notificationHintInviteReceived: 'You can {link} if someone invites you to meet.',
+		notificationHintMeeting: 'You can {link} if this meeting changes.',
+		// Onboarding step (U5) + preferences-page note (U6). By-choice, default-off,
+		// channel-agnostic; {link} renders notificationPrefsLink → /profile/preferences.
+		// Must not reference a sign-up/account email or treat contact as identity.
+		notificationPrefsLink: 'preferences',
+		notificationOnboarding:
+			"You can get notified when someone responds to you, or when a meeting is confirmed or changes. By default we don't send you notifications. If you'd like to receive them, you can choose which ones and how in your {link}. You can always change this later.",
+		notificationPrefsNote:
+			"By default, dyad doesn't send notifications. Choose what you'd like to receive; you can change this anytime.",
 	},
 
 	// ── Meeting detail ─────────────────────────────────────────────────

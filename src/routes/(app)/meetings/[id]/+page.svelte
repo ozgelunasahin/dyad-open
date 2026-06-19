@@ -4,6 +4,7 @@
 	import ParticipantsStack from '$lib/components/ParticipantsStack.svelte';
 	import ConversationCard from '$lib/components/ConversationCard.svelte';
 	import UserHandle from '$lib/components/UserHandle.svelte';
+	import NotificationHint from '$lib/components/NotificationHint.svelte';
 	import { generateICS, downloadICS } from '$lib/utils/calendar.js';
 	import { formatShortDate } from '$lib/utils/dates.js';
 	import { othersBeyond } from '$lib/domain/gathering.js';
@@ -337,6 +338,14 @@
 				</div>
 			{/each}
 		</section>
+	{/if}
+
+	<!-- An upcoming meeting is a notification moment: offer to be notified if it
+	     changes, beside the controls that change it. Scheduled-only (a cancelled
+	     or past meeting has nothing to notify about) and self-silencing once an
+	     address is set. -->
+	{#if data.meeting.state === 'scheduled' && !data.hasNotificationEmail}
+		<NotificationHint message={copy.preferences.notificationHintMeeting} />
 	{/if}
 
 	<!-- Page-level actions: this is the place to act on a meeting, so the
