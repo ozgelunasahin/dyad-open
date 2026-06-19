@@ -10,6 +10,7 @@
 	import { copy } from '$lib/copy';
 	import GatheringCard from '$lib/components/GatheringCard.svelte';
 	import UserHandle from '$lib/components/UserHandle.svelte';
+	import NotificationHint from '$lib/components/NotificationHint.svelte';
 	import { formatShortDate as formatDate } from '$lib/utils/dates.js';
 	import { buildResponseRows, ACTIVE_MEETING_STATES } from '$lib/domain/response-rows.js';
 
@@ -478,6 +479,11 @@
 					</div>
 				{/each}
 				{#if acceptError}<p class="field-error">{acceptError}</p>{/if}
+				<!-- The author's notification moment: responses have arrived; offer to
+				     be notified of future ones. Self-silences once an address is set. -->
+				{#if !data.hasNotificationEmail}
+					<NotificationHint message={copy.preferences.notificationHintResponses} />
+				{/if}
 			</section>
 		{/if}
 
@@ -562,6 +568,11 @@
 						/>
 					{/each}
 					{#if withdrawError}<p class="field-error" role="alert">{withdrawError}</p>{/if}
+					<!-- The inviter's notification moment: invitation sent, awaiting a
+					     reply. Offer to be notified of the answer. -->
+					{#if !data.hasNotificationEmail}
+						<NotificationHint message={copy.preferences.notificationHintInvited(data.prompt.author_username)} />
+					{/if}
 				{:else}
 					<!-- Normal invite flow -->
 					{#if hasResponse}
