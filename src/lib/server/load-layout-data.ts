@@ -12,7 +12,7 @@ export async function loadLayoutData(locals: App.Locals) {
 
 	const pendingFormId = (locals as any).pendingFeedbackFormId as string | undefined;
 
-	const [{ data: profile }, { count: invitationCount }, { count: feedbackCount }, { count: groupFeedbackCount }, pendingFeedback] = await Promise.all([
+	const [{ data: profile }, { count: invitationCount }, { count: feedbackCount }, { count: groupFeedbackCount }, pendingFeedback, { data: notif, error: notifError }] = await Promise.all([
 		locals.supabase
 			.from('profiles')
 			.select('username')
@@ -35,14 +35,28 @@ export async function loadLayoutData(locals: App.Locals) {
 			.select('*', { count: 'exact', head: true })
 			.eq('reviewer_id', locals.user.id)
 			.eq('state', 'due'),
-		pendingFormId ? loadPendingFeedback(locals, pendingFormId) : Promise.resolve(null)
+		pendingFormId ? loadPendingFeedback(locals, pendingFormId) : Promise.resolve(null),
+		// The notification address is the opt-in; its presence is the only signal the
+		// contextual hints need. Select only `email` and return a boolean — never the
+		// address itself (owner-only PII). A failed read fails safe to "has address"
+		// so a transient error never nags an opted-in member.
+		locals.supabase
+			.from('notification_settings')
+			.select('email')
+			.eq('user_id', locals.user.id)
+			.maybeSingle()
 	]);
+
+	if (notifError) {
+		console.error('[layout loader] notification_settings fetch failed:', notifError);
+	}
 
 	return {
 		identity: userToUpactor(locals.user),
 		username: profile?.username ?? '',
 		attentionCount: (invitationCount ?? 0) + (feedbackCount ?? 0) + (groupFeedbackCount ?? 0),
-		pendingFeedback
+		pendingFeedback,
+		hasNotificationEmail: notifError ? true : !!notif?.email
 	};
 }
 
