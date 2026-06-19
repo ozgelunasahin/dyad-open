@@ -1,11 +1,18 @@
 <script lang="ts">
+	import { copy } from '$lib/copy';
+
 	let { onDone, username = '' }: { onDone: () => void; username?: string } = $props();
 
 	let step = $state(0);
-	const totalSteps = 4;
+	const totalSteps = 5;
 	const isLast = $derived(step === totalSteps - 1);
 
-	const stepNames = ['welcome', 'how_it_works', 'take_it_offline', 'your_move'];
+	const stepNames = ['welcome', 'how_it_works', 'take_it_offline', 'notifications', 'your_move'];
+
+	// The optional notifications step renders notificationOnboarding with
+	// "preferences" as an inline link; split the copy on its {link} marker.
+	const onboardingBefore = copy.preferences.notificationOnboarding.split('{link}')[0] ?? '';
+	const onboardingAfter = copy.preferences.notificationOnboarding.split('{link}')[1] ?? '';
 
 	function next() {
 		if (!isLast) {
@@ -88,6 +95,16 @@
 				<button class="skip-btn" onclick={skip}>Skip</button>
 			</div>
 
+		{:else if step === 3}
+			<div class="content">
+				<h2 id="onboarding-title">Hear back.</h2>
+				<p>{onboardingBefore}<a href="/profile/preferences" onclick={finish}>{copy.preferences.notificationPrefsLink}</a>{onboardingAfter}</p>
+			</div>
+			<div class="actions">
+				<button class="cta-btn" onclick={next}>Continue</button>
+				<button class="skip-btn" onclick={skip}>Skip</button>
+			</div>
+
 		{:else}
 			<div class="content">
 				<h2 id="onboarding-title">Your move.</h2>
@@ -163,6 +180,18 @@
 		font-size: var(--text-md);
 		color: var(--text-secondary);
 		line-height: 1.6;
+	}
+
+	/* Inline "preferences" link in the optional notifications step. */
+	.content p a {
+		color: var(--text-primary);
+		text-decoration: underline;
+		text-decoration-color: var(--border-link);
+		transition: text-decoration-color 0.15s;
+	}
+
+	.content p a:hover {
+		text-decoration-color: currentColor;
 	}
 
 	/* Step 2 specific */

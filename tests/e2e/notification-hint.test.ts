@@ -57,3 +57,30 @@ test.describe('notification hint — author responses moment', () => {
 		await expect(hintLink).toHaveCount(0);
 	});
 });
+
+// The optional onboarding step (U5) renders the notification copy with a
+// "preferences" link and never gates: Continue always reaches the final step.
+test.describe('notification hint — onboarding step', () => {
+	test.use({ storageState: TEST_USERS.sophie.storagePath });
+
+	test('offers an optional notification step that links to preferences and never gates', async ({ page }) => {
+		test.setTimeout(60000);
+
+		// The modal only shows on a fresh ?welcome=1 visit with no completion flag.
+		await page.addInitScript(() => localStorage.removeItem('dyad_onboarding_done'));
+		await page.goto('/discover?welcome=1');
+
+		await expect(page.getByRole('heading', { name: /welcome in/i })).toBeVisible();
+		await page.getByRole('button', { name: 'How does it work?' }).click();
+		await page.getByRole('button', { name: 'Got it' }).click();
+		await page.getByRole('button', { name: 'Got it' }).click();
+
+		// The notifications step: declarative heading, the preferences link, no inline capture.
+		await expect(page.getByRole('heading', { name: 'Hear back.' })).toBeVisible();
+		await expect(page.getByRole('link', { name: 'preferences' })).toHaveAttribute('href', '/profile/preferences');
+
+		// Continue never gates — it advances to the final step without setting anything.
+		await page.getByRole('button', { name: 'Continue' }).click();
+		await expect(page.getByRole('heading', { name: 'Your move.' })).toBeVisible();
+	});
+});
