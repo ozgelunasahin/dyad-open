@@ -3,6 +3,7 @@
 	import type { PromptSummary, TimeSlot } from '$lib/domain/types';
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
+	import { onMount } from 'svelte';
 	import MapView from '$lib/components/MapView.svelte';
 	import BottomSheet from '$lib/components/BottomSheet.svelte';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
@@ -32,14 +33,48 @@
 	let { data }: { data: PageData } = $props();
 
 	const ONBOARDING_KEY = 'dyad_onboarding_done';
+	// Set once the DB write (profiles.onboarded) has been confirmed, so we don't
+	// re-POST on every visit and we know whether a retry is still owed.
+	const ONBOARDING_SYNCED_KEY = 'dyad_onboarding_synced';
 	const isWelcome = browser && new URLSearchParams(window.location.search).get('welcome') === '1';
 	// Guests (corner-exclusive members) skip the commons onboarding — its
 	// framing is written for the Berlin commons, not a conference corner.
 	let showOnboarding = $state(isWelcome && !data.isGuest && !localStorage.getItem(ONBOARDING_KEY));
 
+	// Persist onboarding completion to the DB (profiles.onboarded = true) — the
+	// durable signal downstream consumers key off. Not fire-and-forget: a dropped
+	// request would leave the member un-onboarded forever, so success sets a synced
+	// flag and any failure is retried on the next discover visit (see onMount).
+	async function persistOnboarding() {
+		if (!browser) return;
+		try {
+			const res = await fetch('/api/onboarding/complete', { method: 'POST' });
+			if (res.ok) {
+				localStorage.setItem(ONBOARDING_SYNCED_KEY, '1');
+			} else {
+				console.error('[onboarding] persist failed:', res.status);
+			}
+		} catch (err) {
+			console.error('[onboarding] persist request failed:', err);
+		}
+	}
+
+	onMount(() => {
+		// Self-heal a previously dropped persistence call: the member finished
+		// onboarding (UI flag set) but the DB write was never confirmed.
+		if (
+			!data.isGuest &&
+			localStorage.getItem(ONBOARDING_KEY) &&
+			!localStorage.getItem(ONBOARDING_SYNCED_KEY)
+		) {
+			void persistOnboarding();
+		}
+	});
+
 	function finishOnboarding() {
 		if (browser) localStorage.setItem(ONBOARDING_KEY, '1');
 		showOnboarding = false;
+		void persistOnboarding();
 		// Clean up the ?welcome=1 param from the URL without a page reload
 		const url = new URL(window.location.href);
 		url.searchParams.delete('welcome');
