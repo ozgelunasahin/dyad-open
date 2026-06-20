@@ -8,7 +8,11 @@
 -- copy.ts and the API only length-caps, so copy edits never need a
 -- migration. Never derived from tracking; the UI says so explicitly.
 
-ALTER TABLE contacts ADD COLUMN referral_source TEXT;
+-- IF NOT EXISTS so the push is a genuine no-op when the column already exists on
+-- the target (it does on prod, applied out-of-band before this was recorded) —
+-- otherwise db push wedges on "column already exists" and blocks every later
+-- migration. See scripts/check-migrations.sh, which now enforces this.
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS referral_source TEXT;
 
 COMMENT ON COLUMN contacts.referral_source IS
   'Self-described arrival channel from the waitlist form ("Where did you spot us?"). Option key or free text, <=120 chars, member-stated, optional. Never tracked or inferred.';

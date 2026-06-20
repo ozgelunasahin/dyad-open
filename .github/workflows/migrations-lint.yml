@@ -1,0 +1,25 @@
+# Migration safety gate. Runs on PRs that touch migrations so a migration that
+# can't be pushed is caught BEFORE merge — the Migrate workflow only runs on
+# main (post-merge), so without this a bad migration fails silently after merge.
+name: Migrations lint
+
+on:
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'supabase/migrations/**'
+      - 'scripts/check-migrations.sh'
+      - '.github/workflows/migrations-lint.yml'
+
+jobs:
+  lint:
+    name: Migration filename + idempotency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fetch base branch
+        run: git fetch origin ${{ github.base_ref }} --depth=1
+      - name: Check changed migrations
+        run: bash scripts/check-migrations.sh "origin/${{ github.base_ref }}"
