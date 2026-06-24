@@ -249,3 +249,32 @@ export interface ReputationSignal {
 	content: Record<string, unknown>;
 	created_at: string;
 }
+
+// Membership / entitlement
+
+// Billing cadence. Monthly/annual auto-recur; lifetime is a one-time purchase
+// yielding a perpetual entitlement. NULL on operator-granted rows.
+export const MEMBERSHIP_CADENCES = ['monthly', 'annual', 'lifetime'] as const;
+export type MembershipCadence = (typeof MEMBERSHIP_CADENCES)[number];
+
+// How the entitlement was obtained. `paid` flows through Stripe; the others are
+// operator grants with no Stripe record but an equivalent active entitlement.
+export const MEMBERSHIP_SOURCES = ['paid', 'comp', 'founding', 'grandfathered'] as const;
+export type MembershipSource = (typeof MEMBERSHIP_SOURCES)[number];
+
+// One row per actor (keyed identity_id). Opaque-only: no payment PII ever. The
+// opaque Stripe references and payment_ref are server-side only and must not be
+// surfaced to the client UI — map to user-facing fields at the boundary.
+export interface Membership {
+	identity_id: string;
+	cadence: MembershipCadence | null;
+	source: MembershipSource;
+	status: string | null;
+	current_period_end: string | null;
+	active: boolean;
+	// Opaque references — never rendered. payment_ref is the only dyad value
+	// Stripe sees; stripe_* are Stripe's own ids.
+	payment_ref: string | null;
+	stripe_customer_id: string | null;
+	stripe_subscription_id: string | null;
+}
