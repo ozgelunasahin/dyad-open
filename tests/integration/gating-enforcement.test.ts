@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createAdminClient, createAuthenticatedClient, TEST_USERS, SEED_PROMPTS } from '../helpers/auth.js';
+import { SupabaseCommentService } from '../../src/lib/services/comment.js';
 
 /**
  * Per-action gating enforcement at the data layer: the split RLS FOR INSERT
@@ -97,6 +98,27 @@ describe('membership gating enforcement (RLS + accept RPC)', () => {
 			.from('prompt_comments')
 			.insert({ prompt_id: SEED_PROMPTS.published, author_id: MARCO, body: 'gate test' });
 		expect(commentRes.error, 'respond_take_slot is on → rejected').not.toBeNull();
+	});
+
+	it('respond gated → inactive member can EDIT an existing response but not CREATE a new one', async () => {
+		await setGating({ respond_take_slot: true });
+		const comments = new SupabaseCommentService(marco);
+
+		// Seed an existing response (admin bypasses RLS) so the next write is an edit.
+		await admin.from('prompt_comments').delete().eq('author_id', MARCO).eq('prompt_id', SEED_PROMPTS.published);
+		await admin
+			.from('prompt_comments')
+			.insert({ prompt_id: SEED_PROMPTS.published, author_id: MARCO, body: 'original' });
+
+		// Edit → pure UPDATE (ungated FOR UPDATE policy) → succeeds despite gating.
+		const edited = await comments.createOrUpdate(SEED_PROMPTS.published, MARCO, 'edited');
+		expect(edited.body).toBe('edited');
+
+		// Remove it, then a NEW response → INSERT (gated FOR INSERT) → rejected.
+		await admin.from('prompt_comments').delete().eq('author_id', MARCO).eq('prompt_id', SEED_PROMPTS.published);
+		await expect(
+			comments.createOrUpdate(SEED_PROMPTS.published, MARCO, 'brand new')
+		).rejects.toThrow();
 	});
 
 	it('respond gated → inactive guest cannot accept an invitation (accept_invitation RPC gate)', async () => {

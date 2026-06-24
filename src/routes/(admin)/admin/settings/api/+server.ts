@@ -33,7 +33,9 @@ export const PATCH: RequestHandler = async ({ request }) => {
 		return json({ error: 'Invalid JSON' }, { status: 400 });
 	}
 
-	// Per-action membership gating — replace the whole config with a validated map.
+	// Per-action membership gating — REPLACES the whole config (not a merge) with
+	// a validated map; the admin UI always sends the full desired object. A
+	// non-UI caller omitting keys turns those actions off.
 	if ('membership_gating' in body) {
 		const gating = body.membership_gating;
 		if (typeof gating !== 'object' || gating === null || Array.isArray(gating)) {

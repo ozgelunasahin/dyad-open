@@ -21,9 +21,13 @@ STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
+	-- Compare to the JSON boolean true rather than casting ->> text to ::boolean:
+	-- an absent key OR a malformed (non-boolean) value both read as "not gated"
+	-- (gating off) instead of raising inside RLS evaluation. Only literal true
+	-- gates the action.
 	SELECT
 		NOT COALESCE(
-			(SELECT (value ->> p_action)::boolean FROM app_settings WHERE key = 'membership_gating'),
+			(SELECT (value -> p_action) = 'true'::jsonb FROM app_settings WHERE key = 'membership_gating'),
 			false
 		)
 		OR app.has_active_membership(p_identity_id)
