@@ -4,6 +4,7 @@ import type Stripe from 'stripe';
 import { createStripeClient, cryptoProvider } from '$lib/server/stripe';
 import { makeAdminClient } from '$lib/server/supabase-admin';
 import { dispatchStripeEvent } from '$lib/server/membership-webhook';
+import { deferEmail, notifyMembershipActivated } from '$lib/server/notification-emails';
 import type { RequestHandler } from './$types';
 
 /**
@@ -26,7 +27,7 @@ import type { RequestHandler } from './$types';
  * an unconfigured deploy as "unavailable, retry" rather than silently dropping
  * payment events (mirrors the resend-sync secret-missing path).
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, platform }) => {
 	const webhookSecret = env.STRIPE_WEBHOOK_SECRET;
 	if (!webhookSecret) {
 		console.error('[stripe-webhook] STRIPE_WEBHOOK_SECRET not configured');
@@ -95,7 +96,12 @@ export const POST: RequestHandler = async ({ request }) => {
 	// Synchronous handler work. On throw, return 5xx and write NO idempotency
 	// row so Stripe retries; handlers are upserts, so re-running is safe.
 	try {
-		await dispatchStripeEvent(event, { admin, stripe });
+		await dispatchStripeEvent(event, {
+			admin,
+			stripe,
+			onActivated: (userId) =>
+				deferEmail(platform, notifyMembershipActivated({ userId }))
+		});
 	} catch (err) {
 		console.error(
 			`[stripe-webhook] handler failed for ${event.type}:`,

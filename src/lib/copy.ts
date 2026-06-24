@@ -680,6 +680,9 @@ export const copy = {
 		inviteBody: (displayName: string, inviteUrl: string, expiryDays: number) =>
 			`Hi ${displayName}, We are letting in groups of people to come and play. We are currently on our private beta and would love for you to take a walk inside and tell us about your experience. You can do this asynchronously via the feedback area on the bottom right with a question mark icon. We are looking forward to bringing the fruits of our love, care and labor to you. Join: ${inviteUrl}. This link expires in ${expiryDays} days.`,
 		waitlistSubject: "What's in a conversation?",
+		membershipActivatedSubject: 'Your membership is active',
+		membershipActivatedBody:
+			'Thank you for becoming a member — your membership is active. It keeps dyad collectively owned and ad-free, and it’s what lets you start conversations, respond, and meet. You can review or manage it any time.',
 		tagline: 'cultivating a culture of conversation',
 		// Rendered into the transactional email footers. Three lines:
 		// the closing supports the names; the names anchor the message;
