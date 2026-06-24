@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { requireIdentity } from '$lib/services/identity.js';
+import { requireMembershipForAction } from '$lib/server/require-membership.js';
 import { SupabaseInvitationService } from '$lib/services/invitation.js';
 import { handleServiceError } from '$lib/server/handle-service-error.js';
 import { makeAdminClient } from '$lib/server/supabase-admin.js';
@@ -13,6 +14,11 @@ import {
 /** POST /api/invitations/[id]/accept — accept invitation, create meeting atomically */
 export const POST: RequestHandler = async ({ params, locals, platform }) => {
 	const upactor = requireIdentity(locals);
+
+	// Taking a slot is a gated action ("respond_take_slot"). Primary check here;
+	// the accept_invitation RPC body is the safety net for a direct-RPC bypass.
+	const gate = await requireMembershipForAction('respond_take_slot', locals);
+	if (gate) return gate;
 
 	const service = new SupabaseInvitationService(locals.supabase);
 	try {

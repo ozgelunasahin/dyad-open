@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import type { RequestHandler } from './$types';
 import { requireIdentity } from '$lib/services/identity.js';
+import { requireMembershipForAction } from '$lib/server/require-membership.js';
 import { parseJsonBody } from '$lib/server/parse-body.js';
 import { SupabasePromptCommandService } from '$lib/services/prompt-command.js';
 import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
@@ -14,6 +15,9 @@ const STORAGE_URL_PREFIX = `${PUBLIC_SUPABASE_URL}/storage/`;
 /** POST /api/prompts — create a draft prompt */
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const upactor = requireIdentity(locals);
+
+	const gate = await requireMembershipForAction('create_conversation', locals);
+	if (gate) return gate;
 
 	const [body, errorResponse] = await parseJsonBody<{
 		title?: string;

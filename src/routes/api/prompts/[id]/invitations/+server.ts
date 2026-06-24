@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { requireIdentity } from '$lib/services/identity.js';
+import { requireMembershipForAction } from '$lib/server/require-membership.js';
 import { parseJsonBody } from '$lib/server/parse-body.js';
 import { SupabaseInvitationService } from '$lib/services/invitation.js';
 import { SupabasePromptQueryService } from '$lib/services/prompt-query.js';
@@ -12,6 +13,9 @@ import { copy } from '$lib/copy.js';
 /** POST /api/prompts/[id]/invitations — create invitation (select slot + message) */
 export const POST: RequestHandler = async ({ params, request, locals, platform }) => {
 	const upactor = requireIdentity(locals);
+
+	const gate = await requireMembershipForAction('invite_to_meet', locals);
+	if (gate) return gate;
 
 	const [body, errorResponse] = await parseJsonBody<{
 		slotId: string;
