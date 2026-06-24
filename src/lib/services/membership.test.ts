@@ -6,28 +6,36 @@ interface MockOpts {
 	selectRow?: Record<string, unknown> | null;
 	selectError?: { message: string } | null;
 	upsertError?: { message: string } | null;
+	updateError?: { message: string } | null;
 }
 
-let captured: { arg?: Record<string, unknown>; onConflict?: string } = {};
+let captured: {
+	upsertArg?: Record<string, unknown>;
+	onConflict?: string;
+	updateArg?: Record<string, unknown>;
+} = {};
 
 function mockClient(opts: MockOpts): SupabaseClient {
 	return {
 		from() {
-			return {
-				select() {
-					return this;
-				},
-				eq() {
-					return this;
-				},
-				async maybeSingle() {
-					return { data: opts.selectRow ?? null, error: opts.selectError ?? null };
-				},
-				async upsert(arg: Record<string, unknown>, options?: { onConflict?: string }) {
-					captured = { arg, onConflict: options?.onConflict };
+			const builder = {
+				select: () => builder,
+				eq: () => builder,
+				maybeSingle: async () => ({ data: opts.selectRow ?? null, error: opts.selectError ?? null }),
+				upsert: async (arg: Record<string, unknown>, options?: { onConflict?: string }) => {
+					captured.upsertArg = arg;
+					captured.onConflict = options?.onConflict;
 					return { error: opts.upsertError ?? null };
-				}
+				},
+				update: (arg: Record<string, unknown>) => {
+					captured.updateArg = arg;
+					return builder;
+				},
+				// update().eq() is awaited for its {error}: make the builder thenable.
+				then: (onF: (v: { error: unknown }) => unknown) =>
+					Promise.resolve({ error: opts.updateError ?? null }).then(onF)
 			};
+			return builder;
 		}
 	} as unknown as SupabaseClient;
 }
@@ -68,14 +76,27 @@ describe('SupabaseMembershipService', () => {
 		const svc = new SupabaseMembershipService(mockClient({}));
 		await svc.upsertMembership({ identity_id: 'u1', source: 'paid', active: true });
 		expect(captured.onConflict).toBe('identity_id');
-		expect(captured.arg).toMatchObject({ identity_id: 'u1', source: 'paid', active: true });
-		expect(typeof captured.arg?.updated_at).toBe('string');
+		expect(captured.upsertArg).toMatchObject({ identity_id: 'u1', source: 'paid', active: true });
+		expect(typeof captured.upsertArg?.updated_at).toBe('string');
 	});
 
-	it('upsertMembership throws on a write error so the webhook retries', async () => {
+	it('upsertMembership throws on a write error', async () => {
 		const svc = new SupabaseMembershipService(mockClient({ upsertError: { message: 'conflict' } }));
 		await expect(
 			svc.upsertMembership({ identity_id: 'u1', source: 'paid', active: true })
 		).rejects.toThrow(/membership upsert failed/);
+	});
+
+	it('updateMembership patches only the given fields (no NOT NULL source needed)', async () => {
+		const svc = new SupabaseMembershipService(mockClient({}));
+		await svc.updateMembership('u1', { active: false });
+		expect(captured.updateArg).toEqual({ active: false });
+	});
+
+	it('updateMembership throws on a write error so the webhook retries', async () => {
+		const svc = new SupabaseMembershipService(mockClient({ updateError: { message: 'boom' } }));
+		await expect(svc.updateMembership('u1', { active: false })).rejects.toThrow(
+			/membership update failed/
+		);
 	});
 });
