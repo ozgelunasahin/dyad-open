@@ -170,6 +170,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 			pathname.startsWith('/api/auth') ||
 			pathname.startsWith('/api/vocabulary') ||
 			pathname.startsWith('/api/onboarding') ||
+			// A member behind a pending feedback form must still be able to pay /
+			// manage membership; membership gating is per-action, not a wall here.
+			pathname.startsWith('/api/membership') ||
 			pathname.startsWith('/auth') ||
 			pathname.startsWith('/logout') ||
 			pathname.startsWith('/access-ended') ||

@@ -107,7 +107,30 @@
 	</section>
 
 	<section>
-		<h2>7. Ihre Rechte</h2>
+		<h2>7. Zahlungsabwicklung &uuml;ber Stripe</h2>
+		<p>
+			F&uuml;r die Abwicklung von Mitgliedsbeitr&auml;gen nutzen wir Stripe. Die Zahlung
+			erfolgt &uuml;ber eine vollst&auml;ndige Weiterleitung auf die von Stripe gehostete
+			Bezahlseite; auf unseren Seiten wird kein Stripe-Skript geladen. Verantwortlich
+			f&uuml;r die Zahlungsdaten ist Stripe Payments Europe, Ltd. (1 Grand Canal Street
+			Lower, Dublin, Irland), ggf. unter &Uuml;bermittlung an die Stripe, Inc. (USA) auf
+			Grundlage der EU-Standardvertragsklauseln.
+		</p>
+		<p>
+			dyad speichert <strong>keine</strong> Zahlungsdaten &ndash; weder Karten- noch
+			Namens- oder Adressdaten. Wir bewahren ausschlie&szlig;lich eine pseudonyme,
+			nicht-personenbezogene Referenz sowie den daraus abgeleiteten Mitgliedsstatus
+			(aktiv/inaktiv, Laufzeit) auf. Welche personenbezogenen Daten Stripe selbst erhebt,
+			entnehmen Sie der
+			<a href="https://stripe.com/privacy" target="_blank" rel="noopener noreferrer">Datenschutzerkl&auml;rung von Stripe</a>.
+		</p>
+		<p>
+			Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO (Vertragserf&uuml;llung).
+		</p>
+	</section>
+
+	<section>
+		<h2>8. Ihre Rechte</h2>
 		<p>
 			Sie haben das Recht auf Auskunft (&sect; 15 DSGVO), Berichtigung (&sect; 16 DSGVO),
 			L&ouml;schung (&sect; 17 DSGVO), Einschr&auml;nkung der Verarbeitung (&sect; 18 DSGVO),
@@ -120,7 +143,7 @@
 	</section>
 
 	<section>
-		<h2>8. Beschwerderecht</h2>
+		<h2>9. Beschwerderecht</h2>
 		<p>
 			Sie haben das Recht, sich bei der zust&auml;ndigen Aufsichtsbeh&ouml;rde zu beschweren:<br />
 			Berliner Beauftragte f&uuml;r Datenschutz und Informationsfreiheit<br />
