@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 	import { copy } from '$lib/copy';
 
 	let { data } = $props();
@@ -72,7 +72,7 @@
 		let elapsed = 0;
 		const iv = setInterval(async () => {
 			elapsed += 3000;
-			await invalidateAll();
+			await invalidate('membership:status');
 			if (data.membership?.active) {
 				clearInterval(iv);
 			} else if (elapsed >= 30000) {
