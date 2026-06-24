@@ -46,8 +46,8 @@ function strOrNull(v: string | { id: string } | null | undefined): string | null
 	return typeof v === 'string' ? v : v.id;
 }
 
-/** Period end as ISO. Reads the item-level field (current Stripe API) and falls
- *  back to the legacy top-level field, so it survives an API-version bump. */
+/** Period end as ISO. Reads the item-level field (current Stripe API); the
+ *  top-level read is a backward-compat fallback for pre-2024 API versions. */
 function periodEndIso(sub: Stripe.Subscription): string | null {
 	const item = sub.items?.data?.[0] as { current_period_end?: number } | undefined;
 	const epoch = item?.current_period_end ?? (sub as unknown as { current_period_end?: number }).current_period_end;
@@ -91,6 +91,7 @@ async function applySubscription(deps: StripeEventDeps, subscriptionId: string):
 	const interval = sub.items?.data?.[0]?.price?.recurring?.interval;
 	const cadence: MembershipCadence | null =
 		interval === 'year' ? 'annual' : interval === 'month' ? 'monthly' : null;
+	const customerId = strOrNull(sub.customer);
 
 	await new SupabaseMembershipService(deps.admin).updateMembership(row.identity_id, {
 		source: 'paid',
@@ -99,7 +100,9 @@ async function applySubscription(deps: StripeEventDeps, subscriptionId: string):
 		active: ACTIVE_SUBSCRIPTION_STATUSES.has(sub.status),
 		current_period_end: periodEndIso(sub),
 		stripe_subscription_id: sub.id,
-		stripe_customer_id: strOrNull(sub.customer)
+		// Don't clobber a stored customer id with null if a payload omits it —
+		// the refund/dispute path resolves by stripe_customer_id.
+		...(customerId ? { stripe_customer_id: customerId } : {})
 	});
 }
 
@@ -119,8 +122,18 @@ async function handleCheckoutCompleted(
 	if (session.mode === 'payment') {
 		// Lifetime. If the actor still had a live subscription, cancel it at Stripe
 		// before nulling the id — otherwise it keeps billing while dyad stops tracking.
+		// Tolerate an already-terminal subscription (resource_missing / already
+		// canceled): that's an expected, non-transient condition, not a reason to
+		// fail the webhook and trap the paid-for lifetime entitlement in a retry loop.
 		if (row.stripe_subscription_id) {
-			await deps.stripe.subscriptions.cancel(row.stripe_subscription_id);
+			try {
+				await deps.stripe.subscriptions.cancel(row.stripe_subscription_id);
+			} catch (err) {
+				console.error(
+					'[membership-webhook] prior subscription cancel failed (continuing):',
+					err instanceof Error ? err.message : 'unknown'
+				);
+			}
 		}
 		await service.updateMembership(row.identity_id, {
 			source: 'paid',
@@ -144,8 +157,11 @@ async function handleCheckoutCompleted(
 	if (subscriptionId) await applySubscription(deps, subscriptionId);
 }
 
-/** Revoke (active=false) the membership tied to a Stripe customer. The only
- *  revocation path for a perpetual lifetime row. */
+/** Handle a refund/dispute for a Stripe customer. For a lifetime row this IS the
+ *  revocation path (active=false). For a subscription-backed row it must NOT
+ *  blanket-revoke — a refund of one invoice on a still-live subscription would
+ *  wrongly lock the member out — so we recompute authoritative state from the
+ *  subscription instead; genuine loss flows through subscription.* events. */
 async function revokeByCustomer(
 	deps: StripeEventDeps,
 	customer: string | { id: string } | null | undefined
@@ -158,6 +174,11 @@ async function revokeByCustomer(
 	const row = await resolveMembership(deps.admin, { customerId });
 	if (!row) {
 		console.error('[membership-webhook] refund/dispute: no membership row');
+		return;
+	}
+	if (row.stripe_subscription_id) {
+		// Subscription-backed (a lifetime row has stripe_subscription_id = null).
+		await applySubscription(deps, row.stripe_subscription_id);
 		return;
 	}
 	await new SupabaseMembershipService(deps.admin).updateMembership(row.identity_id, {
@@ -182,10 +203,14 @@ export async function dispatchStripeEvent(
 
 		case 'invoice.paid':
 		case 'invoice.payment_failed': {
+			// Current Stripe API nests the subscription link under
+			// parent.subscription_details.subscription; `subscription` at top level
+			// is a legacy (pre-2024) fallback.
 			const invoice = event.data.object as Stripe.Invoice & {
 				subscription?: string | { id: string } | null;
 			};
-			const subId = strOrNull(invoice.subscription);
+			const subRef = invoice.parent?.subscription_details?.subscription ?? invoice.subscription;
+			const subId = strOrNull(subRef);
 			if (subId) return applySubscription(deps, subId);
 			return;
 		}

@@ -128,7 +128,8 @@ describe('membership-webhook handlers', () => {
 		await dispatch({
 			id: 'evt_4',
 			type: 'invoice.payment_failed',
-			data: { object: { subscription: SUB } }
+			// Current Stripe API shape: the subscription link is nested under parent.
+			data: { object: { parent: { subscription_details: { subscription: SUB } } } }
 		});
 
 		const row = await readRow();
@@ -157,6 +158,20 @@ describe('membership-webhook handlers', () => {
 		});
 
 		expect((await readRow())?.active).toBe(false);
+	});
+
+	it('refund on a subscription-backed row recomputes, does NOT blanket-revoke a live subscriber', async () => {
+		await seed({ stripe_customer_id: CUS, stripe_subscription_id: SUB, active: true, cadence: 'annual' });
+		stripe.subscriptions.retrieve.mockResolvedValue(subscription({ status: 'active' }));
+
+		await dispatch({
+			id: 'evt_6b',
+			type: 'charge.refunded',
+			data: { object: { refunded: true, customer: CUS } }
+		});
+
+		expect(stripe.subscriptions.retrieve).toHaveBeenCalledWith(SUB);
+		expect((await readRow())?.active).toBe(true); // still-live subscriber not locked out
 	});
 
 	it('charge.dispute.created → resolves the charge and revokes', async () => {
