@@ -22,12 +22,33 @@ export class SupabaseCommentService implements CommentService {
 		if (!prompt) throw new DomainError('Conversation not found', 404);
 		if (prompt.author_id === authorId) throw new DomainError('Cannot respond to your own conversation');
 
+		// Editing an existing response is a pure UPDATE (the ungated FOR UPDATE
+		// policy); only a NEW response is an INSERT (the gated FOR INSERT WITH
+		// CHECK). An upsert won't do: Postgres evaluates the INSERT WITH CHECK on
+		// the proposed row even when ON CONFLICT resolves to UPDATE, which would
+		// gate edits too. So split the path explicitly to keep edits ungated.
+		const { data: existing } = await this.supabase
+			.from('prompt_comments')
+			.select('id')
+			.eq('prompt_id', promptId)
+			.eq('author_id', authorId)
+			.maybeSingle();
+
+		if (existing) {
+			const { data, error } = await this.supabase
+				.from('prompt_comments')
+				.update({ body })
+				.eq('prompt_id', promptId)
+				.eq('author_id', authorId)
+				.select()
+				.single();
+			if (error) throw new Error(`Failed to save comment: ${error.message}`);
+			return data as Comment;
+		}
+
 		const { data, error } = await this.supabase
 			.from('prompt_comments')
-			.upsert(
-				{ prompt_id: promptId, author_id: authorId, body },
-				{ onConflict: 'prompt_id,author_id' }
-			)
+			.insert({ prompt_id: promptId, author_id: authorId, body })
 			.select()
 			.single();
 
