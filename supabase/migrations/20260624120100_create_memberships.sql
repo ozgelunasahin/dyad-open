@@ -35,9 +35,14 @@ CREATE TABLE IF NOT EXISTS memberships (
 );
 
 -- The webhook resolves the row by these opaque references on subscription /
--- customer events; payment_ref already has a unique index from the constraint.
-CREATE INDEX IF NOT EXISTS memberships_stripe_customer_id_idx ON memberships (stripe_customer_id);
-CREATE INDEX IF NOT EXISTS memberships_stripe_subscription_id_idx ON memberships (stripe_subscription_id);
+-- customer events and reads with .maybeSingle(), which errors on >1 match.
+-- Partial UNIQUE enforces the one-actor-per-customer / per-subscription
+-- invariant the resolver assumes; NULLs are free (operator-granted rows never
+-- touch Stripe). payment_ref already has a unique index from its constraint.
+CREATE UNIQUE INDEX IF NOT EXISTS memberships_stripe_customer_id_key
+	ON memberships (stripe_customer_id) WHERE stripe_customer_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS memberships_stripe_subscription_id_key
+	ON memberships (stripe_subscription_id) WHERE stripe_subscription_id IS NOT NULL;
 
 DROP TRIGGER IF EXISTS update_memberships_updated_at ON memberships;
 CREATE TRIGGER update_memberships_updated_at
