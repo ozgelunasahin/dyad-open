@@ -29,6 +29,10 @@ export interface StripeEventDeps {
 	admin: SupabaseClient;
 	/** Worker-compatible Stripe client, for re-fetching authoritative state. */
 	stripe: Stripe;
+	/** Optional best-effort side effect fired once when a checkout activates a
+	 *  membership. Injected by the endpoint so this module stays free of the
+	 *  email/$env import chain (and runnable in the integration harness). */
+	onActivated?: (userId: string) => void;
 }
 
 // past_due KEEPS access (Stripe's dunning window — no bespoke grace logic, R6).
@@ -116,6 +120,11 @@ async function handleCheckoutCompleted(
 		console.error('[membership-webhook] checkout.session.completed: no membership row for ref');
 		return;
 	}
+	// Best-effort welcome (fire-and-forget; the endpoint wires this to the
+	// kill-switch + opt-in-gated dispatch). The /membership return page is the
+	// authoritative confirmation, so this never blocks the entitlement write.
+	deps.onActivated?.(row.identity_id);
+
 	const service = new SupabaseMembershipService(deps.admin);
 	const customerId = strOrNull(session.customer);
 
