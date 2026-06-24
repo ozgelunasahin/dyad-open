@@ -120,11 +120,6 @@ async function handleCheckoutCompleted(
 		console.error('[membership-webhook] checkout.session.completed: no membership row for ref');
 		return;
 	}
-	// Best-effort welcome (fire-and-forget; the endpoint wires this to the
-	// kill-switch + opt-in-gated dispatch). The /membership return page is the
-	// authoritative confirmation, so this never blocks the entitlement write.
-	deps.onActivated?.(row.identity_id);
-
 	const service = new SupabaseMembershipService(deps.admin);
 	const customerId = strOrNull(session.customer);
 
@@ -153,6 +148,11 @@ async function handleCheckoutCompleted(
 			stripe_subscription_id: null,
 			current_period_end: null
 		});
+		// Best-effort welcome AFTER the entitlement is durably written, so a
+		// failed write can't email a false activation and a Stripe retry (which
+		// only happens if the handler failed before recording idempotency) can't
+		// double-send. Fire-and-forget via the endpoint-injected callback.
+		deps.onActivated?.(row.identity_id);
 		return;
 	}
 
@@ -164,6 +164,7 @@ async function handleCheckoutCompleted(
 		stripe_subscription_id: subscriptionId
 	});
 	if (subscriptionId) await applySubscription(deps, subscriptionId);
+	deps.onActivated?.(row.identity_id);
 }
 
 /** Handle a refund/dispute for a Stripe customer. For a lifetime row this IS the

@@ -83,6 +83,7 @@
 		if (!responseText.trim()) return;
 		responseStatus = 'sending';
 		responseError = '';
+		responseGate = false;
 		try {
 			const res = await fetch(`/api/prompts/${data.prompt.id}/comments`, {
 				method: 'POST',
@@ -108,6 +109,7 @@
 		if (!selectedSlotId) return;
 		inviteStatus = 'sending';
 		inviteError = '';
+		inviteGate = false;
 		try {
 			const res = await fetch(`/api/prompts/${data.prompt.id}/invitations`, {
 				method: 'POST',
@@ -173,6 +175,7 @@
 	async function acceptInvitation(invitationId: string, slotId: string) {
 		acceptingId = invitationId;
 		acceptError = '';
+		acceptGate = false;
 		try {
 			const res = await fetch(`/api/invitations/${invitationId}/accept`, { method: 'POST' });
 			if (res.ok) {

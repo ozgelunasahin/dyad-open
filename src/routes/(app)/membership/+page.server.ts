@@ -1,7 +1,10 @@
 import { requireIdentity } from '$lib/services/identity.js';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, depends }) => {
+	// Lets the checkout-return poll re-run just this loader (not the whole
+	// (app) layout) via invalidate('membership:status').
+	depends('membership:status');
 	const actor = requireIdentity(locals);
 
 	// SELECT-own via RLS, and only the safe display columns — the opaque
