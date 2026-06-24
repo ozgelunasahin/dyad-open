@@ -24,8 +24,13 @@ export interface MembershipService {
 	getMembership(userId: string): Promise<Membership | null>;
 	/** Whether the actor currently holds an active entitlement. */
 	isActive(userId: string): Promise<boolean>;
-	/** Create-or-update the row keyed on identity_id (service-role only). */
+	/** Create-or-update the row keyed on identity_id (service-role only). Used
+	 *  where the row may not exist yet (operator grant). */
 	upsertMembership(membership: MembershipUpsert): Promise<void>;
+	/** Partial update of an existing row (service-role only). Used by the webhook,
+	 *  which only ever writes rows the checkout endpoint already created — so a
+	 *  partial patch (e.g. just `active`) needs no NOT NULL `source`. */
+	updateMembership(identityId: string, patch: Omit<MembershipUpsert, 'identity_id'>): Promise<void>;
 }
 
 // Opaque references included so the webhook can read back the prior Stripe ids
@@ -72,9 +77,23 @@ export class SupabaseMembershipService implements MembershipService {
 				{ onConflict: 'identity_id' }
 			);
 		if (error) {
-			// Writers are the webhook / operator grant. Surface the failure so the
-			// webhook returns 5xx and Stripe retries the (idempotent) upsert.
+			// Writer is the operator grant. Surface the failure to the caller.
 			throw new Error(`membership upsert failed: ${error.message}`);
+		}
+	}
+
+	async updateMembership(
+		identityId: string,
+		patch: Omit<MembershipUpsert, 'identity_id'>
+	): Promise<void> {
+		const { error } = await this.supabase
+			.from('memberships')
+			.update(patch)
+			.eq('identity_id', identityId);
+		if (error) {
+			// Surface so the webhook returns 5xx and Stripe retries (handlers are
+			// idempotent — re-running converges on the same state).
+			throw new Error(`membership update failed: ${error.message}`);
 		}
 	}
 }

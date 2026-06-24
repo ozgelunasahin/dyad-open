@@ -76,7 +76,12 @@ export const POST: RequestHandler = async ({ request, locals, url }) => {
 			success_url: `${url.origin}/membership?status=success`,
 			cancel_url: `${url.origin}/membership?status=cancelled`,
 			automatic_tax: { enabled: true },
-			...(isLifetime ? {} : { subscription_data: { metadata: { payment_ref: paymentRef } } })
+			// Lifetime (payment mode): force a Customer so refund/dispute events
+			// carry a customer id the webhook can resolve. Subscription mode always
+			// creates one, and carries payment_ref in the subscription metadata.
+			...(isLifetime
+				? { customer_creation: 'always' }
+				: { subscription_data: { metadata: { payment_ref: paymentRef } } })
 		});
 
 		if (!session.url) {

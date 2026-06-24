@@ -1,50 +1,213 @@
 import type Stripe from 'stripe';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { MembershipCadence } from '$lib/domain/types.js';
+import { SupabaseMembershipService } from '$lib/services/membership.js';
 
 /**
  * Stripe event → membership entitlement dispatcher.
  *
  * The webhook endpoint (`/api/stripe/webhook`) owns transport: signature
- * verification, idempotency, and HTTP status. This module owns the translation
- * from a verified Stripe event into upserted `memberships` state.
+ * verification, idempotency, and HTTP status. This module translates a verified
+ * Stripe event into upserted `memberships` state.
  *
  * Contract (enforced by the endpoint, relied on here):
  *  - Called only with a signature-verified event.
- *  - Called at most once per event id under normal operation; on a retry the
- *    handler MUST be safe to run again — every write is an upsert on
- *    `identity_id`, so re-running converges rather than duplicating.
- *  - A throw means "transient failure, retry me": the endpoint returns 5xx and
- *    writes no idempotency row.
+ *  - Every write is an upsert on identity_id, so a Stripe retry re-runs safely.
+ *  - A throw means "transient failure, retry me" (the endpoint 5xxs, no idem row).
  *
- * Privacy: never log `event.data.object` or any sub-field beyond `event.id` /
- * `event.type`, and never log the `payment_ref ↔ identity_id` mapping.
+ * Recompute, don't trust the payload: subscription state is always re-fetched
+ * from the Stripe API, so out-of-order or stale events converge on current state.
  *
- * The per-event handlers are implemented in U5; U2 ships this dispatcher
- * skeleton so the endpoint has a stable seam to call.
+ * Resolution never trusts a client-supplied id: the row is found by the opaque
+ * payment_ref (set server-side) or by stored Stripe ids — never by the actor id.
+ *
+ * Privacy: never log `event.data.object` or sub-fields beyond `event.id` /
+ * `event.type`, and never log the payment_ref ↔ identity_id mapping.
  */
 export interface StripeEventDeps {
 	/** Service-role Supabase client — the only writer of `memberships`. */
 	admin: SupabaseClient;
-	/** Worker-compatible Stripe client, for re-fetching objects when an event
-	 *  looks stale/out-of-order. */
+	/** Worker-compatible Stripe client, for re-fetching authoritative state. */
 	stripe: Stripe;
+}
+
+// past_due KEEPS access (Stripe's dunning window — no bespoke grace logic, R6).
+// incomplete / canceled / unpaid / incomplete_expired are NOT active.
+const ACTIVE_SUBSCRIPTION_STATUSES = new Set(['active', 'trialing', 'past_due']);
+
+interface MembershipRow {
+	identity_id: string;
+	stripe_subscription_id: string | null;
+	stripe_customer_id: string | null;
+}
+
+function strOrNull(v: string | { id: string } | null | undefined): string | null {
+	if (!v) return null;
+	return typeof v === 'string' ? v : v.id;
+}
+
+/** Period end as ISO. Reads the item-level field (current Stripe API) and falls
+ *  back to the legacy top-level field, so it survives an API-version bump. */
+function periodEndIso(sub: Stripe.Subscription): string | null {
+	const item = sub.items?.data?.[0] as { current_period_end?: number } | undefined;
+	const epoch = item?.current_period_end ?? (sub as unknown as { current_period_end?: number }).current_period_end;
+	return epoch ? new Date(epoch * 1000).toISOString() : null;
+}
+
+/** Find the membership row by the opaque payment_ref or stored Stripe ids.
+ *  Throws on a DB error (so the webhook retries); returns null when no row
+ *  matches (a genuine anomaly — checkout always creates the row first). */
+async function resolveMembership(
+	admin: SupabaseClient,
+	keys: { paymentRef?: string | null; subscriptionId?: string | null; customerId?: string | null }
+): Promise<MembershipRow | null> {
+	const cols = 'identity_id, stripe_subscription_id, stripe_customer_id';
+	const lookups: Array<[string, string | null | undefined]> = [
+		['payment_ref', keys.paymentRef],
+		['stripe_subscription_id', keys.subscriptionId],
+		['stripe_customer_id', keys.customerId]
+	];
+	for (const [col, val] of lookups) {
+		if (!val) continue;
+		const { data, error } = await admin.from('memberships').select(cols).eq(col, val).maybeSingle();
+		if (error) throw new Error(`membership lookup failed: ${error.message}`);
+		if (data) return data as MembershipRow;
+	}
+	return null;
+}
+
+/** Re-fetch a subscription and write its current state to the membership row. */
+async function applySubscription(deps: StripeEventDeps, subscriptionId: string): Promise<void> {
+	const sub = await deps.stripe.subscriptions.retrieve(subscriptionId);
+	const row = await resolveMembership(deps.admin, {
+		subscriptionId: sub.id,
+		paymentRef: sub.metadata?.payment_ref,
+		customerId: strOrNull(sub.customer)
+	});
+	if (!row) {
+		console.error('[membership-webhook] subscription event: no membership row');
+		return;
+	}
+	const interval = sub.items?.data?.[0]?.price?.recurring?.interval;
+	const cadence: MembershipCadence | null =
+		interval === 'year' ? 'annual' : interval === 'month' ? 'monthly' : null;
+
+	await new SupabaseMembershipService(deps.admin).updateMembership(row.identity_id, {
+		source: 'paid',
+		cadence,
+		status: sub.status,
+		active: ACTIVE_SUBSCRIPTION_STATUSES.has(sub.status),
+		current_period_end: periodEndIso(sub),
+		stripe_subscription_id: sub.id,
+		stripe_customer_id: strOrNull(sub.customer)
+	});
+}
+
+async function handleCheckoutCompleted(
+	event: Stripe.Event,
+	deps: StripeEventDeps
+): Promise<void> {
+	const session = event.data.object as Stripe.Checkout.Session;
+	const row = await resolveMembership(deps.admin, { paymentRef: session.client_reference_id });
+	if (!row) {
+		console.error('[membership-webhook] checkout.session.completed: no membership row for ref');
+		return;
+	}
+	const service = new SupabaseMembershipService(deps.admin);
+	const customerId = strOrNull(session.customer);
+
+	if (session.mode === 'payment') {
+		// Lifetime. If the actor still had a live subscription, cancel it at Stripe
+		// before nulling the id — otherwise it keeps billing while dyad stops tracking.
+		if (row.stripe_subscription_id) {
+			await deps.stripe.subscriptions.cancel(row.stripe_subscription_id);
+		}
+		await service.updateMembership(row.identity_id, {
+			source: 'paid',
+			cadence: 'lifetime',
+			status: null,
+			active: true,
+			stripe_customer_id: customerId,
+			stripe_subscription_id: null,
+			current_period_end: null
+		});
+		return;
+	}
+
+	// Subscription mode: record the ids, then apply the subscription's state.
+	const subscriptionId = strOrNull(session.subscription);
+	await service.updateMembership(row.identity_id, {
+		source: 'paid',
+		stripe_customer_id: customerId,
+		stripe_subscription_id: subscriptionId
+	});
+	if (subscriptionId) await applySubscription(deps, subscriptionId);
+}
+
+/** Revoke (active=false) the membership tied to a Stripe customer. The only
+ *  revocation path for a perpetual lifetime row. */
+async function revokeByCustomer(
+	deps: StripeEventDeps,
+	customer: string | { id: string } | null | undefined
+): Promise<void> {
+	const customerId = strOrNull(customer);
+	if (!customerId) {
+		console.error('[membership-webhook] refund/dispute without a customer id');
+		return;
+	}
+	const row = await resolveMembership(deps.admin, { customerId });
+	if (!row) {
+		console.error('[membership-webhook] refund/dispute: no membership row');
+		return;
+	}
+	await new SupabaseMembershipService(deps.admin).updateMembership(row.identity_id, {
+		active: false
+	});
 }
 
 export async function dispatchStripeEvent(
 	event: Stripe.Event,
 	deps: StripeEventDeps
 ): Promise<void> {
-	// `deps` (service-role client + Stripe client) is consumed by the per-event
-	// handlers added in U5; the skeleton dispatcher does not yet need it.
-	void deps;
 	switch (event.type) {
-		// Membership entitlement handlers are implemented in U5. Until then this
-		// dispatcher is a no-op so the transport layer is independently shippable
-		// and testable.
+		case 'checkout.session.completed':
+			return handleCheckoutCompleted(event, deps);
+
+		case 'customer.subscription.created':
+		case 'customer.subscription.updated':
+		case 'customer.subscription.deleted': {
+			const sub = event.data.object as Stripe.Subscription;
+			return applySubscription(deps, sub.id);
+		}
+
+		case 'invoice.paid':
+		case 'invoice.payment_failed': {
+			const invoice = event.data.object as Stripe.Invoice & {
+				subscription?: string | { id: string } | null;
+			};
+			const subId = strOrNull(invoice.subscription);
+			if (subId) return applySubscription(deps, subId);
+			return;
+		}
+
+		case 'charge.refunded': {
+			const charge = event.data.object as Stripe.Charge;
+			// `refunded` is true only on a FULL refund — partials keep access.
+			if (charge.refunded) return revokeByCustomer(deps, charge.customer);
+			return;
+		}
+
+		case 'charge.dispute.created': {
+			const dispute = event.data.object as Stripe.Dispute;
+			const chargeId = strOrNull(dispute.charge);
+			if (!chargeId) return;
+			const charge = await deps.stripe.charges.retrieve(chargeId);
+			return revokeByCustomer(deps, charge.customer);
+		}
+
 		default:
-			// Stripe sends many event types; we only act on the membership-relevant
-			// ones. Anything else is an intentional no-op (the endpoint still 200s
-			// so Stripe stops retrying). Bounded log — type only, never payload.
+			// Not a membership-relevant event — intentional no-op (the endpoint
+			// still 200s so Stripe stops retrying). Bounded: no payload logged.
 			return;
 	}
 }
