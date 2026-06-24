@@ -114,3 +114,94 @@ describe('SupabasePromptQueryService.getPromptDetail — body_html', () => {
 		expect(detail?.body_html).not.toMatch(/<[a-z]+\s[^>]*onerror=/i);
 	});
 });
+
+/**
+ * Regression tests for discover visibility (prod incident: existing
+ * conversations vanished from /discover + map).
+ *
+ * Visibility is TIME-bounded only — a conversation with an upcoming, non-expired
+ * slot stays on the feed even when that slot is FULL (capacity reached). The old
+ * code additionally dropped full slots via the occupancy RPC, which could hide a
+ * whole conversation. These lock in: full-but-upcoming stays; all-past still
+ * drops; the discover feed never consults the occupancy RPC.
+ */
+describe('SupabasePromptQueryService.getPublishedPrompts — time-bounded visibility', () => {
+	function chain(data: unknown) {
+		const c: Record<string, unknown> = {};
+		Object.assign(c, {
+			select: () => c,
+			eq: () => c,
+			is: () => c,
+			or: () => c,
+			in: () => c,
+			order: () => c,
+			limit: () => c,
+			lt: () => c,
+			then: (cb: (v: { data: unknown; error: null }) => unknown) => cb({ data, error: null })
+		});
+		return c;
+	}
+	function mockSupabase(prompts: unknown[], slots: unknown[], profiles: unknown[]) {
+		return {
+			from(table: string) {
+				if (table === 'prompts') return chain(prompts);
+				if (table === 'time_slots_public') return chain(slots);
+				if (table === 'profiles') return chain(profiles);
+				throw new Error(`unexpected table: ${table}`);
+			},
+			rpc() {
+				throw new Error('discover feed must not call the occupancy RPC');
+			}
+		};
+	}
+
+	beforeEach(() => {
+		vi.spyOn(console, 'error').mockImplementation(() => {});
+	});
+
+	const slot = (promptId: string, startTime: string) => ({
+		id: `slot-${promptId}`,
+		prompt_id: promptId,
+		start_time: startTime,
+		duration_minutes: 60,
+		general_area: 'Mitte',
+		general_area_lat: 52.5,
+		general_area_lng: 13.4,
+		accepted: true,
+		created_at: '2026-01-01T00:00:00Z',
+		retired_at: null
+	});
+	const prompt = (id: string) => ({
+		id,
+		author_id: 'a1',
+		title: 'Conversation',
+		body: null,
+		cover_image_url: null,
+		published_at: '2026-01-01T00:00:00Z',
+		region: 'berlin',
+		audience_scope: null,
+		capacity: 1
+	});
+	const profiles = [{ id: 'a1', username: 'alice', display_name: null }];
+
+	it('keeps a conversation whose only upcoming slot is FULL (capacity reached)', async () => {
+		const start = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(); // +48h, past the 12h cutoff
+		const supa = mockSupabase([prompt('p1')], [slot('p1', start)], profiles);
+		// @ts-expect-error test-only shape
+		const svc = new SupabasePromptQueryService(supa);
+		const result = await svc.getPublishedPrompts({ region: 'berlin', userId: 'viewer', scopes: [] });
+		expect(result).toHaveLength(1);
+		expect(result[0].id).toBe('p1');
+		expect(result[0].available_slots).toHaveLength(1);
+		expect(result[0].soonest_slot).toBe(start);
+	});
+
+	it('still drops a conversation whose slots are all in the past (time-bounded)', async () => {
+		const start = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+		const supa = mockSupabase([prompt('p2')], [slot('p2', start)], profiles);
+		// @ts-expect-error test-only shape
+		const svc = new SupabasePromptQueryService(supa);
+		const result = await svc.getPublishedPrompts({ region: 'berlin', userId: 'viewer', scopes: [] });
+		expect(result).toHaveLength(0);
+	});
+});
