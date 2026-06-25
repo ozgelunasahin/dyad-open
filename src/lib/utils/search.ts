@@ -105,9 +105,22 @@ export function scoreItem(item: SearchableItem, rawQuery: string): number {
 	return s;
 }
 
+/** Minimum length for a query token to count as "a full word". Below this we
+ *  show nothing — typing one or two letters should not surface results. */
+export const MIN_WORD_LENGTH = 3;
+
+/** True once the query contains at least one full word (a meaningful,
+ *  non-stop-word token of MIN_WORD_LENGTH or more). */
+export function hasFullWord(query: string): boolean {
+	return query
+		.toLowerCase()
+		.split(/\s+/)
+		.some((w) => w.length >= MIN_WORD_LENGTH && !STOP_WORDS.has(w));
+}
+
 /** Search items and return top results sorted by score. */
 export function searchItems(items: SearchableItem[], query: string, limit = 12): SearchableItem[] {
-	if (query.trim().length < 2) return [];
+	if (!hasFullWord(query.trim())) return [];
 	return items
 		.map(item => ({ item, score: scoreItem(item, query.trim()) }))
 		.filter(x => x.score > 0)

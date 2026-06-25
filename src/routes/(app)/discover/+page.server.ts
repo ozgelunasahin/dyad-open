@@ -25,13 +25,20 @@ export const load: PageServerLoad = async ({ locals }) => {
 		service.getSearchCorpus(region, locals.scopes, locals.homeScope)
 	]);
 
-	// Enrich search corpus with username + soonest_slot from the already-fetched prompts
+	// Enrich search corpus with username + soonest_slot from the already-fetched
+	// prompts. Search must only surface conversations that are live on the
+	// discover list — i.e. those with an available future slot. The corpus query
+	// (getSearchCorpus) returns every published prompt, including archived ones
+	// (no available slots); those have no entry in promptMeta and would render
+	// with an empty date/author row. Restrict the corpus to the available set.
 	const promptMeta = new Map(prompts.map(p => [p.id, { username: p.author_username, soonest_slot: p.soonest_slot ?? null }]));
-	const searchCorpus = corpus.map(c => ({
-		...c,
-		username: promptMeta.get(c.id)?.username ?? '',
-		soonest_slot: promptMeta.get(c.id)?.soonest_slot ?? null
-	}));
+	const searchCorpus = corpus
+		.filter(c => promptMeta.has(c.id))
+		.map(c => ({
+			...c,
+			username: promptMeta.get(c.id)!.username,
+			soonest_slot: promptMeta.get(c.id)!.soonest_slot
+		}));
 
 	return {
 		prompts,

@@ -251,11 +251,14 @@
 	 * view (scheduled meetings + drafts + received invitations) all live under
 	 * Started, so that's the right landing tab when there's no explicit signal.
 	 */
-	let convTab = $derived<'started' | 'responded' | 'archived'>(
-		(page.url.searchParams.get('tab') as 'started' | 'responded' | 'archived' | null) ?? 'started'
+	// Two tabs only: archived conversations are no longer a separate column —
+	// they render as a muted "Archived" section beneath the active ones inside
+	// "You started". A stale ?tab=archived link falls back to Started.
+	let convTab = $derived<'started' | 'responded'>(
+		page.url.searchParams.get('tab') === 'responded' ? 'responded' : 'started'
 	);
 
-	function setConvTab(tab: 'started' | 'responded' | 'archived') {
+	function setConvTab(tab: 'started' | 'responded') {
 		goto(`/profile?tab=${tab}`, { replaceState: true });
 	}
 
@@ -344,9 +347,6 @@
 		<button class="tab" class:active={convTab === 'responded'} onclick={() => setConvTab('responded')}>
 			{copy.profile.youRespondedTab}
 		</button>
-		<button class="tab" class:active={convTab === 'archived'} onclick={() => setConvTab('archived')}>
-			{copy.profile.archivedTab}
-		</button>
 	</div>
 
 	{#if convTab === 'started'}
@@ -396,6 +396,25 @@
 				{/each}
 			</div>
 		{/if}
+
+		<!-- Archived: muted section beneath the active started conversations,
+		     not a separate tab. Only shown when there's something archived. -->
+		{#if archivedConvs.length > 0}
+			<h2 class="archived-heading">{copy.profile.archivedTab}</h2>
+			<div class="conversation-list">
+				{#each archivedConvs as item (item.id)}
+					<ConversationCard
+						variant="profile"
+						title={item.title}
+						coverUrl={item.coverUrl}
+						href={item.href}
+						statusText={item.statusText ?? null}
+						status={item.statusText ? null : 'archived'}
+						dimmed
+					/>
+				{/each}
+			</div>
+		{/if}
 	{:else if convTab === 'responded'}
 		{#if respondedConvs.length === 0}
 			<div class="empty-state empty-nudge">
@@ -431,26 +450,6 @@
 							/>
 						{/if}
 					</ConversationCard>
-				{/each}
-			</div>
-		{/if}
-	{:else}
-		{#if archivedConvs.length === 0}
-			<div class="empty-state">
-				<p class="empty-text">{copy.profile.emptyArchived}</p>
-			</div>
-		{:else}
-			<div class="conversation-list">
-				{#each archivedConvs as item (item.id)}
-					<ConversationCard
-						variant="profile"
-						title={item.title}
-						coverUrl={item.coverUrl}
-						href={item.href}
-						statusText={item.statusText ?? null}
-						status={item.statusText ? null : 'archived'}
-						dimmed
-					/>
 				{/each}
 			</div>
 		{/if}
@@ -581,9 +580,21 @@
 	/* Tab bar */
 	.tab-bar {
 		display: grid;
-		grid-template-columns: repeat(3, 1fr);
+		grid-template-columns: repeat(2, 1fr);
 		border-bottom: 1px solid var(--border-link);
 		margin-bottom: var(--space-4);
+	}
+
+	/* Archived sub-section heading within "You started" */
+	.archived-heading {
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		color: var(--text-muted);
+		margin: var(--space-8) 0 var(--space-2);
+		padding-top: var(--space-4);
+		border-top: 1px solid var(--border-link);
 	}
 
 	.tab {

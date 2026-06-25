@@ -1,15 +1,12 @@
 <script lang="ts">
 	import { fly } from 'svelte/transition';
 	import type { PromptSummary, TimeSlot } from '$lib/domain/types';
-	import ConversationCard from './ConversationCard.svelte';
 
 	export interface BottomSheetItem {
 		prompt: PromptSummary;
 		/** When set (typically from a clicked map pin), the card shows the dates
 		 *  and area for these specific slots instead of falling back to
-		 *  `prompt.soonest_slot`. Multiple slots in the same area are joined
-		 *  with a `·` separator; same-day slots dedupe at day granularity so
-		 *  "Tue 6pm + Tue 8pm in Mitte" reads as "Tue 12 May", not duplicated. */
+		 *  `prompt.soonest_slot`. */
 		slots?: TimeSlot[];
 	}
 
@@ -24,18 +21,10 @@
 	let { items, onCardClick, onClose, hideAuthor = false, navClearance = true }: Props = $props();
 
 	function formatDate(iso: string): string {
-		return new Date(iso).toLocaleDateString('en-US', {
-			weekday: 'short',
-			month: 'short',
-			day: 'numeric'
-		});
+		return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 	}
 
-	/**
-	 * Format multiple slots as a single line of distinct day labels, e.g.
-	 * "Tue 12 May · Wed 13 May". Same-day slots collapse to one label so two
-	 * times on Tuesday don't render as "Tue 12 May · Tue 12 May".
-	 */
+	/** Distinct day labels for a set of slots, e.g. "Tue 12 May · Wed 13 May". */
 	function formatSlotDates(slots: TimeSlot[]): string {
 		const seen = new Set<string>();
 		const labels: string[] = [];
@@ -68,22 +57,48 @@
 	{/if}
 	<div class="sheet-body">
 		{#each items as item}
+			{@const prompt = item.prompt}
 			{@const slotsLabel = item.slots && item.slots.length > 0 ? formatSlotDates(item.slots) : null}
-			{@const fallbackLabel = item.prompt.soonest_slot ? formatDate(item.prompt.soonest_slot) : null}
+			{@const dateLabel = slotsLabel ?? (prompt.soonest_slot ? formatDate(prompt.soonest_slot) : null)}
 			{@const areaLabel = item.slots?.[0]?.general_area ?? null}
-			<ConversationCard
-				variant="compact"
-				title={item.prompt.title ?? 'Untitled'}
-				coverUrl={item.prompt.cover_image_url}
-				snippet={item.prompt.body_snippet}
-				metaLeft={slotsLabel ?? fallbackLabel}
-				metaRight={areaLabel}
-				authorUsername={item.prompt.author_username}
-				anonymiseAuthor={hideAuthor}
-				audienceScopeName={item.prompt.audience_scope_name}
-				href={onCardClick ? undefined : `/conversations/${item.prompt.id}`}
-				onclick={onCardClick ? () => onCardClick(item.prompt.id) : undefined}
-			/>
+			{#snippet cardContent()}
+				{#if prompt.cover_image_url}
+					<div class="card-cover">
+						<img src={prompt.cover_image_url} alt="" class="card-cover-img" loading="lazy" />
+					</div>
+				{/if}
+				<div class="card-content">
+					<!-- Forum-style: the title is the hero teaser. -->
+					<h4 class="card-title">{prompt.title}</h4>
+					{#if prompt.body_snippet}
+						<p class="card-snippet">{prompt.body_snippet}</p>
+					{/if}
+					<div class="card-meta">
+						{#if dateLabel}
+							<span class="meta-date">{dateLabel}</span>
+						{/if}
+						{#if areaLabel}
+							<span class="meta-area">{areaLabel}</span>
+						{/if}
+						<span class="meta-author" class:anonymised={hideAuthor}>
+							@{hideAuthor ? prompt.author_username.replace(/./g, '•') : prompt.author_username}
+						</span>
+					</div>
+					{#if prompt.audience_scope_name}
+						<span class="audience-tag">{prompt.audience_scope_name}</span>
+					{/if}
+				</div>
+			{/snippet}
+
+			{#if onCardClick}
+				<button class="sheet-card" onclick={() => onCardClick(prompt.id)}>
+					{@render cardContent()}
+				</button>
+			{:else}
+				<a href="/conversations/{prompt.id}" class="sheet-card">
+					{@render cardContent()}
+				</a>
+			{/if}
 		{/each}
 	</div>
 </div>
@@ -103,6 +118,7 @@
 		overflow-y: auto;
 		padding: var(--space-5);
 		padding-bottom: var(--nav-clearance);
+		z-index: 850;
 	}
 
 	.sheet.no-nav {
@@ -114,7 +130,7 @@
 	.sheet-backdrop {
 		position: fixed;
 		inset: 0;
-		z-index: 599;
+		z-index: 849;
 	}
 
 	.sheet-close {
@@ -133,13 +149,105 @@
 		justify-content: center;
 		z-index: 1;
 	}
-	.sheet-close:hover {
-		background: var(--bg-control-hover);
-	}
+	.sheet-close:hover { background: var(--bg-control-hover); }
 
 	.sheet-body {
 		display: flex;
 		flex-direction: column;
+		gap: var(--space-4);
+	}
+
+	/* dice.fm-style card: soft-rounded cover image, title + meta as plain text
+	   below it. No box, no border — the image and the title do the talking. */
+	.sheet-card {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+		padding: 0;
+		border: none;
+		background: none;
+		text-decoration: none;
+		text-align: left;
+		color: inherit;
+		width: 100%;
+		cursor: pointer;
+	}
+
+	.sheet-card:hover .card-cover-img { opacity: var(--opacity-hover-card); }
+	.sheet-card:hover .card-title { text-decoration: underline; }
+
+	.card-cover {
+		width: 100%;
+		aspect-ratio: 4 / 3;
+		overflow: hidden;
+		border-radius: var(--radius-card);
+	}
+
+	.card-cover-img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		display: block;
+		transition: opacity 0.15s;
+	}
+
+	.card-content { min-width: 0; }
+
+	/* Title is the teaser — like a dice/forum thread title. */
+	.card-title {
+		font-size: var(--text-md);
+		font-weight: 600;
+		color: var(--text-primary);
+		margin: 0 0 var(--space-1);
+		line-height: var(--leading-tight);
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
+
+	.card-snippet {
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+		margin: 0 0 var(--space-1);
+		line-height: 1.4;
+		display: -webkit-box;
+		-webkit-line-clamp: 1;
+		line-clamp: 1;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
+
+	.card-meta {
+		display: flex;
+		gap: var(--space-2);
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+	}
+
+	.meta-date {
+		font-family: var(--font-mono);
+		letter-spacing: 0.04em;
+	}
+
+	.meta-area {
+		font-family: var(--font-mono);
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+
+	.meta-author.anonymised {
+		filter: blur(4px);
+		user-select: none;
+	}
+
+	.audience-tag {
+		display: inline-block;
+		margin-top: var(--space-1);
+		font-size: var(--text-xs);
+		font-style: italic;
+		color: var(--text-muted);
 	}
 
 	@media (min-width: 769px) {

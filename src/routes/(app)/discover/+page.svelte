@@ -5,10 +5,10 @@
 	import { browser } from '$app/environment';
 	import { onMount } from 'svelte';
 	import MapView from '$lib/components/MapView.svelte';
-	import BottomSheet from '$lib/components/BottomSheet.svelte';
 	import FloatingNav from '$lib/components/FloatingNav.svelte';
 	import SearchOverlay from '$lib/components/SearchOverlay.svelte';
 	import ConversationCard from '$lib/components/ConversationCard.svelte';
+	import ExploreCommunities from '$lib/components/ExploreCommunities.svelte';
 
 	function slotDates(slots: { start_time: string }[]): string {
 		const dates = new Set<string>();
@@ -89,15 +89,7 @@
 		restore: (value) => { mapCenter = value.center; mapZoom = value.zoom; }
 	};
 	let searchOpen = $state(false);
-	let selectedPinItems = $state<Array<{ prompt: PromptSummary; slots: TimeSlot[] }>>([]);
-
-	function handlePinSelect(items: Array<{ prompt: PromptSummary; slots: TimeSlot[] }>, _area: string) {
-		selectedPinItems = items;
-	}
-
-	function closeSheet() {
-		selectedPinItems = [];
-	}
+	let exploreOpen = $state(false);
 
 	const weekDates = getWeekDates();
 
@@ -162,17 +154,6 @@
 		selectedAreas = new Set();
 	}
 
-	// Reset the BottomSheet selection whenever the filter state changes — otherwise
-	// the sheet keeps displaying conversations that are no longer on the filtered
-	// map. Per-slot pins make this gap more visible because clicks pull more items
-	// into the sheet. Reading the Sets directly tracks identity reassignment
-	// (toggleDate/clearFilters create new Set instances each time).
-	$effect(() => {
-		if (selectedDates && selectedAreas) {
-			selectedPinItems = [];
-		}
-	});
-
 	/** Format slot dates for display, e.g. "Fri 28 · Sat 29" */
 	/** Format a single slot's time, e.g. "7:30 PM" */
 	function formatSlotTime(slot: TimeSlot): string {
@@ -191,19 +172,25 @@
 
 {#if viewMode === 'map'}
 	<div class="map-pane">
+		<button class="communities-pill" onclick={() => (exploreOpen = true)}>
+			<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+				<circle cx="5" cy="6" r="2.2" stroke="currentColor" stroke-width="1.3"/>
+				<circle cx="11" cy="6" r="2.2" stroke="currentColor" stroke-width="1.3"/>
+				<path d="M2 13c0-1.7 1.3-3 3-3s3 1.3 3 3M8 13c0-1.7 1.3-3 3-3s3 1.3 3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+			</svg>
+			<span>Communities</span>
+		</button>
 		<MapView
 			prompts={filteredPrompts}
 			slotFilter={mapSlotFilter}
-			onSelectPin={handlePinSelect}
-			onMapClick={closeSheet}
+			anchoredPopup={true}
+			locateOnLoad={true}
+			onSelectPin={() => {}}
 			initialCenter={mapCenter ?? data.mapCenter}
 			initialZoom={mapZoom}
 			onMoveEnd={(c, z) => { mapCenter = c; mapZoom = z; }}
 		/>
 	</div>
-	{#if selectedPinItems.length > 0}
-		<BottomSheet items={selectedPinItems} />
-	{/if}
 {:else}
 <div class="content">
 			{#if data.prompts.length === 0}
@@ -257,6 +244,8 @@
 	/>
 {/if}
 
+<ExploreCommunities bind:open={exploreOpen} />
+
 {#if showOnboarding}
 	<OnboardingModal onDone={finishOnboarding} username={data.username} />
 {/if}
@@ -270,6 +259,31 @@
 		bottom: 0;
 		left: 0;
 	}
+
+	/* Entry point to the community discovery channel, floating over the map. */
+	.communities-pill {
+		position: absolute;
+		top: var(--space-4);
+		left: 50%;
+		transform: translateX(-50%);
+		z-index: 600;
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-2) var(--space-4);
+		border: none;
+		border-radius: var(--radius-pill);
+		background: var(--bg-glass);
+		backdrop-filter: blur(8px);
+		box-shadow: 0 2px 12px rgba(0, 0, 0, 0.14);
+		color: var(--text-primary);
+		font-family: var(--font-mono);
+		font-size: var(--text-sm);
+		letter-spacing: 0.02em;
+		cursor: pointer;
+		transition: opacity 0.15s;
+	}
+	.communities-pill:hover { opacity: var(--opacity-hover-btn); }
 
 	.content {
 		width: 100%;
