@@ -86,6 +86,13 @@ export class SupabaseInvitationService implements InvitationService {
 		});
 
 		if (error) {
+			// Membership gate inside accept_invitation (migration 20260624120500):
+			// taking a slot is gated and the caller is not active. The accept
+			// endpoint is the primary gate; this maps a direct-RPC / fail-open
+			// bypass to the same 403 token the endpoint returns.
+			if ((error.message ?? '').includes('membership_required')) {
+				throw new DomainError('membership_required', 403);
+			}
 			// Access-window guard (migration 20260605100500): the slot starts
 			// after one party's guest access ends. Friendly, neutral copy — the
 			// blocked window can be either party's.
