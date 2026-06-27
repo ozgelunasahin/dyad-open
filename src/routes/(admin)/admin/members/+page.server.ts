@@ -13,28 +13,41 @@ import type { PageServerLoad } from './$types';
  * type-system enforcement (it imports the substrate via makeAdminClient),
  * but the discipline still applies — admin tooling should respect the same
  * minimum-disclosure shape that member-facing services do.
- *
- * Forward note: when corner scopes ship (see
- * ~/prefig/docs/dyad/ideation/2026-05-08-visibility-scope-corners-ideation.md),
- * add a `corners` column via array_agg(scope) FILTER (WHERE revoked_at IS NULL)
- * joined against identity_scopes.
  */
 export interface MemberRow {
 	id: string;
 	username: string | null;
 	display_name: string | null;
 	last_active_at: string | null;
+	membership: { active: boolean; source: string; cadence: string | null } | null;
 }
 
 export const load: PageServerLoad = async () => {
 	const supabase = makeAdminClient();
 
-	const { data, error } = await supabase.rpc('admin_member_activity');
+	const [{ data, error }, { data: memberships }] = await Promise.all([
+		supabase.rpc('admin_member_activity'),
+		// Opaque references are deliberately NOT selected — the operator sees only
+		// the entitlement state, never the Stripe/payment_ref tokens.
+		supabase.from('memberships').select('identity_id, active, source, cadence')
+	]);
 
 	if (error) {
 		console.error('[admin/members] activity query failed:', error.message);
 		return { members: [] as MemberRow[] };
 	}
 
-	return { members: (data ?? []) as MemberRow[] };
+	const byId = new Map(
+		(memberships ?? []).map((m) => [
+			m.identity_id as string,
+			{ active: m.active as boolean, source: m.source as string, cadence: m.cadence as string | null }
+		])
+	);
+
+	const members = ((data ?? []) as Omit<MemberRow, 'membership'>[]).map((m) => ({
+		...m,
+		membership: byId.get(m.id) ?? null
+	}));
+
+	return { members };
 };

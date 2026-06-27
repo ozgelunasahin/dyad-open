@@ -121,7 +121,10 @@ export async function resolveRecipient(userId: string): Promise<NotificationReci
 
 interface DispatchParams {
 	userId: string;
-	pref: keyof NotificationPrefs;
+	/** Per-event opt-out flag. Omit for one-off transactional mail (e.g. the
+	 *  membership welcome) that has no recurring-preference column — such mail is
+	 *  still gated by the global kill switch and the opt-in address. */
+	pref?: keyof NotificationPrefs;
 	subject: string;
 	bodyHtml: string;
 }
@@ -135,7 +138,7 @@ async function dispatch(params: DispatchParams): Promise<void> {
 		// Not opted in (no notification address) is the quiet default.
 		const recipient = await resolveRecipient(params.userId);
 		if (!recipient) return;
-		if (!recipient.prefs[params.pref]) return;
+		if (params.pref && !recipient.prefs[params.pref]) return;
 
 		// Access-expired guests get no mail (plan R14) — they cannot act on
 		// anything the message describes. This check lives here (not in
@@ -296,6 +299,21 @@ export async function notifyGatheringCancelled(params: {
 // product decision is made.
 function multiInviteCourtesyEnabled(): boolean {
 	return env.MULTI_INVITE_COURTESY_EMAIL === '1';
+}
+
+/** Best-effort welcome when a membership activates. Has no per-event preference
+ *  column — gated only by the global kill switch and the opt-in address (no
+ *  `pref`). The Checkout return page is the authoritative confirmation; this
+ *  email arriving is a nicety, never a precondition. */
+export async function notifyMembershipActivated(params: { userId: string }): Promise<void> {
+	await dispatch({
+		userId: params.userId,
+		subject: copy.email.membershipActivatedSubject,
+		bodyHtml: `
+			<p>${escapeHtml(copy.email.membershipActivatedBody)}</p>
+			<p><a href="${APP_URL}/membership" style="color: ${color.textPrimary}; font-weight: bold; text-decoration: underline;">View your membership</a></p>
+		`
+	});
 }
 
 export async function notifyMultiInviteCourtesy(params: {

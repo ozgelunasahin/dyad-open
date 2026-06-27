@@ -12,6 +12,7 @@
 	import UserHandle from '$lib/components/UserHandle.svelte';
 	import NotificationHint from '$lib/components/NotificationHint.svelte';
 	import { formatShortDate as formatDate } from '$lib/utils/dates.js';
+	import { membershipErrorMessage, isMembershipGate } from '$lib/utils/membership-error.js';
 	import { buildResponseRows, ACTIVE_MEETING_STATES } from '$lib/domain/response-rows.js';
 
 	import { isSlotFull } from '$lib/domain/time-slot.js';
@@ -51,6 +52,7 @@
 	let responseText = $state(data.myComment?.body ?? '');
 	let responseStatus = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
 	let responseError = $state('');
+	let responseGate = $state(false);
 	let hasResponse = $derived(!!data.myComment || responseStatus === 'sent');
 
 	// Invitation flow
@@ -58,6 +60,7 @@
 	let inviteMessage = $state('');
 	let inviteStatus = $state<'idle' | 'sending' | 'sent' | 'error'>('idle');
 	let inviteError = $state('');
+	let inviteGate = $state(false);
 	// svelte-ignore state_referenced_locally — intentional initial-value capture for local tracking
 	let invitedSlotIds = $state(new Set(data.invitedSlotIds ?? []));
 	// svelte-ignore state_referenced_locally
@@ -68,6 +71,7 @@
 	// Author: accept invitation
 	let acceptingId = $state<string | null>(null);
 	let acceptError = $state('');
+	let acceptGate = $state(false);
 
 	// Author: decline invitation (with optional message)
 	let decliningId = $state<string | null>(null);
@@ -79,6 +83,7 @@
 		if (!responseText.trim()) return;
 		responseStatus = 'sending';
 		responseError = '';
+		responseGate = false;
 		try {
 			const res = await fetch(`/api/prompts/${data.prompt.id}/comments`, {
 				method: 'POST',
@@ -90,7 +95,8 @@
 				responseStatus = 'sent';
 			} else {
 				const err = await res.json().catch(() => ({}));
-				responseError = (err as any).error ?? copy.common.sendFailed;
+				responseError = membershipErrorMessage(err, copy.common.sendFailed);
+				responseGate = isMembershipGate(err);
 				responseStatus = 'error';
 			}
 		} catch {
@@ -103,6 +109,7 @@
 		if (!selectedSlotId) return;
 		inviteStatus = 'sending';
 		inviteError = '';
+		inviteGate = false;
 		try {
 			const res = await fetch(`/api/prompts/${data.prompt.id}/invitations`, {
 				method: 'POST',
@@ -121,7 +128,8 @@
 				inviteStatus = 'sent';
 			} else {
 				const err = await res.json().catch(() => ({}));
-				inviteError = (err as any).error ?? copy.common.sendFailed;
+				inviteError = membershipErrorMessage(err, copy.common.sendFailed);
+				inviteGate = isMembershipGate(err);
 				inviteStatus = 'error';
 			}
 		} catch {
@@ -167,6 +175,7 @@
 	async function acceptInvitation(invitationId: string, slotId: string) {
 		acceptingId = invitationId;
 		acceptError = '';
+		acceptGate = false;
 		try {
 			const res = await fetch(`/api/invitations/${invitationId}/accept`, { method: 'POST' });
 			if (res.ok) {
@@ -178,7 +187,8 @@
 				goto(`/meetings/${meetingId}`);
 			} else {
 				const err = await res.json().catch(() => ({}));
-				acceptError = (err as any).error ?? copy.common.genericError;
+				acceptError = membershipErrorMessage(err, copy.common.genericError);
+				acceptGate = isMembershipGate(err);
 			}
 		} catch {
 			acceptError = copy.common.networkError;
@@ -478,7 +488,7 @@
 						<!-- 'responded' (no time chosen): just the words, no status line. -->
 					</div>
 				{/each}
-				{#if acceptError}<p class="field-error">{acceptError}</p>{/if}
+				{#if acceptError}<p class="field-error">{acceptError}{#if acceptGate} <a href="/membership">{copy.membership.pageTitle}</a>{/if}</p>{/if}
 				<!-- The author's notification moment: people are responding, so an
 				     invitation to meet may come — offer to be notified of it.
 				     Self-silences once an address is set. -->
@@ -511,7 +521,7 @@
 					rows={3}
 					disabled={responseStatus === 'sending'}
 				></textarea>
-				{#if responseError}<p class="field-error">{responseError}</p>{/if}
+				{#if responseError}<p class="field-error">{responseError}{#if responseGate} <a href="/membership">{copy.membership.pageTitle}</a>{/if}</p>{/if}
 				<button class="btn-secondary" onclick={submitResponse} disabled={responseStatus === 'sending' || !responseText.trim()}>
 					{responseStatus === 'sending' ? copy.conversation.sending : copy.common.send}
 				</button>
@@ -596,7 +606,7 @@
 					{/each}
 
 					{#if selectedSlotId}
-						{#if inviteError}<p class="field-error">{inviteError}</p>{/if}
+						{#if inviteError}<p class="field-error">{inviteError}{#if inviteGate} <a href="/membership">{copy.membership.pageTitle}</a>{/if}</p>{/if}
 						<textarea
 							class="invite-message-textarea"
 							placeholder={copy.conversation.inviteNotePlaceholder}

@@ -626,6 +626,52 @@ export const copy = {
 		typeOther: 'Other',
 	},
 
+	// ── Membership ─────────────────────────────────────────────────────
+	membership: {
+		_routes: ['/membership'],
+		_description:
+			'Join/upgrade page and the inline prompts shown when a gated action needs an active membership.',
+		pageTitle: 'Membership',
+
+		guestHeading: 'Become a Member',
+		guestIntro:
+			'Membership keeps dyad collectively owned and ad-free. Choose how often you’d like to contribute — you’ll set the amount yourself on the next screen.',
+		lapsedHeading: 'Renew Your Membership',
+		lapsedIntro:
+			'Your membership has lapsed, so the member-only actions are paused. Renewing turns them back on — you keep everything you’ve already made, and you can stop any time.',
+
+		cadenceMonthly: 'Monthly',
+		cadenceAnnual: 'Annual',
+		cadenceLifetime: 'Lifetime',
+		cadenceMonthlyHint: 'A recurring monthly contribution. Cancel whenever you like.',
+		cadenceAnnualHint: 'A recurring yearly contribution. Cancel whenever you like.',
+		cadenceLifetimeHint: 'A one-time contribution for a membership that never lapses.',
+		amountNote: 'You choose the amount on Stripe’s secure page — pay what feels right.',
+		continueCta: 'continue to payment',
+		continuing: 'taking you to payment…',
+
+		activeHeading: 'You’re a Member',
+		activeSubscription: 'Your membership is active. Thank you for keeping dyad alive.',
+		lifetimeConfirmation:
+			'You have a lifetime membership — it never lapses and there’s nothing more to do. Thank you.',
+		manageCta: 'manage membership',
+
+		finishingUp: 'We’re confirming your membership — this usually takes a few seconds.',
+		finishingUpFallback:
+			'Still confirming. You can keep browsing — your membership will appear here and on your profile once it’s through. No need to pay again.',
+		cancelled: 'No payment was made. You can come back whenever you’re ready.',
+
+		// Inline gated-action prompts. `hadMembership` chooses renew vs join wording.
+		gatePrompt: (hadMembership: boolean): string =>
+			hadMembership
+				? 'Renew your membership to do this — your half-written words are kept.'
+				: 'Become a member to do this — your half-written words are kept.',
+		gateCta: (hadMembership: boolean): string =>
+			hadMembership ? 'renew membership' : 'become a member',
+
+		errorGeneric: 'Couldn’t start checkout. Please try again.',
+	},
+
 	// ── Emails ─────────────────────────────────────────────────────────
 	email: {
 		_routes: ['/api/contact', '/api/invites'],
@@ -634,6 +680,9 @@ export const copy = {
 		inviteBody: (displayName: string, inviteUrl: string, expiryDays: number) =>
 			`Hi ${displayName}, We are letting in groups of people to come and play. We are currently on our private beta and would love for you to take a walk inside and tell us about your experience. You can do this asynchronously via the feedback area on the bottom right with a question mark icon. We are looking forward to bringing the fruits of our love, care and labor to you. Join: ${inviteUrl}. This link expires in ${expiryDays} days.`,
 		waitlistSubject: "What's in a conversation?",
+		membershipActivatedSubject: 'Your membership is active',
+		membershipActivatedBody:
+			'Thank you for becoming a member — your membership is active. It keeps dyad collectively owned and ad-free, and it’s what lets you start conversations, respond, and meet. You can review or manage it any time.',
 		tagline: 'cultivating a culture of conversation',
 		// Rendered into the transactional email footers. Three lines:
 		// the closing supports the names; the names anchor the message;

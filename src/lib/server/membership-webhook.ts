@@ -29,6 +29,10 @@ export interface StripeEventDeps {
 	admin: SupabaseClient;
 	/** Worker-compatible Stripe client, for re-fetching authoritative state. */
 	stripe: Stripe;
+	/** Optional best-effort side effect fired once when a checkout activates a
+	 *  membership. Injected by the endpoint so this module stays free of the
+	 *  email/$env import chain (and runnable in the integration harness). */
+	onActivated?: (userId: string) => void;
 }
 
 // past_due KEEPS access (Stripe's dunning window — no bespoke grace logic, R6).
@@ -144,6 +148,11 @@ async function handleCheckoutCompleted(
 			stripe_subscription_id: null,
 			current_period_end: null
 		});
+		// Best-effort welcome AFTER the entitlement is durably written, so a
+		// failed write can't email a false activation and a Stripe retry (which
+		// only happens if the handler failed before recording idempotency) can't
+		// double-send. Fire-and-forget via the endpoint-injected callback.
+		deps.onActivated?.(row.identity_id);
 		return;
 	}
 
@@ -155,6 +164,7 @@ async function handleCheckoutCompleted(
 		stripe_subscription_id: subscriptionId
 	});
 	if (subscriptionId) await applySubscription(deps, subscriptionId);
+	deps.onActivated?.(row.identity_id);
 }
 
 /** Handle a refund/dispute for a Stripe customer. For a lifetime row this IS the
