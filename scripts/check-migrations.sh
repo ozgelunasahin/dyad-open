@@ -75,6 +75,19 @@ for f in "${changed[@]}"; do
 	if grep -Eq 'create[[:space:]]+policy' <<<"$low" && ! grep -Eq 'drop[[:space:]]+policy[[:space:]]+if[[:space:]]+exists' <<<"$low"; then
 		note "CREATE POLICY needs a preceding 'DROP POLICY IF EXISTS' (policies have no IF NOT EXISTS)"
 	fi
+
+	# 3. SECURITY DEFINER function BODIES must not call auth.uid(). The RLS drift
+	#    test (rls-no-auth-uid-drift) scans pg_policies only — it cannot see
+	#    function bodies, so a DEFINER function hardcoding auth.uid() would slip
+	#    the vendor-neutrality guard. Require app.current_user_id() instead.
+	#    Scoped to $$...$$ bodies via perl so a normal CREATE POLICY using
+	#    auth.uid() (outside any body) is not a false positive.
+	if grep -Eq 'security[[:space:]]+definer' <<<"$low"; then
+		bodies_low=$(perl -0777 -ne 'print "$1\n" while /\$\$(.*?)\$\$/sg' "$f" 2>/dev/null | tr '[:upper:]' '[:lower:]')
+		if grep -Eq 'auth\.uid\(\)' <<<"$bodies_low"; then
+			note "SECURITY DEFINER function body uses auth.uid() — use app.current_user_id() (the policy-scan drift test can't see function bodies)"
+		fi
+	fi
 done
 
 echo ""

@@ -47,6 +47,7 @@
 		"eslint": "^10.1.0",
 		"eslint-plugin-svelte": "^3.16.0",
 		"globals": "^17.4.0",
+		"happy-dom": "^20.5.0",
 		"supabase": "^2.72.8",
 		"svelte": "^5.45.6",
 		"svelte-check": "^4.3.4",
@@ -74,6 +75,7 @@
 		"@vite-pwa/sveltekit": "^1.1.0",
 		"jose": "^6.2.3",
 		"leaflet": "^1.9.4",
-		"nanoid": "^5.1.6"
+		"nanoid": "^5.1.6",
+		"stripe": "22.2.3"
 	}
 }
