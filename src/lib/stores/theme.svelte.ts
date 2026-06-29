@@ -5,9 +5,8 @@ type Theme = 'light' | 'dark';
 function getInitialTheme(): Theme {
 	if (typeof window === 'undefined') return 'light';
 
-	// Dark mode disabled until redesigned — always light.
-	// Restore localStorage read here when dark mode is ready.
-	return 'light';
+	// Default to dark (black background) per design direction.
+	return 'dark';
 }
 
 class ThemeStore {

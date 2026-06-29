@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
+	import { invalidateAll, goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { copy } from '$lib/copy';
 
@@ -9,9 +9,10 @@
 		initialState: string;
 		vocabulary: string[];
 		meetingContext: { otherUsername: string; meetingDate: string } | null;
+		lapsed?: boolean;
 	}
 
-	let { formId, meetingId, initialState, vocabulary, meetingContext }: Props = $props();
+	let { formId, meetingId, initialState, vocabulary, meetingContext, lapsed = false }: Props = $props();
 
 	let dialog = $state<HTMLDialogElement | undefined>();
 
@@ -99,6 +100,13 @@
 		dialog?.close();
 		await invalidateAll();
 	}
+
+	// E11a: a lapsed member just gave their (mandatory) feedback — send them to
+	// renew, not back into the app where the next action 403s.
+	async function goToMembership() {
+		dialog?.close();
+		await goto('/membership');
+	}
 </script>
 
 <dialog bind:this={dialog} class="feedback-dialog" aria-labelledby="feedback-dialog-title">
@@ -135,13 +143,21 @@
 			{:else}
 				<p class="desc">Feedback has been submitted.</p>
 			{/if}
-			<button class="btn-primary flex-1" onclick={dismiss}>Continue</button>
+			{#if lapsed}
+				<button class="btn-primary flex-1" onclick={goToMembership}>{copy.membership.gateCta(true)}</button>
+			{:else}
+				<button class="btn-primary flex-1" onclick={dismiss}>Continue</button>
+			{/if}
 
 		{:else if effectiveStep === 'waiting'}
 			<h2 id="feedback-dialog-title" class="title">{copy.feedback.thankYou}</h2>
 			<p class="desc">{copy.feedback.submitted}</p>
 			<p class="desc muted">You'll see what they shared once they submit theirs.</p>
-			<button class="btn-primary flex-1" onclick={dismiss}>Continue to discover</button>
+			{#if lapsed}
+				<button class="btn-primary flex-1" onclick={goToMembership}>{copy.membership.gateCta(true)}</button>
+			{:else}
+				<button class="btn-primary flex-1" onclick={dismiss}>Continue to discover</button>
+			{/if}
 
 		{:else if effectiveStep === 'met'}
 			{#if meetingContext}

@@ -21,6 +21,34 @@
 	let saving = $state(false);
 	let emailError = $state<string | null>(null);
 
+	// Membership (display-only). Manage → Stripe portal for now (in-app manage page is a later, backend-dependent step).
+	const m = $derived(data.membership);
+	const planName = $derived(
+		!m
+			? ''
+			: m.source === 'comp'
+				? copy.preferences.planComp
+				: m.cadence === 'lifetime'
+					? copy.preferences.planLifetime
+					: m.cadence === 'annual'
+						? copy.preferences.planAnnual
+						: copy.preferences.planMonthly
+	);
+	let managing = $state(false);
+	async function manageMembership() {
+		managing = true;
+		try {
+			const res = await fetch('/api/membership/portal', { method: 'POST' });
+			const body = await res.json().catch(() => ({}));
+			if (res.ok && body.url) {
+				window.location.href = body.url;
+				return;
+			}
+		} finally {
+			managing = false;
+		}
+	}
+
 	const emailDirty = $derived(emailInput.trim() !== (savedEmail ?? ''));
 
 	async function patch(payload: Record<string, unknown>): Promise<boolean> {
@@ -78,6 +106,22 @@
 <div class="content">
 	<a href="/profile" class="back-link">{copy.preferences.backToProfile}</a>
 	<h1 class="page-title">{copy.preferences.title}</h1>
+
+	<section class="membership-pref">
+		<p class="section-label">{copy.preferences.membershipHeading}</p>
+		{#if m?.active}
+			<p class="plan-name">{planName}</p>
+			<button type="button" class="manage-link" disabled={managing} onclick={manageMembership}>
+				{copy.preferences.membershipManage}
+			</button>
+		{:else if m}
+			<p class="plan-name">{copy.preferences.membershipLapsed}</p>
+			<a href="/membership" class="manage-link">{copy.preferences.membershipRenew}</a>
+		{:else}
+			<p class="plan-name muted">{copy.preferences.membershipNone}</p>
+			<a href="/membership" class="manage-link">{copy.preferences.membershipJoin}</a>
+		{/if}
+	</section>
 
 	<form class="email-row" onsubmit={saveEmail}>
 		<input
@@ -228,5 +272,30 @@
 
 	.pref-row input[type='checkbox']:disabled {
 		cursor: default;
+	}
+
+	.membership-pref {
+		margin-bottom: var(--space-5);
+	}
+	.plan-name {
+		font-size: var(--text-base);
+		color: var(--text-primary);
+		margin: var(--space-2) 0;
+	}
+	.plan-name.muted {
+		color: var(--text-muted);
+	}
+	.manage-link {
+		display: inline-block;
+		font-size: var(--text-sm);
+		color: var(--text-link);
+		text-decoration: underline;
+		background: none;
+		border: none;
+		padding: 0;
+		cursor: pointer;
+	}
+	.manage-link:hover {
+		color: var(--text-link-hover);
 	}
 </style>

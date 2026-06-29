@@ -12,7 +12,7 @@ export async function loadLayoutData(locals: App.Locals) {
 
 	const pendingFormId = (locals as any).pendingFeedbackFormId as string | undefined;
 
-	const [{ data: profile }, { count: invitationCount }, { count: feedbackCount }, { count: groupFeedbackCount }, pendingFeedback, { data: notif, error: notifError }] = await Promise.all([
+	const [{ data: profile }, { count: invitationCount }, { count: feedbackCount }, { count: groupFeedbackCount }, pendingFeedback, { data: notif, error: notifError }, { data: membershipRow }] = await Promise.all([
 		locals.supabase
 			.from('profiles')
 			.select('username')
@@ -44,6 +44,13 @@ export async function loadLayoutData(locals: App.Locals) {
 			.from('notification_settings')
 			.select('email')
 			.eq('user_id', locals.user.id)
+			.maybeSingle(),
+		// Display-only: lets the (app) UI reflect membership state (lapsed nudge
+		// before a 403, post-feedback CTA). Safe columns only — no payment_ref/stripe_*.
+		locals.supabase
+			.from('memberships')
+			.select('active, cadence, source')
+			.eq('identity_id', locals.user.id)
 			.maybeSingle()
 	]);
 
@@ -56,7 +63,14 @@ export async function loadLayoutData(locals: App.Locals) {
 		username: profile?.username ?? '',
 		attentionCount: (invitationCount ?? 0) + (feedbackCount ?? 0) + (groupFeedbackCount ?? 0),
 		pendingFeedback,
-		hasNotificationEmail: notifError ? true : !!notif?.email
+		hasNotificationEmail: notifError ? true : !!notif?.email,
+		membership: membershipRow
+			? {
+					active: membershipRow.active as boolean,
+					cadence: membershipRow.cadence as string | null,
+					source: membershipRow.source as string
+				}
+			: null
 	};
 }
 

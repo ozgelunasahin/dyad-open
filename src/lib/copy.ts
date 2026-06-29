@@ -322,6 +322,16 @@ export const copy = {
 			"You can get notified when someone responds to you, or when a meeting is confirmed or changes. By default we don't send you notifications. If you'd like to receive them, you can choose which ones and how in your {link}. You can always change this later.",
 		notificationPrefsNote:
 			"By default, dyad doesn't send notifications. Choose what you'd like to receive; you can change this anytime.",
+		membershipHeading: 'Membership',
+		membershipManage: 'manage membership',
+		membershipRenew: 'renew membership',
+		membershipJoin: 'become a member',
+		membershipNone: 'You’re not a member yet.',
+		membershipLapsed: 'Your membership has lapsed.',
+		planMonthly: 'Monthly membership',
+		planAnnual: 'Yearly membership',
+		planLifetime: 'Lifetime membership',
+		planComp: 'Complimentary membership',
 	},
 
 	// ── Meeting detail ─────────────────────────────────────────────────
@@ -635,19 +645,48 @@ export const copy = {
 
 		guestHeading: 'Become a Member',
 		guestIntro:
-			'Membership keeps dyad collectively owned and ad-free. Choose how often you’d like to contribute — you’ll set the amount yourself on the next screen.',
+			'Membership keeps dyad collectively owned and ad-free. Choose the plan that feels right.',
 		lapsedHeading: 'Renew Your Membership',
 		lapsedIntro:
 			'Your membership has lapsed, so the member-only actions are paused. Renewing turns them back on — you keep everything you’ve already made, and you can stop any time.',
 
+		lapsedBanner: 'Your membership has lapsed — renew to respond, invite, or accept.',
 		cadenceMonthly: 'Monthly',
-		cadenceAnnual: 'Annual',
+		cadenceAnnual: 'Yearly',
 		cadenceLifetime: 'Lifetime',
 		cadenceMonthlyHint: 'A recurring monthly contribution. Cancel whenever you like.',
 		cadenceAnnualHint: 'A recurring yearly contribution. Cancel whenever you like.',
 		cadenceLifetimeHint: 'A one-time contribution for a membership that never lapses.',
+		cadenceMonthlyPrice: '€12',
+		cadenceMonthlyPeriod: 'per month',
+		cadenceAnnualPrice: '€100',
+		cadenceAnnualPeriod: 'per year',
+		cadenceLifetimePrice: '€400',
+		cadenceLifetimePeriod: 'one-time',
+		annualBadge: 'Best value',
+		annualSave: 'Save 30%',
+		monthlySolidarityName: 'Solidarity',
+		monthlySolidarityPrice: '€7',
+		monthlySolidarityNote: 'If money is tight.',
+		monthlyStandardName: 'Standard',
+		monthlyStandardNote: 'Covers the real cost.',
+		monthlySupporterName: 'Supporter',
+		monthlySupporterPrice: '€17',
+		monthlySupporterNote: 'Helps cover someone who can’t.',
+		becomeMemberCta: 'become a member',
+		billingNote: 'Billed securely via Stripe. Cancel anytime.',
+		benefits: [
+			'Start your own conversations',
+			'Respond and meet one to one',
+			'Join every group conversation',
+			'Keep dyad collectively owned and ad-free'
+		],
 		amountNote: 'You choose the amount on Stripe’s secure page — pay what feels right.',
 		continueCta: 'continue to payment',
+		orLabel: 'or',
+		visitorCta: 'be our guest and join a group conversation',
+		visitorNote:
+			'No payment needed — visitors can join a group conversation. Become a member any time to start your own and meet one to one.',
 		continuing: 'taking you to payment…',
 
 		activeHeading: 'You’re a Member',
@@ -683,6 +722,10 @@ export const copy = {
 		membershipActivatedSubject: 'Your membership is active',
 		membershipActivatedBody:
 			'Thank you for becoming a member — your membership is active. It keeps dyad collectively owned and ad-free, and it’s what lets you start conversations, respond, and meet. You can review or manage it any time.',
+		// Lapsed / renewal reminder — COPY ONLY; no dispatcher wired yet (backend).
+		membershipLapsedSubject: 'Your dyad membership has lapsed',
+		membershipLapsedBody:
+			'Your membership has lapsed, so the member-only actions — starting conversations, responding, and meeting — are paused. Everything you’ve made is still here. Whenever you’re ready, renewing turns it all back on.',
 		tagline: 'cultivating a culture of conversation',
 		// Rendered into the transactional email footers. Three lines:
 		// the closing supports the names; the names anchor the message;

@@ -79,6 +79,10 @@
 		const url = new URL(window.location.href);
 		url.searchParams.delete('welcome');
 		window.history.replaceState({}, '', url);
+		// E4: a newcomer who isn't a member yet meets the pricing page right after onboarding.
+		if (!data.membership?.active) {
+			void goto('/membership');
+		}
 	}
 	let viewMode = $state<'list' | 'map'>('map');
 	let mapCenter = $state<[number, number] | null>(null);

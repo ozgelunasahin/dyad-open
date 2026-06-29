@@ -347,6 +347,9 @@
      not as separate fixed-position pills. -->
 
 <div class="content">
+	{#if data.membership && !data.membership.active}
+		<a href="/membership" class="lapsed-banner">{copy.membership.lapsedBanner}</a>
+	{/if}
 	{#if data.prompt.cover_image_url}
 		<img src={data.prompt.cover_image_url} alt="" class="cover" loading="lazy" />
 	{/if}
@@ -804,4 +807,16 @@
 	.response-status--link { display: inline-block; text-decoration: none; color: var(--text-link); }
 	.response-status--link::after { content: ' →'; } /* nav affordance — decorative, not copy */
 	.response-status--link:hover { text-decoration: underline; }
+	.lapsed-banner {
+		display: block;
+		padding: var(--space-3) var(--space-4);
+		margin-bottom: var(--space-4);
+		border: 1px solid var(--border-link);
+		border-radius: var(--radius-card);
+		background: var(--bg-canvas);
+		color: var(--text-primary);
+		font-size: var(--text-sm);
+		text-decoration: none;
+	}
+	.lapsed-banner:hover { border-color: var(--text-primary); }
 </style>

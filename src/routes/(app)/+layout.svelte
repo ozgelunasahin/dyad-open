@@ -22,6 +22,7 @@
 		initialState={data.pendingFeedback.state}
 		vocabulary={data.pendingFeedback.vocabulary}
 		meetingContext={data.pendingFeedback.meetingContext}
+		lapsed={data.membership !== null && !data.membership.active}
 	/>
 {/if}
 

@@ -19,8 +19,9 @@ function chain(result: unknown) {
 }
 
 // supabase.from() is called in array order: profiles, prompt_invitations,
-// feedback_forms, group_feedback, notification_settings. (No pendingFeedbackFormId,
-// so loadPendingFeedback is skipped and issues no extra `from` calls.)
+// feedback_forms, group_feedback, notification_settings, memberships. (No
+// pendingFeedbackFormId, so loadPendingFeedback is skipped and issues no extra
+// `from` calls.)
 function makeLocals(notifResult: unknown) {
 	const from = vi.fn();
 	from
@@ -28,7 +29,8 @@ function makeLocals(notifResult: unknown) {
 		.mockReturnValueOnce(chain({ count: 0, error: null })) // prompt_invitations
 		.mockReturnValueOnce(chain({ count: 0, error: null })) // feedback_forms
 		.mockReturnValueOnce(chain({ count: 0, error: null })) // group_feedback
-		.mockReturnValueOnce(chain(notifResult)); // notification_settings
+		.mockReturnValueOnce(chain(notifResult)) // notification_settings
+		.mockReturnValueOnce(chain({ data: null, error: null })); // memberships
 	return { user: { id: 'u1' }, supabase: { from } } as unknown as App.Locals;
 }
 
