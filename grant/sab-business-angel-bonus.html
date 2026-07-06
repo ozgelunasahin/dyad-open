@@ -1,0 +1,517 @@
+<style>
+:root{color-scheme:light;
+  --ink:#1f2a26; --muted:#6b736f; --hair:#d8dcda; --hair-soft:#e7eae8;
+  --header:#274b43; --accent:#2f6f60; --btn:#35695c; --btn-hover:#294f45;
+  --field:#eef0ef; --field-line:#c7ccc9;
+  --warn:#9a3d1a; --page:#e7eae8; --card:#ffffff;
+  --eu-blue:#003399; --eu-gold:#ffcc00;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);
+  font-family:"Segoe UI",-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Arial,sans-serif;
+  font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+.shell{max-width:1120px;margin:22px auto;padding:0 18px 60px;}
+.card{background:var(--card);border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(20,40,35,.08),0 8px 30px rgba(20,40,35,.06);}
+.bar{background:var(--header);color:#fff;padding:16px 26px;display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;}
+.bar-l h1{margin:0;font-size:21px;font-weight:600;letter-spacing:.01em;}
+.bar-back{display:inline-flex;align-items:center;gap:5px;margin-top:6px;font-size:13px;color:#cfe0da;text-decoration:none;}
+.bar-back:hover{color:#fff;}
+.bar-r{text-align:right;display:flex;flex-direction:column;gap:8px;align-items:flex-end;font-size:13px;}
+.vid{color:#cfe0da;letter-spacing:.02em;}
+.save{display:inline-flex;align-items:center;gap:6px;background:none;border:0;color:#eaf2ef;font:inherit;font-size:13px;cursor:pointer;padding:0;}
+.save:hover{color:#fff;}.save svg{width:15px;height:15px;}
+.lang{display:inline-flex;border:1px solid #4b6f66;border-radius:7px;overflow:hidden;}
+.lang button{font:inherit;font-size:12px;font-weight:600;letter-spacing:.03em;padding:4px 11px;background:none;border:0;color:#bcd0c9;cursor:pointer;}
+.lang button.on{background:#eef3f1;color:var(--header);}
+.disclaimer{background:#f4f6f5;border-bottom:1px solid var(--hair);color:#5a635f;font-size:12.5px;padding:9px 26px;line-height:1.45;}
+.disclaimer b{color:var(--accent);}
+.body{display:grid;grid-template-columns:250px 1fr;}
+.side{border-right:1px solid var(--hair);padding:18px 0;background:#fbfcfc;}
+.grp{padding:0 10px;}
+.grp-h{width:100%;text-align:left;font:inherit;font-size:14.5px;color:var(--ink);background:none;border:0;padding:9px 12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;border-radius:6px;gap:8px;}
+.grp-h:hover{background:#eef2f0;}
+.grp-h .chev{width:14px;height:14px;stroke:var(--muted);fill:none;stroke-width:2;transition:transform .15s;flex:none;}
+.grp.closed .chev{transform:rotate(-90deg);}
+.grp.closed .items{display:none;}
+.items{list-style:none;margin:2px 0 6px;padding:0;}
+.nav{width:100%;text-align:left;font:inherit;font-size:13px;color:#454e4a;background:none;border:0;border-left:2px solid transparent;padding:7px 12px 7px 24px;cursor:pointer;line-height:1.35;}
+.nav:hover{color:var(--ink);background:#eef2f0;}
+.nav.active{color:var(--ink);font-weight:600;border-left-color:var(--accent);background:#eaf1ee;}
+.nav.solo{padding:9px 12px;font-size:14.5px;color:var(--ink);border-radius:6px;}
+.sec-badge{color:var(--accent);font-weight:600;}
+.main{padding:24px 30px 30px;min-width:0;}
+.mtop{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;margin-bottom:8px;}
+.round{width:34px;height:34px;border-radius:50%;background:var(--btn);border:0;color:#fff;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex:none;}
+.round:hover{background:var(--btn-hover);}
+.round svg{width:16px;height:16px;fill:none;stroke:#fff;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;}
+.mtitle{text-align:center;color:var(--accent);font-size:19px;font-weight:600;text-wrap:balance;}
+.emblem{float:right;margin:0 0 10px 18px;text-align:center;}
+.emblem svg{display:block;border-radius:2px;}
+.emblem span{display:block;font-size:10px;font-weight:700;color:var(--eu-blue);line-height:1.2;margin-top:4px;max-width:96px;}
+.content p{margin:0 0 14px;max-width:72ch;}
+.h2{color:var(--accent);font-size:16px;font-weight:600;margin:26px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--hair);}
+.content ul{margin:0 0 14px;padding:0;list-style:none;max-width:76ch;}
+.content ul li{position:relative;padding:0 0 11px 18px;}
+.content ul li::before{content:"";position:absolute;left:2px;top:9px;width:5px;height:5px;border-radius:50%;background:var(--accent);}
+.content ul li ul{margin:9px 0 0;}
+.content ol{margin:0 0 14px;padding-left:20px;max-width:76ch;}
+.content ol li{padding:0 0 10px;}
+.content ol li ul{margin:8px 0 2px;}
+.lnk{color:var(--accent);font-weight:600;text-decoration:none;cursor:pointer;}.lnk:hover{text-decoration:underline;}
+.warn{color:var(--warn);font-weight:600;max-width:76ch;margin:0 0 16px;}
+.field{margin:0 0 16px;max-width:520px;}
+.field label{display:block;font-size:12.5px;color:#4a534f;margin-bottom:5px;}
+.req{color:var(--warn);}
+.field input,.field textarea,.field select{width:100%;font:inherit;font-size:14.5px;color:var(--ink);background:var(--field);border:0;border-bottom:1px solid var(--field-line);border-radius:3px 3px 0 0;padding:9px 11px;}
+.field textarea{min-height:96px;resize:vertical;line-height:1.45;}
+.field input:focus,.field textarea:focus,.field select:focus{outline:2px solid var(--accent);outline-offset:1px;}
+.field.date input{max-width:280px;}
+.eurrow{display:flex;align-items:stretch;max-width:420px;}
+.eurrow input{border-radius:3px 0 0 0;}
+.eurrow .eur{display:flex;align-items:center;padding:0 13px;font-size:14px;color:#4a534f;background:var(--field);border-bottom:1px solid var(--field-line);}
+.field.sum input{background:#e4e7e6;color:#3a423e;}
+.qlabel{font-size:13px;color:#4a534f;margin:0 0 9px;max-width:76ch;}
+.radio{display:flex;gap:26px;flex-wrap:wrap;margin:0 0 16px;}
+.radio.vert{flex-direction:column;gap:11px;}
+.radio label{display:flex;align-items:center;gap:9px;font-size:14.5px;cursor:pointer;}
+.radio input{width:18px;height:18px;accent-color:var(--accent);}
+.switch{display:inline-flex;align-items:center;gap:10px;margin:0 0 14px;font-size:14px;}
+.switch .tk{width:38px;height:20px;border-radius:999px;background:var(--btn);position:relative;flex:none;cursor:pointer;border:0;}
+.switch .tk::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s;}
+.switch .tk[aria-checked="false"]{background:#b9c2be;}
+.switch .tk[aria-checked="false"]::after{left:20px;}
+.check{display:flex;gap:11px;align-items:flex-start;max-width:76ch;margin:10px 0 10px;}
+.check input{width:18px;height:18px;margin-top:2px;accent-color:var(--accent);flex:none;}
+.check label{font-size:14.5px;}
+.infob{display:inline-flex;width:16px;height:16px;border-radius:50%;background:#8a938e;color:#fff;font-size:10px;font-weight:700;align-items:center;justify-content:center;margin-left:6px;vertical-align:middle;font-style:normal;}
+.tblwrap{overflow-x:auto;border:1px solid var(--hair);border-radius:4px;margin:6px 0 16px;}
+table{width:100%;border-collapse:collapse;min-width:560px;}
+thead th{background:var(--header);color:#fff;text-align:left;font-size:12.5px;font-weight:600;padding:11px 16px;white-space:nowrap;}
+thead th.num{text-align:right;}
+tbody td{padding:12px 16px;border-bottom:1px solid var(--hair);font-size:14px;}
+tbody td.num{text-align:right;font-variant-numeric:tabular-nums;}
+tr.sum td{font-weight:700;}
+.empty{color:var(--muted);font-style:italic;font-size:13.5px;margin:2px 0 14px;}
+.newbtn{font:inherit;font-size:13px;font-weight:600;letter-spacing:.04em;color:var(--ink);background:#fff;border:1px solid var(--field-line);border-radius:4px;padding:11px 20px;cursor:pointer;}
+.newbtn:hover{border-color:var(--accent);color:var(--accent);}
+.upload{margin:0 0 6px;}
+.uh{color:var(--accent);font-size:15px;font-weight:600;border-bottom:1px solid var(--hair);padding-bottom:8px;margin:24px 0 8px;}
+.uh sup{color:var(--warn);font-weight:700;}
+.uh .kopie{color:var(--muted);font-weight:400;font-size:12px;}
+.udesc{font-size:12.5px;color:#5a635f;margin:0 0 11px;max-width:78ch;}
+.drop{border:1.5px dashed var(--field-line);border-radius:6px;padding:24px;text-align:center;color:#5a635f;font-size:13px;background:#fbfcfc;cursor:pointer;margin:0 0 8px;}
+.drop:hover{border-color:var(--accent);color:var(--accent);}
+.drop svg{width:22px;height:22px;stroke:var(--accent);fill:none;stroke-width:2;display:block;margin:0 auto 8px;}
+.foot{margin-top:24px;padding-top:14px;border-top:1px solid var(--hair-soft);color:var(--muted);font-size:12px;line-height:1.6;}
+.foot p{margin:0;max-width:82ch;}
+.placeholder{background:#f6f8f7;border:1px dashed var(--field-line);border-radius:8px;padding:26px 24px;color:#5a635f;max-width:64ch;}
+.placeholder b{color:var(--ink);}
+.mbot{display:flex;justify-content:space-between;margin-top:26px;}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--header);color:#fff;padding:10px 20px;border-radius:8px;font-size:13.5px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:9;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+@media (max-width:760px){.body{grid-template-columns:1fr;}.side{border-right:0;border-bottom:1px solid var(--hair);}.emblem{float:none;margin:0 0 14px;}.mtitle{font-size:17px;}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.content.fade{animation:fade .18s ease}
+@keyframes fade{from{opacity:.3}to{opacity:1}}
+</style>
+
+<div class="shell">
+  <div class="card">
+    <header class="bar">
+      <div class="bar-l">
+        <h1>JTF · Business Angel Bonus</h1>
+        <a class="bar-back" href="#" onclick="return false"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg><span data-i="back"></span></a>
+      </div>
+      <div class="bar-r">
+        <span class="vid">Vorhaben AAGVRNRHM</span>
+        <div style="display:flex;gap:14px;align-items:center;">
+          <div class="lang" role="group" aria-label="Language">
+            <button id="lang-en" class="on" onclick="setLang('en')">EN</button>
+            <button id="lang-de" onclick="setLang('de')">DE</button>
+          </div>
+          <button class="save" onclick="saveNow()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg><span data-i="save"></span></button>
+        </div>
+      </div>
+    </header>
+    <div class="disclaimer" data-i="disc"></div>
+    <div class="body">
+      <nav class="side" id="side"></nav>
+      <main class="main">
+        <div class="mtop">
+          <button class="round" aria-label="Previous" onclick="go(-1)"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+          <div class="mtitle" id="mtitle"></div>
+          <button class="round" aria-label="Next" onclick="go(1)"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></button>
+        </div>
+        <div class="content" id="content"></div>
+        <div class="mbot">
+          <button class="round" aria-label="Previous" onclick="go(-1)"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+          <button class="round" aria-label="Next" onclick="go(1)"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></button>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+var UI={
+  en:{back:"Back to tasks",save:"Save",total:"Total",yes:"Yes",no:"No",partial:"Partially",newentry:"NEW ENTRY",noentries:"There are no entries yet.",
+    disc:'<b>Unofficial English working copy</b> of the SAB JTF Business&nbsp;Angel&nbsp;Bonus 2021–2027 application. For understanding only — the binding form is the German original in the SAB portal. Switch to DE (top right) for the exact wording. Your entries save in this browser only.',
+    foot1:"Fields marked with * are mandatory for further processing.",
+    foot2:"Fields and sections marked with (§) are facts material to the subsidy within the meaning of Section 264 of the German Criminal Code (StGB)."},
+  de:{back:"Zurück zu Aufgaben",save:"Speichern",total:"Summe",yes:"Ja",no:"Nein",partial:"Teilweise",newentry:"NEUER EINTRAG",noentries:"Es gibt noch keine Einträge.",
+    disc:'<b>Inoffizielle englische Arbeitskopie</b> des SAB-Antrags JTF Business-Angel-Bonus 2021–2027. Nur zum Verständnis — verbindlich ist das deutsche Original im SAB-Portal.',
+    foot1:"Mit * gekennzeichnete Felder sind zwingend für die weitere Bearbeitung erforderlich.",
+    foot2:"Mit (§) gekennzeichnete Felder und Abschnitte sind subventionserhebliche Tatsachen im Sinne von § 264 StGB."}
+};
+
+var GROUPS=[
+ {id:"project",label:{en:"Project",de:"Vorhaben"}},
+ {id:"expend",label:{en:"Expenditures",de:"Ausgaben"}},
+ {id:"applicant",label:{en:"Applicant",de:"Antragsteller"}},
+ {id:"declar",label:{en:"Declarations",de:"Erklärungen"}},
+ {id:"attach",label:{en:"Attachments",de:"Anlagen"},solo:true},
+ {id:"submit",label:{en:"Submit",de:"Einreichen"},solo:true}
+];
+var BADGE={data:1,contracts:1,vorsteuer:1,ausgabenfin:1,programm:1,allgemein:1,attach:1};
+
+function foot(a,b){return [a,b];}
+
+var S=[
+/* ---------- PROJECT ---------- */
+ {id:"prereq",g:"project",title:{en:"Prerequisites for an application",de:"Voraussetzungen für eine Antragstellung"},b:[
+  {t:"p",en:`The grant is based on subsidies. All information and declarations marked with (§) in this application are facts material to the subsidy within the meaning of Section 264 StGB. <span class="lnk">+ Further information</span>`,de:`Der Zuwendung liegen Subventionen zu Grunde. Alle in diesem Antrag mit (§) gekennzeichneten Angaben und Erklärungen sind subventionserhebliche Tatsachen im Sinne von § 264 StGB. <span class="lnk">+ Weitere Informationen</span>`},
+  {t:"p",en:`Before applying, please check whether the funding prerequisites named in the funding guideline Business Angel Bonus JTF 2021–2027 (FRL BAB) are met.`,de:`Bitte prüfen Sie vor Antragstellung, ob die in der Förderrichtlinie Business-Angel-Bonus JTF 2021-2027 (FRL BAB) genannten Fördervoraussetzungen erfüllt sind.`},
+  {t:"p",en:`On our <span class="lnk">+ funding-program website</span> you will find answers to frequently asked questions about the funding.`,de:`Auf unserer <span class="lnk">+ Internetseite zum Förderprogramm</span> finden Sie Antworten auf häufig gestellte Fragen zur Förderung.`},
+  {t:"h",en:"Project location",de:"Vorhabensort"},
+  {t:"p",en:`The business site to be funded is located in the districts of Bautzen, Görlitz, Nordsachsen, Leipzig, or the independent cities of Chemnitz or Leipzig (JTF funding area).`,de:`Die zu fördernde Betriebsstätte liegt in den Landkreisen Bautzen, Görlitz, Nordsachsen, Leipzig oder den kreisfreien Städten Chemnitz oder Leipzig (JTF-Fördergebiet).`},
+  {t:"h",en:"Startup",de:"Startup"},
+  {t:"ul",en:["The startup has been founded.","The startup was not founded through a merger, nor has it taken over the activity of another company.","The startup can be classified as a micro or small enterprise per the EU Commission's definition (general explanations: SAB form + 60300).","The startup is not publicly listed, has the legal form of a registered partnership, corporation, or cooperative, and its entry in the commercial register is at most five years old at the time of approval.","The startup has not yet distributed any profits.","The startup's business model is innovative per the guideline's requirements (proof: SAB form + 62261).","The startup contributes to ecological and social sustainability per the guideline's requirements (proof: SAB form + 62261)."],
+       de:["Das Startup ist gegründet.","Das Startup ist nicht durch einen Zusammenschluss gegründet worden oder hat die Tätigkeit eines anderen Unternehmens übernommen.","Das Startup kann als Kleinstunternehmen oder kleines Unternehmen gemäß Definition der EU-Kommission eingestuft werden (Erläuterungen: SAB-Vordruck + 60300).","Das Startup ist nicht börsennotiert, hat die Rechtsform einer eingetragenen Personen- oder Kapitalgesellschaft oder Genossenschaft und die Eintragung ins Handelsregister liegt zum Zeitpunkt der Bewilligung höchstens fünf Jahre zurück.","Das Startup hat noch keine Gewinne ausgeschüttet.","Das Geschäftsmodell des Startups ist entsprechend den Anforderungen der Förderrichtlinie innovativ (Nachweis: SAB-Vordruck + 62261).","Das Startup leistet einen Beitrag zur ökologischen und zur sozialen Nachhaltigkeit entsprechend den Anforderungen der Förderrichtlinie (Nachweis: SAB-Vordruck + 62261)."]},
+  {t:"h",en:"Participation of private investors in the startup",de:"Beteiligung privater Investoren am Startup"},
+  {t:"ul",en:["The startup has concluded an investment agreement with one or more private investors (business angels) for a contribution of additional equity or equity-like contributions of at least EUR 50,000. The guideline's requirements for the investor are met.","The signing of the investment agreement with the business angel is, at the time of application, no more than two months ago."],
+       de:["Das Startup hat einen Beteiligungsvertrag mit einem oder mehrerer privater Investoren (Business Angels) zur Einlage zusätzlichen Eigenkapitals oder eigenkapitalähnlicher Einlagen in Höhe von mindestens 50.000 EUR abgeschlossen. Die Anforderungen der Förderrichtlinie an den Investor werden erfüllt.","Die Unterzeichnung des Beteiligungsvertrags mit dem Business Angel liegt zum Zeitpunkt der Antragstellung nicht länger als zwei Monate zurück."]},
+  {t:"h",en:"Funding of the startup under the guideline",de:"Förderung des Startups nach der Förderrichtlinie"},
+  {t:"ul",en:["The startup has not yet reached the maximum possible grant amount of EUR 400,000 under the guideline."],de:["Das Startup hat den nach der Förderrichtlinie maximal möglichen Zuwendungsbetrag in Höhe von 400.000 EUR noch nicht erreicht."]}
+ ]},
+
+ {id:"eu",g:"project",title:{en:"EU structural-fund-specific notes",de:"EU-Strukturfondsspezifische Hinweise"},b:[
+  {t:"h",en:"Personal and financial reliability",de:"Persönliche und finanzielle Zuverlässigkeit"},
+  {t:"p",en:`The applicant's personal and financial reliability is a fundamental prerequisite for the award of funding. It is therefore assumed that the applicant accepts the ethical core values of our society, such as integrity, honesty and probity. In particular, fraud is a behaviour that is not tolerated and is consistently prosecuted.`,de:`Die persönliche und finanzielle Zuverlässigkeit des Antragstellers ist Grundvoraussetzung für die Vergabe von Fördermitteln. Deshalb wird vorausgesetzt, dass der Antragsteller die ethischen Grundwerte unserer Gesellschaft, wie Integrität, Ehrlichkeit und Rechtschaffenheit akzeptiert. Insbesondere Betrug ist eine Verhaltensweise, die nicht geduldet und konsequent verfolgt wird.`},
+  {t:"h",en:"Beneficiaries register",de:"Begünstigenverzeichnis"},
+  {t:"p",en:`By accepting the funding, data on the individual beneficiaries, the funded projects and measures for which grants were awarded, and the amount of total expenditure/costs, will be transmitted for the purpose of publication in a register (Art. 49(3) Regulation (EU) No. 2021/1060).`,de:`Mit der Annahme der Förderung werden Daten über die einzelnen Begünstigten, die geförderten Vorhaben bzw. Maßnahmen, für die Zuwendungen gewährt wurden, sowie über die Höhe der Gesamtausgaben/-kosten zum Zwecke der Veröffentlichung in einem Verzeichnis übermittelt (Art. 49 Abs. 3 VO (EU) Nr. 2021/1060).`},
+  {t:"h",en:"Information and communication obligations",de:"Informations- und Kommunikationspflichten"},
+  {t:"p",en:`From the start of the project, the financing by the European Union and, where applicable, the Free State of Saxony must be indicated (<span class="lnk">+ Publicity obligation</span>).`,de:`Mit Beginn des Vorhabens ist auf die Finanzierung durch die Europäische Union und ggf. den Freistaat Sachsen hinzuweisen (<span class="lnk">+ Publizitätspflicht</span>).`},
+  {t:"p",en:`Violations of the publicity obligation can be sanctioned with a recovery of the grant of up to 3.00%.`,de:`Verstöße gegen die Publizitätsverpflichtung können mit einer Rückforderung der Zuwendung i. H. v. bis zu 3,00 % sanktioniert werden.`},
+  {t:"p",en:`I have taken note of the regulation linked above and declare:`,de:`Die vorstehend verlinkte Regelung habe ich zur Kenntnis genommen und erkläre:`},
+  {t:"check",id:"eu_ack",en:`I am aware that, from the start of the project, I must indicate the funding from EU funds and, where applicable, from the Free State of Saxony. *`,de:`Mir ist bekannt, dass ich mit Beginn des Vorhabens auf die Förderung aus Mitteln der EU und ggf. des Freistaates Sachsen hinzuweisen habe. *`}
+ ]},
+
+ {id:"data",g:"project",title:{en:"Project data",de:"Daten zum Vorhaben"},b:[
+  {t:"p",en:"Give your project a meaningful title and describe the project.",de:"Geben Sie Ihrem Vorhaben einen aussagekräftigen Titel und beschreiben Sie das Vorhaben."},
+  {t:"field",id:"title",kind:"text",en:"Project title (max. 150 characters) *",de:"Bezeichnung des Vorhabens (max. 150 Zeichen) *"},
+  {t:"field",id:"descr",kind:"textarea",en:"Project description (max. 1,400 characters) *",de:"Beschreibung des Vorhabens (max. 1.400 Zeichen) *"},
+  {t:"h",en:"Project location",de:"Vorhabensort"},
+  {t:"p",en:"Enter the location where your project is to be carried out.",de:"Geben Sie den Ort an, an dem Ihr Vorhaben durchgeführt werden soll."},
+  {t:"field",id:"street",kind:"text",en:"Street *",de:"Straße *"},
+  {t:"field",id:"houseno",kind:"text",en:"House number",de:"Hausnummer"},
+  {t:"field",id:"zip",kind:"text",en:"Postal code *",de:"Postleitzahl *"},
+  {t:"field",id:"city",kind:"text",en:"City *",de:"Ort *"},
+  {t:"h",en:"Economic sector at the project location",de:"Wirtschaftszweig am Vorhabensort"},
+  {t:"p",en:"In which economic sector at the project location will you mainly be active?",de:"In welchem Wirtschaftszweig am Vorhabensort werden Sie hauptsächlich tätig sein?"},
+  {t:"toggle",id:"wz_notes",en:"Show notes on the economic sector",de:"Hinweise zum Wirtschaftszweig anzeigen"},
+  {t:"field",id:"wz",kind:"select",en:"Economic sector *",de:"Wirtschaftszweig *",opts:["Select…"]},
+  {t:"h",en:"Project period",de:"Vorhabenszeitraum"},
+  {t:"field",id:"pstart",kind:"date",en:"Project start *",de:"Vorhabensbeginn *"},
+  {t:"field",id:"pend",kind:"date",en:"Project end *",de:"Vorhabensende *"}
+ ]},
+
+ {id:"contracts",g:"project",title:{en:"Overview of investment agreements",de:"Übersicht Beteiligungsverträge"},b:[
+  {t:"p",en:"Please provide details of the investment agreements concluded with the private investors here.",de:"Machen Sie hier bitte Angaben zu den mit den privaten Investoren abgeschlossenen Beteiligungsverträgen."},
+  {t:"warn",en:"A prerequisite for an application is that private investors have participated in the startup with equity or equity-like funds amounting to at least EUR 50,000.",de:"Voraussetzung für eine Antragstellung ist, dass sich private Investoren mit Eigenkapital oder eigenkapitalähnlichen Mitteln in Höhe von mindestens 50.000 EUR am Startup beteiligt haben."},
+  {t:"table"}
+ ]},
+
+/* ---------- EXPENDITURES ---------- */
+ {id:"vorsteuer",g:"expend",title:{en:"Input-tax deduction entitlement",de:"Vorsteuerabzugsberechtigung"},b:[
+  {t:"p",en:"Insofar as VAT is deductible as input tax under Section 15 of the German VAT Act (UStG), it is not part of the eligible expenditure/costs of the project.",de:"Soweit die Umsatzsteuer nach § 15 des Umsatzsteuergesetzes als Vorsteuer abziehbar ist, gehört sie nicht zu den zuwendungsfähigen Ausgaben/Kosten des Vorhabens."},
+  {t:"radio",id:"vst",vert:true,en:`Are you entitled to deduct input tax for your project? *<span class="infob">i</span>`,de:`Sind Sie für Ihr Vorhaben vorsteuerabzugsberechtigt? *<span class="infob">i</span>`,
+   opts:{en:["Yes","No","Partially"],de:["Ja","Nein","Teilweise"]}}
+ ]},
+
+ {id:"ausgabenfin",g:"expend",title:{en:"Expenditure and financing",de:"Ausgaben und Finanzierung"},b:[
+  {t:"p",en:"Please enter the planned costs and expenditure of the project and its planned financing here.",de:"Geben Sie hier bitte die geplanten Kosten und Ausgaben des Vorhabens und dessen geplante Finanzierung an."},
+  {t:"h",en:"Costs and expenditure",de:"Kosten und Ausgaben"},
+  {t:"p",en:`The costs and expenditure must be necessary for building up or further developing the startup. Debt restructuring and follow-up financing are not eligible.`,de:`Die Kosten und Ausgaben müssen notwendig für den Aufbau oder die Fortentwicklung des Startups sein. Nicht förderfähig sind Umschuldungen und Nachfinanzierungen.`},
+  {t:"p",en:`If you have no entries to make for individual cost and expenditure items, please enter a "0".`,de:`Falls Sie für einzelne Kosten- und Ausgabenansätze keine Angaben zu machen haben, tragen Sie bitte eine "0" ein.`},
+  {t:"field",id:"c_pers",kind:"eur",en:"Personnel costs and expenditure *",de:"Personalkosten und -ausgaben *"},
+  {t:"field",id:"c_sach",kind:"eur",en:"Material expenditure *",de:"Sachausgaben *"},
+  {t:"field",id:"c_inv",kind:"eur",en:"Investment expenditure *",de:"Investitionsausgaben *"},
+  {t:"field",id:"c_sum",kind:"sum",parts:["c_pers","c_sach","c_inv"],en:"Total costs and expenditure",de:"Summe Kosten und Ausgaben"},
+  {t:"check",id:"c_nodebt",en:"The planned total costs/expenditure do not include any costs and expenditure for debt restructuring or follow-up financing. *",de:"In den geplanten Gesamtkosten/-ausgaben sind keine Kosten und Ausgaben für Umschuldungen und Nachfinanzierungen enthalten. *"},
+  {t:"h",en:"Financing",de:"Finanzierung"},
+  {t:"p",en:"The possible grant equals 50.00% of the eligible expenditure and at most the amount of the equity contributed or the equity-like contribution, up to a maximum of EUR 400,000.",de:"Die mögliche Zuwendung entspricht 50,00 % der förderfähigen Ausgaben und maximal der Höhe des eingebrachten Eigenkapitals oder der eigenkapitalähnlichen Einlage bis zu einem Betrag von 400.000 EUR."},
+  {t:"field",id:"f_sab",kind:"eur",en:"SAB grant *",de:"Zuwendung SAB *"},
+  {t:"field",id:"f_pub",kind:"eur",info:true,en:"Other public financing aid *",de:"Weitere öffentliche Finanzierungshilfen *"},
+  {t:"field",id:"f_ext",kind:"eur",info:true,en:"Other external funds *",de:"Sonstige Fremdmittel *"},
+  {t:"field",id:"f_own",kind:"eur",info:true,en:"Own funds *",de:"Eigenmittel *"},
+  {t:"field",id:"f_sum",kind:"sum",parts:["f_sab","f_pub","f_ext","f_own"],en:"Total financing",de:"Summe Finanzierung"}
+ ]},
+
+/* ---------- APPLICANT ---------- */
+ {id:"vertragspartner",g:"applicant",title:{en:"Contracting party",de:"Vertragspartner"},b:[
+  {t:"radio",id:"has_kdnr",en:"Do you already have a customer number? *",de:"Haben Sie bereits eine Kundennummer? *",opts:{en:["Yes","No"],de:["Ja","Nein"]}},
+  {t:"field",id:"kdnr",kind:"text",info:true,en:"Customer number",de:"Kundennummer"},
+  {t:"radio",id:"acting_as",en:`You are acting as *<span class="infob">i</span>`,de:`Sie handeln als *<span class="infob">i</span>`,opts:{en:["Company / Organisation"],de:["Unternehmen / Organisation"]}}
+ ]},
+
+ {id:"kommunikation",g:"applicant",title:{en:"Communication",de:"Kommunikation"},b:[
+  {t:"p",en:"How can we reach you or your contact person for this project?",de:"Wie können wir Sie bzw. Ihren Ansprechpartner für dieses Vorhaben erreichen?"},
+  {t:"field",id:"k_anrede",kind:"select",en:"Salutation *",de:"Anrede *",opts:["Select…"]},
+  {t:"field",id:"k_titel",kind:"select",en:"Academic title",de:"Akademischer Titel",opts:["Select…"]},
+  {t:"field",id:"k_vorname",kind:"text",en:"First name *",de:"Vorname *"},
+  {t:"field",id:"k_name",kind:"text",en:"Surname *",de:"Name *"},
+  {t:"field",id:"k_email",kind:"text",en:"Email *",de:"E-Mail *"},
+  {t:"field",id:"k_tel",kind:"text",en:"Phone *",de:"Telefon *"},
+  {t:"field",id:"k_mobil",kind:"text",en:"Mobile phone",de:"Mobiltelefon"},
+  {t:"h",en:"Different correspondence recipient",de:"Abweichender Korrespondenzempfänger"},
+  {t:"p",en:"We are happy to send you general correspondence for this project to a different address as well. However, contracts and official notices are generally only delivered to the address given as the main residence / registered company seat, unless a valid authorisation to receive is in place.",de:"Gern senden wir Ihnen allgemeinen Schriftverkehr für dieses Vorhaben auch an eine andere Adresse. Verträge und Bescheide werden jedoch grundsätzlich nur an die als Hauptwohnsitz/Unternehmenssitz angegebene Adresse zugestellt, soweit keine wirksame Empfangsvollmacht vorliegt."},
+  {t:"p",en:"Would you like to receive general correspondence about this project at a different address?",de:"Möchten Sie allgemeinen Schriftverkehr zu diesem Vorhaben an eine andere Adresse übersendet bekommen?"},
+  {t:"check",id:"k_altaddr",en:"Yes, please send correspondence to the following address",de:"Ja, bitte senden Sie den Schriftverkehr an folgende Adresse"}
+ ]},
+
+/* ---------- DECLARATIONS ---------- */
+ {id:"vertretung",g:"declar",title:{en:"Authorisation to represent",de:"Vertretungsberechtigung"},b:[
+  {t:"radio",id:"vertretung",vert:true,en:"I am acting for myself as a natural person or as a sole authorised representative of a legal entity (including regional authorities and companies). *",de:"Ich handle für mich als natürliche Person oder als einzelvertretungsberechtigter Vertreter einer juristischen Person (auch Gebietskörperschaften und Gesellschaften). *",opts:{en:["Yes","No"],de:["Ja","Nein"]}}
+ ]},
+
+ {id:"wb",g:"declar",title:{en:"Beneficial owner",de:"Wirtschaftlich Berechtigter"},b:[
+  {t:"radio",id:"wb",en:`You are acting as *<span class="infob">i</span>`,de:`Sie handeln als *<span class="infob">i</span>`,opts:{en:["Person","Company / Organisation"],de:["Person","Unternehmen / Organisation"]}}
+ ]},
+
+ {id:"kmu",g:"declar",title:{en:"SME assessment",de:"KMU-Bewertung"},b:[
+  {t:"h",en:"Definition of autonomous enterprises",de:"Definition Eigenständige Unternehmen"},
+  {t:"p",en:"Autonomous enterprises are enterprises that do not hold 25% or more of the capital or voting rights in another enterprise, and in which no 25% or more is held by others.",de:"Eigenständige Unternehmen sind Unternehmen, die keine Anteile von 25 % oder mehr des Kapitals oder der Stimmrechte an einem anderen Unternehmen halten bzw. an denen keine Anteile von 25 % oder mehr gehalten werden."},
+  {t:"p",en:"However, an enterprise still counts as autonomous even if the 25% threshold is reached or exceeded, provided the shareholders belong to the following categories and on condition that these shareholders are not, individually or jointly, linked to the enterprise concerned:",de:"Ein Unternehmen gilt jedoch weiterhin als eigenständig, auch wenn der Schwellenwert von 25 % erreicht oder überschritten wird, sofern es sich um folgende Kategorien von Anteilseignern handelt und unter der Bedingung, dass diese Anteilseigner nicht einzeln oder gemeinsam mit dem betroffenen Unternehmen verbunden sind:"},
+  {t:"ul",en:[`State investment corporations, venture capital companies, natural persons or groups of natural persons regularly active in venture-capital investment ("business angels") who invest own funds in unlisted enterprises, provided the total investment of those business angels in the enterprise concerned does not exceed EUR 1.25 million,`,"universities or non-profit research centres,","institutional investors, including regional development funds,","autonomous local authorities with an annual budget of less than EUR 10 million and fewer than 5,000 inhabitants."],
+       de:[`Staatliche Beteiligungsgesellschaften, Risikokapitalgesellschaften, natürliche Personen bzw. Gruppen natürlicher Personen, die regelmäßig im Bereich Risikokapitalinvestition tätig sind ("Business Angels") und die Eigenmittel in nicht börsennotierte Unternehmen investieren, sofern der Gesamtbetrag der Investition der genannten Business Angels in das betroffene Unternehmen 1,25 Mio. EUR nicht überschreitet,`,"Universitäten oder Forschungszentren ohne Gewinnzweck,","institutionelle Anleger einschließlich regionale Entwicklungsfonds,","autonome Gebietskörperschaften mit einem Jahreshaushalt von weniger als 10 Mio. EUR und weniger als 5.000 Einwohnern."]},
+  {t:"p",en:"The applying enterprise is an SME if it has fewer than 250 employees. In addition, annual turnover must not exceed EUR 50 million or the balance-sheet total must not exceed EUR 43 million.",de:"Das Antrag stellende Unternehmen ist ein KMU, wenn die Mitarbeiterzahl kleiner als 250 ist. Zudem darf der Jahresumsatz höchstens 50 Mio. EUR oder die Bilanzsumme höchstens 43 Mio. EUR betragen."},
+  {t:"p",en:"<b>Micro-enterprises</b> have fewer than 10 employees and an annual turnover or balance-sheet total of no more than EUR 2 million.",de:"<b>Kleinstunternehmen</b> sind Unternehmen, die weniger als 10 Mitarbeiter und einen Jahresumsatz oder eine Jahresbilanzsumme von höchstens 2 Mio. EUR haben."},
+  {t:"p",en:"<b>Small enterprises</b> have fewer than 50 employees and an annual turnover or balance-sheet total of no more than EUR 10 million.",de:"<b>Kleine Unternehmen</b> sind Unternehmen, die weniger als 50 Mitarbeiter und einen Jahresumsatz oder eine Jahresbilanzsumme von höchstens 10 Mio. EUR haben."},
+  {t:"p",en:"<b>Medium-sized enterprises</b> have fewer than 250 employees and an annual turnover of no more than EUR 50 million or a balance-sheet total of no more than EUR 43 million.",de:"<b>Mittlere Unternehmen</b> sind Unternehmen, die weniger als 250 Mitarbeiter und einen Jahresumsatz von höchstens 50 Mio. EUR oder eine Jahresbilanzsumme von höchstens 43 Mio. EUR haben."},
+  {t:"p",en:"The thresholds refer to the most recent completed annual financial statements. For a newly founded enterprise that cannot yet present statements for a full accounting period, the thresholds are estimated in good faith for the current financial year.",de:"Die Schwellenwerte beziehen sich auf den letzten durchgeführten Jahresabschluss. Bei einem neu gegründeten Unternehmen, das noch keinen Abschluss für einen vollständigen Rechnungszeitraum vorlegen kann, werden die Schwellenwerte im laufenden Geschäftsjahr nach Treu und Glauben geschätzt."},
+  {t:"p",en:"The applying enterprise only acquires or loses SME status if it falls below or exceeds the stated thresholds in two consecutive financial years. However, if the crossing of the thresholds is due to a change in ownership through the sale or acquisition of capital shares in the applying enterprise or within the group (linked and/or partner enterprises), the acquisition or loss of SME status takes effect immediately. In these cases, the current shareholding relationships are decisive.",de:"Das Antrag stellende Unternehmen erwirbt bzw. verliert den KMU-Status erst dann, wenn es in zwei aufeinanderfolgenden Geschäftsjahren die genannten Schwellenwerte unter- bzw. überschreitet. Beruht die Unter-/Überschreitung der Schwellenwerte jedoch auf einer Änderung der gesellschaftlichen Eigentumsverhältnisse durch Verkauf oder Erwerb von Kapitalanteilen am Antrag stellenden Unternehmen bzw. im Unternehmensverbund (verbundene Unternehmen und/oder Partnerunternehmen), so tritt der Erwerb bzw. Verlust des KMU-Status unmittelbar ein. In diesen Fällen sind die aktuellen Beteiligungsverhältnisse heranzuziehen."},
+  {t:"p",en:"The number of employees corresponds to the number of annual work units (AWU), i.e. the number of full-time employees during a year. Part-time and seasonal workers are counted only in proportion to their share of the AWU. Apprentices are not counted. The employee count includes wage and salary earners and persons working for the enterprise in a subordinate relationship who are treated as employees under national law.",de:"Die Mitarbeiterzahl entspricht der Zahl der Jahresarbeitseinheiten (JAE), d. h. der Anzahl der während eines Jahres beschäftigten Vollzeitarbeitnehmer. Teilzeitbeschäftigte und Saisonarbeiter werden nur entsprechend ihres Anteils an den JAE berücksichtigt. Auszubildende sind nicht zu berücksichtigen. In die Mitarbeiterzahl gehen ein: Lohn- und Gehaltsempfänger sowie für das Unternehmen tätige Personen, die in einem Unterordnungsverhältnis zu diesem stehen und nach nationalem Recht Arbeitnehmern gleichgestellt sind."},
+  {t:"p",en:"Temporary agency workers are counted both at the temp agency (as wage/salary earners) and at the hiring enterprise (as employees in a subordinate relationship). Working owners and partners who carry out a regular activity in the enterprise and draw financial benefits from it are also included.",de:"Leiharbeitnehmer sind sowohl bei dem Leiharbeitsunternehmen als Mitarbeiter zu berücksichtigen, da sie dort Lohn- und Gehaltsempfänger sind, als auch bei dem entleihenden Unternehmen, da sie dort als Arbeitnehmer in einem Unterordnungsverhältnis tätig sind. Zudem gehen auch mitarbeitende Eigentümer und Teilhaber, die eine regelmäßige Tätigkeit in dem Unternehmen ausüben und finanzielle Vorteile aus dem Unternehmen ziehen, in die Mitarbeiterzahl ein."},
+  {t:"p",en:`For further information, please refer to the <span class="lnk">+ SME information sheet</span>.`,de:`Weitere Informationen entnehmen Sie bitte dem <span class="lnk">+ Informationsblatt KMU</span>.`},
+  {t:"check",id:"kmu_read",en:"I have read the SME information sheet. *",de:"Das Informationsblatt KMU habe ich gelesen. *"}
+ ]},
+
+ {id:"uis",g:"declar",title:{en:'No "undertaking in difficulty"',de:'Kein "Unternehmen in Schwierigkeiten"'},b:[
+  {t:"h",en:"Definition",de:"Definition"},
+  {t:"p",en:"The basis for defining an “undertaking in difficulty” is the Guidelines on State aid for rescuing and restructuring non-financial undertakings in difficulty (Official Journal of the EU 2014/C 249/01 of 31 July 2014) and the General Block Exemption Regulation (Official Journal of the EU No. 651/2014 of 17 June 2014).",de:"Grundlage für die Definition eines „Unternehmens in Schwierigkeiten“ sind die Leitlinien für staatliche Beihilfen für Rettung und Umstrukturierung von Unternehmen in Schwierigkeiten (veröffentlicht im Amtsblatt der EU 2014/C 249/01 am 31. Juli 2014) bzw. die Allgemeine Gruppenfreistellungsverordnung (veröffentlicht im Amtsblatt der EU Nr. 651/2014 vom 17. Juni 2014)."},
+  {t:"p",en:"Accordingly, an undertaking is in difficulty if at least one of the following conditions is met:",de:"Demnach befindet sich ein Unternehmen dann in Schwierigkeiten, wenn mindestens eine der folgenden Voraussetzungen erfüllt ist:"},
+  {t:"ol",en:[
+    "In the case of limited liability companies (corporations, e.g. GmbHs and AGs): more than half of the subscribed share capital (including all share premiums) has been lost through accumulated losses. This is the case when deducting accumulated losses from reserves (and all other items generally counted as own funds) results in a negative cumulative amount exceeding half of the subscribed share capital.",
+    "In the case of companies where at least some members have unlimited liability for the company's debts (e.g. KG, oHG, GbR, GmbH & Co. KG): more than half of the own funds shown in the accounts has been lost through accumulated losses.",
+    "The undertaking is subject to insolvency proceedings or meets the criteria under national law for being placed in insolvency proceedings at the request of its creditors.",
+    "The undertaking has received rescue aid and has not yet repaid the loan or terminated the guarantee, or has received restructuring aid and is still subject to a restructuring plan.",
+    "In the case of an undertaking that is not an SME, over the past two years:<ul><li>the book-value gearing ratio was above 7.5, and</li><li>the ratio of EBITDA to interest expense was below 1.0.</li></ul>"],
+    de:[
+    "Im Falle von Gesellschaften mit beschränkter Haftung (Kapitalgesellschaften, z. B. GmbHs und AGs): Mehr als die Hälfte des gezeichneten Stammkapitals (inkl. aller Agios) ist infolge aufgelaufener Verluste verlorengegangen. Dies ist der Fall, wenn nach Abzug der aufgelaufenen Verluste von den Rücklagen (und allen sonstigen Elementen, die im Allgemeinen den Eigenmitteln des Unternehmens zugerechnet werden) ein negativer kumulativer Betrag ergibt, der mehr als die Hälfte des gezeichneten Stammkapitals entspricht.",
+    "Im Falle von Gesellschaften, bei denen zumindest einige Gesellschafter unbeschränkt für die Schulden der Gesellschaft haften (z. B. KG, oHG, GbR, GmbH & Co. KG): Mehr als die Hälfte der in den Geschäftsbüchern ausgewiesenen Eigenmittel ist infolge aufgelaufener Verluste verlorengegangen.",
+    "Das Unternehmen ist Gegenstand eines Insolvenzverfahrens oder erfüllt die im innerstaatlichen Recht vorgesehenen Voraussetzungen für die Eröffnung eines Insolvenzverfahrens auf Antrag seiner Gläubiger.",
+    "Das Unternehmen hat eine Rettungsbeihilfe erhalten und der Kredit wurde noch nicht zurückgezahlt oder die Garantie ist noch nicht erloschen beziehungsweise das Unternehmen hat eine Umstrukturierungsbeihilfe erhalten und unterliegt immer noch einem Umstrukturierungsplan.",
+    "Bei einem Unternehmen, das kein kleines und mittleres Unternehmen (KMU) ist, lag in den vergangenen beiden Jahren:<ul><li>der buchwertbasierte Verschuldungsgrad über 7,5 und</li><li>das Verhältnis des EBITDA zu den Zinsaufwendungen unter 1,0.</li></ul>"]},
+  {t:"p",en:"An SME (for the definition see the SME information sheet SAB form + 60300) is, in the first three years after its foundation (or the first seven years for risk-finance aid under the General Block Exemption Regulation), only regarded as an undertaking in difficulty if it meets the conditions under numbers 3 and 4.",de:"Ein KMU (zur Definition eines KMU siehe KMU-Informationsblatt SAB-Vordruck + 60300) wird in den ersten drei Jahren nach seiner Gründung (bzw. in den ersten sieben Jahren in Bezug auf Risikofinanzierungsbeihilfen i.R. der Allgemeinen Gruppenfreistellungsverordnung) nur dann als Unternehmen in Schwierigkeiten betrachtet, wenn es die Voraussetzungen unter den Nummern 3 und 4 erfüllt."},
+  {t:"h",en:"Special notes",de:"Besonderheiten"},
+  {t:"p",en:"The European Commission's Directorate-General for Competition takes the view that subordinated loans may not be treated as own funds within the meaning of the “undertaking in difficulty” definition, since under International Accounting Standards they must be recognised as debt. Until any diverging decision by the European Commission or a European court, this requirement must be observed.",de:"Die Generaldirektion Wettbewerb der Europäischen Kommission vertritt die Auffassung, dass Nachrangdarlehen nicht als Eigenmittel im Sinne der Definition „Unternehmen in Schwierigkeiten“ gewertet werden dürfen, da sie nach den International Accounting Standards als Fremdkapital zu bilanzieren sind. Bis zu einer etwaigen hiervon abweichenden Entscheidung der Europäischen Kommission oder eines Europäischen Gerichts ist diese Vorgabe zu beachten."},
+  {t:"h",en:"Declaration (§)",de:"Erklärung (§)"},
+  {t:"p",en:"I hereby affirm that my undertaking is not an “undertaking in difficulty” within the meaning of the Community guidelines on State aid for rescuing and restructuring undertakings in difficulty (Official Journal of the EU 2014/C 249/01 of 31 July 2014) or the General Block Exemption Regulation (Official Journal of the EU No. 651/2014 of 17 June 2014).",de:"Hiermit versichere ich, dass mein Unternehmen kein „Unternehmen in Schwierigkeiten“ im Sinne der Leitlinien der Gemeinschaft für staatliche Beihilfen zur Rettung und Umstrukturierung von Unternehmen in Schwierigkeiten (veröffentlicht im Amtsblatt der EU 2014/C 249/01 vom 31. Juli 2014) bzw. der Allgemeinen Gruppenfreistellungsverordnung (veröffentlicht im Amtsblatt der EU Nr. 651/2014 vom 17. Juni 2014) ist."},
+  {t:"check",id:"uis_ok",en:"I agree to the declaration. *",de:"Ich stimme der Erklärung zu. *"}
+ ]},
+
+ {id:"programm",g:"declar",title:{en:"Programme-specific",de:"Programmspezifisch"},b:[
+  {t:"p",en:"I declare that my undertaking is not publicly listed, was not founded through a merger, has not taken over the activity of another company, and has not yet distributed any profits.",de:"Ich erkläre, dass mein Unternehmen nicht börsennotiert ist, nicht durch einen Zusammenschluss gegründet wurde, nicht die Tätigkeit eines anderen Unternehmens übernommen hat und noch keine Gewinne ausgeschüttet hat."},
+  {t:"check",id:"prog_ok",en:"I agree to the declaration. *",de:"Ich stimme der Erklärung zu. *"}
+ ]},
+
+ {id:"allgemein",g:"declar",title:{en:"General",de:"Allgemein"},b:[
+  {t:"ul",en:[
+    "I declare that the project has not yet been started.",
+    "I declare that the financing of the project is secured.",
+    "I declare that, for the financing of this project, no funding other than that stated in the application has been or will be applied for, or has already been approved.",
+    "I declare that there is no recovery order against my undertaking based on a previous European Commission decision declaring aid unlawful and incompatible with the internal market that has not been fully complied with.",
+    "I affirm that no insolvency proceedings, enforcement measures (including a sworn affidavit / statement of assets) or dunning / legal proceedings of significance to the economic situation have been applied for or carried out, and that no loan terminations, returned cheques or bill protests have occurred.",
+    "I affirm the accuracy and completeness of both the above information and the information provided in the attachments to the application.",
+    `I affirm that:<ul><li>the total expenditure/costs do not include any items that serve exclusively to fulfil legally prescribed tasks (such as meeting legally defined minimum standards),</li><li>insofar as individual items also serve to fulfil legal tasks, these are clearly secondary or of subordinate importance within the overall purpose of the asset/measure/project compared with the functions or objectives that are paramount under the funding guideline. The asset/measure/project therefore presents itself overall as an eligible project within the meaning of the funding guideline and as a project outside the fulfilment of legal tasks.</li></ul>`],
+    de:[
+    "Ich erkläre, dass mit dem Vorhaben noch nicht begonnen wurde.",
+    "Ich erkläre, dass die Finanzierung des Vorhabens gesichert ist.",
+    "Ich erkläre, dass zur Finanzierung dieses Vorhaben keine weiteren als die im Antrag angegebenen Fördermittel beantragt wurden und werden bzw. bereits bewilligt wurden.",
+    "Ich erkläre, dass gegen mein Unternehmen keine Rückforderungsanordnung aufgrund eines früheren Beschlusses der Europäischen Kommission zur Feststellung der Unzulässigkeit einer Beihilfe und ihrer Unvereinbarkeit mit dem Binnenmarkt vorliegt, der nicht in voller Höhe Rechnung getragen wurde.",
+    "Ich versichere, dass keine Insolvenzverfahren, Zwangsvollstreckungsmaßnahmen (einschließlich Abgabe einer eidesstattlichen Versicherung/Vermögensauskunft) oder Mahn-/Klageverfahren, die für die wirtschaftlichen Verhältnisse von Bedeutung sind, beantragt oder durchgeführt und auch keine Kreditkündigungen ausgesprochen oder Scheckretouren/Wechselproteste vorgekommen sind.",
+    "Ich versichere die Richtigkeit und Vollständigkeit sowohl der vorstehenden als auch der in den Anlagen zum Antrag gemachten Angaben.",
+    `Ich versichere, dass:<ul><li>in den Gesamtausgaben/-kosten keine Ausgaben- oder Kostenpositionen enthalten sind, die ausschließlich der Erfüllung gesetzlich vorgeschriebener Aufgaben (wie z. B. der Erfüllung gesetzlich definierter Mindeststandards) dienen,</li><li>sofern einzelne Positionen auch der Erfüllung gesetzlicher Aufgaben dienen, diese im Rahmen des Gesamtzwecks des Wirtschaftsguts/der Maßnahme/des Projekts deutlich zurücktreten bzw. von untergeordneter Bedeutung sind im Vergleich zu den Funktionen oder Zielen, die gemäß der Förderrichtlinie im Vordergrund stehen. Das Wirtschaftsgut/die Maßnahme/das Projekt stellt sich somit insgesamt als ein förderfähiges Vorhaben im Sinne der Förderrichtlinie und als ein Vorhaben außerhalb der Erfüllung gesetzlicher Aufgaben dar.</li></ul>`]},
+  {t:"check",id:"allg_ok",en:"I agree to the declarations. *",de:"Ich stimme den Erklärungen zu. *"}
+ ]},
+
+ {id:"charta",g:"declar",title:{en:"EU Charter of Fundamental Rights",de:"EU-Grundrechtecharta"},b:[
+  {t:"p",en:"During the implementation of the project, the Charter of Fundamental Rights of the European Union and the UN Convention on the Rights of Persons with Disabilities must be observed. Violations may be sanctioned with a partial or full revocation of the funding.",de:"Während der Durchführung des Vorhabens ist die Charta der Grundrechte der Europäischen Union und die UN-Behindertenrechtskonvention zu beachten. Verstöße gegen die EU-Grundrechtecharta oder die UN-Behindertenrechtskonvention können mit einem teilweisen oder vollständigen Widerruf der Förderung sanktioniert werden."},
+  {t:"p",en:`I declare that I have received the leaflet on respecting the Charter of Fundamental Rights of the European Union in the 2021–2027 funding period (SAB form <span class="lnk">+ 0350</span>) and have taken note of its contents.`,de:`Ich erkläre, dass ich das Merkblatt zur Achtung der Charta der Grundrechte der Europäischen Union in der Förderperiode 2021-2027 (SAB-Vordruck <span class="lnk">+ 0350</span>) erhalten und den Inhalt zur Kenntnis genommen habe.`},
+  {t:"check",id:"charta_ok",en:"I have taken note of the leaflet on respecting the Charter of Fundamental Rights. *",de:"Ich habe das Merkblatt zur Achtung der Charta der Grundrechte zur Kenntnis genommen. *"}
+ ]},
+
+ {id:"datenschutz",g:"declar",title:{en:"Data protection notices",de:"Datenschutzhinweise"},b:[
+  {t:"p",en:"I am aware that the Sächsische Aufbaubank – Förderbank – is authorised under Section 8a of the Förderbank Act to process personal data of applicants and customers of the bank in order to fulfil its tasks.",de:"Mir ist bekannt, dass die Sächsische Aufbaubank – Förderbank – gemäß § 8a Förderbank-Gesetz zur Erfüllung ihrer Aufgaben befugt ist, personenbezogene Daten von Antragstellern und Kunden der Bank zu verarbeiten."},
+  {t:"p",en:`I declare that I have received the GDPR data-protection information sheet (SAB form <span class="lnk">+ 64005</span>) and have taken note of its contents.`,de:`Ich erkläre, dass ich das Datenschutz-Informationsblatt DSGVO (SAB-Vordruck <span class="lnk">+ 64005</span>) erhalten und den Inhalt zur Kenntnis genommen habe.`},
+  {t:"check",id:"ds_ok",en:"I have taken note of the data-protection notices. *",de:"Ich habe die Datenschutzhinweise zur Kenntnis genommen. *"}
+ ]},
+
+ {id:"subvention",g:"declar",title:{en:"Subsidy-material facts",de:"Subventionserhebliche Tatsachen"},b:[
+  {t:"p",en:"The requested grant is based on subsidies to which Section 264 of the German Criminal Code (StGB) and Section 1 of the Act against the improper use of subsidies under state law (Subsidy Act of the State of Saxony) of 14 January 1997, in conjunction with Sections 2 to 6 of the Act against the improper use of subsidies (SubvG), apply.",de:"Der beantragten Zuwendung liegen Subventionen zu Grunde, auf welche § 264 Strafgesetzbuch (StGB) und § 1 des Gesetzes gegen missbräuchliche Inanspruchnahme von Subventionen nach Landesrecht (Subventionsgesetz des Landes Sachsen) vom 14. Januar 1997 i.V.m. §§ 2 bis 6 des Gesetzes gegen missbräuchliche Inanspruchnahme von Subventionen (SubvG) Anwendung finden."},
+  {t:"p",en:"I am aware that under Section 264(1) StGB I make myself liable for subsidy fraud if I:",de:"Mir ist bekannt, dass ich mich gemäß § 264 Abs. 1 Strafgesetzbuch (StGB) wegen Subventionsbetruges strafbar mache, wenn ich:"},
+  {t:"ol",en:[
+    "make incorrect or incomplete statements about subsidy-material facts, to my own or another's advantage, to an authority responsible for granting a subsidy or to another body or person involved in the subsidy process (subsidy provider),",
+    "use an object or sum of money whose use is restricted by law or by the subsidy provider in respect of a subsidy, contrary to that use restriction,",
+    "leave the subsidy provider unaware of subsidy-material facts contrary to the legal provisions on the granting of subsidies,",
+    "in a subsidy procedure, use a certificate of subsidy entitlement or of subsidy-material facts obtained through incorrect or incomplete statements."],
+    de:[
+    "einer für die Bewilligung einer Subvention zuständigen Behörde oder einer anderen in das Subventionsverfahren eingeschalteten Stelle oder Person (Subventionsgeber) über subventionserhebliche Tatsachen für mich oder einen anderen unrichtige oder unvollständige Angaben mache, die für mich oder den anderen vorteilhaft sind,",
+    "einen Gegenstand oder eine Geldleistung, deren Verwendung durch Rechtsvorschriften oder durch den Subventionsgeber im Hinblick auf eine Subvention beschränkt ist, entgegen der Verwendungsbeschränkung verwende,",
+    "den Subventionsgeber entgegen den Rechtsvorschriften über die Subventionsvergabe über subventionserhebliche Tatsachen in Unkenntnis lasse,",
+    "in einem Subventionsverfahren eine durch unrichtige oder unvollständige Angaben erlangte Bescheinigung über eine Subventionsberechtigung oder über subventionserhebliche Tatsachen gebrauche."]},
+  {t:"p",en:"In the cases of paragraph 1 number 2, the attempt is punishable (Section 264(4) StGB).",de:"In den Fällen des Absatzes 1 Nummer 2 ist der Versuch strafbar (§ 264 Abs. 4 StGB)."},
+  {t:"p",en:"I am aware that all information and declarations marked with the symbol (§) in this form and in the generated documents are subsidy-material facts within the meaning of Section 264 StGB, and that subsidy fraud under Section 264 StGB is punishable.",de:"Mir ist bekannt, dass alle Angaben und Erklärungen, die in diesem Formular sowie den erzeugten Dokumenten mit dem Symbol (§) gekennzeichnet sind, subventionserhebliche Tatsachen im Sinne von § 264 StGB sind und ein Subventionsbetrug nach § 264 StGB strafbar ist."},
+  {t:"ul",en:["the information provided and documents submitted during and after the end of the project, in particular the information in the proof of use, are likewise subsidy-material facts within the meaning of Section 264(9) StGB,","the grant may only be used for the purpose stated in the grant notice."],
+       de:["die während und nach dem Ende des Vorhabens mitgeteilten Angaben und eingereichten Unterlagen, insbesondere die Angaben im Verwendungsnachweis ebenfalls subventionserhebliche Tatsachen im Sinne des § 264 Abs. 9 StGB sind,","die Zuwendung nur für den im Zuwendungsbescheid benannten Zweck verwendet werden darf."]},
+  {t:"p",en:"I am further aware that acts and legal transactions carried out through the abuse of structuring options, as well as sham transactions and sham acts (Section 4 SubvG), are subsidy-material facts. I am aware of the notification obligations under Section 3 SubvG, according to which the SAB must be informed without delay of all facts that oppose the approval, granting, continued granting, use or retention of the subsidy or the subsidy advantage, or that are relevant to its recovery.",de:"Mir ist bekannt, dass ferner Handlungen und Rechtsgeschäfte, die unter Missbrauch von Gestaltungsmöglichkeiten vorgenommen werden, sowie Scheingeschäfte und Scheinhandlungen (§ 4 SubvG) subventionserhebliche Tatsachen sind. Mir sind die nach § 3 SubvG bestehenden Mitteilungspflichten bekannt, wonach der SAB unverzüglich alle Tatsachen mitzuteilen sind, die der Bewilligung, Gewährung, Weitergewährung, Inanspruchnahme oder dem Belassen der Subvention oder des Subventionsvorteils entgegenstehen oder für die Rückforderung der Subvention oder des Subventionsvorteils erheblich sind."},
+  {t:"check",id:"subv_ok",en:"I expressly declare that I have read and understood the above instruction. *",de:"Ich erkläre ausdrücklich, die vorstehende Belehrung gelesen und verstanden zu haben. *"}
+ ]},
+
+/* ---------- ATTACHMENTS ---------- */
+ {id:"attach",g:"attach",title:{en:"Attachments",de:"Anlagen"},
+  foot:{en:["Documents marked with * are required for further processing but can be submitted later.","Documents marked with ** must be uploaded immediately; otherwise submission is not possible.","Fields marked with (§) are subsidy-material facts within the meaning of Section 264 StGB."],
+        de:["Mit * gekennzeichnete Unterlagen sind für die weitere Bearbeitung erforderlich, können aber nachgereicht werden.","Mit ** gekennzeichnete Unterlagen sind zwingend sofort hochzuladen, eine Einreichung ist sonst nicht möglich.","Mit (§) gekennzeichnete Felder sind subventionserhebliche Tatsachen im Sinne von § 264 StGB."]},
+  b:[
+  {t:"p",en:"For further processing, we require the documents listed below. Please upload your documents here, preferably as PDF documents. Files larger than 20 MB or in Excel format cannot be uploaded. Please combine multi-page documents into a single file where the size limit allows, and provide files without password protection. Incomplete documents may lead to delays. You will receive this overview as a checklist after creating the application task.",de:"Für die weitere Bearbeitung benötigen wir die nachfolgend aufgeführten Unterlagen. Laden Sie bitte Ihre Unterlagen hier hoch, vorzugsweise als PDF-Dokumente. Dateien mit einer Größe von mehr als 20 MB oder im Excel-Format können nicht hochgeladen werden. Fassen Sie mehrseitige Dokumente in einer einzigen Datei zusammen, sofern die Größenbeschränkung dies zulässt, und stellen Sie die Dateien ohne Passwortschutz bereit. Unvollständige Unterlagen können zu Verzögerungen führen. Diese Übersicht erhalten Sie nach Erstellung der Aufgabe Antrag als Checkliste."},
+  {t:"upload",mark:"**",title:{en:"Identification",de:"Identifikation"},desc:{en:"Please upload a copy of the ID card (front and back) of all applicants or authorised representatives here.",de:"Laden Sie bitte eine Kopie vom Personalausweis (Vorder- und Rückseite) aller Antragsteller bzw. des/der Vertretungsberechtigten hier hoch."},hint:{en:"Upload exactly one file here.",de:"Laden Sie hier genau eine Datei hoch."}},
+  {t:"upload",mark:"**",title:{en:"Notification of authorised signatories",de:"Anzeige von Zeichnungsbefugten"},desc:{en:"Please use SAB form + 61547-1 and upload it here fully completed and signed in a legally binding manner.",de:"Verwenden Sie bitte den SAB-Vordruck + 61547-1 und laden Sie diesen vollständig ausgefüllt und rechtsverbindlich unterschrieben hier hoch."},hint:{en:"Upload exactly one file here.",de:"Laden Sie hier genau eine Datei hoch."}},
+  {t:"upload",mark:"**",title:{en:"Business registration",de:"Gewerbeanmeldung"},desc:{en:"Please upload the business registration and the most recent business re-registration (if applicable) here.",de:"Laden Sie bitte die Gewerbeanmeldung und die letzte Gewerbeummeldung (sofern zutreffend) hier hoch."},hint:{en:"Upload one or more files here.",de:"Laden Sie hier eine oder mehrere Dateien hoch."}},
+  {t:"upload",mark:"**",title:{en:"Description of the business model",de:"Beschreibung des Geschäftsmodells"},desc:{en:"Please upload a description of the business model here.",de:"Laden Sie bitte eine Beschreibung des Geschäftsmodells hier hoch."},hint:{en:"Upload one or more files here.",de:"Laden Sie hier eine oder mehrere Dateien hoch."}},
+  {t:"upload",mark:"**",title:{en:"Investment agreement",de:"Beteiligungsvertrag"},desc:{en:"Please upload a copy of the signed investment agreement (including a milestone plan) here.",de:"Laden Sie bitte eine Kopie des unterzeichneten Beteiligungsvertrages (einschließlich einer Meilensteinplanung) hier hoch."},hint:{en:"Upload one or more files here.",de:"Laden Sie hier eine oder mehrere Dateien hoch."}},
+  {t:"upload",mark:"**",title:{en:"Applicant's declaration on the sustainability and innovation criteria",de:"Erklärung des Antragstellers zu den Nachhaltigkeitskriterien und Innovationskriterien"},desc:{en:"Please use SAB form + 62261 and upload it here fully completed and signed in a legally binding manner.",de:"Verwenden Sie bitte den SAB-Vordruck + 62261 und laden Sie diesen vollständig ausgefüllt und rechtsverbindlich unterschrieben hier hoch."},hint:{en:"Upload exactly one file here.",de:"Laden Sie hier genau eine Datei hoch."}},
+  {t:"upload",mark:"**",title:{en:"Business angel portrait",de:"Portrait Business Angel"},desc:{en:"Please use SAB form + 62260 and upload it here fully completed and signed in a legally binding manner for each business angel.",de:"Verwenden Sie bitte den SAB-Vordruck + 62260 und laden Sie diesen vollständig ausgefüllt und rechtsverbindlich unterschrieben für jeden Business Angel hier hoch."},hint:{en:"Upload one or more files here.",de:"Laden Sie hier eine oder mehrere Dateien hoch."}},
+  {t:"upload",mark:"",title:{en:"Other documents",de:"Sonstige Unterlagen"},desc:{en:"If necessary, you can upload further documents relating to the project here.",de:"Soweit erforderlich, können Sie hier weitere Unterlagen zum Vorhaben hochladen."},hint:{en:"Upload one or more files here.",de:"Laden Sie hier eine oder mehrere Dateien hoch."}}
+ ]},
+
+/* ---------- SUBMIT ---------- */
+ {id:"submit",g:"submit",title:{en:"Submit",de:"Einreichen"},b:[
+  {t:"p",en:"This is the final step in the SAB portal, where the completed application is formally submitted once every mandatory field (*) and every mandatory attachment (**) is provided.",de:"Dies ist der letzte Schritt im SAB-Portal, in dem der vollständige Antrag verbindlich eingereicht wird, sobald alle Pflichtfelder (*) und Pflichtanlagen (**) vorliegen."},
+  {t:"placeholder",en:"This working copy does not submit anything to SAB — submission only happens in the real portal. Use “Save” (top right) to keep your drafted answers in this browser, then transcribe them into the official German form.",de:"Diese Arbeitskopie reicht nichts bei der SAB ein — die Einreichung erfolgt nur im echten Portal. Mit „Speichern“ (oben rechts) bleiben Ihre Entwürfe in diesem Browser erhalten; übertragen Sie sie anschließend in das offizielle deutsche Formular."}
+ ]}
+];
+
+var lang="en", cur=0, openGroup="project", store={};
+try{store=JSON.parse(localStorage.getItem("sabjtf")||"{}");}catch(e){store={};}
+
+function euEmblem(){var w=64,h=44,cx=32,cy=21,r=13,s='<svg width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'"><rect width="'+w+'" height="'+h+'" fill="#003399"/>';
+  for(var i=0;i<12;i++){var a=(-90+i*30)*Math.PI/180,x=cx+r*Math.cos(a),y=cy+r*Math.sin(a);
+    s+='<text x="'+x.toFixed(1)+'" y="'+(y+2.4).toFixed(1)+'" fill="#ffcc00" font-size="6" text-anchor="middle">★</text>';}
+  return s+'</svg>';}
+function T(o){return o[lang]||o.en;}
+function esc(s){return (s||"").replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+function idx(id){for(var i=0;i<S.length;i++)if(S[i].id===id)return i;return 0;}
+
+function buildSide(){
+  var side=document.getElementById("side"),html="";
+  GROUPS.forEach(function(g){
+    if(g.solo){var si=idx(g.id);
+      html+='<div class="grp"><button class="nav solo'+(cur===si?" active":"")+'" onclick="jump('+si+')">'+T(g.label)+(BADGE[g.id]?' <span class="sec-badge">(§)</span>':'')+'</button></div>';
+      return;}
+    var open=openGroup===g.id;
+    html+='<div class="grp'+(open?"":" closed")+'"><button class="grp-h" onclick="toggleGrp(\''+g.id+'\')"><span>'+T(g.label)+'</span><svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6"/></svg></button><ul class="items">';
+    S.forEach(function(s,i){ if(s.g!==g.id) return;
+      html+='<li><button class="nav'+(cur===i?" active":"")+'" onclick="jump('+i+')">'+T(s.nav||s.title)+(BADGE[s.id]?' <span class="sec-badge">(§)</span>':'')+'</button></li>';});
+    html+='</ul></div>';
+  });
+  side.innerHTML=html;
+}
+function toggleGrp(id){openGroup=(openGroup===id?"":id);buildSide();}
+
+function num(v){v=(v||"").toString().replace(/\s/g,"").replace(/\./g,"").replace(",",".").replace(/[^0-9.\-]/g,"");var n=parseFloat(v);return isNaN(n)?0:n;}
+function sumVal(parts){var t=0;parts.forEach(function(p){t+=num(store[p]);});return t.toFixed(2);}
+
+function fieldHTML(b){
+  var v=store[b.id]||"", lab='<label>'+T(b).replace(/\*/g,'<span class="req">*</span>')+(b.info?'<span class="infob">i</span>':'')+'</label>';
+  if(b.kind==="textarea") return '<div class="field"><label>'+T(b).replace(/\*/g,'<span class="req">*</span>')+'</label><textarea data-id="'+b.id+'" oninput="onField(this)">'+esc(v)+'</textarea></div>';
+  if(b.kind==="select"){var opts=(b.opts||["Select…"]).map(function(o){return '<option'+(v===o?" selected":"")+'>'+esc(o)+'</option>';}).join("");
+    return '<div class="field">'+lab+'<select data-id="'+b.id+'" onchange="onField(this)">'+opts+'</select></div>';}
+  if(b.kind==="eur") return '<div class="field">'+lab+'<div class="eurrow"><input type="text" inputmode="decimal" data-id="'+b.id+'" value="'+esc(v)+'" oninput="onField(this)"><span class="eur">EUR</span></div></div>';
+  if(b.kind==="sum") return '<div class="field sum">'+lab+'<div class="eurrow"><input type="text" readonly data-sum="'+b.parts.join(",")+'" value="'+sumVal(b.parts)+'"><span class="eur">EUR</span></div></div>';
+  if(b.kind==="date") return '<div class="field date">'+lab+'<input type="date" data-id="'+b.id+'" value="'+esc(v)+'" oninput="onField(this)"></div>';
+  return '<div class="field">'+lab+'<input type="text" data-id="'+b.id+'" value="'+esc(v)+'" oninput="onField(this)"></div>';
+}
+function radioHTML(b){
+  var sel=store[b.id]||"", opts=(b.opts[lang]||b.opts.en);
+  var h='<div class="qlabel">'+T(b).replace(/\*/g,'<span class="req">*</span>')+'</div><div class="radio'+(b.vert?" vert":"")+'">';
+  opts.forEach(function(o,i){var val=b.opts.en[i];h+='<label><input type="radio" name="r_'+b.id+'" '+(sel===val?"checked":"")+' onchange="onRadio(\''+b.id+'\',this.getAttribute(\'data-v\'))" data-v="'+esc(val)+'">'+esc(o)+'</label>';});
+  return h+'</div>';
+}
+function uploadHTML(b){
+  return '<div class="upload"><div class="uh">'+T(b.title)+(b.mark?'<sup>'+b.mark+'</sup>':'')+' <span class="kopie">('+(lang==="en"?"copy":"Kopie")+')</span></div>'+
+    '<div class="udesc">'+T(b.desc)+'</div>'+
+    '<div class="drop" onclick="toast(lang===\'en\'?\'Uploads happen in the real SAB portal.\':\'Uploads erfolgen im echten SAB-Portal.\')"><svg viewBox="0 0 24 24"><path d="M12 16V4M6 10l6-6 6 6"/><path d="M4 20h16"/></svg>'+T(b.hint)+'</div></div>';
+}
+function tableHTML(){
+  return '<div class="tblwrap"><table><thead><tr>'+
+    '<th>'+(lang==="en"?"No.":"Lfd. Nr.")+'</th><th>'+(lang==="en"?"Name or company":"Name bzw. Firma")+'</th>'+
+    '<th>'+(lang==="en"?"Investment agreement dated":"Beteiligungsvertrag vom")+'<span class="infob">i</span></th>'+
+    '<th class="num">'+(lang==="en"?"Amount of investment":"Höhe der Beteiligung")+'</th></tr></thead>'+
+    '<tbody><tr class="sum"><td colspan="3">'+UI[lang].total+'</td><td class="num">0.00 EUR</td></tr></tbody></table></div>'+
+    '<p class="empty">'+UI[lang].noentries+'</p><button class="newbtn">'+UI[lang].newentry+'</button>';
+}
+
+function render(){
+  var s=S[cur];
+  if(s.g!==openGroup && !GROUPS.filter(function(g){return g.solo;}).some(function(g){return g.id===s.g;})) openGroup=s.g;
+  document.getElementById("mtitle").innerHTML=T(s.title)+(BADGE[s.id]?' <span class="sec-badge">(§)</span>':'');
+  var html='<div class="emblem">'+euEmblem()+'<span>'+(lang==="en"?"Co-financed by the European Union":"Kofinanziert von der Europäischen Union")+'</span></div>';
+  s.b.forEach(function(b){
+    if(b.t==="p") html+='<p>'+T(b)+'</p>';
+    else if(b.t==="h") html+='<div class="h2">'+T(b)+'</div>';
+    else if(b.t==="ul"){var a=b[lang]||b.en;html+='<ul>'+a.map(function(x){return '<li>'+x+'</li>';}).join("")+'</ul>';}
+    else if(b.t==="ol"){var a2=b[lang]||b.en;html+='<ol>'+a2.map(function(x){return '<li>'+x+'</li>';}).join("")+'</ol>';}
+    else if(b.t==="warn") html+='<p class="warn">'+T(b)+'</p>';
+    else if(b.t==="field") html+=fieldHTML(b);
+    else if(b.t==="radio") html+=radioHTML(b);
+    else if(b.t==="toggle"){var on=store[b.id]!=="off";html+='<div class="switch"><button class="tk" role="switch" aria-checked="'+on+'" data-id="'+b.id+'" onclick="onToggle(this)"></button><span>'+T(b)+'</span></div>';}
+    else if(b.t==="check"){var ck=store[b.id]==="1";html+='<div class="check"><input type="checkbox" data-id="'+b.id+'" '+(ck?"checked":"")+' onchange="onCheck(this)" id="ck_'+b.id+'"><label for="ck_'+b.id+'">'+T(b)+'</label></div>';}
+    else if(b.t==="upload") html+=uploadHTML(b);
+    else if(b.t==="table") html+=tableHTML();
+    else if(b.t==="placeholder") html+='<div class="placeholder">'+T(b)+'</div>';
+  });
+  var f=s.foot?(s.foot[lang]||s.foot.en):[UI[lang].foot1,UI[lang].foot2];
+  html+='<div class="foot">'+f.map(function(x){return '<p>'+x+'</p>';}).join("")+'</div>';
+  var c=document.getElementById("content");
+  c.innerHTML=html;c.classList.remove("fade");void c.offsetWidth;c.classList.add("fade");
+  buildSide();
+  document.querySelectorAll("[data-i]").forEach(function(el){el.innerHTML=UI[lang][el.getAttribute("data-i")];});
+  document.getElementById("lang-en").classList.toggle("on",lang==="en");
+  document.getElementById("lang-de").classList.toggle("on",lang==="de");
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function recompute(){document.querySelectorAll("input[data-sum]").forEach(function(el){el.value=sumVal(el.getAttribute("data-sum").split(","));});}
+function jump(i){cur=i;openGroup=S[i].g;render();}
+function go(d){cur=Math.min(S.length-1,Math.max(0,cur+d));openGroup=S[cur].g;render();}
+function setLang(l){lang=l;render();}
+function onField(el){store[el.getAttribute("data-id")]=el.value;persist();recompute();}
+function onRadio(id,val){store[id]=val;persist();}
+function onToggle(el){var id=el.getAttribute("data-id"),on=el.getAttribute("aria-checked")==="true";el.setAttribute("aria-checked",!on);store[id]=on?"off":"on";persist();}
+function onCheck(el){store[el.getAttribute("data-id")]=el.checked?"1":"0";persist();}
+function persist(){try{localStorage.setItem("sabjtf",JSON.stringify(store));}catch(e){}}
+function saveNow(){persist();toast(lang==="en"?"Saved":"Gespeichert");}
+var tt;function toast(m){var t=document.getElementById("toast");t.textContent=m;t.classList.add("show");clearTimeout(tt);tt=setTimeout(function(){t.classList.remove("show");},1700);}
+
+render();
+</script>
