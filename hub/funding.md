@@ -4,6 +4,8 @@ Status legend: 🟢 in progress · 🟡 fits, not started · ⚪ watch
 
 Last reviewed: 15 July 2026. Re-check deadlines before acting; they move.
 
+**Nearest deadlines:** HTW Startup Challenge **15 Aug** · AI Nation **9 Aug** (weak fit) · Prototype Fund window opens **1 Oct**.
+
 ## 🟢 In progress
 
 ### SAB Business Angel Bonus (JTF)
@@ -30,8 +32,31 @@ Last reviewed: 15 July 2026. Re-check deadlines before acting; they move.
 - **Watch out:** funds individuals/GbR-teams for the *work*, not companies for growth; frame a fundable 6-month scope (e.g. the ATProto privacy-boundary work, or the open-source membership/governance toolkit) rather than "fund dyad."
 - **Next step:** pick the scoped project in September; application drafts take ~2 weeks.
 
+### HTW Startup Challenge 2026 — [entrepreneurship.htw-berlin.de](https://entrepreneurship.htw-berlin.de/events-workshops/htw-startup-challenge-2026)
+- **What:** pitch competition with Berliner Sparkasse; €10,000 in prizes across GreenTech, Impact, and the audience-voted Future Visionary award. 8–10 teams pre-selected; 70–120 guests; Berlin startup scene networking. Open to teams "at HTW and beyond."
+- **Deadline: pitch deck + 1-minute video by 15 August 2026.** Pitch event 2 September 2026 (Spree boat, attendance required).
+- **Why dyad fits:** the Impact category; the pitch materials already exist (one-pager + governance story). Low effort, near-term, Berlin-visible.
+- **Next step:** decide by early August; the 1-minute video doubles as launch content for the socials.
+
+### Earlybird Vision Lab — [earlybird.com/vision-lab](https://earlybird.com/vision-lab)
+- **What:** Germany's first VC incubator + impact fund for pre-seed startups by founders with migration backgrounds. €25,000 convertible loan, 6 months of mentorship, Demo Day in front of the Earlybird investor community. 50 startups from 42 countries so far.
+- **Eligibility:** team based in Germany, at least one first-generation migrant founder, working MVP, early traction signs. Rolling Typeform application.
+- **Why dyad fits:** if a founder qualifies on the migration criterion, the rest of the profile (MVP live in beta, early traction, Berlin) matches well, and the Earlybird network compounds with the angel round.
+- **Next step:** confirm the eligibility criterion, then apply with the existing pitch materials.
+
+### Free Our Feeds / Modal Foundation — [freeourfeeds.com/vision](https://freeourfeeds.com/vision)
+- **What:** campaign + foundation (NL) building funding instruments for the AT Protocol ecosystem: venture studios, grants mechanisms, public/private partnerships. Raising in stages ($500k → $30M); grant programs are forming rather than open.
+- **Why dyad fits:** dyad's ATProto experiment (sign-in shipped to review, public build log, "app that doesn't fit the feed shape") is exactly the kind of reference project a new ecosystem fund wants to point to.
+- **Next step:** relationship, not application — write to hello@freeourfeeds.com when the sign-in PR merges, with the build log. Early contact means being known when their grants open. The Blacksky/Acorn conversation strengthens this.
+
+### Democratic Tech Fund — [democratictech.fund](https://democratictech.fund/)
+- **What:** a federation of cooperatives and public-interest orgs funding "contra-infrastructure": community-owned social platforms on open protocols, cooperative tools, sovereign cloud. No standardized grants; engagement starts with a conversation ("Fund a project").
+- **Why dyad fits:** their portfolio description ("community-owned social media platforms on open protocols") reads like dyad's docs page. Member-governed, open source, ad-free checks every box.
+- **Next step:** start the conversation with the governance documents + the docs page as the introduction; ask what a funded project relationship looks like.
+
 ## ⚪ Watch list
 
+- **AI Nation Grant & Accelerator** — [ai-nation.de/grant](https://www.ai-nation.de/grant) · [accelerator](https://www.ai-nation.de/accelerator) — generous (grant: up to €54k non-dilutive incl. €2k/month founder scholarships; accelerator: €10k + Berlin/Munich offices; both apply 13 Jul – 9 Aug 2026). **Honest fit check: weak for dyad today.** The grant requires AI as the core enabling technology, no incorporation, and no angel funding; the accelerator requires AI-core plus traction. dyad is deliberately not an AI-core product. Revisit only if an AI-native piece (e.g. conversation matching) ever becomes its own project.
 - **NGI (Next Generation Internet, EU)** — recurring open calls (NGI Zero Commons and successors) fund privacy-preserving, open internet infrastructure, typically €5k–50k per project. dyad's "we can't leak what we never hold" architecture is on-thesis. Check current calls at [ngi.eu](https://www.ngi.eu).
 - **Berlin Startup Stipendium** — salary-replacing stipends via Berlin universities/incubators for founders; worth it if a founder needs runway before membership revenue arrives. Rolling per host institution.
 - **IBB / GründungsBONUS Berlin** — Berlin grant for young startups (historically up to ~€50k, co-financing). Check current program terms at [ibb.de](https://www.ibb.de).
