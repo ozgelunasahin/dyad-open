@@ -54,10 +54,16 @@ Last reviewed: 15 July 2026. Re-check deadlines before acting; they move.
 - **Why dyad fits:** their portfolio description ("community-owned social media platforms on open protocols") reads like dyad's docs page. Member-governed, open source, ad-free checks every box.
 - **Next step:** start the conversation with the governance documents + the docs page as the introduction; ask what a funded project relationship looks like.
 
+### IBB GründungsBONUS Plus (Berlin) — [ibb-business-team.de](https://www.ibb-business-team.de/gruendungsbonus-plus/)
+- **What:** Berlin cost subsidy for innovative/sustainable startups: 50% of eligible costs, up to **€50,000**, disbursed over up to 2 years. Covers operating costs, personnel (€2,000/month per founder max, ≤50% of subsidy), IT development, consulting. Founders must hold majority and manage the company; only costs not yet incurred at application count.
+- **The gate:** company **no older than 18 months** at application. Check dyad's incorporation date first — this decides everything.
+- **Next step:** verify entity age; if eligible, apply via ibb-bt.antragsverwaltung.de (gruendungsbonusplus@ibb-business-team.de, 030/2125-2364).
+
 ## ⚪ Watch list
 
 - **AI Nation Grant & Accelerator** — [ai-nation.de/grant](https://www.ai-nation.de/grant) · [accelerator](https://www.ai-nation.de/accelerator) — generous (grant: up to €54k non-dilutive incl. €2k/month founder scholarships; accelerator: €10k + Berlin/Munich offices; both apply 13 Jul – 9 Aug 2026). **Honest fit check: weak for dyad today.** The grant requires AI as the core enabling technology, no incorporation, and no angel funding; the accelerator requires AI-core plus traction. dyad is deliberately not an AI-core product. Revisit only if an AI-native piece (e.g. conversation matching) ever becomes its own project.
 - **NGI (Next Generation Internet, EU)** — recurring open calls (NGI Zero Commons and successors) fund privacy-preserving, open internet infrastructure, typically €5k–50k per project. dyad's "we can't leak what we never hold" architecture is on-thesis. Check current calls at [ngi.eu](https://www.ngi.eu).
+- ~~IBB GründungsBONUS~~ promoted to its own entry above (Plus variant).
 - **Berlin Startup Stipendium** — salary-replacing stipends via Berlin universities/incubators for founders; worth it if a founder needs runway before membership revenue arrives. Rolling per host institution.
 - **IBB / GründungsBONUS Berlin** — Berlin grant for young startups (historically up to ~€50k, co-financing). Check current program terms at [ibb.de](https://www.ibb.de).
 - **Mozilla / Ford / civic tech foundation funds** — thematic calls come and go; dyad's data-minimal social architecture fits "trustworthy AI / healthy internet" framings when they open.
