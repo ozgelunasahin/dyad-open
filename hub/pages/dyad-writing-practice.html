@@ -1,0 +1,142 @@
+<title>dyad · The Writing Practice</title>
+<style>
+  :root {
+    --ground: #FAFAF7; --surface: #F1F2EC; --ink: #1B1E1C; --ink-soft: #4A524D;
+    --line: #D8DCD4; --accent: #2F6B4F; --accent-ink: #24523D; --accent-wash: #E7EFE9;
+    --warn: #8A5A2B; --grain: 0.45; --mottle: 0.20;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #131614; --surface: #1B201D; --ink: #E7EAE5; --ink-soft: #9BA69E;
+      --line: #2C332E; --accent: #7FBF9E; --accent-ink: #9AD0B4; --accent-wash: #1C2620;
+      --warn: #D2A26B; --grain: 0.32; --mottle: 0.15;
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #FAFAF7; --surface: #F1F2EC; --ink: #1B1E1C; --ink-soft: #4A524D;
+    --line: #D8DCD4; --accent: #2F6B4F; --accent-ink: #24523D; --accent-wash: #E7EFE9;
+    --warn: #8A5A2B; --grain: 0.45; --mottle: 0.20;
+  }
+  :root[data-theme="dark"] {
+    --ground: #131614; --surface: #1B201D; --ink: #E7EAE5; --ink-soft: #9BA69E;
+    --line: #2C332E; --accent: #7FBF9E; --accent-ink: #9AD0B4; --accent-wash: #1C2620;
+    --warn: #D2A26B; --grain: 0.32; --mottle: 0.15;
+  }
+  body { background: var(--ground); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; font-size: 16px; margin: 0; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 24px 96px; position: relative; z-index: 4; }
+  body::before, body::after { content: ""; position: fixed; inset: 0; pointer-events: none; mix-blend-mode: soft-light; }
+  body::before { z-index: 3; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23g)'/%3E%3C/svg%3E"); background-size: 240px 240px; opacity: var(--grain); }
+  body::after { z-index: 2; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='900' height='900' filter='url(%23p)'/%3E%3C/svg%3E"); background-size: 900px 900px; opacity: var(--mottle); }
+
+  h1, h2, h3 { font-family: "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif; text-wrap: balance; font-weight: 600; }
+  a { color: var(--accent-ink); text-decoration-color: var(--line); text-underline-offset: 3px; }
+  header { padding: 72px 0 32px; border-bottom: 1px solid var(--line); }
+  .kicker { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-ink); margin: 0 0 16px; }
+  h1 { font-size: clamp(30px, 5vw, 42px); line-height: 1.12; margin: 0 0 16px; }
+  .standfirst { font-size: 18px; color: var(--ink-soft); max-width: 58ch; margin: 0; }
+  .meta { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; color: var(--ink-soft); margin-top: 20px; }
+  h2 { font-size: 24px; margin: 48px 0 12px; }
+  h3 { font-size: 18px; margin: 28px 0 8px; }
+  p, li { max-width: 65ch; }
+  .rule { background: var(--accent-wash); border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; padding: 12px 16px; margin: 16px 0; font-size: 15px; max-width: 62ch; }
+  .card { border: 1px solid var(--line); border-radius: 6px; background: var(--surface); padding: 18px 20px; margin: 14px 0; }
+  .card .tag { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent-ink); }
+  .card h3 { margin: 4px 0 8px; }
+  .card p { font-size: 14.5px; margin: 0 0 6px; }
+  ol.essays { padding-left: 22px; max-width: 65ch; }
+  ol.essays li { margin-bottom: 10px; }
+  ol.essays em { color: var(--ink-soft); font-style: normal; font-size: 14px; display: block; }
+  .tablewrap { overflow-x: auto; margin: 12px 0; border: 1px solid var(--line); border-radius: 6px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 560px; }
+  th { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; text-align: left; color: var(--ink-soft); font-weight: 500; }
+  th, td { padding: 9px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  thead tr { background: var(--surface); }
+  footer { padding-top: 40px; font-size: 13px; color: var(--ink-soft); border-top: 1px solid var(--line); margin-top: 48px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="kicker">dyad.berlin · founders' hub · private</p>
+    <h1>The Writing Practice</h1>
+    <p class="standfirst">Three months of stamina that builds the CHT-fellow profile, feeds the launch, and costs nothing extra: the daily rep, the weekly essay, the monthly flagship. Seth Godin has published every single day for over fifteen years — and most of his posts are under 200 words. The stamina is the noticing, not the word count.</p>
+    <p class="meta">started 15 July 2026 · target: mid-October · the streak is the deliverable</p>
+  </header>
+
+  <h2>The three cadences</h2>
+
+  <div class="card">
+    <p class="tag">daily · 10–15 minutes · 100–250 words</p>
+    <h3>The rep</h3>
+    <p>One observation per day from what you are already living: a governance decision, a member's sentence (with consent), a line from a call, a build-log note. Publish it — Substack notes or the build log; the venue matters less than the streak.</p>
+    <p><strong>The floor:</strong> three sentences still counts. A bad day that ships three sentences is a kept day.</p>
+  </div>
+
+  <div class="card">
+    <p class="tag">weekly · one fixed 2–3 hour slot · 800–1,200 words</p>
+    <h3>The essay</h3>
+    <p>Twelve essays in twelve weeks, every one extracted from work already done. Writing is extraction, not invention. Titles below.</p>
+  </div>
+
+  <div class="card">
+    <p class="tag">monthly · aimed outward</p>
+    <h3>The flagship</h3>
+    <p><strong>Month 1:</strong> the positioning essay — "Human meeting infrastructure in the age of AI companions." This is the CHT thesis, written a year before the application.</p>
+    <p><strong>Month 2:</strong> pitch it as an op-ed. First-choice venues: New_Public, then Netzpolitik or Tagesspiegel Background (German reach), Every (builder audience). One acceptance checks the "published work" box.</p>
+    <p><strong>Month 3:</strong> the research-shaped piece — the ATProto experiment findings, or "90 days of consent-based governance: what actually happened," with real numbers from the decision log. This becomes the writing sample for the next cohort.</p>
+  </div>
+
+  <div class="card">
+    <p class="tag">weekly · one outreach email · target 2–3 recorded by october</p>
+    <h3>The podcast lane</h3>
+    <p>Team Human (Douglas Rushkoff) is the thematic bullseye; then the ATProto/fediverse circuit, Berlin startup shows, New_Public's audio. The Greg and Rudy relationships are warm introductions into exactly these rooms.</p>
+  </div>
+
+  <h2>The twelve essays</h2>
+  <ol class="essays">
+    <li><strong>Human meeting infrastructure in the age of AI companions</strong><em>The flagship. Everyone is building synthetic friends; we are building rooms with two chairs.</em></li>
+    <li><strong>We deleted "steward-owned" from our website</strong><em>On claiming only what is true, and why honesty about power is a feature.</em></li>
+    <li><strong>Who judges an objection? The hidden throne in every consent process</strong><em>The Greg question, written up — with whatever he answered.</em></li>
+    <li><strong>Membership without a paywall: why paying is a choice at dyad</strong><em>The pay-optional decision, the solidarity scale, and what the research says about patience.</em></li>
+    <li><strong>We can't leak what we never hold</strong><em>Privacy as architecture, not policy: safety for two strangers meeting offline.</em></li>
+    <li><strong>What a 1970s wall taught our dark mode</strong><em>The grain, the moss-black, and why calm software should look handmade.</em></li>
+    <li><strong>The friction is the design</strong><em>Why joining dyad takes a few honest sentences, and what "alignment, never identity" means in practice.</em></li>
+    <li><strong>What we stole from a record label</strong><em>Subvert's zine, bylaws and honesty pages — how a music co-op taught a social network to write.</em></li>
+    <li><strong>Blacksky protects by owning everything. We protect by owning nothing.</strong><em>Two opposite safety architectures on the same open protocol — and the call with Rudy.</em></li>
+    <li><strong>Minimum viable governance: four practices, no committees</strong><em>Proposals, consent, a public log, and a quarterly account — everything else waits for a real pain.</em></li>
+    <li><strong>The 12-hour rule and other small mercies</strong><em>Designing for the moment two strangers almost meet: cancellations, staged locations, simultaneous feedback.</em></li>
+    <li><strong>175 people</strong><em>Why our whole launch aims at a number small enough to know by name.</em></li>
+  </ol>
+
+  <h2>The rules</h2>
+  <div class="rule"><strong>1 · This is not extra work.</strong> The daily rep is the documentary layer of the social strategy; the essays are the zine and the launch content; the flagship is the fellowship application. One practice, four goals. If it ever feels like a fifth job, the practice is set up wrong — shrink it, don't skip it.</div>
+  <div class="rule"><strong>2 · Streak over quality, tracked in public.</strong> The commitment is to the calendar, not the muse. "Day 47 of writing daily" is itself content — and it is precisely the "active media presence" the fellowship screens for.</div>
+  <div class="rule"><strong>3 · Godin's ratios.</strong> Daily and small beats weekly and grand. Write like you talk. Ship before ready. The quality shows up on its own around week six; do not look for it before then.</div>
+
+  <h2>The 12-week tracker</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Week</th><th>Essay shipped</th><th>Daily streak</th><th>Outward move</th></tr></thead>
+      <tbody>
+        <tr><td>1 (15–21 Jul)</td><td>#2 We deleted "steward-owned"</td><td>/7</td><td>Set up the writing home (Substack or build log)</td></tr>
+        <tr><td>2</td><td>#10 Minimum viable governance</td><td>/7</td><td>First podcast outreach email</td></tr>
+        <tr><td>3</td><td>#5 We can't leak what we never hold</td><td>/7</td><td>—</td></tr>
+        <tr><td>4</td><td>#1 FLAGSHIP: AI companions</td><td>/7</td><td>Month-1 flagship ships</td></tr>
+        <tr><td>5</td><td>#7 The friction is the design</td><td>/7</td><td>Podcast outreach #2</td></tr>
+        <tr><td>6</td><td>#3 Who judges an objection?</td><td>/7</td><td>—</td></tr>
+        <tr><td>7</td><td>#4 Membership without a paywall</td><td>/7</td><td>Op-ed pitch to New_Public</td></tr>
+        <tr><td>8</td><td>#8 What we stole from a record label</td><td>/7</td><td>Op-ed pitch #2 (Netzpolitik / Every)</td></tr>
+        <tr><td>9</td><td>#6 What a 1970s wall taught our dark mode</td><td>/7</td><td>Podcast outreach #3</td></tr>
+        <tr><td>10</td><td>#9 Blacksky owns everything / we own nothing</td><td>/7</td><td>—</td></tr>
+        <tr><td>11</td><td>#11 The 12-hour rule</td><td>/7</td><td>—</td></tr>
+        <tr><td>12 (to ~7 Oct)</td><td>#12 175 people + FLAGSHIP: the research piece</td><td>/7</td><td>Portfolio review against the CHT bar</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>By mid-October, kept honestly: ~90 published fragments, 12 essays, 1–2 op-ed placements, 2–3 podcasts, one research-shaped writing sample. Not "would have made it" — a materially stronger application than last week's would have been.</p>
+
+  <footer>
+    <p>Companions: <a href="https://claude.ai/code/artifact/0ccca907-d23e-4092-bcb2-7dc216a555de">social media hub</a> · <a href="https://claude.ai/code/artifact/656f4e67-2ac0-476f-90f3-97b9f5147c7d">funding opportunities</a> (CHT fellowship card lives there) · the essays' raw material: the decision log, the build log, and the flows PDF.</p>
+  </footer>
+</div>

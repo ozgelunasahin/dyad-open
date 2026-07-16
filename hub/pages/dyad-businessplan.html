@@ -1,0 +1,326 @@
+<title>Dyad · Businessplan (EN | DE)</title>
+<style>
+  :root {
+    --ground: #FAFAF7; --surface: #F1F2EC; --ink: #1B1E1C; --ink-soft: #4A524D;
+    --line: #D8DCD4; --accent: #2F6B4F; --accent-ink: #24523D; --accent-wash: #E7EFE9;
+    --warn: #8A5A2B; --grain: 0.45; --mottle: 0.20;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #131614; --surface: #1B201D; --ink: #E7EAE5; --ink-soft: #9BA69E;
+      --line: #2C332E; --accent: #7FBF9E; --accent-ink: #9AD0B4; --accent-wash: #1C2620;
+      --warn: #D2A26B; --grain: 0.32; --mottle: 0.15;
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #FAFAF7; --surface: #F1F2EC; --ink: #1B1E1C; --ink-soft: #4A524D;
+    --line: #D8DCD4; --accent: #2F6B4F; --accent-ink: #24523D; --accent-wash: #E7EFE9;
+    --warn: #8A5A2B; --grain: 0.45; --mottle: 0.20;
+  }
+  :root[data-theme="dark"] {
+    --ground: #131614; --surface: #1B201D; --ink: #E7EAE5; --ink-soft: #9BA69E;
+    --line: #2C332E; --accent: #7FBF9E; --accent-ink: #9AD0B4; --accent-wash: #1C2620;
+    --warn: #D2A26B; --grain: 0.32; --mottle: 0.15;
+  }
+  body { background: var(--ground); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; font-size: 15px; margin: 0; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 0 24px 96px; position: relative; z-index: 4; }
+  body::before, body::after { content: ""; position: fixed; inset: 0; pointer-events: none; mix-blend-mode: soft-light; }
+  body::before { z-index: 3; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23g)'/%3E%3C/svg%3E"); background-size: 240px 240px; opacity: var(--grain); }
+  body::after { z-index: 2; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='900' height='900' filter='url(%23p)'/%3E%3C/svg%3E"); background-size: 900px 900px; opacity: var(--mottle); }
+
+  h1, h2, h3 { font-family: "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif; text-wrap: balance; font-weight: 600; }
+  a { color: var(--accent-ink); }
+  header { padding: 64px 0 28px; border-bottom: 1px solid var(--line); }
+  .kicker { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-ink); margin: 0 0 16px; }
+  h1 { font-size: clamp(26px, 4.5vw, 38px); line-height: 1.12; margin: 0 0 14px; }
+  .standfirst { font-size: 17px; color: var(--ink-soft); max-width: 70ch; margin: 0; }
+  .meta { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; color: var(--ink-soft); margin-top: 18px; }
+
+  .langbar { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; position: sticky; top: 0; background: var(--ground); padding: 10px 0; border-bottom: 1px solid var(--line); z-index: 5; }
+  .langbar span { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); }
+
+  h2 { font-size: 22px; margin: 48px 0 4px; }
+  .pages { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-soft); margin: 0 0 12px; }
+  h3 { font-size: 16px; margin: 22px 0 4px; }
+
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; padding: 10px 0; }
+  .pair + .pair { border-top: 1px dashed color-mix(in srgb, var(--line) 55%, transparent); }
+  .pair p, .pair li { max-width: 62ch; margin: 0 0 10px; }
+  .pair ul, .pair ol { padding-left: 20px; margin: 0 0 10px; }
+  .de p, .de li { hyphens: auto; -webkit-hyphens: auto; }
+  @media (max-width: 860px) {
+    .pair { grid-template-columns: 1fr; gap: 10px; }
+    .de { border-left: 2px solid var(--line); padding-left: 14px; }
+    .langbar { display: none; }
+  }
+
+  .fill { background: var(--accent-wash); border-radius: 4px; padding: 0 6px; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; color: var(--warn); }
+  .tablewrap { overflow-x: auto; margin: 12px 0; border: 1px solid var(--line); border-radius: 6px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 500px; }
+  th { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; text-align: left; color: var(--ink-soft); font-weight: 500; }
+  th, td { padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; font-variant-numeric: tabular-nums; }
+  tbody tr:last-child td { border-bottom: none; }
+  thead tr { background: var(--surface); }
+  footer { padding-top: 36px; font-size: 13px; color: var(--ink-soft); border-top: 1px solid var(--line); margin-top: 56px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="kicker">dyad.berlin · GründungsBONUS Plus · Antrag GB8993/2026 · draft</p>
+    <h1>Businessplan, English | Deutsch</h1>
+    <p class="standfirst">BPW chapter structure, side by side. The English working text stands on the left and the German submission text on the right. The German follows the register and terminology of the approved residence permit plan from August 2025. <span class="fill">⟨Orange slots⟩</span> mark founder facts that are still open, mirrored in both languages.</p>
+    <p class="meta">v0.4 · 15 July 2026 · the German column is the submission text, the English column is for editing and review</p>
+  </header>
+
+  <div class="langbar"><span>English — working text</span><span>Deutsch — Einreichfassung</span></div>
+
+  <h2>1 · Executive Summary / Zusammenfassung</h2>
+  <p class="pages">BPW · alle Kapitel verdichtet · 2 bis 3 Seiten · zuletzt schreiben</p>
+  <div class="pair">
+    <div class="en">
+      <p>This plan is submitted by Monad Engineering UG (haftungsbeschränkt), registered at Amtsgericht Charlottenburg under HRB 283688 B with the business name Dyad, incorporated on 4 August 2025 <span class="fill">⟨verify the year on the Gesellschaftsvertrag⟩</span> and with its Gewerbeanmeldung effective 1 March 2026. From here onwards the venture is referred to as Dyad. Dyad is an offline social network. On a Berlin web platform, a member writes a conversation they want to have, others respond, and two people meet in person. The platform was built over two years and is live in private beta. Two hundred first users have held more than one hundred conversations across Berlin, and more than one thousand people stand on the waitlist. Dyad addresses a documented societal deficit, namely the spread of loneliness and the erosion of everyday encounter. The technology is deliberately calm and collects as little data as possible. The business model is membership rather than advertising.</p>
+      <p>Revenue comes from a solidarity priced membership of €5, €15 or €25 per month, €100 per year, or €400 once for a lifetime. Members co-design the community's rules through a documented, open source governance model that has already drawn international attention in the open social web. Dyad integrates the AT Protocol and is in exchange with Blacksky and the Democratic Tech Fund. A pre-seed round of €250,000 to €300,000 is in preparation to fund the public launch, with a convertible loan agreement drafted and investor conversations underway. The GründungsBONUS Plus funds the two year market establishment phase in Berlin, which comprises the founding member campaign, further product development, and the first employees. Sustainability is built into the structure of the company. Dyad runs no advertising, collects minimal data, operates on resource light infrastructure, and places rules and culture in the hands of its members.</p>
+    </div>
+    <div class="de">
+      <p>Dieser Plan wird von der Monad Engineering UG (haftungsbeschränkt) vorgelegt, eingetragen beim Amtsgericht Charlottenburg unter HRB 283688 B mit der Geschäftsbezeichnung Dyad, gegründet am 4. August 2025 <span class="fill">⟨Jahr am Gesellschaftsvertrag prüfen⟩</span> und mit Gewerbeanmeldung zum 1. März 2026. Im Folgenden wird das Vorhaben als Dyad bezeichnet. Dyad ist ein Offline-Social-Network. Auf einer Berliner Web-Plattform formuliert ein Mitglied ein Gespräch, das es führen möchte, andere antworten darauf, und zwei Menschen begegnen sich persönlich. Die Plattform wurde in zwei Jahren Arbeit aufgebaut und ist in privater Beta live. Zweihundert erste Nutzer:innen haben über einhundert Gespräche in ganz Berlin geführt, und mehr als eintausend Personen stehen auf der Warteliste. Dyad adressiert ein dokumentiertes gesellschaftliches Defizit, nämlich die Ausbreitung von Einsamkeit und das Verschwinden alltäglicher Begegnung. Die Technologie ist bewusst ruhig gestaltet und erhebt so wenige Daten wie möglich. Das Geschäftsmodell ist Mitgliedschaft statt Werbung.</p>
+      <p>Die Erlöse stammen aus einer solidarisch gestaffelten Mitgliedschaft von 5, 15 oder 25 € monatlich, 100 € jährlich oder einmalig 400 € auf Lebenszeit. Die Mitglieder gestalten die Regeln der Gemeinschaft über ein dokumentiertes, quelloffenes Governance-Modell mit, das im internationalen Open Social Web bereits Beachtung findet. Dyad integriert das AT Protocol und steht im Austausch mit Blacksky und dem Democratic Tech Fund. Eine Pre-Seed-Runde von 250.000 bis 300.000 € zur Finanzierung des öffentlichen Starts ist in Vorbereitung; ein Wandeldarlehensvertrag liegt im Entwurf vor, und Investorengespräche laufen. Der GründungsBONUS Plus finanziert die zweijährige Markterschließungsphase in Berlin. Sie umfasst die Gründungsmitglieder-Kampagne, die weitere Produktentwicklung und die ersten Mitarbeiter:innen. Nachhaltigkeit ist in der Struktur des Unternehmens verankert. Dyad schaltet keine Werbung, erhebt nur minimale Daten, arbeitet auf ressourcenschonender Infrastruktur und legt Regeln und Kultur in die Hände seiner Mitglieder.</p>
+    </div>
+  </div>
+
+  <h2>2 · Product / Produkt und Dienstleistung</h2>
+  <p class="pages">BPW · Produktbeschreibung · Kundennutzen · Zielgruppen · Entwicklungsstand · 3 bis 7 Seiten</p>
+  <h3>2.1 Product description / Produktbeschreibung</h3>
+  <div class="pair">
+    <div class="en">
+      <p>Dyad is a web application for starting and finding face to face conversations. A member writes a conversation starter and offers meeting times and a neighbourhood. Other members respond in writing, and the author invites one respondent. Only after the invitation is accepted does the exact meeting place become visible. After the meeting, both sides give feedback that is released at the same time. The full cycle of discovering, responding, inviting, meeting, and reflecting is carried by the platform, while the meeting itself takes place offline in the city. The product is complemented by group conversations, a printed zine, community films, and the public documentation of how the community governs itself.</p>
+    </div>
+    <div class="de">
+      <p>Dyad ist eine Web-Anwendung zum Beginnen und Finden persönlicher Gespräche. Ein Mitglied formuliert einen Gesprächsanlass und bietet Zeitfenster sowie einen Kiez an. Andere Mitglieder antworten schriftlich, und die Autorin bzw. der Autor lädt eine antwortende Person ein. Erst nach Annahme der Einladung wird der genaue Treffpunkt sichtbar. Nach dem Treffen geben beide Seiten Feedback, das zeitgleich freigeschaltet wird. Der gesamte Ablauf aus Entdecken, Antworten, Einladen, Treffen und Reflektieren wird von der Plattform getragen, während die Begegnung selbst offline in der Stadt stattfindet. Ergänzt wird das Produkt durch Gruppengespräche, ein gedrucktes Zine, Community-Filme sowie die öffentliche Dokumentation der gemeinschaftlichen Selbstverwaltung.</p>
+    </div>
+  </div>
+  <h3>2.2 Customer benefit / Kundennutzen</h3>
+  <div class="pair">
+    <div class="en">
+      <ul>
+        <li>Dyad offers a direct way to meet people around what genuinely occupies you. The meetings are chosen and unhurried, one person at a time, without swiping, feeds, or event crowds.</li>
+        <li>Safety is designed into the product. The meeting place is disclosed in stages, an invitation requires a written response first, feedback from both sides is released at the same time, and the data architecture cannot leak what it never collects.</li>
+        <li>Membership takes the place of consumption. Members co-design rules and program. Paying is optional and solidarity priced, so the community stays accessible while remaining independent and free of advertising.</li>
+      </ul>
+    </div>
+    <div class="de">
+      <ul>
+        <li>Dyad bietet einen direkten Weg, Menschen rund um das zu begegnen, was einen wirklich beschäftigt. Die Treffen sind selbst gewählt und ohne Eile, im Zweiergespräch, ohne Swipen, Feeds oder anonyme Großveranstaltungen.</li>
+        <li>Sicherheit ist in das Produkt hineingestaltet. Der Treffpunkt wird gestuft offengelegt, eine Einladung setzt eine schriftliche Antwort voraus, das Feedback beider Seiten wird zeitgleich freigeschaltet, und die Datenarchitektur kann nicht preisgeben, was sie nie erhoben hat.</li>
+        <li>Mitgliedschaft tritt an die Stelle von Konsum. Die Mitglieder gestalten Regeln und Programm mit. Das Bezahlen ist freiwillig und solidarisch gestaffelt, sodass die Gemeinschaft zugänglich bleibt und zugleich unabhängig und werbefrei arbeitet.</li>
+      </ul>
+    </div>
+  </div>
+  <h3>2.3 Target groups / Zielgruppen</h3>
+  <div class="pair">
+    <div class="en">
+      <p>The primary target group consists of adults in Berlin who seek substantive connection. Three member types emerged from the validated user cohort of 2024 and 2025 and from more than one hundred interviews. The intellectually curious are 25 to 40 years old and come from academic, research, culture, and media backgrounds. Explorers are 28 to 45 years old, professionals in search of new perspectives and conversations about life design. Community oriented facilitators are 30 to 55 years old and work as coaches, moderators, and educators. The early adopter segments are privacy conscious users who actively seek ethical alternatives, the intellectually curious, and people focused on personal development. In the second and third year, aligned communities join through the open social web integration, and further German speaking cities follow.</p>
+    </div>
+    <div class="de">
+      <p>Die primäre Zielgruppe sind Erwachsene in Berlin, die substanzielle zwischenmenschliche Verbindung suchen. Aus der validierten Nutzerkohorte der Jahre 2024 und 2025 und aus über einhundert Interviews haben sich drei Nutzertypen herauskristallisiert. Intellektuell Neugierige sind 25 bis 40 Jahre alt und kommen aus Wissenschaft, Forschung, Kultur und Medien. Entdecker:innen sind 28 bis 45 Jahre alt, Fach- und Führungskräfte auf der Suche nach neuen Perspektiven und Gesprächen über Lebensentwürfe. Gemeinschaftsorientierte Gestalter:innen sind 30 bis 55 Jahre alt und arbeiten als Coaches, Moderator:innen und Pädagog:innen. Die Early-Adopter-Segmente sind datenschutzbewusste Nutzer:innen, die aktiv nach ethischen Alternativen suchen, intellektuell Neugierige sowie Menschen mit Fokus auf Persönlichkeitsentwicklung. Im zweiten und dritten Jahr kommen werteverwandte Communitys über die Open-Social-Web-Integration hinzu, und weitere deutschsprachige Städte folgen.</p>
+    </div>
+  </div>
+  <h3>2.4 Development status / Entwicklungsstand</h3>
+  <div class="pair">
+    <div class="en">
+      <p>The private beta is live in Berlin, and the full product cycle is operational, from conversations and responses to invitations, meetings, and feedback. Two hundred alpha users have held more than one hundred conversations. The membership and payment infrastructure is built on Stripe. Sign in through the open AT Protocol is implemented and in review. The codebase is open source, and the governance documents are published. The predecessor format Dare validated demand with curated group conversations in 2024.</p>
+    </div>
+    <div class="de">
+      <p>Die private Beta ist in Berlin live, und der vollständige Produktzyklus ist funktionsfähig, von Gesprächen und Antworten über Einladungen und Treffen bis zum Feedback. Zweihundert Alpha-Nutzer:innen haben über einhundert Gespräche geführt. Die Mitglieds- und Zahlungsinfrastruktur ist auf Stripe aufgebaut. Die Anmeldung über das offene AT Protocol ist implementiert und in der Prüfung. Der Programmcode ist quelloffen, und die Governance-Dokumente sind veröffentlicht. Das Vorgängerformat Dare hat die Nachfrage im Jahr 2024 mit kuratierten Gruppengesprächen validiert.</p>
+    </div>
+  </div>
+
+  <h2>3 · Founding team / Gründerteam</h2>
+  <p class="pages">BPW · Team und Kompetenzen · Schließen von Lücken · Schlüsselpersonen · Einkommen · 2 bis 5 Seiten</p>
+  <div class="pair">
+    <div class="en">
+      <p><strong>Özge (Luna) Sahin</strong> is the founder and managing director. She holds an engineering degree (B.Sc.) and studied business at Humboldt-Universität zu Berlin. She trained in Design Thinking at the Hasso-Plattner-Institut, among others in the GreenTech Agents project in cooperation with the IHK. She gained operational experience as an early employee in Berlin startup teams as well as in venture capital and investment analysis. In 2024 she conceived, designed, programmed, and launched the first version of Dyad single-handedly. On the strength of this venture she was granted the residence permit for self-employment in 2025 by the Landesamt für Einwanderung. She is embedded in the networks of the HPI, Brafe Space, and 2hearts.</p>
+      <p><strong>Theodore Fiore Evans</strong> is co-founder and leads platform infrastructure and engineering. He has a background in software architecture and development as well as in AI safety research, and more than ten years of experience as a platform architect who builds infrastructure and teams around principles of trust and inclusive engineering. He came along from the pilot phase, in which he co-built the platform. He is not yet named in the company's legal documents; his co-founder shareholding will be formalized together with the pre-seed round, with the founders jointly holding the majority. The team's backgrounds include the Hasso-Plattner-Institut, Techstars, the DAI-Labor at TU Berlin, and Formlabs.</p>
+    </div>
+    <div class="de">
+      <p><strong>Özge (Luna) Sahin</strong> ist Gründerin und Geschäftsführerin. Sie hat ein ingenieurwissenschaftliches Studium (B.Sc.) abgeschlossen und Wirtschaft an der Humboldt-Universität zu Berlin studiert. Am Hasso-Plattner-Institut hat sie sich in Design Thinking weitergebildet, unter anderem im GreenTech-Agents-Projekt in Kooperation mit der IHK. Operative Erfahrung hat sie als frühe Mitarbeiterin in Berliner Start-up-Teams sowie im Venture-Capital-Bereich und in der Investitionsanalyse gesammelt. Im Jahr 2024 hat sie die erste Version von Dyad eigenständig konzipiert, gestaltet, programmiert und veröffentlicht. Auf Grundlage dieses Vorhabens wurde ihr 2025 vom Landesamt für Einwanderung die Aufenthaltserlaubnis zur selbständigen Tätigkeit erteilt. Sie ist in den Netzwerken des HPI, von Brafe Space und 2hearts verankert.</p>
+      <p><strong>Theodore Fiore Evans</strong> ist Mitgründer und verantwortet Plattform-Infrastruktur und Engineering. Er bringt einen Hintergrund in Softwarearchitektur und -entwicklung sowie in der KI-Sicherheitsforschung mit und über zehn Jahre Erfahrung als Plattform-Architekt, der Infrastruktur und Teams nach Prinzipien von Vertrauen und inklusivem Engineering aufbaut. Er ist in der Pilotphase zum Vorhaben gestoßen und hat die Plattform mit aufgebaut. In den Gesellschaftsdokumenten ist er noch nicht verzeichnet; seine Beteiligung als Mitgründer wird gemeinsam mit der Pre-Seed-Runde formalisiert, wobei die Gründer:innen gemeinsam die Mehrheit halten. Die Stationen des Teams umfassen das Hasso-Plattner-Institut, Techstars, das DAI-Labor der TU Berlin und Formlabs.</p>
+    </div>
+  </div>
+  <h3>3.1 Competencies and gaps / Kompetenzen und Lücken</h3>
+  <div class="pair">
+    <div class="en">
+      <p>The team covers product design, community building, software development, and communications. Tax and legal questions are handled by external advisors and budgeted in the expense plan. Performance marketing is deliberately not hired, because the growth model is community led.</p>
+    </div>
+    <div class="de">
+      <p>Das Team deckt Produktdesign, Community-Aufbau, Softwareentwicklung und Kommunikation ab. Steuerliche und rechtliche Fragen übernehmen externe Berater:innen, die im Ausgabenplan budgetiert sind. Auf Performance-Marketing wird bewusst verzichtet, weil das Wachstumsmodell gemeinschaftsgetragen ist.</p>
+    </div>
+  </div>
+  <h3>3.2 Key people / Schlüsselpersonen</h3>
+  <div class="pair">
+    <div class="en">
+      <p>An advisory circle is in place. Dr. Clemens Buss of the Hasso-Plattner-Institut advises on artificial intelligence and computational design. Tammarian Rogers worked at Microsoft, Apple, and Snapchat and today leads Sarell, the technology ethics institute Dyad partners with. Anna Gottschalg of Brafe Space advises on healthy community structures. Beyond the advisory circle, Dyad works in tandem with a documented support network. On trust and safety these are Sarell, Glitch, and Blacksky. On stewardship and participatory governance these are the Purpose Foundation, Metagov with Greg Cassel of Inclusive Organizing, and the Presencing Institute at MIT Sloan. On digital sovereignty these are Rebuild, Eurosky, Save Social, and the Democratic Tech Alliance.</p>
+    </div>
+    <div class="de">
+      <p>Ein Beirat ist etabliert. Dr. Clemens Buss vom Hasso-Plattner-Institut berät zu Künstlicher Intelligenz und Computational Design. Tammarian Rogers war bei Microsoft, Apple und Snapchat tätig und leitet heute Sarell, das Technologieethik-Institut, mit dem Dyad kooperiert. Anna Gottschalg von Brafe Space berät zu gesunden Gemeinschaftsstrukturen. Über den Beirat hinaus arbeitet Dyad mit einem dokumentierten Unterstützungsnetzwerk zusammen. Zu Trust and Safety sind das Sarell, Glitch und Blacksky. Zu Verantwortungseigentum und partizipativer Governance sind das die Purpose Foundation, Metagov mit Greg Cassel von Inclusive Organizing sowie das Presencing Institute an der MIT Sloan School. Zu digitaler Souveränität sind das Rebuild, Eurosky, Save Social und die Democratic Tech Alliance.</p>
+    </div>
+  </div>
+  <h3>3.3 Founder income / Einkommen der Gründungsmitglieder</h3>
+  <div class="pair">
+    <div class="en">
+      <p>To date the founders have built Dyad without salary. For the funding period they plan modest founder salaries within the program limits of at most €2,000 per month per person and at most 25 percent of the eligible costs. In the medium term the salaries are carried by membership revenue in line with the financial plan. Personal living costs of around €2,450 per month are documented in the permit application and covered by personal reserves of more than €20,000. The Berlin Startup Scholarship, with its application due by 13 September 2026, would substitute for these reserves.</p>
+    </div>
+    <div class="de">
+      <p>Bislang haben die Gründer:innen Dyad ohne Gehalt aufgebaut. Für den Bewilligungszeitraum sind moderate Gründergehälter innerhalb der Programmgrenzen von höchstens 2.000 € pro Monat und Person und höchstens 25 Prozent der förderfähigen Ausgaben geplant. Mittelfristig werden die Gehälter gemäß Finanzplan durch Mitgliedsbeiträge getragen. Die privaten Lebenshaltungskosten von rund 2.450 € pro Monat sind im Antrag auf Aufenthaltserlaubnis dokumentiert und durch persönliche Rücklagen von über 20.000 € gedeckt. Das Berlin Startup Scholarship mit Bewerbungsfrist zum 13. September 2026 würde diese Rücklagen ersetzen.</p>
+    </div>
+  </div>
+
+  <h2>4 · Market analysis / Marktanalyse</h2>
+  <p class="pages">BPW · Gesamtmarkt · Segmentierung und Potenzial · Wettbewerbsumfeld · 2 bis 5 Seiten</p>
+  <h3>4.1 Overall market / Gesamtmarkt</h3>
+  <div class="pair">
+    <div class="en">
+      <p>The relevant market is technology for social connection, seen from a new angle. The World Health Organization has recognized loneliness as a global health crisis. More than one in three adults in Germany reports feeling lonely regularly, and the share is markedly higher among young adults in cities. At the same time, trust in advertising financed platforms is declining. Berlin has around 3.9 million inhabitants, is the most international German speaking city in Europe, and welcomes tens of thousands of newcomers every year. Structurally it is the most connection seeking urban market in the country.</p>
+    </div>
+    <div class="de">
+      <p>Der relevante Markt ist Technologie für soziale Verbindung, neu betrachtet. Die Weltgesundheitsorganisation hat Einsamkeit als globale Gesundheitskrise anerkannt. Mehr als jede dritte erwachsene Person in Deutschland berichtet, sich regelmäßig einsam zu fühlen, und bei jungen Erwachsenen in Städten liegt der Anteil deutlich höher. Zugleich sinkt das Vertrauen in werbefinanzierte Plattformen. Berlin hat rund 3,9 Millionen Einwohner:innen, ist die internationalste deutschsprachige Stadt Europas und nimmt jedes Jahr Zehntausende Neuankömmlinge auf. Strukturell ist es der verbindungssuchendste urbane Markt des Landes.</p>
+    </div>
+  </div>
+  <h3>4.2 Segmentation and potential / Marktsegmentierung und Marktpotenzial</h3>
+  <div class="pair">
+    <div class="en">
+      <p>The potential was quantified in the approved permit business plan. Berlin has around 1.63 million inhabitants between 20 and 60 years of age, according to the Amt für Statistik Berlin-Brandenburg. According to Statista, 68 percent of Germans consider their personal data online unsafe. If only 10 percent of these privacy sensitive Berliners are counted as actively seeking alternatives, the target group comprises around 111,000 people, and the serviceable obtainable market amounts to around €13.3 million per year in Berlin alone, at €120 of annual revenue per user. Measured against this, Dyad's own targets are deliberately modest. The launch quarter aims for 1,200 sign ups and 175 founding members. Around 430 paying members carry the company at founder level. The Berlin three year plan reaches 1,500 to 3,000 members, a fraction of one percent of the addressable pool.</p>
+    </div>
+    <div class="de">
+      <p>Das Potenzial wurde im genehmigten Businessplan zur Aufenthaltserlaubnis quantifiziert. In Berlin leben nach Angaben des Amts für Statistik Berlin-Brandenburg rund 1,63 Millionen Menschen im Alter von 20 bis 60 Jahren. Laut Statista empfinden 68 Prozent der Deutschen ihre persönlichen Daten im Netz als unsicher. Zählt man nur 10 Prozent dieser datensensiblen Berliner:innen als aktiv Alternativen-Suchende, umfasst die Zielgruppe rund 111.000 Personen, und der erschließbare Markt beträgt rund 13,3 Millionen € pro Jahr allein in Berlin, bei 120 € Jahresumsatz pro Nutzer:in. Daran gemessen sind die eigenen Ziele von Dyad bewusst moderat. Das Startquartal zielt auf 1.200 Registrierungen und 175 Gründungsmitglieder. Rund 430 zahlende Mitglieder tragen das Unternehmen auf Gründerebene. Der Berliner Dreijahresplan erreicht 1.500 bis 3.000 Mitglieder, einen Bruchteil eines Prozents des adressierbaren Potenzials.</p>
+    </div>
+  </div>
+  <h3>4.3 Competitive environment / Wettbewerbsumfeld</h3>
+  <div class="pair">
+    <div class="en">
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Alternative</th><th>Optimizes for</th><th>The Dyad difference</th></tr></thead>
+          <tbody>
+            <tr><td>Dating apps (Bumble BFF and others)</td><td>Volume matching and engagement time</td><td>One conversation leads to one meeting; no swiping, no feed, no advertising</td></tr>
+            <tr><td>Event platforms (Meetup, Eventbrite)</td><td>Group events and ticket sales</td><td>Depth in the one on one instead of crowd formats; curation through writing</td></tr>
+            <tr><td>Community apps (Discord, FB groups)</td><td>Online engagement</td><td>Online is only the doorway; the product is the offline meeting</td></tr>
+            <tr><td>Timeleft, The Breakfast and others</td><td>Algorithmic dinner groups</td><td>Member authored topics, member governance, and a privacy architecture</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The differentiation is structural and hard to copy. Member governance is published and open source, privacy is an architectural principle, pricing is voluntary and solidarity based, and identity runs on an open protocol. These elements reinforce one another, and none of them is compatible with an advertising business model, which the established providers cannot abandon.</p>
+    </div>
+    <div class="de">
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Alternative</th><th>Optimiert auf</th><th>Der Unterschied von Dyad</th></tr></thead>
+          <tbody>
+            <tr><td>Dating-Apps (Bumble BFF u.&nbsp;a.)</td><td>Matching in Masse und Verweildauer</td><td>Ein Gespräch führt zu einem Treffen; kein Swipen, kein Feed, keine Werbung</td></tr>
+            <tr><td>Event-Plattformen (Meetup, Eventbrite)</td><td>Gruppenveranstaltungen und Ticketverkauf</td><td>Tiefe im Zweiergespräch statt Massenformaten; Kuration durch das Schreiben</td></tr>
+            <tr><td>Community-Apps (Discord, FB-Gruppen)</td><td>Online-Engagement</td><td>Online ist nur die Tür; das Produkt ist die Offline-Begegnung</td></tr>
+            <tr><td>Timeleft, The Breakfast u.&nbsp;a.</td><td>Algorithmische Dinner-Gruppen</td><td>Von Mitgliedern formulierte Themen, Mitglieder-Governance und eine Privacy-Architektur</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Die Differenzierung ist strukturell und schwer kopierbar. Die Mitglieder-Governance ist veröffentlicht und quelloffen, Datenschutz ist ein Architekturprinzip, die Preisgestaltung ist freiwillig und solidarisch, und die Identität läuft über ein offenes Protokoll. Diese Elemente verstärken einander, und keines davon ist mit einem werbebasierten Geschäftsmodell vereinbar, das die etablierten Anbieter gerade nicht aufgeben können.</p>
+    </div>
+  </div>
+
+  <h2>5 · Marketing</h2>
+  <p class="pages">BPW · Produkt-, Preis-, Kommunikations-, Vertriebspolitik · 2 bis 6 Seiten</p>
+  <div class="pair">
+    <div class="en">
+      <p><strong>Product policy.</strong> The product core stays free of engagement mechanics and follows the idea of calm technology. Quality is measured in meetings held and in the quality of feedback, not in screen time. The zine, the films, and the events are part of the product's identity.</p>
+      <p><strong>Pricing policy.</strong> Membership does not require paying, which keeps the community accessible. Paying members carry the platform on a solidarity scale of €5, €15 or €25 per month, chosen by each member without means testing, with €100 per year and €400 once as alternatives. The launch works with a founding member offer of limited, publicly counted seats at a premium that reflects authorship rather than access. The willingness to pay is validated twice over. Dyad's own pricing study from 2024 found that 80 percent of respondents expressed willingness to pay and that 25 percent would pay €10 per conversation. Industry benchmarks show that products with a gated core benefit convert a median of 8 percent of sign ups. Comparable prices in the market are €12.99 per month at The Breakfast and around €16 per dinner at Timeleft.</p>
+      <p><strong>Communication policy.</strong> Dyad runs no paid advertising, out of principle and out of the business model. The channels are the founders' documented build in public practice with essays, a public build log, and podcasts, the founding member countdown, the Berlin press, and the international open social web ecosystem in which Dyad's AT Protocol work already circulates. The visual identity is distinctive and established.</p>
+      <p><strong>Distribution policy.</strong> Distribution means membership growth. Personal invitation is the validated main channel, since 75 percent of the first users arrived through personal recommendation. In person events are the native channel, member referrals follow successful meetings, and ecosystem partnerships extend the reach. The funnel leads from a request to join through review and onboarding to a first conversation and a membership decision. The deliberate friction acts as a qualifier. A waitlist of more than 1,000 people stands ready as launch inventory.</p>
+    </div>
+    <div class="de">
+      <p><strong>Produktpolitik.</strong> Der Produktkern bleibt frei von Engagement-Mechaniken und folgt dem Gedanken der Calm Technology. Qualität wird an geführten Treffen und an der Qualität des Feedbacks gemessen, nicht an Bildschirmzeit. Das Zine, die Filme und die Veranstaltungen sind Teil der Produktidentität.</p>
+      <p><strong>Preispolitik.</strong> Die Mitgliedschaft setzt kein Bezahlen voraus, was die Gemeinschaft zugänglich hält. Zahlende Mitglieder tragen die Plattform über eine Solidarstaffel von 5, 15 oder 25 € monatlich, die jedes Mitglied ohne Bedürftigkeitsprüfung selbst wählt, mit 100 € jährlich und einmalig 400 € als Alternativen. Der Start arbeitet mit einem Gründungsmitglieder-Angebot mit begrenzten, öffentlich gezählten Plätzen zu einem Preis, der Mitautorschaft abbildet und nicht bloßen Zugang. Die Zahlungsbereitschaft ist doppelt validiert. Die eigene Preisstudie von Dyad aus dem Jahr 2024 ergab eine grundsätzliche Zahlungsbereitschaft von 80 Prozent, und 25 Prozent würden 10 € pro Gespräch zahlen. Branchenbenchmarks zeigen, dass Produkte mit zugangsgebundenem Kernnutzen im Median 8 Prozent der Registrierungen konvertieren. Vergleichspreise im Markt sind 12,99 € pro Monat bei The Breakfast und rund 16 € pro Dinner bei Timeleft.</p>
+      <p><strong>Kommunikationspolitik.</strong> Dyad schaltet keine bezahlte Werbung, aus Prinzip und aus dem Geschäftsmodell heraus. Die Kanäle sind die dokumentierte Build-in-Public-Praxis der Gründer:innen mit Essays, einem öffentlichen Bautagebuch und Podcasts, der Gründungsmitglieder-Countdown, die Berliner Presse sowie das internationale Open-Social-Web-Ökosystem, in dem die AT-Protocol-Arbeit von Dyad bereits zirkuliert. Die visuelle Identität ist eigenständig und etabliert.</p>
+      <p><strong>Vertriebspolitik.</strong> Vertrieb bedeutet Mitgliederwachstum. Die persönliche Einladung ist der validierte Hauptkanal, denn 75 Prozent der ersten Nutzer:innen kamen über persönliche Empfehlungen. Veranstaltungen vor Ort sind der natürliche Kanal, Empfehlungen von Mitgliedern folgen auf gelungene Treffen, und Ökosystem-Partnerschaften erweitern die Reichweite. Der Funnel führt von der Beitrittsanfrage über Prüfung und Onboarding zum ersten Gespräch und zur Mitgliedschaftsentscheidung. Die bewusste Hürde wirkt als Qualifikator. Eine Warteliste von über 1.000 Personen steht als Startreserve bereit.</p>
+    </div>
+  </div>
+
+  <h2>6 · Company / Unternehmen und Organisation</h2>
+  <p class="pages">BPW · Geschäftssystem · Organisation · Meilensteine · Rechtsform und Eigentum · Standort · 3 bis 6 Seiten</p>
+  <div class="pair">
+    <div class="en">
+      <p><strong>Business system.</strong> Dyad's value creation lies in curation and in the safety infrastructure for offline meetings, financed by memberships. The cost side is resource light, with a small team, an open source stack, and no paid user acquisition. In later years, services around the open source governance and membership toolkit for other communities complement the revenue.</p>
+      <p><strong>Organization.</strong> The founders lead product and community. The first hires follow the staffing plan, with a part time community steward and a working student. Member participation runs through the published governance model with proposals, consent rounds, a public decision log, and a quarterly State of Dyad. The organization itself is a product feature and publicly documented.</p>
+    </div>
+    <div class="de">
+      <p><strong>Geschäftssystem.</strong> Die Wertschöpfung von Dyad liegt in der Kuration und in der Sicherheitsinfrastruktur für Offline-Begegnungen, finanziert durch Mitgliedschaften. Die Kostenseite ist ressourcenschonend, mit einem kleinen Team, einem quelloffenen Technologie-Stack und ohne bezahlte Nutzerakquise. In späteren Jahren ergänzen Dienstleistungen rund um den quelloffenen Governance- und Mitgliedschafts-Werkzeugkasten für andere Communitys die Erlöse.</p>
+      <p><strong>Organisation.</strong> Die Gründer:innen verantworten Produkt und Community. Die ersten Einstellungen folgen dem Personalplan, mit einem Community-Steward in Teilzeit und einer Werkstudentin oder einem Werkstudenten. Die Mitwirkung der Mitglieder läuft über das veröffentlichte Governance-Modell mit Vorschlägen, Konsentrunden, einem öffentlichen Entscheidungsprotokoll und einem vierteljährlichen State of Dyad. Die Organisation selbst ist ein Produktmerkmal und öffentlich dokumentiert.</p>
+    </div>
+  </div>
+  <div class="pair">
+    <div class="en">
+      <p><strong>Milestones.</strong></p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>When</th><th>Milestone</th></tr></thead>
+          <tbody>
+            <tr><td>Q3 2026</td><td>Public membership launch and founding campaign; governance documents ratified with the founding cohort</td></tr>
+            <tr><td>Q4 2026</td><td>175 founding members with around €4,000 in monthly recurring revenue; first paid staff; AT Protocol sign in live</td></tr>
+            <tr><td>2027</td><td>More than 250 paying members; founder wage published openly under the governance model; group formats scaled; research collaboration</td></tr>
+            <tr><td>2028</td><td>Berlin consolidation with more than 1,500 members; pilot in a second city; services line for aligned communities</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="de">
+      <p><strong>Meilensteinplanung.</strong></p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Zeitpunkt</th><th>Meilenstein</th></tr></thead>
+          <tbody>
+            <tr><td>Q3 2026</td><td>Öffentlicher Start der Mitgliedschaft und Gründungsmitglieder-Kampagne; Ratifizierung der Governance-Dokumente mit der Gründungskohorte</td></tr>
+            <tr><td>Q4 2026</td><td>175 Gründungsmitglieder mit rund 4.000 € monatlich wiederkehrendem Erlös; erste bezahlte Mitarbeiter:innen; AT-Protocol-Anmeldung live</td></tr>
+            <tr><td>2027</td><td>Über 250 zahlende Mitglieder; Gründergehalt gemäß Governance-Modell offen ausgewiesen; Skalierung der Gruppenformate; Forschungskooperation</td></tr>
+            <tr><td>2028</td><td>Konsolidierung in Berlin mit über 1.500 Mitgliedern; Pilot in einer zweiten Stadt; Dienstleistungslinie für werteverwandte Communitys</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="pair">
+    <div class="en">
+      <p><strong>Legal form, management, ownership.</strong> The company operates as Monad Engineering in the legal form of the UG (haftungsbeschränkt), chosen after legal consultation. It limits liability at low founding capital, with a share capital of €3,000 and one time founding costs of around €4,900 including notary and commercial register. The company was incorporated on 4 August 2025 <span class="fill">⟨verify the year⟩</span>, is registered at Amtsgericht Charlottenburg under HRB 283688 B, filed its Gewerbeanmeldung effective 1 March 2026, and has its seat at Richard-Sorge-Straße 24 in Berlin Friedrichshain. Managing director and currently sole shareholder is Özge Sahin. Theodore Fiore Evans's co-founder shareholding will be formalized with the pre-seed round, and the founders will jointly hold the majority; investors hold a minority with a capped return path. The long term ownership intention is mission led. A possible evolution toward steward ownership or community ownership is documented in the governance roadmap and deliberately not promised.</p>
+      <p><strong>Location.</strong> The location is Berlin, by necessity and by conviction. The product is hyperlocal, the community exists here, and the company commits to Berlin well beyond the program's three year requirement.</p>
+    </div>
+    <div class="de">
+      <p><strong>Rechtsform, Geschäftsführung, Eigentumsverhältnisse.</strong> Das Unternehmen firmiert als Monad Engineering in der Rechtsform der UG (haftungsbeschränkt), gewählt nach rechtlicher Beratung. Sie begrenzt die Haftung bei geringem Gründungskapital, mit einem Stammkapital von 3.000 € und einmaligen Gründungskosten von rund 4.900 € einschließlich Notar und Handelsregister. Das Unternehmen wurde am 4. August 2025 gegründet <span class="fill">⟨Jahr prüfen⟩</span>, ist beim Amtsgericht Charlottenburg unter HRB 283688 B eingetragen, hat seine Gewerbeanmeldung zum 1. März 2026 erstattet und seinen Sitz in der Richard-Sorge-Straße 24 in Berlin-Friedrichshain. Geschäftsführerin und derzeit alleinige Gesellschafterin ist Özge Sahin. Die Beteiligung von Mitgründer Theodore Fiore Evans wird mit der Pre-Seed-Runde formalisiert, wobei die Gründer:innen gemeinsam die Mehrheit halten; Investoren halten eine Minderheit mit gedeckeltem Renditepfad. Die langfristige Eigentumsabsicht ist missionsgeleitet. Eine mögliche Weiterentwicklung in Richtung Verantwortungseigentum oder gemeinschaftlichen Eigentums ist in der Governance-Roadmap dokumentiert und wird bewusst nicht versprochen.</p>
+      <p><strong>Standort.</strong> Der Standort ist Berlin, aus Notwendigkeit und aus Überzeugung. Das Produkt ist hyperlokal, die Community existiert hier, und das Unternehmen bindet sich weit über die dreijährige Bindungsfrist des Programms hinaus an Berlin.</p>
+    </div>
+  </div>
+
+  <h2>7 · Financial planning / Finanzplanung und Finanzierung</h2>
+  <p class="pages">BPW · Finanzplanung · Finanzierung des Kapitalbedarfs · 3 bis 6 Seiten und IBB-Excel-Vorlage</p>
+  <div class="pair">
+    <div class="en">
+      <p><strong>Financial planning.</strong> The financial planning is built in the IBB template, with the first business year monthly and the years two and three quarterly. The revenue model follows the published financial model. Sign ups are multiplied by a pay rate of 8 to 12 percent, based on sourced benchmarks, and by a blended contribution of around €12.90 per paying member per month at the mix of €5, €15 and €25 with 20 percent yearly plans, plus the founding campaign premium in the launch quarter. Churn is planned at 3 to 5 percent monthly, and the approved permit plan calculated conservatively with 5 percent. The draft three year picture, detailed in the <a href="https://claude.ai/code/artifact/f5e1609a-424d-4e09-b650-8b29c6d2b0d1">companion financial plan</a>, shows 175, 300, and 500 paying members at the year ends 2026 to 2028, revenue of €12,000, €62,000, and €100,000, total costs of €22,000, €70,000, and €98,000, a roughly break even launch half year, and around €17,000 of annual surplus thereafter. The €50,000 subsidy is drawn in three yearly tranches of €10,000, €25,000, and €15,000. <span class="fill">⟨final tables come from the locked IBB Excel⟩</span></p>
+      <p><strong>Financing of the capital requirement.</strong> The three year capital need amounts to €190,000 in the draft and is confirmed by the locked IBB Excel. It is covered by the founders' own funds of €20,000, the GründungsBONUS Plus of €50,000 applied for here, membership revenue in line with the plan, and a pre-seed round of €250,000 to €300,000 that is in preparation, of which only €50,000 is counted toward the coverage as a conservative assumption. A convertible loan agreement is drafted, the investor documentation is in circulation, and the go to market plan schedules the closing between October 2026 and February 2027. When business angels invest, Dyad intends to use the doubling mechanism of the SAB Business Angel Bonus; its de-minimis treatment will be verified with the IBB hotline before submission. No other public funding is used for the same eligible costs, so the Kumulierungsverbot is respected.</p>
+    </div>
+    <div class="de">
+      <p><strong>Finanzplanung.</strong> Die Finanzplanung ist in der IBB-Vorlage aufgebaut, mit dem ersten Geschäftsjahr monatlich und den Jahren zwei und drei quartalsweise. Das Erlösmodell folgt dem veröffentlichten Finanzmodell. Registrierungen werden mit einer Zahlquote von 8 bis 12 Prozent multipliziert, gestützt auf belegte Benchmarks, und mit einem gemischten Beitrag von rund 12,90 € je zahlendem Mitglied und Monat bei der Staffel von 5, 15 und 25 € mit 20 Prozent Jahresmitgliedschaften, zuzüglich des Gründungskampagnen-Aufschlags im Startquartal. Die Abwanderungsquote ist mit 3 bis 5 Prozent monatlich geplant, und der genehmigte Plan rechnete konservativ mit 5 Prozent. Das Dreijahresbild im Entwurf, ausgeführt im <a href="https://claude.ai/code/artifact/f5e1609a-424d-4e09-b650-8b29c6d2b0d1">begleitenden Finanzplan</a>, zeigt 175, 300 und 500 zahlende Mitglieder zu den Jahresenden 2026 bis 2028, Erlöse von 12.000, 62.000 und 100.000 €, Gesamtkosten von 22.000, 70.000 und 98.000 €, ein etwa ausgeglichenes Starthalbjahr und danach rund 17.000 € Jahresüberschuss. Der Zuschuss von 50.000 € wird in drei Jahrestranchen von 10.000, 25.000 und 15.000 € abgerufen. <span class="fill">⟨endgültige Tabellen aus der fixierten IBB-Excel⟩</span></p>
+      <p><strong>Finanzierung des Kapitalbedarfs.</strong> Der Kapitalbedarf über drei Jahre beträgt im Entwurf 190.000 € und wird durch die fixierte IBB-Excel bestätigt. Gedeckt wird er durch Eigenmittel der Gründer:innen von 20.000 €, den hier beantragten GründungsBONUS Plus von 50.000 €, Mitgliedsbeiträge gemäß Plan sowie eine in Vorbereitung befindliche Pre-Seed-Runde von 250.000 bis 300.000 €, von der als konservative Annahme nur 50.000 € in die Deckung eingerechnet werden. Ein Wandeldarlehensvertrag liegt im Entwurf vor, die Investorenunterlagen sind im Umlauf, und der Go-to-Market-Plan sieht den Abschluss zwischen Oktober 2026 und Februar 2027 vor. Sobald Business Angels investieren, beabsichtigt Dyad, den Verdopplungsmechanismus des SAB Business Angel Bonus zu nutzen; dessen beihilferechtliche Einordnung (De-minimis) wird vor Einreichung mit der IBB-Hotline geklärt. Für dieselben förderfähigen Ausgaben werden keine weiteren öffentlichen Förderungen in Anspruch genommen, womit das Kumulierungsverbot gewahrt ist.</p>
+    </div>
+  </div>
+
+  <h2>Sustainability / Nachhaltigkeit</h2>
+  <p class="pages">in allen Kapiteln verankert · hier gemäß IBB-Anforderung gebündelt</p>
+  <div class="pair">
+    <div class="en">
+      <p><strong>Ecological.</strong> Dyad runs a resource light web platform on a lean stack, without ad tech infrastructure, with self hosted assets, local print production, and no hardware products. The meetings take place within one city and are reached by public transport. <strong>Social.</strong> The pricing is voluntary and solidarity based. The community governs itself with published documents under CC BY-SA, reusable by other communities. Safety is designed from the most vulnerable members inward, and data minimalism protects privacy structurally. <strong>Economic.</strong> Membership financing decouples the company from the maximization of screen time, and the open source code is a public good that outlives the company.</p>
+    </div>
+    <div class="de">
+      <p><strong>Ökologisch.</strong> Dyad betreibt eine ressourcenschonende Web-Plattform auf einem schlanken Technologie-Stack, ohne Ad-Tech-Infrastruktur, mit selbst gehosteten Ressourcen, lokaler Druckproduktion und ohne Hardware-Produkte. Die Treffen finden innerhalb einer Stadt statt und sind mit dem ÖPNV erreichbar. <strong>Sozial.</strong> Die Preisgestaltung ist freiwillig und solidarisch. Die Gemeinschaft verwaltet sich mit veröffentlichten Dokumenten unter CC BY-SA, nachnutzbar durch andere Communitys. Sicherheit wird von den verletzlichsten Mitgliedern her gedacht, und Datensparsamkeit schützt die Privatsphäre strukturell. <strong>Ökonomisch.</strong> Die Mitgliedsfinanzierung entkoppelt das Unternehmen von der Maximierung von Bildschirmzeit, und der quelloffene Programmcode ist ein öffentliches Gut, das das Unternehmen überdauert.</p>
+    </div>
+  </div>
+
+  <footer>
+    <p>v0.4. The English column is the working text and the German column the submission text (Einreichfassung). The German register follows the approved permit plan from August 2025. Remaining slots are the incorporation year to verify on the Gesellschaftsvertrag and the locked Excel numbers; the pre-seed status line should be refreshed shortly before submission. Companions are the <a href="https://claude.ai/code/artifact/f5e1609a-424d-4e09-b650-8b29c6d2b0d1">financial plan</a>, the <a href="https://claude.ai/code/artifact/ce20fe7b-be50-40dc-b894-299b20dba8e9">program guide</a>, and BPW_Finanzplanung.xls in Downloads.</p>
+  </footer>
+</div>

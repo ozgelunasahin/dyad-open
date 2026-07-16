@@ -1,0 +1,402 @@
+<title>dyad · Governance Documents v0.1</title>
+<style>
+  :root {
+    --ground: #FAFAF7;
+    --surface: #F1F2EC;
+    --ink: #1B1E1C;
+    --ink-soft: #4A524D;
+    --line: #D8DCD4;
+    --accent: #2F6B4F;
+    --accent-ink: #24523D;
+    --accent-wash: #E7EFE9;
+    --warn: #8A5A2B;
+    --grain: 0.45;
+    --mottle: 0.20;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #131614;
+      --surface: #1B201D;
+      --ink: #E7EAE5;
+      --ink-soft: #9BA69E;
+      --line: #2C332E;
+      --accent: #7FBF9E;
+      --accent-ink: #9AD0B4;
+      --accent-wash: #1C2620;
+      --warn: #D2A26B;
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #FAFAF7;
+    --surface: #F1F2EC;
+    --ink: #1B1E1C;
+    --ink-soft: #4A524D;
+    --line: #D8DCD4;
+    --accent: #2F6B4F;
+    --accent-ink: #24523D;
+    --accent-wash: #E7EFE9;
+    --warn: #8A5A2B;
+    --grain: 0.45;
+    --mottle: 0.20;
+  }
+  :root[data-theme="dark"] {
+    --ground: #131614;
+    --surface: #1B201D;
+    --ink: #E7EAE5;
+    --ink-soft: #9BA69E;
+    --line: #2C332E;
+    --accent: #7FBF9E;
+    --accent-ink: #9AD0B4;
+    --accent-wash: #1C2620;
+    --warn: #D2A26B;
+    --grain: 0.32;
+    --mottle: 0.15;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.6;
+    font-size: 16px;
+    margin: 0;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px 96px; position: relative; z-index: 4; }
+
+  /* apartment-wall texture: fine grain over a soft plaster mottle */
+  body::before, body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    mix-blend-mode: soft-light;
+  }
+  body::before {
+    z-index: 3;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23g)'/%3E%3C/svg%3E");
+    background-size: 240px 240px;
+    opacity: var(--grain);
+  }
+  body::after {
+    z-index: 2;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='900' height='900' filter='url(%23p)'/%3E%3C/svg%3E");
+    background-size: 900px 900px;
+    opacity: var(--mottle);
+  }
+
+  a { color: var(--accent-ink); text-decoration-color: var(--line); text-underline-offset: 3px; }
+  a:hover { text-decoration-color: var(--accent); }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+
+  h1, h2, h3, h4 { font-family: "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif; text-wrap: balance; font-weight: 600; }
+
+  header { padding: 72px 0 40px; border-bottom: 1px solid var(--line); }
+  .kicker { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-ink); margin: 0 0 16px; }
+  h1 { font-size: clamp(30px, 5vw, 46px); line-height: 1.12; margin: 0 0 16px; max-width: 24ch; }
+  .standfirst { font-size: 18px; color: var(--ink-soft); max-width: 60ch; margin: 0; }
+  .meta { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; color: var(--ink-soft); margin-top: 24px; }
+
+  nav.toc { padding: 24px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  nav.toc ol { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 8px 24px; }
+  nav.toc a { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; text-decoration: none; color: var(--accent-ink); }
+  nav.toc a:hover { text-decoration: underline; }
+
+  section.doc { display: grid; grid-template-columns: 1fr 3fr; gap: 32px; padding: 56px 0; border-bottom: 1px solid var(--line); }
+  section.doc:last-of-type { border-bottom: none; }
+  .label { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); padding-top: 8px; position: sticky; top: 16px; align-self: start; }
+  .label .docnum { display: block; font-size: 26px; color: var(--accent-ink); letter-spacing: 0; margin-bottom: 6px; font-family: "Iowan Old Style", Palatino, Georgia, serif; }
+  .label .maps { display: block; margin-top: 10px; letter-spacing: 0.04em; text-transform: none; color: var(--ink-soft); font-size: 11px; line-height: 1.5; }
+  .content > :first-child { margin-top: 0; }
+  .content > :last-child { margin-bottom: 0; }
+  .content p, .content li { max-width: 65ch; }
+  .content h2 { font-size: 26px; margin: 0 0 4px; }
+  .content h3 { font-size: 19px; margin: 32px 0 8px; }
+  .content .docmeta { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; color: var(--ink-soft); margin: 0 0 20px; }
+  .content ul, .content ol { padding-left: 22px; }
+  .content li { margin-bottom: 6px; }
+
+  @media (max-width: 720px) {
+    section.doc { grid-template-columns: 1fr; gap: 12px; padding: 40px 0; }
+    .label { position: static; }
+    header { padding-top: 48px; }
+  }
+
+  .explain { background: var(--accent-wash); border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; padding: 12px 16px; margin: 16px 0; font-size: 14px; max-width: 62ch; }
+  .explain strong:first-child { color: var(--accent-ink); }
+
+  .open { border: 1px dashed var(--warn); border-radius: 6px; padding: 12px 16px; margin: 16px 0; font-size: 14px; max-width: 62ch; color: var(--ink-soft); }
+  .open strong:first-child { color: var(--warn); font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; }
+
+  .phase { border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px; margin: 14px 0; background: var(--surface); max-width: 66ch; }
+  .phase h3 { margin: 0 0 4px; }
+  .phase .trigger { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent-ink); }
+  .phase p { margin: 8px 0 0; font-size: 14px; }
+  .phase ul { font-size: 14px; margin: 8px 0 0; }
+
+  dl.gloss { max-width: 65ch; margin: 0; }
+  dl.gloss dt { font-weight: 600; margin-top: 14px; }
+  dl.gloss dd { margin: 2px 0 0; color: var(--ink-soft); font-size: 15px; }
+
+  footer { padding-top: 40px; font-size: 13px; color: var(--ink-soft); }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="kicker">dyad.berlin · working drafts</p>
+    <h1>Governance Documents</h1>
+    <p class="standfirst">The full document suite for dyad's collective governance, written in plain language from day one. We have been building dyad voluntarily because we care about a way of meeting each other that people shape themselves. These documents are how we work to earn trust rather than ask for it. This suite is a living document: a starting point rather than a final destination. It is a companion to the <em>Collective Governance Model</em>.</p>
+    <p class="meta">v0.1 · 14 July 2026 · drafts for the founding cohort's first consent round · ⟨angle brackets⟩ mark decisions that are still open</p>
+  </header>
+
+    <nav class="toc" aria-label="Documents">
+    <ol>
+      <li><a href="#bylaws">01 Bylaws</a></li>
+      <li><a href="#agreements">02 Member Agreements</a></li>
+      <li><a href="#standards">03 Community Standards</a></li>
+    </ol>
+  </nav>
+
+<section class="doc" id="bylaws">
+    <div class="label">
+      <span class="docnum">01</span>
+      Bylaws
+      <span class="maps">maps to Subvert's Bylaws, the constitution</span>
+    </div>
+    <div class="content">
+      <h2>dyad Bylaws</h2>
+      <p class="docmeta">v0.1 · a working document · amendable only by consent of active members</p>
+
+      <div class="explain"><strong>These Bylaws are a working document.</strong> They are a starting point rather than a final destination, and they change through the consent process they themselves describe. This is the one document that governs all the others: it says who decides what, and how the rules can change. Everything else can evolve quickly; this evolves deliberately and only with the members.</div>
+
+      <h3>1. Purpose</h3>
+      <p>dyad exists for people who seek to meet others and want to do it their way, in an environment nurtured, built and designed by a team that genuinely cares about doing it participatorily, cares about human development and flourishing, and stays in service to connection, collective sensemaking and community. These Bylaws exist so that the people who make dyad alive, its members, genuinely co-design it. It also exists so that the line between what members decide and what the startup decides is public, explicit, and never arbitrary.</p>
+
+      <h3>2. Principles</h3>
+      <ul>
+        <li><strong>Consent over control.</strong> Within member domains, a decision passes unless someone raises a reasoned objection. It does not need a majority, and it cannot be imposed by decree.</li>
+        <li><strong>Plain language.</strong> Every governing document is written to be read. If a rule cannot be explained simply, it is not ready.</li>
+        <li><strong>Reversibility.</strong> Every rule can be unmade the same way it was made.</li>
+        <li><strong>Minimum viable governance.</strong> We add structure only when a real and recurring pain demands it, and never in advance.</li>
+        <li><strong>Honesty about power.</strong> dyad is an independent startup, built so far by a team working voluntarily. Members do not own the company. What members do own is the community's rules, culture, and program, and this document is the startup's binding commitment to that. We do not ask for trust; this document is how we work to earn it.</li>
+      </ul>
+
+      <h3>3. Decision rights</h3>
+      <p>Decisions belong to one of three layers. The full domain-by-domain table lives in the <em>Collective Governance Model</em> and is incorporated into these Bylaws by reference.</p>
+      <ul>
+        <li><strong>Strategic decisions are made by the startup.</strong> These cover fundraising, equity, hiring, pricing, runway, pivots, brand, and funded partnerships. Members are informed of every strategic decision, together with its reasoning, at the quarterly State of dyad.</li>
+        <li><strong>Tactical decisions are made by members, by consent.</strong> These cover community standards and moderation policy, membership criteria and onboarding, programming and curation, the community budget, and the removal of a member through the review process in the Community Standards.</li>
+        <li><strong>Operational actions are taken by whoever holds the role.</strong> A person holding a role acts within agreed policy without asking a group. Consent applies to policies, not to individual actions.</li>
+      </ul>
+
+      <h3>4. The consent process</h3>
+      <ol>
+        <li>Any active member posts a <strong>proposal</strong> in a tactical domain to the proposal channel.</li>
+        <li>The <strong>consent round</strong> runs for 72 hours (two weeks for Bylaws amendments).</li>
+        <li>The proposal passes unless an active member raises a <strong>reasoned objection</strong>: a specific claim that the proposal causes harm or breaks an existing agreement. Preferences and taste are input, not vetoes.</li>
+        <li>Objections are resolved by amending the proposal, or the proposal is withdrawn.</li>
+        <li>Every outcome, whether passed, amended, or withdrawn, is recorded in the public <strong>decision log</strong>.</li>
+      </ol>
+
+      <h3>5. The petition valve</h3>
+      <p>If ⟨20%⟩ of active members co-sign a petition on any topic, including a strategic one, the founders must answer it in writing within 14 days and discuss it at the next State of dyad. The founders keep the strategic decision, but they cannot keep silence.</p>
+      <div class="explain"><strong>Why this exists:</strong> Subvert's members can force a bylaws amendment onto the agenda with a 10% petition and no board sign-off. dyad's version is weaker, because the startup keeps strategic decisions, but it serves the same purpose. A promise that the startup decides responsibly is only trustworthy if members hold a lever the startup cannot ignore.</div>
+
+      <h3>6. Reserved powers</h3>
+      <p>The startup retains, at all times: removals required by law; urgent action against a credible safety threat; and protection of member data. Every use of reserved powers is logged and explained to members after the fact.</p>
+
+      <h3>7. Transparency obligations</h3>
+      <ul>
+        <li>Quarterly <strong>State of dyad</strong>: strategic decisions and their reasoning, membership numbers, and, from Phase 2 of the Roadmap onward, the founder wage as an open line item.</li>
+        <li>The <strong>decision log</strong> is public to all members.</li>
+        <li>All governing documents are versioned with a changelog.</li>
+      </ul>
+
+      <h3>8. Amending these Bylaws</h3>
+      <p>Bylaws amendments are proposed like any proposal, but the consent round runs two weeks and requires the participation of at least ⟨25%⟩ of active members to be valid. The startup cannot amend the Bylaws unilaterally; neither can any single member.</p>
+
+      <h3>9. How governance grows</h3>
+      <p>Governance deepens in phases tied to real thresholds rather than promises. Practice starts now, and depth arrives with sustainability. The threshold of 250 paying members appears here as the trigger for deepening governance rather than for starting it. What it buys is not permission. It is the founder’s living wage becoming an open number, and governance receiving real resources.</p>
+      <div class="phase">
+        <span class="trigger">Phase 0 · now · the founding cohort</span>
+        <h3>Practice</h3>
+        <ul>
+          <li>Between 8 and 15 governance-active members ratify all of the version 0.1 documents as the first consent round.</li>
+          <li>Consent process and decision log go live; community budget pilot at a token amount (⟨€150/month⟩).</li>
+          <li><strong>The founders spend no more than 4 hours per month on governance.</strong> If it takes more than that, we cut process rather than participation.</li>
+        </ul>
+      </div>
+
+      <div class="phase">
+        <span class="trigger">Phase 1 · ⟨100⟩ paying members · open practice</span>
+        <h3>Distribution</h3>
+        <ul>
+          <li>Member-reviewers take over membership applications; first compensated member roles.</li>
+          <li>A standards and moderation working group forms. It is the first domain with genuinely recurring decisions.</li>
+          <li>Quarterly State of dyad begins on a fixed calendar.</li>
+        </ul>
+      </div>
+
+      <div class="phase">
+        <span class="trigger">Phase 2 · 250 paying members · sustainability</span>
+        <h3>Depth</h3>
+        <ul>
+          <li>The founder draws a living wage from membership revenue, <strong>declared openly as a line item</strong> at the State of dyad. Members see exactly what their contributions sustain.</li>
+          <li>Community budget scales to ⟨5–10%⟩ of membership revenue.</li>
+          <li>Petition valve threshold drops from ⟨20%⟩ to ⟨10%⟩ of active members.</li>
+          <li>The first stewards are elected, for fixed terms, and remain recallable.</li>
+        </ul>
+      </div>
+
+      <div class="phase">
+        <span class="trigger">Phase 3 · ⟨500+⟩ paying members · horizon</span>
+        <h3>Structure</h3>
+        <ul>
+          <li>Members decide by consent whether dyad's community side takes formal legal form, whether as a Verein, a cooperative, or a Subvert-style dual structure in which a member entity holds real power over the company.</li>
+          <li>Nothing here is promised, except that the question itself belongs to the members when the time comes.</li>
+        </ul>
+      </div>
+
+      <div class="open"><strong>Open question:</strong> should the Phase 2 trigger be a member count or a revenue number? 250 members at €10 per month is a very different living than 250 members at €25 per month. The honest trigger is monthly recurring revenue at or above ⟨the founder's actual sustainability number⟩; the accompanying financial model works this through.</div>
+
+      <h3>10. Definitions</h3>
+      <p>Ten terms, defined before we use them, because most governance disagreements are definitional.</p>
+      <dl class="gloss">
+        <dt>Member</dt><dd>A person admitted under the Membership Criteria who holds a current Member Agreement. One member, one voice.</dd>
+        <dt>Active member</dt><dd>A member who has engaged with dyad in the past 12 months. Paying is not part of this definition. Only active members count toward consent rounds, panels, petitions, and quorums.</dd>
+        <dt>Steward</dt><dd>A member holding a named responsibility, such as moderation, hosting, or onboarding. Stewards act within agreed policy. They hold roles, not rank.</dd>
+        <dt>Proposal</dt><dd>A written suggestion to change something in a tactical domain, posted to the proposal channel.</dd>
+        <dt>Consent</dt><dd>The absence of reasoned objection after a full consent round. Consent does not mean enthusiasm or majority approval. It means the group considers the proposal safe to try.</dd>
+        <dt>Reasoned objection</dt><dd>A specific claim that a proposal causes harm or breaks an existing agreement. “I don't like it” is input; it is not an objection.</dd>
+        <dt>Consent round</dt><dd>The 72-hour window in which active members may object to a proposal. Charter changes run for two weeks instead.</dd>
+        <dt>Decision log</dt><dd>The public, append-only record of every proposal, objection, outcome, and use of reserved powers.</dd>
+        <dt>Petition</dt><dd>The members' lever on strategic topics. When the Charter's signature threshold is reached, the founders must respond in writing within 14 days.</dd>
+        <dt>Review panel</dt><dd>Members drawn by lot, joined by one steward, who decide suspensions, removals, and appeals. No individual removes a member alone, and that includes the founders.</dd>
+      </dl>
+    </div>
+  </section>
+
+<section class="doc" id="agreements">
+    <div class="label">
+      <span class="docnum">02</span>
+      Member Agreements
+      <span class="maps">maps to Subvert's Member Agreements and Acceptance Criteria</span>
+    </div>
+    <div class="content">
+      <h2>dyad Member Agreements</h2>
+      <p class="docmeta">v0.1 · who can join, how joining works, and your personal deal with dyad · the Bylaws always override it</p>
+
+      <div class="explain"><strong>Plain words:</strong> your personal deal with dyad. The Bylaws are the constitution; this document covers who can join and the practical day-to-day of being a member. Like Subvert's member agreements, it can be updated without a full member vote so that dyad can adapt, but you are always notified, and if you disagree you can leave before the changes apply to you. Joining as a member is also how you support this work staying independent: no ads, no data sales, and nobody to answer to but the people in the room. Paying is a choice, and you are welcome here either way.</div>
+
+      <h3>1. Who can become a member</h3>
+      <p>There is no community for everyone in the world. This one is for people who value and seek a community of people curious about others, people who understand, acknowledge and respect the interdependencies that make our lives rich. The request-to-join step exists to welcome people who align with our Community Standards (Document 03): <strong>what you value, never who you are</strong>. Membership does not require paying.</p>
+      <p>Membership is open to anyone who seeks that and who:</p>
+      <ul>
+        <li>agrees to the Community Standards and these Member Agreements;</li>
+        <li>completes onboarding: the glossary, the Charter in brief, and a welcome conversation with an existing member.</li>
+      </ul>
+      <div class="open"><strong>Open question:</strong> does dyad need membership classes, the way Subvert has Artist, Label, Supporter and Worker classes, or is one class enough? Version 0.1 starts with a single class, one member with one voice, plus the founding cohort, who hold identical rights. Classes should be added only if a real distinction emerges.</div>
+
+      <h3>2. How applications are reviewed</h3>
+      <ul>
+        <li>Applications are reviewed by ⟨2⟩ <strong>member-reviewers</strong>, recruited from the membership and compensated for their time, against the published criteria above.</li>
+        <li>Reviewers judge only against the criteria, and never against personal taste, artistic merit, follower counts, or status.</li>
+        <li>Until there are enough members to fill this role, the founding cohort reviews applications.</li>
+      </ul>
+
+      <h3>3. If an application is declined</h3>
+      <ol>
+        <li>First decline: the applicant receives specific guidance on what was missing.</li>
+        <li>Second decline: the applicant may appeal in writing or in person to the reviewers plus one steward.</li>
+        <li>Reapplying is always allowed, at any time.</li>
+      </ol>
+
+      <h3>4. Active status</h3>
+      <p>You are an <strong>active member</strong>, with a voice in consent rounds, panels, and the budget, for as long as you have engaged with dyad at least once in the past ⟨12 months⟩. Attending, proposing, voting, and contributing all count, and the bar is deliberately low. Paying is not a condition of voice: a paying member and a non-paying member hold exactly one voice each.</p>
+      <p>Members who drift away become <strong>inactive</strong>. Their voice pauses, quorums do not count them, and nothing else changes. Re-engaging restores active status automatically, with no reapplication and no questions asked.</p>
+
+      
+
+      <h3>5. What membership includes</h3>
+      <ul>
+        <li>Access to dyad's ⟨spaces, events, programs, /voices⟩;</li>
+        <li>One voice, equal to every other member's, in all tactical domains under the Bylaws: standards, membership criteria, programming, and the community budget;</li>
+        <li>Eligibility for member roles: reviewer, panelist, steward, host;</li>
+        <li>The transparency rights in the Bylaws: the decision log and the quarterly State of dyad.</li>
+      </ul>
+
+      <h3>6. What you agree to</h3>
+      <ul>
+        <li>Follow the Community Standards and the Bylaws;</li>
+        <li>Keep other members' non-public information confidential;</li>
+        <li>If you choose to pay, and paying is a choice rather than a condition of membership, keep your contribution current at the rate you picked: €5, €15, or €25 monthly, €100 yearly, or €400 lifetime. The rate is your call, and we ask no questions about it.</li>
+      </ul>
+
+      <h3>7. What membership is not</h3>
+      <div class="explain"><strong>Plain words:</strong> this section protects both of us. Your contribution supports the community and carries your voice. It is not an investment, and promising otherwise would be both false and legally dangerous.</div>
+      <ul>
+        <li>Membership is <strong>not equity</strong>. Members do not own shares of dyad, have no claim on its assets or profits, and the fee is not an investment with expectation of return.</li>
+        <li>Membership is <strong>personal and non-transferable</strong>.</li>
+        <li>Membership is <strong>not employment</strong>. Compensated member roles (reviewer, host) are agreed separately, case by case.</li>
+        <li>Your voice operates through the Bylaws' mechanisms of consent rounds, panels, and petitions, and not through directing dyad's staff or operations individually.</li>
+      </ul>
+
+      <h3>8. Changes to this agreement</h3>
+      <p>dyad may update this agreement with 14 days' written notice summarizing the changes. If you do not agree, you may end your membership before the changes take effect. Changes to the fee never apply retroactively, and existing members keep their fee for ⟨12 months⟩ after any increase.</p>
+
+      <h3>9. Leaving and ending membership</h3>
+      <p>Membership is voluntary, and you can leave at any time. Contributions already made are not refunded. Members who leave in good standing are always welcome back. dyad can end your membership only through the enforcement ladder in the Community Standards, and never unilaterally.</p>
+
+      <h3>10. If dyad changes hands</h3>
+      <p>If dyad is acquired, merged, or dissolved, this commitment survives: members are notified before the public; the community's decision log, agreements, and ⟨member-generated content in /voices⟩ remain accessible to members; and any successor either honors the Bylaws or releases members from this agreement with ⟨a pro-rata fee refund⟩.</p>
+      <div class="explain"><strong>Why this exists:</strong> Subvert can promise that it cannot be sold without a member vote, because its members own it. dyad cannot promise that. What dyad can do is bind the things members actually own (their agreements, their content, and their community record) so that they survive any change of ownership. This is the honest version of the same commitment.</div>
+    </div>
+  </section>
+
+<section class="doc" id="standards">
+    <div class="label">
+      <span class="docnum">03</span>
+      Community Standards
+      <span class="maps">maps to Subvert's Community Standards Policy, including the appeals process</span>
+    </div>
+    <div class="content">
+      <h2>dyad Community Standards</h2>
+      <p class="docmeta">v0.1 · a tactical-domain document: members amend it by consent round</p>
+
+      <div class="explain"><strong>Plain words:</strong> this document says what we do not tolerate, where these rules apply, and exactly what happens when something goes wrong, step by step, so that enforcement never depends on one person's mood.</div>
+
+      <h3>1. The baseline</h3>
+      <p>dyad is built on mutual respect and the dignity of everyone in the room: members, guests, hosts, and the people who work on dyad. Disagreement is welcome; contempt is not.</p>
+
+      <h3>2. Prohibited conduct</h3>
+      <ul>
+        <li><strong>Hate and supremacy:</strong> content or conduct promoting the inherent superiority or inferiority of any group. This includes white supremacy and Nazism together with their recognized symbols and dog-whistles, anti-LGBTQ+ bigotry, misogyny, ableism, and religious hatred. In Berlin this is not abstract, and we name it.</li>
+        <li><strong>Harassment:</strong> doxxing, stalking, credible threats, and targeted intimidation of any member or guest.</li>
+        <li><strong>Misrepresentation:</strong> deceiving the community about who you are or what you made. This includes presenting someone else's work, or an undisclosed AI fabrication, as your own, whether in /voices or anywhere else in dyad.</li>
+        <li><strong>Exploitation of the commons:</strong> using dyad's spaces, member list, or trust for extraction, such as undisclosed selling, data harvesting, or recruitment into schemes.</li>
+      </ul>
+
+      <h3>3. Where these standards apply</h3>
+      <p>Our authority covers dyad's spaces: events, online channels, /voices, and anywhere people are present <em>as dyad members</em>. We are not tasked with policing members' outside lives. dyad will act on off-community conduct only when it creates a direct, material risk to members' safety or to dyad's mission or legal standing.</p>
+
+      <h3>4. Enforcement ladder</h3>
+      <ol>
+        <li><strong>Notice.</strong> A steward names the concern to the member privately, with reference to the specific standard. Most issues end here.</li>
+        <li><strong>Conversation.</strong> If the concern recurs, there is a documented conversation about what changes and by when.</li>
+        <li><strong>Review panel.</strong> Suspension or removal requires a panel of ⟨3⟩ active members, drawn by lot with conflicts excluded, plus one steward. <em>No member is ever removed by the unilateral decision of a single person, and that includes the founders.</em></li>
+        <li><strong>Right to be heard.</strong> The member speaks to the panel, in writing or in person, before any final decision is made.</li>
+        <li><strong>Appeal.</strong> One appeal to a freshly drawn panel. Its decision is final for ⟨12 months⟩, after which the person may reapply.</li>
+      </ol>
+      <p>Every case that reaches step 3 or beyond is recorded in the decision log, anonymized where safety requires it.</p>
+
+      <h3>5. Exceptions</h3>
+      <p>Removals required by law and urgent action against credible safety threats bypass the ladder. They are executed by the startup under the Bylaws' reserved powers, then logged and explained.</p>
+
+      <h3>6. Dignity of the people who work on dyad</h3>
+      <p>The people building and hosting dyad are part of this community, not customer service. Abusive communication toward them violates these Standards exactly as it would toward any member.</p>
+    </div>
+  </section>
+
+  <footer>
+    <p>Companion to the <a href="https://claude.ai/code/artifact/6302d864-ef0d-4553-bfd3-fdef65b50014">dyad Collective Governance Model</a>. Document architecture adapted from <a href="https://www.subvert.fm/">Subvert Cooperative's</a> published governance suite (Bylaws, Member Agreements, Acceptance Criteria, Community Standards) and <a href="https://inclusiveorg.net/">Inclusive Organizing's</a> consent-based method. These are drafts, and nothing here is final. Ratification by the founding cohort is the first consent round.</p>
+  </footer>
+</div>

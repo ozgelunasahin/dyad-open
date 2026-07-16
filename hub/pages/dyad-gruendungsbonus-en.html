@@ -1,0 +1,277 @@
+<title>GründungsBONUS Plus · English Guide for dyad</title>
+<style>
+  :root {
+    --ground: #FAFAF7; --surface: #F1F2EC; --ink: #1B1E1C; --ink-soft: #4A524D;
+    --line: #D8DCD4; --accent: #2F6B4F; --accent-ink: #24523D; --accent-wash: #E7EFE9;
+    --warn: #8A5A2B; --grain: 0.45; --mottle: 0.20;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #131614; --surface: #1B201D; --ink: #E7EAE5; --ink-soft: #9BA69E;
+      --line: #2C332E; --accent: #7FBF9E; --accent-ink: #9AD0B4; --accent-wash: #1C2620;
+      --warn: #D2A26B; --grain: 0.32; --mottle: 0.15;
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #FAFAF7; --surface: #F1F2EC; --ink: #1B1E1C; --ink-soft: #4A524D;
+    --line: #D8DCD4; --accent: #2F6B4F; --accent-ink: #24523D; --accent-wash: #E7EFE9;
+    --warn: #8A5A2B; --grain: 0.45; --mottle: 0.20;
+  }
+  :root[data-theme="dark"] {
+    --ground: #131614; --surface: #1B201D; --ink: #E7EAE5; --ink-soft: #9BA69E;
+    --line: #2C332E; --accent: #7FBF9E; --accent-ink: #9AD0B4; --accent-wash: #1C2620;
+    --warn: #D2A26B; --grain: 0.32; --mottle: 0.15;
+  }
+  body { background: var(--ground); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; font-size: 16px; margin: 0; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 24px 96px; position: relative; z-index: 4; }
+  body::before, body::after { content: ""; position: fixed; inset: 0; pointer-events: none; mix-blend-mode: soft-light; }
+  body::before { z-index: 3; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23g)'/%3E%3C/svg%3E"); background-size: 240px 240px; opacity: var(--grain); }
+  body::after { z-index: 2; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='900' height='900' filter='url(%23p)'/%3E%3C/svg%3E"); background-size: 900px 900px; opacity: var(--mottle); }
+
+  h1, h2, h3 { font-family: "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif; text-wrap: balance; font-weight: 600; }
+  a { color: var(--accent-ink); text-decoration-color: var(--line); text-underline-offset: 3px; }
+  header { padding: 72px 0 32px; border-bottom: 1px solid var(--line); }
+  .kicker { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-ink); margin: 0 0 16px; }
+  h1 { font-size: clamp(28px, 5vw, 40px); line-height: 1.12; margin: 0 0 16px; }
+  .standfirst { font-size: 18px; color: var(--ink-soft); max-width: 58ch; margin: 0; }
+  .meta { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; color: var(--ink-soft); margin-top: 20px; }
+  h2 { font-size: 23px; margin: 44px 0 10px; }
+  h3 { font-size: 17px; margin: 24px 0 6px; }
+  p, li { max-width: 65ch; }
+  ul { padding-left: 22px; }
+  li { margin-bottom: 6px; }
+  .highlight { background: var(--accent-wash); border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; padding: 12px 16px; margin: 16px 0; font-size: 15px; max-width: 62ch; }
+  .warnbox { border: 1px dashed var(--warn); border-radius: 6px; padding: 12px 16px; margin: 16px 0; font-size: 15px; max-width: 62ch; color: var(--ink-soft); }
+  .warnbox strong:first-child { color: var(--warn); }
+  .tablewrap { overflow-x: auto; margin: 12px 0; border: 1px solid var(--line); border-radius: 6px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 500px; }
+  th { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; text-align: left; color: var(--ink-soft); font-weight: 500; }
+  th, td { padding: 9px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  thead tr { background: var(--surface); }
+  .de { color: var(--ink-soft); font-style: italic; font-size: 13px; }
+  footer { padding-top: 40px; font-size: 13px; color: var(--ink-soft); border-top: 1px solid var(--line); margin-top: 48px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="kicker">dyad.berlin · founders' hub · English guide to a German program</p>
+    <h1>GründungsBONUS Plus, explained</h1>
+    <p class="standfirst">Berlin's startup grant — up to €50,000, no equity, no repayment — translated and read specifically through dyad's situation. Source: the official IBB Business Team page and program terms (Förderrichtlinie).</p>
+    <p class="meta">status: applications open now („ab sofort") · guide written 15 July 2026 · the German original always governs</p>
+  </header>
+
+  <h2>What it is, in one paragraph</h2>
+  <p>The state of Berlin (through IBB Business Team GmbH) reimburses <strong>up to 50% of your eligible startup costs, capped at €50,000</strong>, spread over a funding period of <strong>up to two years</strong>. It is a cost subsidy (Kostenzuschuss): not a loan, not equity, no repayment. You spend, they cover half, within the approved plan.</p>
+
+  <h2>The three findings that matter most for dyad</h2>
+  <div class="highlight"><strong>1 · Demanding technological innovation is explicitly NOT required.</strong> The German page says it twice: „Ein anspruchsvoller technologischer Innovationsgrad ist ausdrücklich keine Bedingung." The program targets technological, digital, creative <em>or social</em> business models. dyad's worry about being "thin tech" is irrelevant here — the social/sustainable framing is a first-class category, not a consolation prize.</div>
+    <div class="highlight"><strong>2 · Social enterprises are explicitly eligible</strong> — defined as economically active social businesses earning more than 50% of income from the market rather than from state subsidies or social-insurance payments. A membership-funded community platform is squarely inside this definition.</div>
+  <div class="highlight"><strong>3 · The precedent is almost embarrassing in its fit: SuperCoop.</strong> One of the program's own published success stories is a Berlin supermarket <em>owned by its own customers</em>. Berlin has already funded a member-owned community business through this exact program. Cite it.</div>
+
+  <h2>Who can apply</h2>
+  <ul>
+    <li>Founders, startups, and micro-enterprises <strong>seated in Berlin</strong>, legally independent and profit-oriented (this includes economically active social enterprises as above);</li>
+    <li>The founders must hold the <strong>majority of shares</strong> and personally exercise <strong>essential management functions</strong>;</li>
+    <li>The company must be <strong>no older than 18 months at the time of application</strong>.</li>
+  </ul>
+
+  <div class="warnbox"><strong>The 18-month clock — check this first.</strong> The age is measured from whichever applies: the date the <em>Gesellschaftsvertrag</em> (articles of association) was signed; the confirmation date of the <em>Gewerbeanmeldung</em> (trade registration); or the date the Finanzamt confirmed registration of freelance activity. dyad has been <em>worked on</em> for two years, but what counts is the legal entity's birthday, not the project's. If dyad's UG/GmbH was signed within the last 18 months — or if the entity doesn't exist yet and would be founded fresh — the door is open. Pull the exact date before anything else.</div>
+
+  <h2>What money it covers</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Cost category</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Materials &amp; investments</td><td>Machines, materials, office equipment</td></tr>
+        <tr><td>Running operating costs</td><td>Rent, electricity, phone &amp; internet, <strong>advertising/marketing</strong></td></tr>
+        <tr><td>Personnel costs (gross salaries)</td><td>For founders/managing directors: <strong>max €2,000/month per person</strong>. Per payout tranche, personnel may be at most 60% of eligible expenses — and founder/managing-director salaries may claim at most <strong>25% of the total subsidy</strong> (so max €12,500 of a full €50,000 grant)</td></tr>
+        <tr><td>External services</td><td>e.g. consulting</td></tr>
+        <tr><td>IT development</td><td>Directly relevant to dyad's build</td></tr>
+        <tr><td>IP &amp; patents</td><td>Rights protection, filings, related costs</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="warnbox"><strong>The timing rule that catches people:</strong> only costs <strong>not yet incurred at the time of application</strong> are eligible — and for services, the work must <strong>not have begun</strong> before you applied. Plan the application <em>before</em> committing to the spending it should cover. Applying early costs nothing; spending early costs 50%.</div>
+
+  <h2>How much, concretely, for dyad</h2>
+  <p>Worked example: a 24-month plan with €100,000 of eligible costs → the full <strong>€50,000</strong> subsidy. Of that, founder salaries can claim at most <strong>€12,500</strong> (25% of the subsidy — about €520/month over two years), so the grant's real weight for dyad is in <strong>marketing (the founding-member campaign), IT development, rent, and external services</strong>, not founder pay. For founder salary, the Berlin Startup Scholarship (€2,500/month) is the right instrument; this grant funds the company around the founder.</p>
+
+
+  <h2>The conditions that come with the money</h2>
+  <ul>
+    <li><strong>Berlin for three more years.</strong> The company's seat must stay in Berlin for at least 3 years after the final payout.</li>
+    <li><strong>Founders keep majority and leadership</strong> during the funding period <em>and</em> for 3 years after full payout. Relevant to the angel round: dilution below founder-majority within that window breaks the terms.</li>
+    <li><strong>A full business plan + 3-year financial and liquidity plan</strong> is required at application (year one monthly, later years quarterly), with the subsidy drawn in at most 4 tranches inside the 2-year period.</li>
+    <li><strong>Location effects:</strong> the plan should show positive effects for Berlin — jobs, digitalization, energy/climate/resource savings.</li>
+    <li><strong>Cashless only:</strong> every project payment must be non-cash, with bank statements kept; cash receipts are not recognized.</li>
+    <li><strong>Transparenzdatenbank:</strong> legal entities (UG/GmbH) must register in Berlin's transparency database before applying (address, seat, legal form, Tarifbindung, decision-makers).</li>
+    <li><strong>If innovation feels thin, sustainability carries it:</strong> the rules explicitly allow an insufficient innovation grade to be compensated by a particularly sustainable approach.</li>
+  </ul>
+
+  <h2>How the money actually flows</h2>
+  <p><strong>Reimbursement principle:</strong> the company pays each cost first, proves it with invoice + payment record, and IBB Business Team reimburses its share into the company account — in at most <strong>4 tranches</strong>, each at least 10% of the approved subsidy. With the first payout request you must prove the <strong>closed financing</strong> of the whole plan; with the last one you submit the usage report (Verwendungsnachweis). Practical consequence: dyad needs the cash-flow to front the costs — the angel round and the grant are complements, not alternatives.</p>
+
+  <div class="warnbox"><strong>Stacking rules — check against SAB.</strong> No other public funding may cover the same costs (Kumulierungsverbot); only public loans (KfW, IBB, Bürgschaftsbank-backed) can combine up to 25% of the eligible total. And the grant is a <strong>de-minimis aid</strong> (EU Reg. 2023/2831): all de-minimis aids together may not exceed <strong>€300,000 within three years</strong>. The SAB Business Angel Bonus may also count as de-minimis — before applying for both, confirm how they add up. Different <em>costs</em>, and headroom under €300k, is the likely safe shape, but verify with both programs.</div>
+
+
+
+  <h2>How long it takes</h2>
+  <p>The official pages publish no processing time. Advisors who shepherd these applications report <strong>4 to 12 weeks from submission to decision</strong>, depending on how complete the documents are and how loaded the office is (IBB Business Team currently notes high demand on other programs). The decision falls in the funding committee (step 4), which decides in batches, so timing also depends on when the next committee session lands after your formal check clears.</p>
+  <p>The practical arithmetic for dyad: application in August means a decision roughly September to November; spending eligibility starts at the application date, but reimbursement flows only after the grant notice and against paid invoices. Plan the first real money on the account <strong>about 3 to 5 months after applying</strong>, and treat the angel runway as the bridge. The team line (030 / 2125-2364) answers current processing-time questions directly; ask them in the same call as the 18-month question.</p>
+  <h2>The application process, step by step</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>#</th><th>Step</th><th>What it means</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Electronic application</td><td>Everything through the online system, with help texts and checklists.</td></tr>
+        <tr><td>2</td><td>Formal check</td><td>IBB verifies completeness and formal eligibility.</td></tr>
+        <tr><td>3</td><td>Possible first conversation</td><td>The GründungsBONUS team may invite you to talk — treat it as a pitch about the business plan.</td></tr>
+        <tr><td>4</td><td>Funding committee decides</td><td>The Förderausschuss makes the call; no legal entitlement.</td></tr>
+        <tr><td>5</td><td>Grant notice (Zuwendungsbescheid)</td><td>The binding approval with your funding period and conditions.</td></tr>
+        <tr><td>6</td><td>Only now: buy and commission</td><td>Purchases and service contracts happen after approval — never before the application.</td></tr>
+        <tr><td>7</td><td>Reimbursement &amp; usage report</td><td>Up to 4 tranches against invoices and payment proof; final Verwendungsnachweis with a project report.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Fine print from the three official documents</h2>
+  <h3>Micro-enterprise definition (KMU sheet)</h3>
+  <p>A Kleinstunternehmen has <strong>fewer than 10 employees</strong> and at most <strong>€2M annual turnover or balance sheet</strong>. dyad clears this with room to spare. Two useful details: a company stops counting as independent if public bodies control 25%+ of it, and <strong>business angels investing up to €1.25M do not break your independent status</strong> — the SAB angel round and this grant can coexist on the ownership test.</p>
+  <h3>Grant conditions (ANBest-P)</h3>
+  <ul>
+    <li><strong>Procurement thresholds:</strong> up to €500 direct award; up to €5,000 direct with an informal price comparison; <strong>above €5,000 you must collect at least three offers</strong> and document the choice. Plan external services (design, legal, development) around this.</li>
+    <li><strong>Spend within three months:</strong> requested funds must be used within 3 months of payout, or interest can be charged.</li>
+    <li><strong>±30% flexibility:</strong> individual budget lines may overrun by up to 30% if saved elsewhere; bigger shifts need approval.</li>
+    <li><strong>Items over €410</strong> must be inventoried and remain dedicated to the project.</li>
+    <li><strong>Keep originals five years</strong>; the usage report is due within 6 months of completing the funded purpose; misuse or wrong statements mean repayment plus interest (5 points above base rate).</li>
+  </ul>
+  <h3>De-minimis rules (Merkblatt)</h3>
+  <ul>
+    <li>The €300,000 ceiling is a <strong>rolling three-year window</strong> counted across your whole affiliated-company group ("a single undertaking"), not per grant.</li>
+    <li>You must declare <strong>all</strong> de-minimis aids received in that window when applying — for dyad that means listing whatever the SAB bonus turns out to be classified as. Incorrect or omitted declarations are legally <strong>subsidy fraud (§264 StGB)</strong>; this is the one form to fill with lawyer-grade care.</li>
+    <li>Keep de-minimis certificates for <strong>10 years</strong>.</li>
+  </ul>
+
+  <h2>The application workload, mapped from the live form</h2>
+  <p>Read from the actual mandatory-field list in the application system. The form itself is 2 to 4 hours once the artifacts exist; the artifacts are the work. Four of them carry the whole application:</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Artifact</th><th>Expected structure</th><th>Effort for dyad</th></tr></thead>
+      <tbody>
+        <tr><td><strong>1 · Businessplan</strong> (upload)</td><td>Customer need · product with competition analysis · market potential and market access · founder qualifications and roles · staffing plan · sales/distribution. The stated total costs must match the cost plan in the form to the euro.</td><td>15–25 pages. From scratch 20–40h; dyad starts from the pitch one-pager, the financial model, and the governance documents, so realistically <strong>12–20h</strong>.</td></tr>
+        <tr><td><strong>2 · Finanz- &amp; Liquiditätsplanung</strong> (upload)</td><td>Minimum 3 years; year one monthly, later years quarterly; the subsidy drawdown shown in max 4 tranches across the 2-year period.</td><td>Spreadsheet discipline, <strong>6–12h</strong>; the membership financial model provides the revenue side.</td></tr>
+        <tr><td><strong>3 · Cost plan</strong> (in the form: Kostenart / Summe rows)</td><td>Line items by cost type, reconciling 1:1 with the business plan total.</td><td><strong>2–3h</strong> once the plan exists.</td></tr>
+        <tr><td><strong>4 · Financing plan</strong> (in the form: Finanzierungsart / Mittelgeber / Status / Summe)</td><td>The „geschlossene Finanzierung": every euro of the non-subsidized share named with source and <em>status</em>. This is where angel commitments enter, and where their status (committed vs planned) matters. The form itself points out that an IBB Mikrokredit (up to €50k) can be combined to close the financing.</td><td><strong>2–4h</strong> plus whatever it takes to get commitment letters from the angels.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Prerequisites that take calendar time (start these first)</h3>
+  <ul>
+    <li><strong>Transparenzdatenbank registration</strong> (mandatory before applying for a UG/GmbH);</li>
+    <li><strong>W-IdNr</strong> (Wirtschafts-Identifikationsnummer) — the form asks for it; check whether dyad's has been issued yet;</li>
+    <li><strong>Fresh Registerauszug</strong> (≤1 year) and IDs with Meldebestätigung;</li>
+    <li><strong>Founder CVs</strong>, shares per founder, and the KMU self-declarations (independent / partner / linked enterprise — the flowchart from the KMU sheet).</li>
+  </ul>
+
+  <h3>Declarations that need a decision, not just a tick</h3>
+  <ul>
+    <li><strong>De-minimis:</strong> "already received or applied for" must list the SAB bonus if it counts — check its classification before ticking.</li>
+    <li><strong>Incentive effect:</strong> you declare the project "could not happen, or only with substantial delay, without the grant." Must be genuinely true and consistent with your financing plan (a fully-closed angel round that covers everything would contradict it; a plan where the grant funds the campaign/IT scope keeps it honest).</li>
+    <li><strong>Berlin Landesmindestlohn</strong> for all employees, project or not.</li>
+    <li><strong>IBB sustainability guidelines + EU Charter of Fundamental Rights + UN CRPD</strong> — read once; dyad conflicts with nothing there.</li>
+    <li><strong>Job effects tables:</strong> current jobs and planned new jobs over the funding period (broken into three columns, likely full/part-time categories) — sworn as complete and correct, so count conservatively.</li>
+  </ul>
+
+  <div class="warnbox"><strong>The paper trap:</strong> submitting online is not applying. The signed original must be posted to IBB Business Team (Bundesallee 210, 10719 Berlin), and <strong>the date of their arrival stamp is the official application date</strong> — the cutoff for cost eligibility. Print and post the same day you submit electronically.</div>
+
+  <h3>Worth looking into before drafting</h3>
+  <ul>
+    <li>The <strong>Förderrichtlinie PDF</strong> itself (linked in the system) for the committee's assessment criteria — the web pages describe eligibility, the Richtlinie describes how proposals are weighed;</li>
+    <li>One hotline call covering: current processing time, the 18-month date question, whether angel commitments count toward "closed financing" and in which status, and how the SAB bonus interacts with de-minimis;</li>
+    <li>Whether to pair the application with the <strong>IBB Mikrokredit</strong> to close financing on paper, as the system itself suggests.</li>
+  </ul>
+
+  <h2>Filling the Vorhaben section: a worked draft for dyad (application GB8993/2026)</h2>
+  <p>Read from the live form. Three mechanics first, then a sketch to react to.</p>
+  <ul>
+    <li><strong>The businessplan may follow the BPW structure</strong> (<a href="https://www.b-p-w.de/">Business-Plan-Wettbewerb</a>) — IBB says so in the form. Using their canonical outline reads as fluent to the committee. Sustainability practices must be presented explicitly.</li>
+    <li><strong>Use IBB's own finance template</strong> — the system provides a Muster for the Finanz- und Liquiditätsplanung in the right column; upload as Excel. Their template, their format, fewer questions.</li>
+    <li><strong>Two different totals:</strong> the "Gesamtkosten" field asks for the whole venture's costs over <em>three</em> years per the businessplan; the Ausgabenplan lists only the costs to be subsidized, over <em>two</em> years, capped at €100,000 (→ €50,000 subsidy). The financing plan must cover the Ausgabenplan exactly — the form runs a live plausibility check and rejects mismatches.</li>
+  </ul>
+
+  <h3>Sketch: a €100,000 Ausgabenplan for dyad</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Kostenart</th><th>2-year sum</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Founder/MD salaries</td><td>€25,000</td><td>The cap: max 25% of eligible costs (which equals 25% of the subsidy in effect). E.g. split across founders at ~€1,000/month total.</td></tr>
+        <tr><td>Further personnel</td><td>€30,000</td><td>e.g. part-time community steward / working student. All personnel together (incl. founders) ≤ 60% of eligible costs — 55% here. Only Arbeitnehmerbrutto counts.</td></tr>
+        <tr><td>IT development (external)</td><td>€15,000</td><td>Contracted development/design. Over €5,000 → collect three offers.</td></tr>
+        <tr><td>Marketing / Werbekosten</td><td>€15,000</td><td>The founding-member campaign, zine printing, event materials, video production.</td></tr>
+        <tr><td>Rent &amp; operating costs</td><td>€10,000</td><td>Co-working/space share, phone, internet, hosting-adjacent operating costs.</td></tr>
+        <tr><td>Consulting (legal/tax)</td><td>€5,000</td><td>Membership/steward-ownership structuring, Steuerberatung for the grant itself.</td></tr>
+        <tr><td><strong>Total eligible</strong></td><td><strong>€100,000</strong></td><td><strong>→ €50,000 subsidy</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="warnbox"><strong>Excluded costs to keep out of the plan:</strong> catering/food, land/buildings, cars, financing costs, leases of that kind, and — the one that could bite — <strong>services from providers affiliated ("verflochten") with the company or its founders</strong>. No invoicing from a founder's own company or a co-founder's side entity; external means genuinely external.</div>
+
+  <h3>Financing plan shape (must sum to the Ausgabenplan)</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Finanzierungsart</th><th>Mittelgeber</th><th>Status</th><th>Sum</th></tr></thead>
+      <tbody>
+        <tr><td>GründungsBONUS Plus (this application)</td><td>IBB Business Team</td><td>beantragt</td><td>€50,000</td></tr>
+        <tr><td>Equity / angel investment</td><td>named angels</td><td>zugesagt (committed) — get written commitments</td><td>€35,000+</td></tr>
+        <tr><td>Own funds (Eigenmittel)</td><td>founders</td><td>vorhanden</td><td>€10,000</td></tr>
+        <tr><td>Optional: IBB Mikrokredit (KMU-Fonds)</td><td>IBB</td><td>if needed to close</td><td>≤ €25,000 (public loans may cover up to 25%)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>The incentive-effect declaration stays honest with this shape: the angels fund the company's core runway, the grant funds the two-year build-out scope (campaign, development, space) that would otherwise happen substantially slower.</p>
+
+  <h3>Remaining form mechanics</h3>
+  <ul>
+    <li><strong>Drawdown by calendar year</strong> (this year / next / the year after) must mirror the tranches in the liquidity plan — e.g. €10,000 / €25,000 / €15,000.</li>
+    <li><strong>Job effects are in FTE, split by gender</strong> (Frauen/Männer/Divers) — current jobs, of which employed founders, planned new jobs in the funding period. Count conservatively; the numbers are sworn as complete and correct.</li>
+    <li><strong>Businessplan chapters map to existing dyad material:</strong> customer need (origin story + waitlist evidence), product + competition (the docs page, calm-tech positioning vs feeds), market potential/access (financial model + founding campaign), USP (privacy architecture, member governance, offline-first), revenue/finance 3 years (the membership model), founder qualifications (CVs + two years of build history), staffing (the FTE table), sales/distribution (personal ask + events + ecosystem channels), sustainability practices (data minimalism, no-ads model, community governance, resource-light stack).</li>
+  </ul>
+  <h2>Documents to prepare</h2>
+  <ul>
+    <li>ID/passport with registration confirmation (and residence permit if applicable);</li>
+    <li>Handelsregisterauszug (≤1 year old), or Gewerbeanmeldung, or the Finanzamt's freelance-registration confirmation — <em>this same document answers the 18-month question</em>;</li>
+    <li>Gesellschafterverträge (for companies);</li>
+    <li>Business plan incl. customer need, product + competition analysis, market potential/access, founder qualifications and roles, staffing, sales — plus the 3-year financial/liquidity plan;</li>
+    <li>Founder CVs; company IBAN;</li>
+    <li>De-minimis certificates from the last three calendar years, if any;</li>
+    <li>Transparenzdatenbank registration proof (for UG/GmbH).</li>
+  </ul>
+  <p>The binding rules: Förderrichtlinie valid from 6 December 2024 (PDF on the program page). There is no legal entitlement to funding; IBB Business Team decides case by case.</p>
+  <h2>What is excluded</h2>
+  <ul>
+    <li>Construction (Baugewerbe) and de-minimis-ineligible sectors;</li>
+    <li>Gastronomy/hotels — unless the innovation targets ecological operations, sustainable sourcing, or energy efficiency;</li>
+    <li>Retail — unless sustainable products or sustainable e-commerce.</li>
+  </ul>
+  <p>None of these touch dyad.</p>
+
+  <h2>How to apply</h2>
+  <ul>
+    <li>Everything goes through the <a href="https://ibb-bt.antragsverwaltung.de">electronic application system</a> — data entry plus document upload.</li>
+    <li>Read the <strong>Förderrichtlinie</strong> (the binding PDF of program terms, on the program page) before drafting — the criteria checklist and required documents live there.</li>
+    <li>Questions before applying: <strong>030 / 2125-2364</strong> (Mon, Tue, Thu, Fri 10:00–15:00) or <a href="mailto:gruendungsbonusplus@ibb-business-team.de">gruendungsbonusplus@ibb-business-team.de</a>. They answer; use them for the 18-month question if the entity date is awkward.</li>
+  </ul>
+
+  <h2>Combinable, by design</h2>
+  <p>IBB itself markets GründungsBONUS Plus as combinable with <strong>Transfer BONUS</strong> — the research-collaboration subsidy already on dyad's funding page (a Berlin lab studying dyad's trust &amp; safety or governance model). One entity check unlocks a two-grant Berlin package.</p>
+
+  <h2>dyad's positioning, in one sentence</h2>
+  <p>A Berlin social enterprise building a member-governed, privacy-minimal, open-source platform for in-person connection — digital <em>and</em> social <em>and</em> sustainable business model, majority founder-owned and founder-led, with costs (marketing, salaries, IT development) that map one-to-one onto the eligible categories, and SuperCoop as the program's own precedent for community-owned models.</p>
+
+  <footer>
+    <p>Source: <a href="https://www.ibb-business-team.de/gruendungsbonus-plus/">ibb-business-team.de/gruendungsbonus-plus</a> (German). This guide is a working translation for orientation; the Förderrichtlinie governs. Companion: <a href="https://claude.ai/code/artifact/656f4e67-2ac0-476f-90f3-97b9f5147c7d">funding opportunities</a>.</p>
+  </footer>
+</div>

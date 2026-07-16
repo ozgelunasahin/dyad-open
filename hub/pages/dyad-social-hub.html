@@ -1,0 +1,151 @@
+<title>dyad · Social Media: Visuals &amp; Tactics</title>
+<style>
+  :root {
+    --ground: #FAFAF7; --surface: #F1F2EC; --ink: #1B1E1C; --ink-soft: #4A524D;
+    --line: #D8DCD4; --accent: #2F6B4F; --accent-ink: #24523D; --accent-wash: #E7EFE9;
+    --warn: #8A5A2B; --grain: 0.45; --mottle: 0.20;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #131614; --surface: #1B201D; --ink: #E7EAE5; --ink-soft: #9BA69E;
+      --line: #2C332E; --accent: #7FBF9E; --accent-ink: #9AD0B4; --accent-wash: #1C2620;
+      --warn: #D2A26B; --grain: 0.32; --mottle: 0.15;
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #FAFAF7; --surface: #F1F2EC; --ink: #1B1E1C; --ink-soft: #4A524D;
+    --line: #D8DCD4; --accent: #2F6B4F; --accent-ink: #24523D; --accent-wash: #E7EFE9;
+    --warn: #8A5A2B; --grain: 0.45; --mottle: 0.20;
+  }
+  :root[data-theme="dark"] {
+    --ground: #131614; --surface: #1B201D; --ink: #E7EAE5; --ink-soft: #9BA69E;
+    --line: #2C332E; --accent: #7FBF9E; --accent-ink: #9AD0B4; --accent-wash: #1C2620;
+    --warn: #D2A26B; --grain: 0.32; --mottle: 0.15;
+  }
+  body { background: var(--ground); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; font-size: 16px; margin: 0; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px 96px; position: relative; z-index: 4; }
+  body::before, body::after { content: ""; position: fixed; inset: 0; pointer-events: none; mix-blend-mode: soft-light; }
+  body::before { z-index: 3; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23g)'/%3E%3C/svg%3E"); background-size: 240px 240px; opacity: var(--grain); }
+  body::after { z-index: 2; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='900' height='900' filter='url(%23p)'/%3E%3C/svg%3E"); background-size: 900px 900px; opacity: var(--mottle); }
+
+  h1, h2, h3 { font-family: "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif; text-wrap: balance; font-weight: 600; }
+  a { color: var(--accent-ink); text-decoration-color: var(--line); text-underline-offset: 3px; }
+  a:hover { text-decoration-color: var(--accent); }
+  header { padding: 72px 0 32px; border-bottom: 1px solid var(--line); }
+  .kicker { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-ink); margin: 0 0 16px; }
+  h1 { font-size: clamp(30px, 5vw, 44px); line-height: 1.12; margin: 0 0 16px; }
+  .standfirst { font-size: 18px; color: var(--ink-soft); max-width: 60ch; margin: 0; }
+  .meta { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; color: var(--ink-soft); margin-top: 20px; }
+
+  .deadlines { display: flex; flex-wrap: wrap; gap: 10px; padding: 20px 0; border-bottom: 1px solid var(--line); }
+  .deadline { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; padding: 6px 12px; border: 1px solid var(--warn); border-radius: 999px; color: var(--warn); }
+  .deadline strong { font-weight: 700; }
+
+  section { display: grid; grid-template-columns: 1fr 3fr; gap: 32px; padding: 48px 0; border-bottom: 1px solid var(--line); }
+  section:last-of-type { border-bottom: none; }
+  .label { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); padding-top: 6px; position: sticky; top: 16px; align-self: start; }
+  .content > :first-child { margin-top: 0; }
+  .content p { max-width: 65ch; }
+  @media (max-width: 720px) { section { grid-template-columns: 1fr; gap: 12px; padding: 36px 0; } .label { position: static; } header { padding-top: 48px; } }
+
+  .fund { border: 1px solid var(--line); border-radius: 6px; padding: 20px 22px; margin: 0 0 16px; background: var(--surface); }
+  .fund h3 { margin: 0 0 2px; font-size: 19px; }
+  .fund .sub { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); }
+  .fund p { font-size: 14.5px; margin: 10px 0 0; }
+  .fund .next { color: var(--accent-ink); }
+  .fund .warnline { color: var(--warn); }
+  .status { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 8px; border-radius: 3px; border: 1px solid currentColor; float: right; margin-left: 12px; }
+  .status.progress { color: var(--accent-ink); }
+  .status.fit { color: var(--warn); }
+  .status.watch { color: var(--ink-soft); }
+
+  .principles { background: var(--accent-wash); border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; padding: 14px 18px; font-size: 14.5px; max-width: 65ch; }
+  .principles ol { margin: 0; padding-left: 20px; }
+  .principles li { margin-bottom: 6px; }
+
+  .tablewrap { overflow-x: auto; margin: 8px 0 16px; border: 1px solid var(--line); border-radius: 6px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 560px; }
+  th { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; text-align: left; color: var(--ink-soft); font-weight: 500; }
+  th, td { padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  thead tr { background: var(--surface); }
+
+  .pill-list { list-style: none; padding: 0; margin: 0; max-width: 65ch; }
+  .pill-list li { position: relative; padding: 10px 0 10px 26px; border-bottom: 1px solid var(--line); font-size: 14.5px; }
+  .pill-list li:last-child { border-bottom: none; }
+  .pill-list li::before { content: "□"; position: absolute; left: 2px; color: var(--accent-ink); }
+  .nots li::before { content: "✕"; color: var(--warn); font-size: 12px; top: 12px; }
+
+  footer { padding-top: 40px; font-size: 13px; color: var(--ink-soft); }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="kicker">dyad.berlin · founders' hub · private</p>
+    <h1>Social Media: Visuals &amp; Tactics</h1>
+    <p class="standfirst">The visual language and the launch tactics: the dyad look, the references, the pillars, and the checklist. Source of truth lives on the fork's <a href="https://github.com/ozgelunasahin/dyad-open/blob/hub/hub/social-media.md">hub branch</a>; this page mirrors it.</p>
+    <p class="meta">last reviewed 15 July 2026 · tell Claude to refresh this page after editing the hub branch</p>
+  </header>
+
+  <section id="social">
+    <div class="label">Social media:<br>visuals &amp; tactics</div>
+    <div class="content">
+      <h3 style="margin-top:0">The dyad look</h3>
+      <p>Moss-black, never pure black (ground <code>#131614</code>, accent <code>#7fbf9e</code>). The wall: fine grain plus plaster mottle on every dark surface — the most recognizable thing we own. Serif voice (SangBleu Sunrise), mono for labels. Plain words, complete sentences, the zine register. <strong>Every visual should look like it was made by people who meet in rooms, not by a growth team.</strong> Paper, grain, handwriting, real photos with consent; never stock, never gradient-SaaS.</p>
+
+      <h3>Visual references</h3>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Reference</th><th>What to take</th></tr></thead>
+          <tbody>
+            <tr><td><a href="https://www.subvert.fm/">Subvert zine</a> (local: ~/Desktop/subvert.pdf)</td><td>Photocopy and halftone textures, redaction marks, mono type on black, the honesty page, the glossary as a design object. The artifact says: a movement, documented.</td></tr>
+            <tr><td><a href="https://blackskyweb.xyz/">Blacksky</a></td><td>Community-first framing — features described as things the community does, not things the platform has.</td></tr>
+            <tr><td><a href="https://inclusiveorg.net/">Inclusive Organizing</a></td><td>Hand-drawn maps and low-tech diagrams that feel human; our flow charts already lean this way.</td></tr>
+            <tr><td>dyad's own /why page</td><td>Fuji-film scrapbook: analog photos, taped and rotated, on the textured wall — dyad's warmest surface. The socials should look like this more than like the app.</td></tr>
+            <tr><td>Berlin riso / community print culture</td><td>Grain, two-ink looks, imperfect registration. Cheap to imitate digitally; reads as human and local.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>The strategy in one paragraph</h3>
+      <p>Zero ad budget means the funnel cannot produce mass sign-ups, so the channel's job is <strong>not reach — it is making the founding counter move</strong>. The aim that survived the stress check: 175 founding members ≈ €4.2k/month; 125 by week 6 is on-track. The channels that convert are the personal ask and IRL events; YouTube and socials are the documentary layer that compounds into next quarter. Every piece of content ends on the counter, never on "link in bio."</p>
+
+      <h3>Content pillars</h3>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Pillar</th><th>What it is</th></tr></thead>
+          <tbody>
+            <tr><td>The experiment, in public</td><td>"We're building a community its members govern. We don't know if it works. Watch." Consent rounds, the first ratification, the decision log — every real governance moment is an episode nobody can fake.</td></tr>
+            <tr><td>The counter</td><td>"175 founding members keep dyad independent." Countdown updates, founding names (with consent), what the money sustains.</td></tr>
+            <tr><td>Rooms, not feeds</td><td>Conversation aftermath: two chairs, an empty café table, one anonymous feedback quote. The product is invisible; the meeting is the star.</td></tr>
+            <tr><td>The build log</td><td>ATProto experiment, open source, honest failures. Small audience — but the audience that funds, partners, and hires.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Tactics checklist</h3>
+      <ul class="pill-list">
+        <li>Founding page + public counter on the site (the campaign's engine)</li>
+        <li>Personal-ask script for founders (the highest-converting channel, ~25–35%)</li>
+        <li>Event capture kit: one photo per event, consent slip, one feedback quote</li>
+        <li>First 10 episodes mapped to Phase 0 governance moments (ratification = episode 1)</li>
+        <li>Weekly dashboard: sign-ups ~165/wk · founding members ~21/wk · ask-conversion (worry &lt; 15%)</li>
+        <li>Berlin press list (Cee Cee, Mit Vergnügen, The Berliner) — pitch it, never plan on it</li>
+        <li>Referral mechanic visible after a good meeting, not at signup</li>
+        <li>Newsletter cadence tied to episodes, not to a calendar</li>
+      </ul>
+
+      <h3>What we do not do</h3>
+      <ul class="pill-list nots">
+        <li>No engagement bait; scarcity stated plainly, once (175 seats are real)</li>
+        <li>No growth loops that reward screen time — success is meetings held and feedback quality</li>
+        <li>No content showing members without explicit consent</li>
+        <li>No pressure cadence: long-tenure subscribers convert at 3–5× — patience over pressure</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    <p>Companions: <a href="https://claude.ai/code/artifact/d1940910-0c20-4309-97f5-aa8bb9392fff">financial model</a> · <a href="https://claude.ai/code/artifact/beb421f9-be80-4089-91ab-32a4b5265af7">governance documents</a> · <a href="https://claude.ai/code/artifact/6302d864-ef0d-4553-bfd3-fdef65b50014">governance model</a> · <a href="https://github.com/ozgelunasahin/dyad-open/tree/hub/hub">hub branch (source of truth)</a></p>
+  </footer>
+</div>

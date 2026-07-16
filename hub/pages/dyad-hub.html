@@ -1,0 +1,355 @@
+<title>dyad · Funding Opportunities</title>
+<style>
+  :root {
+    --ground: #FAFAF7; --surface: #F1F2EC; --ink: #1B1E1C; --ink-soft: #4A524D;
+    --line: #D8DCD4; --accent: #2F6B4F; --accent-ink: #24523D; --accent-wash: #E7EFE9;
+    --warn: #8A5A2B; --grain: 0.45; --mottle: 0.20;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #131614; --surface: #1B201D; --ink: #E7EAE5; --ink-soft: #9BA69E;
+      --line: #2C332E; --accent: #7FBF9E; --accent-ink: #9AD0B4; --accent-wash: #1C2620;
+      --warn: #D2A26B; --grain: 0.32; --mottle: 0.15;
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #FAFAF7; --surface: #F1F2EC; --ink: #1B1E1C; --ink-soft: #4A524D;
+    --line: #D8DCD4; --accent: #2F6B4F; --accent-ink: #24523D; --accent-wash: #E7EFE9;
+    --warn: #8A5A2B; --grain: 0.45; --mottle: 0.20;
+  }
+  :root[data-theme="dark"] {
+    --ground: #131614; --surface: #1B201D; --ink: #E7EAE5; --ink-soft: #9BA69E;
+    --line: #2C332E; --accent: #7FBF9E; --accent-ink: #9AD0B4; --accent-wash: #1C2620;
+    --warn: #D2A26B; --grain: 0.32; --mottle: 0.15;
+  }
+  body { background: var(--ground); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; font-size: 16px; margin: 0; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px 96px; position: relative; z-index: 4; }
+  body::before, body::after { content: ""; position: fixed; inset: 0; pointer-events: none; mix-blend-mode: soft-light; }
+  body::before { z-index: 3; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23g)'/%3E%3C/svg%3E"); background-size: 240px 240px; opacity: var(--grain); }
+  body::after { z-index: 2; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='900' height='900' filter='url(%23p)'/%3E%3C/svg%3E"); background-size: 900px 900px; opacity: var(--mottle); }
+
+  h1, h2, h3 { font-family: "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif; text-wrap: balance; font-weight: 600; }
+  a { color: var(--accent-ink); text-decoration-color: var(--line); text-underline-offset: 3px; }
+  a:hover { text-decoration-color: var(--accent); }
+  header { padding: 72px 0 32px; border-bottom: 1px solid var(--line); }
+  .kicker { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-ink); margin: 0 0 16px; }
+  h1 { font-size: clamp(30px, 5vw, 44px); line-height: 1.12; margin: 0 0 16px; }
+  .standfirst { font-size: 18px; color: var(--ink-soft); max-width: 60ch; margin: 0; }
+  .meta { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; color: var(--ink-soft); margin-top: 20px; }
+
+  .deadlines { display: flex; flex-wrap: wrap; gap: 10px; padding: 20px 0; border-bottom: 1px solid var(--line); }
+  .deadline { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; padding: 6px 12px; border: 1px solid var(--warn); border-radius: 999px; color: var(--warn); }
+  .deadline strong { font-weight: 700; }
+
+  section { display: grid; grid-template-columns: 1fr 3fr; gap: 32px; padding: 48px 0; border-bottom: 1px solid var(--line); }
+  section:last-of-type { border-bottom: none; }
+  .label { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); padding-top: 6px; position: sticky; top: 16px; align-self: start; }
+  .content > :first-child { margin-top: 0; }
+  .content p { max-width: 65ch; }
+  @media (max-width: 720px) { section { grid-template-columns: 1fr; gap: 12px; padding: 36px 0; } .label { position: static; } header { padding-top: 48px; } }
+
+  .fund { border: 1px solid var(--line); border-radius: 6px; padding: 20px 22px; margin: 0 0 16px; background: var(--surface); }
+  .fund h3 { margin: 0 0 2px; font-size: 19px; }
+  .fund .sub { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); }
+  .fund p { font-size: 14.5px; margin: 10px 0 0; }
+  .fund .next { color: var(--accent-ink); }
+  .fund .warnline { color: var(--warn); }
+  .status { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 8px; border-radius: 3px; border: 1px solid currentColor; float: right; margin-left: 12px; }
+  .status.progress { color: var(--accent-ink); }
+  .status.fit { color: var(--warn); }
+  .status.watch { color: var(--ink-soft); }
+
+  .principles { background: var(--accent-wash); border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; padding: 14px 18px; font-size: 14.5px; max-width: 65ch; }
+  .principles ol { margin: 0; padding-left: 20px; }
+  .principles li { margin-bottom: 6px; }
+
+  .tablewrap { overflow-x: auto; margin: 8px 0 16px; border: 1px solid var(--line); border-radius: 6px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 560px; }
+  th { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; text-align: left; color: var(--ink-soft); font-weight: 500; }
+  th, td { padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  thead tr { background: var(--surface); }
+
+  .pill-list { list-style: none; padding: 0; margin: 0; max-width: 65ch; }
+  .pill-list li { position: relative; padding: 10px 0 10px 26px; border-bottom: 1px solid var(--line); font-size: 14.5px; }
+  .pill-list li:last-child { border-bottom: none; }
+  .pill-list li::before { content: "□"; position: absolute; left: 2px; color: var(--accent-ink); }
+  .nots li::before { content: "✕"; color: var(--warn); font-size: 12px; top: 12px; }
+
+  footer { padding-top: 40px; font-size: 13px; color: var(--ink-soft); }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="kicker">dyad.berlin · founders' hub · private</p>
+    <h1>Funding Opportunities</h1>
+    <p class="standfirst">Money that fits how dyad is built: grants, funds, competitions and relationships, each with an honest fit-check and a single next step. Source of truth lives on the fork's <a href="https://github.com/ozgelunasahin/dyad-open/blob/hub/hub/funding.md">hub branch</a>; this page mirrors it.</p>
+    <p class="meta">last reviewed 15 July 2026 · includes the ChatGPT deep-research harvest (verified deadlines marked; UNVERIFIED flagged) · tell Claude to refresh after editing the hub branch</p>
+  </header>
+
+  <div class="deadlines">
+    <span class="deadline"><strong>31 Jul</strong> · Avant Now Accelerator (connect)</span>
+    <span class="deadline"><strong>1 Aug</strong> · NGI Fediversity (12:00 CEST)</span>
+    <span class="deadline"><strong>9 Aug</strong> · The Migrant Accelerator (strong fit)</span>
+    <span class="deadline"><strong>9 Aug</strong> · AI Nation (weak fit)</span>
+    <span class="deadline"><strong>15 Aug</strong> · HTW Startup Challenge</span>
+    <span class="deadline"><strong>31 Aug</strong> · EXIST Forschungstransfer collection</span>
+    <span class="deadline"><strong>13 Sep</strong> · Berlin Startup Scholarship (HWR)</span>
+    <span class="deadline"><strong>1 Oct</strong> · Prototype Fund window opens</span>
+  </div>
+
+
+  <section id="glance">
+    <div class="label">At a glance<br>· deadlines</div>
+    <div class="content">
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Opportunity</th><th>Type</th><th>Amount</th><th>Deadline / cadence</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td><a href="#funding">Avant Now Accelerator — Cohort 11</a></td><td>accelerator</td><td>program + network</td><td><strong>31 Jul 2026</strong> (connect via F6S)</td><td>check gates: female-led majority, no funding yet</td></tr>
+            <tr><td>NGI Fediversity (NLnet)</td><td>grant</td><td>€5k–50k</td><td><strong>1 Aug 2026, 12:00 CEST</strong></td><td>only as open infra module</td></tr>
+            <tr><td>The Migrant Accelerator (HdM Stuttgart)</td><td>accelerator</td><td>€2k allowance, no equity</td><td><strong>9 Aug 2026</strong> · cohort 2 Sep – 26 Nov</td><td>strong fit: migrant founders, team of 2, free</td></tr>
+            <tr><td>AI Nation Grant / Accelerator</td><td>grant / accel</td><td>€54k / €10k</td><td><strong>9 Aug 2026</strong></td><td>weak fit (AI-core required)</td></tr>
+            <tr><td>HTW Startup Challenge</td><td>prize</td><td>€10k pool</td><td><strong>15 Aug 2026</strong> (deck + 1-min video)</td><td>go: Impact category</td></tr>
+            <tr><td>EXIST Forschungstransfer</td><td>grant</td><td>≤€250k + €180k</td><td>collections <strong>31 Aug / 30 Nov 2026</strong></td><td>weak fit (research-intensive)</td></tr>
+            <tr><td>Berlin Startup Scholarship (HWR)</td><td>stipend</td><td>€2,500/founder/mo, 6–12 mo</td><td><strong>13 Sep 2026</strong> · start 1 Nov</td><td>strong fit; on-site full-time gate</td></tr>
+            <tr><td>Prototype Fund</td><td>grant</td><td>≤€95k team</td><td>window <strong>1 Oct – 30 Nov 2026</strong> (re-verify)</td><td>strong fit; scope a project</td></tr>
+            <tr><td>Falling Walls Venture</td><td>prize</td><td>visibility</td><td>reopens <strong>Feb 2027</strong></td><td>watch</td></tr>
+            <tr><td>GründungsBONUS Plus (IBB)</td><td>grant</td><td>50% ≤ €50k</td><td>open now, „ab sofort“</td><td><strong>gate: company ≤ 18 months</strong></td></tr>
+            <tr><td>SAB Business Angel Bonus</td><td>grant</td><td>≤€400k (doubles angels)</td><td>with the angel round</td><td>in progress</td></tr>
+            <tr><td>EXIST Gründerstipendium</td><td>stipend</td><td>€2.5–3k/mo ×12 + €30k</td><td>rolling via university</td><td><strong>gate: not yet incorporated</strong></td></tr>
+            <tr><td>Transfer BONUS Wissenschaft (IBB)</td><td>grant</td><td>€7.5k–45k</td><td>rolling (UNVERIFIED)</td><td>strong fit via research partner</td></tr>
+            <tr><td>Skyseed Fund</td><td>grant / equity</td><td>$5–25k / ~$100k</td><td>rolling</td><td>contact after sign-in PR merges</td></tr>
+            <tr><td>AT Protocol Grants (Bluesky)</td><td>grant</td><td>ecosystem</td><td>rolling</td><td>with the build log</td></tr>
+            <tr><td>AT Protocol Community Fund (Raft)</td><td>micro-grant</td><td>~$5k</td><td>rolling, informal</td><td>warm: Boris Mann + Nathan Hewitt (DWeb)</td></tr>
+            <tr><td>Earlybird Vision Lab</td><td>convertible</td><td>€25k</td><td>rolling</td><td>eligibility: first-gen migrant founder</td></tr>
+            <tr><td>Purpose Ventures / Evergreen Capital</td><td>aligned capital</td><td>€50k–500k</td><td>relationship-driven</td><td>needs the steward-ownership decision; warm via SO:25</td></tr>
+            <tr><td>BlueYard Capital</td><td>equity</td><td>$500k–5M</td><td>rolling</td><td>after build log; protocol narrative</td></tr>
+            <tr><td>Free Our Feeds / Modal Foundation</td><td>relationship</td><td>forming</td><td>—</td><td>one email with the build log</td></tr>
+            <tr><td>Democratic Tech Fund</td><td>relationship</td><td>conversation-based</td><td>—</td><td>warm: Olivier, Wouter, Sophie (DWeb)</td></tr>
+            <tr><td>CHT Emerging Voices Fellowship</td><td>fellowship</td><td>$30k</td><td>next cohort (2026 round closed 12 Jul)</td><td>build the profile via the writing practice</td></tr>
+            <tr><td>NGI umbrella / culture funds / Mikrokredit / BONVENTURE</td><td>various</td><td>various</td><td>call-based / later stage</td><td>watch list</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="funding">
+    <div class="label">Funding<br>opportunities</div>
+    <div class="content">
+
+      <div class="fund">
+        <span class="status progress">in progress</span>
+        <h3>SAB Business Angel Bonus (JTF)</h3>
+        <p class="sub">grant · €50k per angel, doubled, up to €400k</p>
+        <p>Julia's answers are in: per-angel minimum confirmed, jobs must be created in Saxony, returns from profits only, agreement within ~2 months, decision within ~5 months.</p>
+        <p class="warnline">Watch out: the Saxony jobs condition needs a deliberate answer for a Berlin-rooted team.</p>
+        <p class="next">Next: close the angel commitments — the bonus follows the angels.</p>
+      </div>
+
+      <div class="fund">
+        <span class="status fit">strong fit</span>
+        <h3><a href="https://entrepreneurship.htw-berlin.de/events-workshops/htw-startup-challenge-2026">HTW Startup Challenge 2026</a></h3>
+        <p class="sub">pitch competition · €10,000 prizes · with Berliner Sparkasse</p>
+        <p>GreenTech, Impact, and audience-voted Future Visionary categories; 8–10 pre-selected teams pitch to 70–120 guests. Open to teams "at HTW and beyond." <strong>Deck + 1-minute video by 15 August; live pitch 2 September on a Spree boat.</strong></p>
+        <p class="next">Next: decide by early August. The 1-minute video doubles as launch content.</p>
+      </div>
+
+      <div class="fund">
+        <span class="status fit">deadline 31 Jul</span>
+        <h3><a href="https://avant-now.com/faq">Avant Now Accelerator — Cohort 11 (Berlin)</a></h3>
+        <p class="sub">impact-first accelerator · up to 12 months, full-time in person in Berlin · connect by 31 July 2026 (via F6S)</p>
+        <p>Berlin's impact-first, tech-forward accelerator. Application: eligibility check, written questions (problem, differentiation, validation, business model, go-to-market, impact KPIs, team, setback story), pitch deck, and a one-minute unscripted founder video on YouTube (their video rules are pure YC: no production, no memorized script, audible audio).</p>
+        <p class="warnline">Three gates to check before spending an evening: majority female-led founder team; NO revenues or funding yet (if the SAB angel round closes first, this may disqualify — timing matters); MVP-ready (dyad clears this easily). Read their extended 7-page eligibility document first, and ask them directly where an in-progress angel round stands.</p>
+        <p class="next">Next: confirm the female-led and no-funding-yet gates against dyad's actual cap table and round timing; if clear, the HTW pitch materials and 1-minute video do double duty here — one recording, two applications.</p>
+      </div>
+
+      <div class="fund">
+        <span class="status fit">strong fit</span>
+        <h3><a href="https://skyseed.fund">Skyseed Fund</a></h3>
+        <p class="sub">ATProto ecosystem fund · grants $5k–25k · equity ~$100k</p>
+        <p>The first fund + incubator for the Bluesky / AT Protocol ecosystem (~$1.5M, Peter Wang). Stated focus: data privacy, local-first experiences, small communities — dyad's exact posture. The ATProto sign-in work (PR #115) and public build log make dyad a citable non-feed reference app.</p>
+        <p class="next">Next: contact @skyseed.fund on Bluesky once the sign-in PR merges; lead with the build log. The Blacksky/Acorn relationship strengthens this.</p>
+      </div>
+
+      <div class="fund">
+        <span class="status fit">strong fit</span>
+        <h3><a href="https://docs.bsky.app/blog/atproto-grants">AT Protocol Grants (Bluesky)</a></h3>
+        <p class="sub">ecosystem grants · likely growing after Bluesky's $100M Series B</p>
+        <p>Apply with the sign-in bridge plus the "where the protocol falls short for non-feed apps" findings — that research angle is precisely what a protocol team funds.</p>
+      </div>
+
+      <div class="fund">
+        <span class="status fit">strong fit</span>
+        <h3><a href="https://www.prototypefund.de/en">Prototype Fund (DE)</a></h3>
+        <p class="sub">open-source public-interest tech · up to €95,000 team / €47,500 solo · 6 months</p>
+        <p>BMBF-financed; focus on civic tech and software infrastructure. Applications for the next class run <strong>1 October – 30 November 2026</strong>. Funds the work of individuals/small teams, not company growth — frame a scoped 6-month project (the ATProto privacy-boundary work, or the open-source membership/governance toolkit) rather than "fund dyad."</p>
+        <p class="next">Next: pick the scoped project in September; drafting takes ~2 weeks. (Deep research could not verify the round dates on the funder's own page; re-confirm 1 Oct–30 Nov at prototypefund.de before planning around it.)</p>
+      </div>
+
+      <div class="fund">
+        <span class="status fit">eligibility check</span>
+        <h3><a href="https://earlybird.com/vision-lab">Earlybird Vision Lab</a></h3>
+        <p class="sub">VC incubator + impact fund · €25,000 convertible · 6 months · rolling</p>
+        <p>For pre-seed teams in Germany with at least one first-generation migrant founder. MVP + early traction expected; Demo Day in front of the Earlybird investor community.</p>
+        <p class="next">Next: confirm the eligibility criterion, then apply with existing pitch materials.</p>
+      </div>
+
+      <div class="fund">
+        <span class="status fit">relationship</span>
+        <h3><a href="https://freeourfeeds.com/vision">Free Our Feeds / Modal Foundation</a></h3>
+        <p class="sub">ATProto ecosystem campaign · funding instruments forming ($500k → $30M)</p>
+        <p>Building venture studios, grants mechanisms, and partnerships for the open social web. Not yet open grants — which is the opportunity: be known before the money switches on.</p>
+        <p class="next">Next: one email to hello@freeourfeeds.com with the build log when the sign-in PR merges.</p>
+      </div>
+
+      <div class="fund">
+        <span class="status fit">relationship</span>
+        <h3><a href="https://democratictech.fund/">Democratic Tech Fund</a></h3>
+        <p class="sub">federation of co-ops · conversation-based funding</p>
+        <p>Funds "contra-infrastructure": community-owned social platforms on open protocols, cooperative tools, sovereign cloud. Their portfolio description reads like dyad's docs page. Engagement starts with a conversation, not an application.</p>
+        <p class="next">Next: open the conversation with the governance documents and the docs page as the introduction.</p>
+      </div>
+
+      <div class="fund">
+        <span class="status fit">eligibility check</span>
+        <h3><a href="https://www.ibb-business-team.de/gruendungsbonus-plus/">IBB GründungsBONUS Plus (Berlin)</a></h3>
+        <p class="sub">cost subsidy · 50% of eligible costs, up to €50,000 · disbursed over up to 2 years</p>
+        <p>Berlin state funding for innovative, sustainable startups with technological, digital, creative, or social business models. Covers operating costs (rent, marketing), personnel (up to €2,000/month per founder, max half the subsidy), IT development, and consulting. Founders must hold majority shares and manage the company. Only costs not yet incurred at application count.</p>
+        <p class="warnline">The gate: the company must be no older than 18 months at application. Check dyad's incorporation date before anything else — this decides whether the door is open at all.</p>
+        <p class="next">Deep research (15 Jul): currently open, applications „ab sofort“; scored 5/5, the cleanest non-dilutive Berlin match. Position dyad as a Berlin social/digital startup with strong sustainability and privacy characteristics, not as a thin-tech app. Next: verify entity age (≤18 months), then apply via ibb-bt.antragsverwaltung.de.</p>
+      </div>
+
+      <div class="fund">
+        <span class="status watch">watch list</span>
+        <h3><a href="https://www.ai-nation.de/grant">AI Nation — Grant &amp; Accelerator</a></h3>
+        <p class="sub">grant up to €54,000 non-dilutive · accelerator €10,000 · apply 13 Jul – 9 Aug 2026</p>
+        <p>Generous: founder scholarships of €2,000/month plus partner credits (grant), Berlin/Munich offices and investor access (accelerator).</p>
+        <p class="warnline">Honest fit check: weak. Both require AI as the core technology; the grant additionally requires no incorporation and no angel money. Revisit only if an AI-native piece ever becomes its own project.</p>
+      </div>
+
+      <div class="fund">
+        <span class="status fit">strong fit</span>
+        <h3><a href="https://themigrantaccelerator.com/accelerator/">The Migrant Accelerator — Generator HdM (Stuttgart)</a></h3>
+        <p class="sub">accelerator · 12 weeks, online + kick-off and demo day in person · €2,000 allowance · no equity, no fees · <strong>deadline 9 August 2026</strong>, cohort 2 Sep – 26 Nov</p>
+        <p>EXIST-supported program at Hochschule der Medien Stuttgart for first- and second-generation migrant founders based in Germany. Requires a team of at least two — Luna and Theodore qualify as a pair. Offers intercultural mentorship, German market and PR support, growth coaching, and community networks, run entirely in English.</p>
+        <p class="warnline">Stage framing: they want prototype to early MVP. dyad is past MVP, so pitch the community-stack layer (Phase 2 of the deck) or the founding-member launch as the thing being accelerated, not the core app.</p>
+        <p class="next">Next: apply before 9 August — free, no equity, and the German-market PR support lands exactly in the launch quarter. Weekly sessions are online; only kick-off and demo day need travel to Stuttgart.</p>
+      </div>
+
+      <div class="fund">
+        <span class="status watch">watch list</span>
+        <h3><a href="https://www.ngi.eu">NGI — Next Generation Internet (EU)</a></h3>
+        <p class="sub">recurring open calls · typically €5,000–50,000 per project</p>
+        <p>Funds privacy-preserving, open internet infrastructure (NGI Zero Commons and successors). dyad's "we cannot leak what we never hold" architecture is on-thesis.</p>
+        <p class="next">Next: check the currently open calls when the ATProto build log publishes; the application reuses that material.</p>
+      </div>
+
+      <div class="fund">
+        <span class="status fit">strong fit</span>
+        <h3><a href="https://www.startup-incubator.berlin/berlin-startup-scholarship/?lang=en">Berlin Startup Scholarship — Startup Incubator Berlin (HWR)</a></h3>
+        <p class="sub">stipend · €2,500 gross per founder per month · 6 months, extendable to 12 · deadline 13 September 2026, start 1 November</p>
+        <p>Founder-salary support plus workspace, coaching, and infrastructure. Gates: full-time and primarily on-site, Berlin residence, 1–4 founders, a degree "preferably" in place, no double funding with another scholarship or EXIST. No published company-age limit.</p>
+        <p class="warnline">The constraint is the on-site, full-time requirement, and the host leans conventional-startup. Frame dyad's beta, governance documents, build log, and events as building civic social infrastructure in Berlin.</p>
+        <p class="next">Next: book time before the 13 September deadline to shape the scholarship narrative; this directly funds the founder-sustainability gap. (Note: the separate Science &amp; Startups "Berliner Startup Stipendium" Batch III is themed critical-infrastructure resilience and does not fit.)</p>
+      </div>
+
+      <div class="fund">
+        <span class="status watch">watch list</span>
+        <h3>Culture funds — Kulturstiftung, Land Berlin</h3>
+        <p class="sub">small grants · often €5,000–25,000 · call-based</p>
+        <p>If the zine, the /voices films, or the conversation program get framed as cultural practice, culture funding opens up. Lower effort, and a good source for the community budget rather than the company.</p>
+        <p class="next">Next: watch Berlin culture calls once /voices is public; the films are the application.</p>
+      </div>
+
+      <div class="fund">
+        <span class="status fit">eligibility check</span>
+        <h3><a href="https://exist.de/programm/gruendungsstipendium/">EXIST Gründerstipendium (federal)</a></h3>
+        <p class="sub">stipend · €2,500–3,000 per founder per month for 12 months + €30,000 materials + €5,000 coaching · via a university</p>
+        <p>The strongest founder-runway program in Germany, for knowledge-based ideas anchored through a university or research institution. Team of up to three; normally no more than one person with a degree older than five years.</p>
+        <p class="warnline">The gate that decides everything: the company must not yet be founded at funding start. If dyad is already incorporated, this door is closed; if not, it is wide open with a Berlin university anchor.</p>
+        <p class="next">Next: test eligibility with a Berlin startup centre or transfer office, using the open-source AT Protocol integration, privacy architecture, and governance stack as the knowledge-based novelty claim.</p>
+      </div>
+
+      <div class="fund">
+        <span class="status fit">strong fit</span>
+        <h3><a href="https://www.ibb.de/de/foerderprogramme/transfer-bonus.html">Transfer BONUS Wissenschaft (IBB)</a></h3>
+        <p class="sub">grant · €7,500 at 100% (entry) / €15,000 at 70% / €45,000 at 70% (Digitalisierung) · pays external scientific work · rolling (UNVERIFIED)</p>
+        <p>Funds collaboration with a Berlin/Brandenburg research institution. The honest route for turning dyad's model into funded research without pretending to be deep tech: trust-and-safety design, governance usability, stranger-meeting risk, or privacy-by-architecture evaluation.</p>
+        <p class="next">Next: scope a six-month project with a Berlin lab (Weizenbaum and HIIG are the natural partners) and pick the entry or Digitalisierung variant.</p>
+      </div>
+
+      <div class="fund">
+        <span class="status fit">deadline 1 Aug</span>
+        <h3><a href="https://nlnet.nl/fediversity/">NGI Fediversity (NLnet)</a></h3>
+        <p class="sub">cascade grant · €5,000–50,000 cost-recovery · fully open-source required · twelfth call closes 1 August 2026, 12:00 CEST</p>
+        <p>Funds "the hosting stack of the future." dyad-the-product is not the fit; a carved-out reusable open-social infrastructure module is: self-hostable components, account portability, or admin tooling the wider AT Protocol ecosystem can reuse.</p>
+        <p class="next">Next: decide within days whether to extract one reusable module (the ATProto identity bridge is the obvious candidate) and write the proposal around ecosystem benefit. If the 1 August call is too soon, NLnet calls recur.</p>
+      </div>
+
+      <div class="fund">
+        <span class="status fit">strong fit</span>
+        <h3><a href="https://atprotocol.dev/community-fund/">AT Protocol Community Fund (Raft Foundation)</a></h3>
+        <p class="sub">micro-grants (published example: $5,000) · rolling, informal · get-in-touch model</p>
+        <p>Supports infrastructure, open-source code, and community initiatives in the AT Protocol ecosystem. Best for dyad's adjacent public goods rather than company runway: open governance templates for ATProto communities, event tooling, migration or safety resources.</p>
+        <p class="next">Next: pitch one small, sharply bounded public-good package (the CC BY-SA governance templates as ATProto community resources practically write themselves).</p>
+      </div>
+
+      <div class="fund">
+        <span class="status fit">aligned capital</span>
+        <h3><a href="https://purpose-economy.org/en/ventures/">Purpose Ventures</a></h3>
+        <p class="sub">mission-aligned investment · €50,000–500,000 tickets · no voting stock (revenue share, non-voting preferred, subordinated debt) · relationship-driven</p>
+        <p>Growth capital for startups committed to steward-ownership. dyad is not steward-owned today, and the fit rises sharply only if member/community ownership becomes an explicit part of the financing story (which the Bylaws' Phase 3 already gestures at).</p>
+        <p class="next">Next: decide whether a steward-ownership path belongs in the financing story before approaching; if yes, this is the most values-aligned money on this page.</p>
+      </div>
+
+      <div class="fund">
+        <span class="status fit">venture, on-thesis</span>
+        <h3><a href="https://blueyard.com/">BlueYard Capital (Berlin)</a></h3>
+        <p class="sub">equity · $500k–5M, pre-seed to Series A, usually lead · thesis: open, resilient, protocol-level infrastructure</p>
+        <p>Berlin fund whose portfolio includes open/protocol infrastructure and Chomp ("a new form of social media"). The pitch that works is dyad as open-social infrastructure for calm, real-world coordination and a reference case for what AT Protocol enables beyond feeds, not "another social app."</p>
+        <p class="next">Next: prepare the protocol-native narrative; approach after the ATProto build log publishes, when the claim is demonstrable.</p>
+      </div>
+
+      <div class="fund">
+        <span class="status watch">weak fits, filed</span>
+        <h3>Deep-research residue worth remembering</h3>
+        <p><strong>EXIST Forschungstransfer</strong> (up to €250k+€180k; collections 31 Aug / 30 Nov) — research-intensive only; 2/5 unless a genuine R&amp;D package on decentralized identity or safety is carved out. · <strong>Pro FIT Frühphasen</strong> (up to €500k, 50% grant/50% loan) — company ≤12 months, needs a "technologically innovative core"; ask IBB first whether the ATProto/privacy work counts. · <strong>Pro FIT Projekt</strong> (loans to €1M) — same R&amp;D framing problem. · <strong>Mikrokredit KMU-Fonds</strong> (≤€50k loan) — debt; only as a complement once cash flow is clear. · <strong>NGI Taler</strong> (1 Aug) — only as a privacy-preserving membership-payments module. · <strong>BONVENTURE 5</strong> (€1–2.5M tickets, late seed) — stage mismatch now, but their portfolio company Myo (loneliness/connection) proves the thesis overlap; keep for a later round. · <strong>Falling Walls Venture</strong> — reopens February 2027. · <strong>Sovereign Tech Fund, OTF, CERV/Creative Europe/Erasmus+</strong> — confirmed out of remit or consortium-only for now.</p>
+      </div>
+
+      <div class="fund">
+        <span class="status watch">next cohort</span>
+        <h3><a href="https://www.humanetech.com/fellowship">Center for Humane Technology — Emerging Voices Fellowship</a></h3>
+        <p class="sub">fellowship · $30,000 stipend · 6 months, 15h/week, remote · inaugural cohort closed 12 July 2026</p>
+        <p>For mid-career voices on AI and society: researchers, journalists, civil society, tech insiders with published work and media presence. Deliverables: one research output, op-eds, a podcast episode. CHT's thesis is dyad's thesis: harms are predictable products of business models and design choices.</p>
+        <p class="warnline">Two catches: this round's deadline has passed, and the frame is AI — dyad would enter as the counter-example (human meeting infrastructure in the AI-companion era), not as an AI project. Also 15h/week is half a founder's week during launch months.</p>
+        <p class="next">Next: build the fellow profile through the launch itself (zine, build log, op-eds, podcast appearances are the exact requirements), then apply to the next cohort with the AI-era-loneliness angle.</p>
+      </div>
+
+      <div class="fund">
+        <span class="status fit">model, not a fund</span>
+        <h3><a href="https://www.coops.tech/about">The CoTech model — earning, not raising</a></h3>
+        <p class="sub">UK network of worker co-ops · funded by client work · network sustained in-kind by members</p>
+        <p>CoTech's tech co-operatives raise nothing: they sell services, keep the surplus (no shareholders), and maintain their shared network through in-kind contributions (one co-op builds the site, another hosts, another does design). Since 2024 they are the tech arm of the workers.coop federation.</p>
+        <p>What dyad can take: a small <strong>services leg</strong> selling what already exists — the ATProto sign-in bridge, the governance documents suite (CC BY-SA invites exactly this), the membership system, the trust &amp; safety framework — to other communities and co-ops. A day or two a week of this funds the founder faster than most grants on this page, without touching the product's independence. And <strong>in-kind federation</strong>: joining commons networks (Democratic Tech Fund's federation, CoTech-style structures in DE) can cover hosting, design, and referrals without money changing hands.</p>
+        <p class="next">Next: list the three sellable assets with a day rate; mention the services leg in the Democratic Tech Fund conversation, since their federation is where the first clients are.</p>
+      </div>
+
+      <div class="principles">
+        <ol>
+          <li>Grants fund the <em>work</em>; membership funds the <em>organization</em>. Never let a grant redefine the product.</li>
+          <li>Prefer funders whose thesis matches the architecture — those applications write themselves from existing documents.</li>
+          <li>One application in flight at a time; each reuses the same narrative: offline-first, data-minimal, member-governed, open source.</li>
+          <li>Three legs, in order of dignity: earning (services, memberships), then relationships (federations, in-kind), then raising (grants, angels). The CoTech co-ops live on leg one alone.</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  
+
+  <footer>
+    <p>Companions: <a href="https://claude.ai/code/artifact/d1940910-0c20-4309-97f5-aa8bb9392fff">financial model</a> · <a href="https://claude.ai/code/artifact/beb421f9-be80-4089-91ab-32a4b5265af7">governance documents</a> · <a href="https://claude.ai/code/artifact/6302d864-ef0d-4553-bfd3-fdef65b50014">governance model</a> · <a href="https://github.com/ozgelunasahin/dyad-open/tree/hub/hub">hub branch (source of truth)</a></p>
+  </footer>
+</div>

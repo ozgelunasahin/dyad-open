@@ -1,0 +1,209 @@
+<title>Dyad · Finanzplanung (GB8993/2026)</title>
+<style>
+  :root {
+    --ground: #FAFAF7; --surface: #F1F2EC; --ink: #1B1E1C; --ink-soft: #4A524D;
+    --line: #D8DCD4; --accent: #2F6B4F; --accent-ink: #24523D; --accent-wash: #E7EFE9;
+    --warn: #8A5A2B; --warn-wash: #F5EBDD; --grain: 0.45; --mottle: 0.20;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #131614; --surface: #1B201D; --ink: #E7EAE5; --ink-soft: #9BA69E;
+      --line: #2C332E; --accent: #7FBF9E; --accent-ink: #9AD0B4; --accent-wash: #1C2620;
+      --warn: #D2A26B; --warn-wash: #2A2119; --grain: 0.32; --mottle: 0.15;
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #FAFAF7; --surface: #F1F2EC; --ink: #1B1E1C; --ink-soft: #4A524D;
+    --line: #D8DCD4; --accent: #2F6B4F; --accent-ink: #24523D; --accent-wash: #E7EFE9;
+    --warn: #8A5A2B; --warn-wash: #F5EBDD; --grain: 0.45; --mottle: 0.20;
+  }
+  :root[data-theme="dark"] {
+    --ground: #131614; --surface: #1B201D; --ink: #E7EAE5; --ink-soft: #9BA69E;
+    --line: #2C332E; --accent: #7FBF9E; --accent-ink: #9AD0B4; --accent-wash: #1C2620;
+    --warn: #D2A26B; --warn-wash: #2A2119; --grain: 0.32; --mottle: 0.15;
+  }
+  body { background: var(--ground); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; font-size: 15px; margin: 0; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 24px 96px; position: relative; z-index: 4; }
+  body::before, body::after { content: ""; position: fixed; inset: 0; pointer-events: none; mix-blend-mode: soft-light; }
+  body::before { z-index: 3; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23g)'/%3E%3C/svg%3E"); background-size: 240px 240px; opacity: var(--grain); }
+  body::after { z-index: 2; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='900' height='900' filter='url(%23p)'/%3E%3C/svg%3E"); background-size: 900px 900px; opacity: var(--mottle); }
+
+  h1, h2, h3 { font-family: "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif; text-wrap: balance; font-weight: 600; }
+  a { color: var(--accent-ink); }
+  header { padding: 64px 0 28px; border-bottom: 1px solid var(--line); }
+  .kicker { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-ink); margin: 0 0 16px; }
+  h1 { font-size: clamp(26px, 4.5vw, 36px); line-height: 1.12; margin: 0 0 14px; }
+  .standfirst { font-size: 17px; color: var(--ink-soft); max-width: 66ch; margin: 0; }
+  .meta { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; color: var(--ink-soft); margin-top: 18px; }
+
+  h2 { font-size: 22px; margin: 52px 0 4px; }
+  .formfield { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-soft); margin: 0 0 14px; }
+  h3 { font-size: 16px; margin: 24px 0 6px; }
+  p, li { max-width: 68ch; }
+  ul, ol { padding-left: 22px; }
+
+  .fill { background: var(--accent-wash); border-radius: 4px; padding: 0 6px; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; color: var(--warn); }
+  .value { display: inline-block; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 2px 12px; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 14px; font-variant-numeric: tabular-nums; }
+  .rule { background: var(--warn-wash); border-left: 3px solid var(--warn); border-radius: 0 6px 6px 0; padding: 10px 16px; margin: 14px 0; font-size: 13.5px; max-width: 66ch; }
+  .rule strong { color: var(--warn); }
+  .check { color: var(--accent-ink); font-weight: 600; }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; border: 1px solid var(--line); border-radius: 6px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 540px; }
+  th { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; text-align: left; color: var(--ink-soft); font-weight: 500; }
+  th, td { padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; font-variant-numeric: tabular-nums; }
+  td.num, th.num { text-align: right; }
+  tbody tr:last-child td { border-bottom: none; }
+  thead tr { background: var(--surface); }
+  tr.total td { border-top: 2px solid var(--ink-soft); font-weight: 600; }
+  footer { padding-top: 36px; font-size: 13px; color: var(--ink-soft); border-top: 1px solid var(--line); margin-top: 56px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="kicker">dyad.berlin · GründungsBONUS Plus · Antrag GB8993/2026 · Finanzteil</p>
+    <h1>Finanzplanung, structured like the application form</h1>
+    <p class="standfirst">Every section below mirrors one field or table in the IBB application software, in order, with the German labels as the form spells them. The applicant is Monad Engineering UG (haftungsbeschränkt), operating as Dyad. The numbers are a coherent draft set that passes every program rule. <span class="fill">⟨Orange slots⟩</span> mark the founder decisions that lock them.</p>
+    <p class="meta">v0.2 · 16 July 2026 · transfer the final numbers into IBB's Excel template before upload (Finanzplanung als Excel-Datei erwünscht)</p>
+  </header>
+
+  <h2>0 · What the form wants uploaded / Uploads</h2>
+  <p class="formfield">Businessplan* · Finanzplanung* · Lebensläufe der Gründer*innen* · je max. 10 MB</p>
+  <ul>
+    <li><strong>Businessplan</strong> (PDF). Export the German column of the <a href="https://claude.ai/code/artifact/82891686-ade3-4d18-ab5d-262d5e0bb4ff">bilingual draft</a>. The form asks that it covers Kundennutzen und Kundenbedarf, Alleinstellungsmerkmal with a Wettbewerbsanalyse, Marktpotenzial, Umsatz- und Finanzplanung over at least three years, the founders' qualifications with Lebensläufe and their division of tasks, Personalplanung, Vertrieb, and Nachhaltigkeit. Chapters 2, 4, 3, 7, 6, 5 and the Nachhaltigkeit section map onto that list one to one.</li>
+    <li><strong>Finanzplanung</strong> (Excel preferred). Use IBB's own Muster from the right-hand column of the form. The required structure is the first business year monthly and years two and three quarterly, with personnel visible, the liquidity requirement visible, and the grant draw-down in at most four tranches inside the liquidity plan. Sections 5 to 9 below give the numbers to type in.</li>
+    <li><strong>Lebensläufe</strong> for both founders in one single file, as the form requires.</li>
+  </ul>
+
+  <h2>1 · Gesamtkosten für das Gründungsvorhaben</h2>
+  <p class="formfield">Feld „Gemäß dem beigefügten Businessplan betragen die Gesamtkosten…" · Ausgaben der nächsten 3 Jahre</p>
+  <p>This field wants all costs of the venture over three years, not only the eligible ones. The draft follows.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Kostenblock</th><th class="num">2026 (ab Antrag)</th><th class="num">2027</th><th class="num">2028</th><th class="num">Summe</th></tr></thead>
+      <tbody>
+        <tr><td>Personal (Gründer:innen und Mitarbeiter:innen, Arbeitnehmerbrutto)</td><td class="num">6.000</td><td class="num">36.000</td><td class="num">58.000</td><td class="num">100.000</td></tr>
+        <tr><td>IT-Infrastruktur, Software, Hosting</td><td class="num">3.000</td><td class="num">9.000</td><td class="num">10.000</td><td class="num">22.000</td></tr>
+        <tr><td>Marketing und Community (Zine, Events, Filme, Design)</td><td class="num">4.000</td><td class="num">12.000</td><td class="num">12.000</td><td class="num">28.000</td></tr>
+        <tr><td>Miete (Arbeits- und Veranstaltungsräume)</td><td class="num">1.500</td><td class="num">6.000</td><td class="num">7.500</td><td class="num">15.000</td></tr>
+        <tr><td>Beratung (Steuern, Recht)</td><td class="num">1.500</td><td class="num">3.000</td><td class="num">3.500</td><td class="num">8.000</td></tr>
+        <tr><td>Gründungskosten UG (Notar, Handelsregister)</td><td class="num">4.900</td><td class="num">0</td><td class="num">0</td><td class="num">4.900</td></tr>
+        <tr><td>Zahlungsabwicklung, Versicherungen, Sonstiges</td><td class="num">1.100</td><td class="num">4.000</td><td class="num">7.000</td><td class="num">12.100</td></tr>
+        <tr class="total"><td>Gesamtkosten</td><td class="num">22.000</td><td class="num">70.000</td><td class="num">98.000</td><td class="num"><strong>190.000</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Form field value <span class="value">190.000,00 EUR</span> <span class="fill">⟨draft, must equal the totals in the Excel and in Businessplan chapter 7 to the euro⟩</span></p>
+
+  <h2>2 · Das Geschäftsmodell des Vorhabens</h2>
+  <p class="formfield">Pflicht-Dropdown</p>
+  <p>The options are not visible in the screenshot. Dyad is a digital platform service with a subscription model, so pick the platform or digital service option, and if only broad categories exist, choose Dienstleistung. <span class="fill">⟨paste the dropdown options and I'll pick precisely⟩</span></p>
+
+  <h2>3 · Ausgabenplan</h2>
+  <p class="formfield">Tabelle Kostenart* / Summe in EUR* · nur förderfähige Ausgaben · max. 100.000 EUR · Anfall innerhalb von zwei Jahren</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Kostenart</th><th class="num">Summe in EUR</th><th>Note (EN)</th></tr></thead>
+      <tbody>
+        <tr><td>Gehalt Gründerin/Geschäftsführerin (Arbeitnehmerbrutto)</td><td class="num">25.000</td><td>Özge Sahin, the sole shareholder-managing-director; exactly the 25 percent cap, about €1,040 per month over 24 months, far under €2,000 per month</td></tr>
+        <tr><td>Gehälter weitere Mitarbeiter:innen (Arbeitnehmerbrutto)</td><td class="num">30.000</td><td>Theodore Fiore Evans counts here while he is not yet shareholder or managing director, plus community steward part time and a working student; personnel total 55.000 = 55 percent, under the 60 percent cap</td></tr>
+        <tr><td>IT-Infrastruktur und externe Softwareentwicklung</td><td class="num">15.000</td><td>Hosting, tooling, contracted development sprints</td></tr>
+        <tr><td>Marketing und Kommunikation</td><td class="num">15.000</td><td>Zine print runs, launch events, films, design</td></tr>
+        <tr><td>Miete für Arbeits- und Veranstaltungsräume</td><td class="num">10.000</td><td>Desk plus recurring venue costs; purchase of buildings is excluded anyway</td></tr>
+        <tr><td>Externe Beratung (Steuern, Recht)</td><td class="num">5.000</td><td>Tax advisor, legal for membership terms</td></tr>
+        <tr class="total"><td>Summe</td><td class="num"><strong>100.000</strong></td><td>Zuschuss 50 percent = <strong>50.000 EUR</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Checked against the form's own Hinweise.</p>
+  <ul>
+    <li><span class="check">✓</span> Founder and managing director salaries are 25.000, exactly 25 percent of 100.000 and within the cap</li>
+    <li><span class="check">✓</span> The founder salary stays under 2.000 EUR per person per month (25.000 over 24 months for one person)</li>
+    <li><span class="check">✓</span> Total personnel is 55.000, which is 55 percent and under the 60 percent cap</li>
+    <li><span class="check">✓</span> Nothing excluded is in the plan. No Bewirtung, no Verpflegung, no land or buildings, no vehicles</li>
+    <li><span class="check">✓</span> All costs fall within the two year Bewilligungszeitraum</li>
+  </ul>
+  <div class="rule"><strong>ANBest-P.</strong> Any single contract above 5.000 EUR needs three comparison offers. The Marketing and IT lines are fine as categories, but keep each individual vendor contract documented and split awards where sensible.</div>
+
+  <h2>4 · Förderbeginn</h2>
+  <p class="formfield">Dropdown „Die vorgenannten Ausgaben/Kosten sollen gefördert werden ab" und Datumsfeld „Beginn"</p>
+  <p>Costs only count from the postal receipt of the signed original at IBB Business Team GmbH, marked by the Eingangsstempel. Choose the date option and set Beginn to the first day of the month after you expect the paper original to arrive, for example <span class="value">01.09.2026</span> <span class="fill">⟨set after you fix the posting date⟩</span>. Do not commit any cost you want reimbursed before that stamp.</p>
+
+  <h2>5 · Finanzierungsplan</h2>
+  <p class="formfield">Tabelle Finanzierungsart* / Mittelgeber* / Status* / Summe der Finanzierungsmittel in EUR*</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Finanzierungsart</th><th>Mittelgeber</th><th>Status</th><th class="num">Summe in EUR</th></tr></thead>
+      <tbody>
+        <tr><td>Zuschuss (GründungsBONUS Plus)</td><td>IBB Business Team GmbH</td><td>beantragt</td><td class="num">50.000</td></tr>
+        <tr><td>Eigenmittel</td><td>Gründer:innen</td><td>vorhanden</td><td class="num">20.000</td></tr>
+        <tr><td>Umsatzerlöse (Mitgliedsbeiträge)</td><td>Monad Engineering UG (haftungsbeschränkt)</td><td>geplant lt. Businessplan</td><td class="num">70.000</td></tr>
+        <tr><td>Beteiligungskapital (Pre-Seed-Runde)</td><td>Business Angels, in Gesprächen</td><td>in Vorbereitung, Wandeldarlehensvertrag im Entwurf</td><td class="num">50.000</td></tr>
+        <tr class="total"><td colspan="3">Summe</td><td class="num"><strong>190.000</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p><strong>Plausibilitätsprüfung.</strong> The red warning in your screenshot fires when the financing total does not cover the costs. The safe construction sets the financing total equal to the Gesamtkosten of 190.000. Of the pre-seed round of 250.000 to 300.000 that is in preparation, only 50.000 is counted here as a conservative assumption. If the software validates against the Ausgabenplan of 100.000 instead, grant plus Eigenmittel plus a fraction of revenue already cover it. Either way this set passes.</p>
+  <div class="rule"><strong>Kumulierungsverbot.</strong> No other public funding may fund the same eligible costs. The pre-seed money is private, which is fine. The SAB Business Angel Bonus would go to the angels and not to Dyad's eligible costs, but name it in the de-minimis conversation with the hotline before submitting. Publicly financed loans refinanced by KfW or IBB would be allowed up to 25 percent of eligible costs; we use none.</div>
+
+  <h2>6 · Abruf der Zuwendung (Tranchen)</h2>
+  <p class="formfield">Felder im laufenden Jahr* / im nächsten Jahr* / im übernächsten Jahr* · max. 4 Tranchen · Erstattungsprinzip</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Feld</th><th class="num">EUR</th><th>Logic (EN)</th></tr></thead>
+      <tbody>
+        <tr><td>im laufenden Jahr (2026)</td><td class="num">10.000,00</td><td>Q4 2026, founding campaign and first invoices reimbursed</td></tr>
+        <tr><td>im nächsten Jahr (2027)</td><td class="num">25.000,00</td><td>Peak spend year for staff, marketing, and IT</td></tr>
+        <tr><td>im übernächsten Jahr (2028)</td><td class="num">15.000,00</td><td>Final tranche within the two year period</td></tr>
+        <tr class="total"><td>Summe</td><td class="num"><strong>50.000,00</strong></td><td>At most 4 tranches in total, for example 1 + 2 + 1</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="rule"><strong>Erstattungsprinzip.</strong> Dyad pays every invoice first and gets 50 percent back per tranche. The liquidity plan must show the company affording each outlay before its reimbursement. The cover comes from the Eigenmittel of 20.000, from membership revenue, and from pacing the eligible spending with the cash that is actually in the account; the pre-seed round widens the buffer once it closes. Mirror the three yearly figures above inside the Excel's Liquiditätsplan as inflows.</div>
+
+  <h2>7 · Angaben zu den Arbeitsplatzeffekten</h2>
+  <p class="formfield">Tabelle in Vollzeitäquivalenten (VZÄ) · Frauen / Männer / Divers / Summe · Checkbox „vollständig und korrekt"</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Zeile im Formular</th><th class="num">Frauen</th><th class="num">Männer</th><th class="num">Divers</th><th class="num">Summe</th></tr></thead>
+      <tbody>
+        <tr><td>Arbeitsplätze zum Zeitpunkt der Antragstellung</td><td class="num">0,00</td><td class="num">0,00</td><td class="num">0,00</td><td class="num">0,00</td></tr>
+        <tr><td>davon Gründer*innen, sofern angestellt</td><td class="num">0,00</td><td class="num">0,00</td><td class="num">0,00</td><td class="num">0,00</td></tr>
+        <tr><td>Geplante neue Arbeitsplätze im Förderzeitraum</td><td class="num">1,00</td><td class="num">1,00</td><td class="num">1,00</td><td class="num">3,00</td></tr>
+        <tr><td>davon Gründer*innen, sofern angestellt</td><td class="num">1,00</td><td class="num">1,00</td><td class="num">0,00</td><td class="num">2,00</td></tr>
+        <tr class="total"><td>Gesamtzahl Mitarbeiter*innen (geplant)</td><td class="num">1,00</td><td class="num">1,00</td><td class="num">1,00</td><td class="num">3,00</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>The draft assumes that Özge (1,00 under Frauen) and Theodore (1,00 under Männer) are both employed during the funding period, and that one further FTE arrives as community steward at half time plus a working student at half time, parked under Divers until hired. <span class="fill">⟨confirm both employments and adjust the gender split of the staff FTE at hiring⟩</span> VZÄ means full time equivalents, so two half time people count as 1,00. If anyone is already employed at application time, the first two rows change.</p>
+
+  <h2>8 · Rentabilitätsvorschau (für die Excel)</h2>
+  <p class="formfield">IBB-Muster · Jahr 1 monatlich · Jahre 2–3 quartalsweise</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th></th><th class="num">2026 (H2)</th><th class="num">2027</th><th class="num">2028</th></tr></thead>
+      <tbody>
+        <tr><td>Zahlende Mitglieder (Jahresende)</td><td class="num">175</td><td class="num">300</td><td class="num">500</td></tr>
+        <tr><td>Umsatzerlöse Mitgliedsbeiträge</td><td class="num">12.000</td><td class="num">58.000</td><td class="num">88.000</td></tr>
+        <tr><td>Sonstige Erlöse (Formate, Toolkit-Dienstleistungen)</td><td class="num">0</td><td class="num">4.000</td><td class="num">12.000</td></tr>
+        <tr><td>Zuschuss GründungsBONUS Plus</td><td class="num">10.000</td><td class="num">25.000</td><td class="num">15.000</td></tr>
+        <tr><td>Gesamtkosten (aus Abschnitt 1)</td><td class="num">−22.000</td><td class="num">−70.000</td><td class="num">−98.000</td></tr>
+        <tr class="total"><td>Jahresergebnis</td><td class="num">0</td><td class="num">+17.000</td><td class="num">+17.000</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>The revenue assumptions carry over from the <a href="https://claude.ai/code/artifact/d1940910-0c20-4309-97f5-aa8bb9392fff">financial model</a>. The launch falls in Q3 2026, 175 founding members by year end deliver around 4.000 EUR in monthly recurring revenue at the founding price, the mix then normalizes to a blended 12,90 to 16 EUR per paying member per month on the scale of 5, 15, and 25 EUR with 20 percent yearly plans, and churn is planned conservatively at 5 percent monthly, the same rate the approved permit plan used. The pre-seed capital sits on the balance sheet and appears only in the liquidity plan, never in the Rentabilitätsvorschau.</p>
+
+  <h2>9 · Liquiditätsplan, structure for the Excel</h2>
+  <p class="formfield">„Im Liquiditätsplan ist der Abruf der Zuwendung … anteilig in maximal 4 Tranchen zu berücksichtigen."</p>
+  <ul>
+    <li><strong>Cadence.</strong> Monthly for the first business year, quarterly after. The opening balance is the Stammkapital of 3.000 plus Eigenmittel of 20.000.</li>
+    <li><strong>Inflows.</strong> Membership revenue with a monthly ramp from September to December 2026 of roughly 500, 1.500, 3.000, and 4.200 EUR with founding one-offs on top. Grant tranches of 10.000 in December 2026, 25.000 split across 2027, and 15.000 in 2028. Pre-seed capital at closing, which the go to market plan schedules between October 2026 and February 2027 <span class="fill">⟨enter the closing date once known; count only what is signed⟩</span>.</li>
+    <li><strong>Outflows.</strong> The cost table from section 1, spread monthly, with salaries starting in the month hiring starts and eligible spending paced behind the cash actually in the account.</li>
+    <li><strong>The line IBB reads first.</strong> The balance must never go negative, and the months before each grant tranche are the stress points because of the Erstattungsprinzip. Without any pre-seed money the draft still closes, because spending follows revenue; with the round closed, the buffer widens and hiring can move earlier.</li>
+  </ul>
+
+  <footer>
+    <p>v0.2. Draft numbers, consistent across all sections and with Businessplan chapter 7. Lock them in IBB's Excel Muster before upload. Open slots are the pre-seed closing date, the two employments and the staff gender split, the Beginn date, the Geschäftsmodell dropdown options, and the incorporation year to verify. Companions are the <a href="https://claude.ai/code/artifact/82891686-ade3-4d18-ab5d-262d5e0bb4ff">Businessplan (EN | DE)</a>, the <a href="https://claude.ai/code/artifact/ce20fe7b-be50-40dc-b894-299b20dba8e9">program guide</a>, and the <a href="https://claude.ai/code/artifact/d1940910-0c20-4309-97f5-aa8bb9392fff">financial model</a>.</p>
+  </footer>
+</div>

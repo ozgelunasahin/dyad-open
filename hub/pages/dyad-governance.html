@@ -1,0 +1,344 @@
+<title>dyad — Collective Governance Model v0.1</title>
+<style>
+  :root {
+    --ground: #FAFAF7;
+    --surface: #F1F2EC;
+    --ink: #1B1E1C;
+    --ink-soft: #4A524D;
+    --line: #D8DCD4;
+    --accent: #2F6B4F;
+    --accent-ink: #24523D;
+    --tag-startup: #8A5A2B;
+    --tag-consent: #2F6B4F;
+    --tag-delegated: #4A5A8A;
+    --grain: 0.45;
+    --mottle: 0.20;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #131614;
+      --surface: #1B201D;
+      --ink: #E7EAE5;
+      --ink-soft: #9BA69E;
+      --line: #2C332E;
+      --accent: #7FBF9E;
+      --accent-ink: #9AD0B4;
+      --tag-startup: #D2A26B;
+      --tag-consent: #7FBF9E;
+      --tag-delegated: #9AAAD8;
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #FAFAF7;
+    --surface: #F1F2EC;
+    --ink: #1B1E1C;
+    --ink-soft: #4A524D;
+    --line: #D8DCD4;
+    --accent: #2F6B4F;
+    --accent-ink: #24523D;
+    --tag-startup: #8A5A2B;
+    --tag-consent: #2F6B4F;
+    --tag-delegated: #4A5A8A;
+    --grain: 0.45;
+    --mottle: 0.20;
+  }
+  :root[data-theme="dark"] {
+    --ground: #131614;
+    --surface: #1B201D;
+    --ink: #E7EAE5;
+    --ink-soft: #9BA69E;
+    --line: #2C332E;
+    --accent: #7FBF9E;
+    --accent-ink: #9AD0B4;
+    --tag-startup: #D2A26B;
+    --tag-consent: #7FBF9E;
+    --tag-delegated: #9AAAD8;
+    --grain: 0.32;
+    --mottle: 0.15;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.6;
+    font-size: 16px;
+    margin: 0;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px 96px; position: relative; z-index: 4; }
+
+  /* apartment-wall texture: fine grain over a soft plaster mottle */
+  body::before, body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    mix-blend-mode: soft-light;
+  }
+  body::before {
+    z-index: 3;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23g)'/%3E%3C/svg%3E");
+    background-size: 240px 240px;
+    opacity: var(--grain);
+  }
+  body::after {
+    z-index: 2;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='900' height='900' filter='url(%23p)'/%3E%3C/svg%3E");
+    background-size: 900px 900px;
+    opacity: var(--mottle);
+  }
+
+  a { color: var(--accent-ink); text-decoration-color: var(--line); text-underline-offset: 3px; }
+  a:hover { text-decoration-color: var(--accent); }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+
+  h1, h2, h3 { font-family: "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif; text-wrap: balance; font-weight: 600; }
+
+  header { padding: 72px 0 40px; border-bottom: 1px solid var(--line); }
+  .kicker { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-ink); margin: 0 0 16px; }
+  h1 { font-size: clamp(30px, 5vw, 46px); line-height: 1.12; margin: 0 0 16px; max-width: 22ch; }
+  .standfirst { font-size: 18px; color: var(--ink-soft); max-width: 58ch; margin: 0; }
+  .meta { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; color: var(--ink-soft); margin-top: 24px; }
+
+  section { display: grid; grid-template-columns: 1fr 3fr; gap: 32px; padding: 48px 0; border-bottom: 1px solid var(--line); }
+  section:last-of-type { border-bottom: none; }
+  .label { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); padding-top: 6px; }
+  .content > :first-child { margin-top: 0; }
+  .content > :last-child { margin-bottom: 0; }
+  .content p { max-width: 65ch; }
+  .content h3 { font-size: 21px; margin: 32px 0 8px; }
+
+  @media (max-width: 720px) {
+    section { grid-template-columns: 1fr; gap: 12px; padding: 36px 0; }
+    header { padding-top: 48px; }
+  }
+
+  .layers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 8px 0 0; }
+  @media (max-width: 860px) { .layers { grid-template-columns: 1fr; } }
+  .layer { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+  .tag { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; align-self: flex-start; padding: 3px 8px; border-radius: 3px; border: 1px solid currentColor; }
+  .tag.startup { color: var(--tag-startup); }
+  .tag.consent { color: var(--tag-consent); }
+  .tag.delegated { color: var(--tag-delegated); }
+  .layer h3 { margin: 0; font-size: 20px; }
+  .layer p { font-size: 14px; color: var(--ink-soft); margin: 0; }
+  .layer ul { margin: 0; padding-left: 18px; font-size: 14px; }
+  .layer li { margin-bottom: 5px; }
+  .layer .who { font-size: 13px; border-top: 1px solid var(--line); padding-top: 10px; margin-top: auto; color: var(--ink-soft); }
+  .layer .who strong { color: var(--ink); }
+
+  .tablewrap { overflow-x: auto; margin-top: 8px; border: 1px solid var(--line); border-radius: 6px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 640px; }
+  th { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; text-align: left; color: var(--ink-soft); font-weight: 500; }
+  th, td { padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  thead tr { background: var(--surface); }
+  td:first-child { font-weight: 600; }
+  .cell-tag { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
+  .cell-tag.startup { color: var(--tag-startup); }
+  .cell-tag.consent { color: var(--tag-consent); }
+  .cell-tag.delegated { color: var(--tag-delegated); }
+
+  .mech { border-left: 3px solid var(--accent); padding: 4px 0 4px 20px; margin: 24px 0; }
+  .mech h3 { margin: 0 0 6px; font-size: 19px; }
+  .mech p { margin: 0; color: var(--ink-soft); font-size: 15px; }
+
+  .refs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 860px) { .refs { grid-template-columns: 1fr; } }
+  .ref { border: 1px solid var(--line); border-radius: 6px; padding: 20px; }
+  .ref h3 { margin: 0 0 4px; font-size: 19px; }
+  .ref .sub { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-soft); }
+  .ref p { font-size: 14px; margin: 12px 0 0; }
+  .ref p.take { color: var(--ink-soft); }
+  .ref p.take strong { color: var(--accent-ink); }
+
+  ol.steps { counter-reset: step; list-style: none; padding: 0; margin: 0; max-width: 62ch; }
+  ol.steps li { counter-increment: step; display: grid; grid-template-columns: 40px 1fr; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+  ol.steps li:last-child { border-bottom: none; }
+  ol.steps li::before { content: counter(step, decimal-leading-zero); font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; color: var(--accent-ink); padding-top: 3px; }
+  ol.steps strong { display: block; }
+  ol.steps span { color: var(--ink-soft); font-size: 14px; }
+
+  footer { padding-top: 40px; font-size: 13px; color: var(--ink-soft); }
+  footer p { max-width: none; }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="kicker">dyad.berlin · working draft</p>
+    <h1>Collective Governance Model</h1>
+    <p class="standfirst">How dyad members become active co-designers of the community — and where the startup keeps the wheel. A decision-rights partition informed by Inclusive Organizing, Subvert, and Blacksky.</p>
+    <p class="meta">v0.2 — 14 July 2026 · status: draft for discussion · full document suite: <a href="https://claude.ai/code/artifact/beb421f9-be80-4089-91ab-32a4b5265af7">dyad Governance Documents v0.1</a></p>
+  </header>
+
+  <section>
+    <div class="label">Premise</div>
+    <div class="content">
+      <p>The projects that make member co-design work don't ask <em>"should members decide things?"</em> They <strong>partition decision domains explicitly and write it down.</strong> Subvert codifies everything in bylaws. Blacksky separates the infrastructure it provides from the rules each community sets. Inclusive Organizing supplies the method: consent-based decisions, versioned natural-language agreements, minimum viable governance.</p>
+      <p>Members co-design <em>within defined domains with real decision power</em> — not advisory input on everything. The line between domains is drawn publicly, so it never feels arbitrary.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="label">Three layers</div>
+    <div class="content">
+      <div class="layers">
+        <div class="layer">
+          <span class="tag startup">Startup decides</span>
+          <h3>Strategic</h3>
+          <p>Existential and fiduciary decisions. Members are informed with reasoning — never surprised, never voting.</p>
+          <ul>
+            <li>Fundraise, equity, legal entity</li>
+            <li>Hiring &amp; runway</li>
+            <li>Pricing &amp; business model</li>
+            <li>Pivots, brand, funded partnerships</li>
+          </ul>
+          <p class="who"><strong>Obligation:</strong> quarterly “State of dyad” — what was decided and why.</p>
+        </div>
+        <div class="layer">
+          <span class="tag consent">Members decide</span>
+          <h3>Tactical</h3>
+          <p>The co-design domain. Decisions pass by consent of members — this is the answer to “on what?”</p>
+          <ul>
+            <li>Community standards &amp; moderation policy</li>
+            <li>Membership criteria &amp; onboarding</li>
+            <li>Programming &amp; curation (events, /voices)</li>
+            <li>Community budget allocation</li>
+          </ul>
+          <p class="who"><strong>Backstop:</strong> startup retains legal/safety removals only.</p>
+        </div>
+        <div class="layer">
+          <span class="tag delegated">Role holder decides</span>
+          <h3>Operational</h3>
+          <p>Whoever holds the role acts — no group decision needed. Consent applies to policies, not actions.</p>
+          <ul>
+            <li>Running an event within the agreed program</li>
+            <li>Moderating per the agreed standards</li>
+            <li>Writing field notes &amp; voices</li>
+            <li>Welcoming new members</li>
+          </ul>
+          <p class="who"><strong>Guard:</strong> if every action needs a group, we've rebuilt bureaucracy.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="label">Decision rights</div>
+    <div class="content">
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr><th>Domain</th><th>Layer</th><th>Who decides</th><th>How</th><th>Member role</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Fundraise, equity, hiring, pricing, pivots</td><td><span class="cell-tag startup">Strategic</span></td><td>Founders</td><td>Founder judgment</td><td>Informed with reasoning</td></tr>
+            <tr><td>Community standards &amp; moderation policy</td><td><span class="cell-tag consent">Tactical</span></td><td>Members</td><td>Consent round on proposals</td><td>Co-designer, proposer, objector</td></tr>
+            <tr><td>Membership criteria &amp; onboarding</td><td><span class="cell-tag consent">Tactical</span></td><td>Members</td><td>Consent round on proposals</td><td>Co-designer</td></tr>
+            <tr><td>Programming &amp; curation</td><td><span class="cell-tag consent">Tactical</span></td><td>Members</td><td>Consent round on proposals</td><td>Co-designer, curator</td></tr>
+            <tr><td>Community budget</td><td><span class="cell-tag consent">Tactical</span></td><td>Members</td><td>Democratic allocation</td><td>Allocator</td></tr>
+            <tr><td>Events, moderation actions, content, welcoming</td><td><span class="cell-tag delegated">Operational</span></td><td>Role holder</td><td>Acts within agreed policy</td><td>Doer</td></tr>
+            <tr><td>Member expulsion</td><td><span class="cell-tag consent">Tactical</span></td><td>Member review panel</td><td>Notice → education → review → appeal; never one admin alone</td><td>Reviewer; accused has right to be heard</td></tr>
+            <tr><td>Legal &amp; urgent safety removals</td><td><span class="cell-tag startup">Reserved</span></td><td>Startup</td><td>Immediate, logged &amp; explained</td><td>Informed after the fact</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="label">Mechanics<br>(from IO)</div>
+    <div class="content">
+      <div class="mech">
+        <h3>Consent, not consensus, not voting</h3>
+        <p>A proposal in a tactical domain passes unless someone raises a <em>reasoned objection</em> — “this causes harm” or “this breaks an agreement” — not a preference. Fast, and it structurally guarantees quiet members are heard: objections must be resolved, but nobody can filibuster with taste.</p>
+      </div>
+      <div class="mech">
+        <h3>Versioned, natural-language agreements</h3>
+        <p><em>dyad Community Agreements v0.1</em> — one page, plain language, public, with a changelog. Anyone proposes an amendment → 72-hour consent round → merged or resolved. This is the community-standards process and the co-design process in one mechanism. Every rule is revocable the same way it was made.</p>
+      </div>
+      <div class="mech">
+        <h3>Shared language</h3>
+        <p>A ten-term glossary — member, steward, proposal, objection, agreement — defined before onboarding begins. Most governance fights are definitional; this prevents them.</p>
+      </div>
+      <div class="mech">
+        <h3>Minimum viable governance</h3>
+        <p>No councils, boards, or working groups on day one. Start with the agreements doc, the proposal process, and the budget pilot. Add a working group only when a domain has recurring decisions <em>and</em> volunteers — standards &amp; moderation will likely be first.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="label">Mechanics<br>(from Subvert's docs)</div>
+    <div class="content">
+      <p>Read directly from Subvert's published Community Standards, Member Agreement, Acceptance Criteria, and Bylaws — five mechanisms dyad can adopt without being a co-op:</p>
+      <div class="mech">
+        <h3>Two-document architecture</h3>
+        <p>Subvert splits its rules into Bylaws (the constitution — only members can amend it) and Member Agreements (practical details — the board updates them with notice, and anyone who disagrees may exit within 30 days). For dyad: a short <em>Charter</em> holding the decision-rights partition itself (changed only by member consent) and the <em>Community Agreements</em> (evolving via the lighter 72-hour process). Changing the rules is harder than changing a rule.</p>
+      </div>
+      <div class="mech">
+        <h3>Plain-language explainers beside the formal text</h3>
+        <p>Every dense clause in Subvert's legal documents gets a green box saying what it means in ordinary words, explicitly marked non-binding. Adopt this format for anything dyad publishes that has legal or procedural weight.</p>
+      </div>
+      <div class="mech">
+        <h3>The enforcement ladder</h3>
+        <p>Notice and education first; <em>no unilateral removal</em> — “no member will be permanently removed through the unilateral decision of a single administrator”; final removal requires democratic review by a cross-section of members; the accused has a right to be heard before the decision. The only carve-out is legal and safety removals. This turns dyad's “member expulsion” row from a vague promise into a concrete procedure.</p>
+      </div>
+      <div class="mech">
+        <h3>Good standing, with automatic reinstatement</h3>
+        <p>Subvert's activity bar is deliberately minimal (log in once a year, keep one release up). Inactive members lose their vote but are reinstated automatically by simply engaging again — no re-application. For dyad this solves the consent-round dead-weight problem: quorum is counted against <em>active</em> members, and drifting away is never punished.</p>
+      </div>
+      <div class="mech">
+        <h3>The petition valve</h3>
+        <p>Subvert members have an escalation path that bypasses leadership entirely: 10% of members can petition a bylaws amendment onto the agenda with no board sign-off. dyad's equivalent: some threshold of active members (say 20% while small) can force any topic into a consent round even if the founders disagree. This is the anti-capture guarantee that makes “startup decides strategic” trustworthy.</p>
+      </div>
+      <div class="mech">
+        <h3>Taste-free membership criteria</h3>
+        <p>Applications are judged by compensated member-curators against published criteria “with no reference to personal taste or judgement of artistic merit, nor to the size of an artist's audience.” Rejections come with guidance; a second rejection unlocks an appeal; reapplying is always allowed. A template for dyad's membership-criteria domain: objective rubric, member reviewers, a ladder instead of a wall.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="label">Reference models</div>
+    <div class="content">
+      <div class="refs">
+        <div class="ref">
+          <h3><a href="https://inclusiveorg.net/">Inclusive Organizing</a></h3>
+          <p class="sub">Open framework · Greg Cassel</p>
+          <p>Toolbox for consent-based, non-hierarchical organizing. Low-tech, reversible, natural-language agreements; a shared vocabulary (<a href="https://github.com/inclusiveorg/iott">MOO</a>).</p>
+          <p class="take"><strong>We take:</strong> the method — consent rounds, versioned agreements, shared language, minimum viable governance.</p>
+        </div>
+        <div class="ref">
+          <h3><a href="https://www.subvert.fm/">Subvert</a></h3>
+          <p class="sub">Music marketplace co-op</p>
+          <p>10,000+ member co-op holding voting control over a public-benefit corporation that takes investment. One member, one vote; codified bylaws; transparent finances; elected board.</p>
+          <p class="take"><strong>We take:</strong> codify everything and publish it; equal voice within the community domain; the dual-entity structure as a <em>future</em> path if members ever hold real ownership.</p>
+        </div>
+        <div class="ref">
+          <h3><a href="https://blackskyweb.xyz/">Blacksky</a></h3>
+          <p class="sub">Community infrastructure on AT Protocol</p>
+          <p>Communities set their own rules and moderate together; the platform provides tools, not rulings. Pooled funds allocated democratically — servers, creators, local projects.</p>
+          <p class="take"><strong>We take:</strong> community-set moderation with a startup safety backstop; a real pooled budget that makes co-design material, not advisory.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="label">First steps</div>
+    <div class="content">
+      <ol class="steps">
+        <li><div><strong>Ratify the document suite — <a href="https://claude.ai/code/artifact/beb421f9-be80-4089-91ab-32a4b5265af7">drafted here</a></strong><span>Charter, Community Standards, Membership Criteria, Member Agreement, Governance Roadmap, Glossary. Ratification by the founding cohort is the first consent round: “this is v0.1 — propose changes.”</span></div></li>
+        <li><div><strong>Set up the proposal channel and decision log</strong><span>A Notion table or GitHub Discussions is enough. Every proposal, objection, and outcome gets logged.</span></div></li>
+        <li><div><strong>Pilot the community budget</strong><span>A token amount (€150–300/month) that members allocate to events and projects. Small money, real power.</span></div></li>
+        <li><div><strong>Schedule the first quarterly State of dyad</strong><span>Founders share strategic decisions and their reasoning. Transparency without a vote.</span></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <footer>
+    <p>Sources: <a href="https://inclusiveorg.net/">inclusiveorg.net</a> · <a href="https://inclusiveorg.net/key-io-modules-8">IO Key Modules</a> · <a href="https://github.com/inclusiveorg/iott">Modular Organizing Ontology</a> · <a href="https://en.wikipedia.org/wiki/Subvert_(music_marketplace)">Subvert (Wikipedia)</a> · <a href="https://www.thefader.com/2025/10/14/subvert-fm-bandcamp-interview">FADER interview, Austin Robey</a> · <a href="https://www.subvert.fm/docs/what-does-it-mean-to-join-the-co-op">Subvert co-op docs</a> · <a href="https://blackskyweb.xyz/">blackskyweb.xyz</a></p>
+    <p>Prepared for the dyad governance conversation, 14 July 2026. Draft — nothing here is decided; that's the point of the consent round.</p>
+  </footer>
+</div>
