@@ -18,6 +18,7 @@ const { copy } = await import('$lib/copy');
  */
 const ROUTES: Array<{ path: string; file: string; homepage?: boolean }> = [
 	{ path: '/', file: 'src/routes/+page.svelte', homepage: true },
+	{ path: '/about', file: 'src/routes/about/+page.svelte' },
 	{ path: '/zine', file: 'src/routes/zine/+page.svelte' },
 	{ path: '/wiggling', file: 'src/routes/(zine)/wiggling/+page.svelte' },
 	{ path: '/newsletter', file: 'src/routes/(zine)/newsletter/+page.svelte' },

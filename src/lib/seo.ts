@@ -47,6 +47,7 @@ export const NON_PUBLIC_PREFIXES = [
  */
 export const PUBLIC_PATHS = [
 	'/',
+	'/about',
 	'/zine',
 	'/wiggling',
 	'/newsletter',
