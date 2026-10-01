@@ -38,7 +38,7 @@ Page server loaders call services directly (not via internal API fetches). The u
 
 ### Route groups
 
-Most authenticated routes live under `src/routes/(app)/`. The conversation editor is its own group at `src/routes/(editor)/conversations/[id]/edit/`. The admin plane is at `src/routes/(admin)/admin/`. Auth flows (`login`, `signup`, `join`, `waitlist`) live in `src/routes/(auth)/`. The `(app)` layout provides the auth guard (redirect to `/login` if not authenticated) and loads the member's username from `profiles`.
+Most authenticated routes live under `src/routes/(app)/`. The conversation editor is its own group at `src/routes/(editor)/conversations/[id]/edit/`. The admin plane is at `src/routes/(admin)/admin/`. Auth flows (`login`, `signup`, `join`) live in `src/routes/(auth)/`. The `(app)` layout provides the auth guard (redirect to `/login` if not authenticated) and loads the member's username from `profiles`.
 
 Navigation is via `FloatingNav` on every page that needs it; there is no shared sidebar in the current implementation. `src/lib/components/Sidebar.svelte` exists as a draft component but is not mounted.
 
@@ -60,7 +60,7 @@ Navigation is via `FloatingNav` on every page that needs it; there is no shared 
 /login                 — Login
 /join                  — Registration via invite
 /logout                — Logout
-/waitlist              — Waitlist signup
+/signup                — Open signup (`/waitlist` 308s here; the old request-to-join flow is archived, see `src/routes/(auth)/waitlist/README.md`)
 /discover              — Conversation feed with map/list toggle (authenticated)
 /conversations/new     — Create new conversation (draft)
 /conversations/[id]    — Conversation detail (read, respond, invite)

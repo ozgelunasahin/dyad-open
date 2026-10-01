@@ -148,14 +148,12 @@ export const copy = {
 	// lines reads as a template rather than a description.
 	// src/routes/page-titles.test.ts requires one per public page, all distinct.
 	seo: {
-		_routes: ['/impressum', '/datenschutz', '/agb', '/legal', '/waitlist'],
+		_routes: ['/impressum', '/datenschutz', '/agb', '/legal'],
 		_description: 'Meta descriptions for public pages, shown in search results.',
 		impressum: 'Who runs dyad and how to reach them.',
 		datenschutz: 'What dyad does with your personal data and how to see, correct or delete it.',
 		agb: 'The terms of use for dyad membership and the zine.',
-		legal: "Switch between dyad's Impressum, terms of use and privacy policy.",
-		waitlist:
-			'Request to join dyad, the offline social network owned by its community. Every request is reviewed.'
+		legal: "Switch between dyad's Impressum, terms of use and privacy policy."
 	},
 
 	// ── Landing page ───────────────────────────────────────────────────
@@ -166,7 +164,7 @@ export const copy = {
 		metaDescription: 'The offline social network owned by its community.',
 		ogSiteName: 'dyad',
 		ogUrl: 'https://dyad.social',
-		joinWaitlist: 'Join',
+		join: 'Join',
 		logIn: 'Sign in',
 		// Footer links (left column). The legal-notice link is labelled
 		// "Impressum" — the page at /impressum is a legal notice, not terms
@@ -421,8 +419,8 @@ export const copy = {
 		preferencesLink: 'preferences',
 		membershipLink: 'membership',
 		feedbackLink: 'feedback',
-		// Referral share link — copies /waitlist?ref=<username> so a friend
-		// lands on the waitlist already marked as invited by this member.
+		// Referral share link — copies /signup?ref=<username> so a friend's
+		// new account is marked as referred by this member.
 		inviteFriendLink: 'invite a friend',
 		inviteFriendCopied: 'link copied',
 		inviteFriendFallback: 'Copy this link and send it to your friend:',
@@ -691,21 +689,8 @@ export const copy = {
 
 	// ── Waitlist ───────────────────────────────────────────────────────
 	waitlist: {
-		_routes: ['/waitlist', '/ (AuthDialog)'],
-		_description: 'Public waitlist request page and AuthDialog modal.',
-		thankYou: 'Thank you. We’ll be in touch.',
-		alreadyOnWaitlist: 'You’re already on our list. We’ll be in touch soon.',
-		thanksForJoining: 'Thanks for joining. We’ll be in touch within a week.',
-		joinWaitlist: 'Join the waitlist',
-		joinWaitlistButton: 'Join waitlist',
-		sendingWaitlist: 'Sending…',
-		thoughtPlaceholder: "What’s in a conversation?",
-		city: 'City',
-		cityPlaceholder: 'Berlin',
-		// "Where did you spot us?" — ozge’s design (pre-open repo, b4e32ee):
-		// member-stated arrival channel, explicitly framed as not-tracking.
-		referralLabel: 'Where did you spot us?',
-		referralNote: 'We do not track your moves online. Your answer here would help us understand how word travels.',
+		_routes: ['/admin/waitlist'],
+		_description: 'Labels for the arrival channel stored on past waitlist requests.',
 		referralOptions: [
 			{ value: 'friend', label: 'Through a friend' },
 			{ value: 'instagram', label: 'Instagram' },
@@ -715,48 +700,6 @@ export const copy = {
 			{ value: 'newsletter', label: 'Newsletter' },
 			{ value: 'other', label: 'Other' }
 		],
-		referralSelectPlaceholder: 'Pick one',
-		referralOtherPlaceholder: 'Tell us where',
-		// Newsletter: the opt-in happens ON Substack (they are the controller —
-		// see 20260417110000_drop_newsletter_subscribers). We hold nothing.
-		newsletterInvite: 'We also write a newsletter, hosted on Substack.',
-		newsletterCta: 'Subscribe on Substack',
-		cityExpansionNote: 'We’re currently active in Berlin and will expand to other cities soon.',
-
-		// /waitlist page + waitlist modal — shared intro under the "Request to
-		// join" heading. introDocsLink renders inline inside introPre/introPost;
-		// introJoin is the second paragraph, naming what the consent cards below
-		// it are for.
-		pageTitle: 'join · dyad.',
-		heading: 'Request to join',
-		introPre: 'Dyad is an offline network where people meet on their own terms and can take part in shaping the product and its policies. We review each request to preserve an environment where people feel safe enough to take part and enjoy being here. We detail our thinking and processes in the ',
-		introDocsLink: 'documentation section',
-		introDocsHref: '/docs',
-		introPost: '.',
-		introJoin: 'To join, please read and acknowledge the Community Standards and Member Agreements, and tell us why you would like to join.',
-		// Acknowledgement cards — same consent treatment as the membership
-		// flow's common-ground step. Both must be checked before the request
-		// sends; each card links its full document in /docs.
-		consentStandardsTitle: 'Community Standards',
-		consentStandardsDesc: 'I have read and agree to the Community Standards: what we do not tolerate, and what happens when something goes wrong.',
-		consentStandardsLinkLabel: 'Read the Community Standards →',
-		consentStandardsHref: '/docs#standards',
-		consentAgreementsTitle: 'Member Agreements',
-		consentAgreementsDesc: 'I have read and agree to the Member Agreements: who can join, what membership includes, and what it is not.',
-		consentAgreementsLinkLabel: 'Read the Member Agreements →',
-		consentAgreementsHref: '/docs#agreements',
-		consentRequired: 'Please confirm the Community Standards and Member Agreements before requesting to join.',
-		successMessage: "Thank you. We’ll be in touch.",
-		freewriteLabel: 'Why do you want to join?',
-		freewritePlaceholder: "What’s in a conversation?",
-		namePlaceholder: 'Name',
-		emailPlaceholder: 'Email',
-		sending: 'Sending…',
-		submitCta: 'Request to join',
-		freewriteRequired: 'Please share your thoughts before joining.',
-		// Every field on the request form is required — the ask is small and deliberate.
-		allRequired: 'Please answer every field — each one helps us welcome you well.',
-		genericError: 'Something went wrong',
 	},
 
 	// ── Auth ───────────────────────────────────────────────────────────
@@ -771,7 +714,6 @@ export const copy = {
 		passwordHint: 'At least 8 characters',
 		email: 'Email',
 		password: 'Password',
-		name: 'Name',
 		alreadyHaveAccount: 'Already have an account?',
 		dontHaveAccount: "Don’t have an account?",
 		join: 'Join',
@@ -809,6 +751,7 @@ export const copy = {
 		wrongEmail: 'Wrong email?',
 		startOver: 'Start over',
 		youreInvited: "You’re invited",
+		signupHeading: 'Join dyad',
 		createAccountSubtitle: 'Create your account to join the conversation.',
 		usernamePlaceholder: 'Username',
 		usernameTitle: 'Lowercase letters, numbers, underscores, and hyphens only',
@@ -994,10 +937,9 @@ export const copy = {
 
 	// ── Emails ─────────────────────────────────────────────────────────
 	email: {
-		_routes: ['/api/contact', '/api/invites'],
+		_routes: ['/api/invites'],
 		_description: 'Transactional emails sent server-side. HTML templates in the API route handlers.',
 		inviteSubject: 'Welcome to Dyad',
-		waitlistSubject: "Cultivating a culture of conversation with Dyad",
 		membershipActivatedSubject: 'Your membership is active',
 		membershipActivatedBody:
 			'Thank you for joining us as a member. Your membership is active. We build dyad to stay independent and in service to connection, collective sensemaking and community — your membership is what makes that possible, and it’s what lets you start conversations, respond, and meet. You can review or manage it any time.',

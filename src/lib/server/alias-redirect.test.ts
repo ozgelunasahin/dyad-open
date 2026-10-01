@@ -43,7 +43,7 @@ describe('aliasRedirect', () => {
 		it('does not redirect any /api/ path, whatever the method', () => {
 			// /api/webhooks/resend-sync is configured at an alias host in its own
 			// README and had no exemption when the list was path-by-path.
-			for (const p of ['/api/webhooks/resend-sync', '/api/stripe/webhook', '/api/contact']) {
+			for (const p of ['/api/webhooks/resend-sync', '/api/stripe/webhook', '/api/feedback']) {
 				expect(aliasRedirect(new URL(`https://dyad.berlin${p}`), 'dyad.social', 'GET')).toBeNull();
 			}
 		});

@@ -7,7 +7,7 @@ const imageMap: Record<string, { src: string; credit?: string }> = {
 		credit: 'Grafted (2022), painting by artist Klari Reis'
 	},
 	'/join': { src: '/images/log-in.jpeg' },
-	'/waitlist': {
+	'/signup': {
 		src: storageUrl('uploads', 'mycelium for waitlist.webp'),
 		credit: 'Grafted (2022), painting by artist Klari Reis'
 	}

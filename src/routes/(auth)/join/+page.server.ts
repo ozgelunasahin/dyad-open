@@ -5,10 +5,9 @@ import { deriveGroupLinkState } from '$lib/domain/group-link.js';
 import { copy } from '$lib/copy.js';
 import type { Actions, PageServerLoad } from './$types';
 
-// In-memory per-IP rate limiter for group-link signups (the /api/contact
-// pattern). The group link is QR-public, so the signup action is the one
-// join surface reachable without a per-email token — without a limiter an
-// attacker who photographs the QR can burn redemptions in a tight loop.
+// In-memory per-IP rate limiter for group-link signups. The group link is
+// QR-public, so without a limiter an attacker who photographs the QR can
+// burn redemptions in a tight loop.
 // Per-isolate on Cloudflare Workers; best-effort, not a hard guarantee —
 // the atomic cap in redeem_group_invite_link is the real backstop.
 const groupJoinAttempts = new Map<string, { count: number; resetAt: number }>();

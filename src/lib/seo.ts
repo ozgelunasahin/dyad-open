@@ -52,7 +52,6 @@ export const PUBLIC_PATHS = [
 	'/newsletter',
 	'/community-care',
 	'/docs',
-	'/waitlist',
 	'/impressum',
 	'/datenschutz',
 	'/agb'

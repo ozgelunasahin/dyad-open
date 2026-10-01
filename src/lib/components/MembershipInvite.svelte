@@ -11,7 +11,7 @@
 	<div class="invite-text">
 		<h2 class="invite-title">Become a member</h2>
 		<p class="invite-body">Join a network of people meeting weekly for face to face conversations, receive our weekly newsletter, and get involved in our collective governance process.</p>
-		<a href="/waitlist" class="invite-link">Join us <span aria-hidden="true">→</span></a>
+		<a href="/signup" class="invite-link">Join us <span aria-hidden="true">→</span></a>
 	</div>
 	<img class="invite-image" src={storageUrl('newsletter assets', 'cover, become a comember.webp')} alt="" />
 </section>

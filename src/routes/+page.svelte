@@ -18,10 +18,9 @@
 	// newsletter cover images use — confirmed with a direct request (200).
 	const bgImageUrl = storageUrl('newsletter assets', 'landing page.jpg');
 
-	// Join no longer opens a modal — it navigates straight to /waitlist (plain
-	// href, no intercept). Login still opens in a dialog over the landing page.
+	// Join is a plain link to /signup; login opens in a dialog over the landing page.
 	function openLogin() {
-		authDialog?.show('login');
+		authDialog?.show();
 	}
 </script>
 
@@ -67,7 +66,7 @@
 	<div class="left-links">
 		<!-- href fallback so this action degrades without JS -->
 		<a href="/login" class="text-link" onclick={(e) => { e.preventDefault(); openLogin(); }}>{og.logIn}</a>
-		<a href="/waitlist" class="btn-join" data-testid="join-cta">{og.joinWaitlist}</a>
+		<a href="/signup" class="btn-join" data-testid="join-cta">{og.join}</a>
 	</div>
 
 	<section class="left">

@@ -115,7 +115,7 @@
 
 	{:else}
 		<!-- Step 1: Create account form -->
-		<h1>{copy.auth.youreInvited}</h1>
+		<h1>{copy.auth.signupHeading}</h1>
 		<p class="subtitle">{copy.auth.createAccountSubtitle}</p>
 
 		{#if form?.error}

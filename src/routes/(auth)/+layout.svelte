@@ -5,11 +5,9 @@
 
 	let { data, children }: { data: LayoutData; children: Snippet } = $props();
 
-	// Waitlist and login keep the moss-dark theme (join is light/paper like
+	// Login keeps the moss-dark theme (signup and join are light/paper like
 	// the rest of the app) — a deliberate exception, not the section default.
-	const isDarkAuth = $derived(
-		$page.url.pathname.startsWith('/waitlist') || $page.url.pathname.startsWith('/login')
-	);
+	const isDarkAuth = $derived($page.url.pathname.startsWith('/login'));
 </script>
 
 <nav class="auth-nav">
@@ -111,7 +109,7 @@
 	}
 
 	/* Form — right half, vertically centered. Scrolls when the form is
-	   taller than the viewport (the waitlist form is); centering comes from
+	   taller than the viewport; centering comes from
 	   the card's auto margins, which collapse to 0 on overflow so the top
 	   of the form always stays reachable. */
 	.form-half {

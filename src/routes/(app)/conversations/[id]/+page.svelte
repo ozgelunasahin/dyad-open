@@ -27,7 +27,7 @@
 	const returnPath = $derived(`/conversations/${data.prompt.id}`);
 
 	// Referral share: the link carries ?ref=<username> so a friend who follows
-	// it is marked as referred (dyad_ref cookie → waitlist fast-track).
+	// it is marked as referred (dyad_ref cookie → referred_by on signup).
 	let shareCopied = $state(false);
 	async function copyShareLink() {
 		const url = `${location.origin}/conversations/${data.prompt.id}${data.username ? `?ref=${data.username}` : ''}`;

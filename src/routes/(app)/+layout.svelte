@@ -12,7 +12,7 @@
 
 <!-- Authenticated-only: /api/feedback/app requires auth, so the button
 	lives here rather than on the root layout. Pre-auth surfaces (landing,
-	/login, /signup, /join, /waitlist) deliberately have no feedback path. -->
+	/login, /signup, /join) deliberately have no feedback path. -->
 <FeedbackModal />
 
 {#if data.pendingFeedback}

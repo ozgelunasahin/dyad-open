@@ -142,9 +142,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	// Referral capture: any user-plane URL can carry ?ref=<username> (a member's
 	// share link — profile or conversation). Persisted as the dyad_ref cookie
-	// that the waitlist form, /signup, and /join already read, so the referral
-	// survives navigation and login redirects. Client-readable by design (the
-	// waitlist form reads document.cookie); disclosed in /datenschutz.
+	// that /signup and /join read server-side, so the referral survives
+	// navigation and login redirects. Disclosed in /datenschutz.
 	const refParam = event.url.searchParams.get('ref');
 	if (refParam && /^[a-z0-9_-]{2,32}$/i.test(refParam)) {
 		event.cookies.set('dyad_ref', refParam.toLowerCase(), {
@@ -159,7 +158,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		// stored at Plausible as the traffic source — a per-person identifier
 		// held by a third party (the exact leak class that retired PostHog).
 		// Strip it and 302 to the clean URL; Set-Cookie rides the redirect, so
-		// the referral survives for the waitlist/signup/join readers.
+		// the referral survives for the /signup and /join readers.
 		if (event.request.method === 'GET') {
 			const clean = new URL(event.url);
 			clean.searchParams.delete('ref');

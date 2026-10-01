@@ -18,11 +18,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		redirect(302, '/discover');
 	}
 
+	// Signup is open to anyone. `ref` is optional: when present (or when the
+	// dyad_ref cookie is set) the new profile records who referred them.
 	const ref = url.searchParams.get('ref') ?? null;
-
-	if (!ref) {
-		redirect(302, '/');
-	}
 
 	// We do not validate whether `ref` resolves to an existing profile here.
 	// Differentiating the response based on profile existence would let an

@@ -23,12 +23,18 @@ test.describe('Zine pages — smoke', () => {
 });
 
 test.describe('Landing — Join funnel', () => {
-	test('the Join action leads to the waitlist', async ({ page }) => {
+	test('the Join action leads to signup', async ({ page }) => {
 		await page.goto('/');
 		await expect(page.locator('.left-title')).toBeVisible();
 
 		await page.getByTestId('join-cta').click();
-		await page.waitForURL(/\/waitlist/);
-		await expect(page.getByRole('button', { name: /request to join/i })).toBeVisible();
+		await page.waitForURL(/\/signup/);
+		await expect(page.getByRole('button', { name: /create account/i })).toBeVisible();
+	});
+
+	test('old /waitlist links land on signup', async ({ page }) => {
+		await page.goto('/waitlist');
+		await expect(page).toHaveURL('/signup');
+		await expect(page.getByRole('button', { name: /create account/i })).toBeVisible();
 	});
 });

@@ -12,12 +12,12 @@
 
 	let { data }: { data: PageData } = $props();
 
-	// Referral share link: lands a friend on the waitlist with ?ref=<username>,
-	// which the server persists as the dyad_ref cookie — the admin board shows
-	// who referred them and fast-tracks the review.
+	// Referral share link: lands a friend on /signup with ?ref=<username>,
+	// which the server persists as the dyad_ref cookie and records as
+	// referred_by on the new profile.
 	let inviteCopied = $state(false);
 	async function copyInviteLink() {
-		const url = `${location.origin}/waitlist?ref=${data.username}`;
+		const url = `${location.origin}/signup?ref=${data.username}`;
 		try {
 			await navigator.clipboard.writeText(url);
 			inviteCopied = true;

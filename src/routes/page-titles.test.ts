@@ -27,8 +27,7 @@ const ROUTES: Array<{ path: string; file: string; homepage?: boolean }> = [
 	{ path: '/impressum', file: 'src/routes/impressum/+page.svelte' },
 	{ path: '/datenschutz', file: 'src/routes/datenschutz/+page.svelte' },
 	{ path: '/agb', file: 'src/routes/agb/+page.svelte' },
-	{ path: '/legal', file: 'src/routes/legal/+page.svelte' },
-	{ path: '/waitlist', file: 'src/routes/(auth)/waitlist/+page.svelte' }
+	{ path: '/legal', file: 'src/routes/legal/+page.svelte' }
 ];
 
 const read = (file: string) =>
@@ -89,12 +88,6 @@ describe('public page titles', () => {
 			expect(title.slice(0, title.length - SUFFIX.length).trim().length).toBeGreaterThan(0);
 		}
 	);
-
-	it('the waitlist title in copy.ts uses the same suffix', () => {
-		// /waitlist renders its title from copy rather than a literal, so it is
-		// invisible to the file scan above.
-		expect(copy.waitlist.pageTitle.endsWith(SUFFIX)).toBe(true);
-	});
 });
 
 describe('public page descriptions', () => {

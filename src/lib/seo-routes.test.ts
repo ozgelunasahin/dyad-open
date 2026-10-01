@@ -46,7 +46,8 @@ function topLevelSegments(dir: string, acc = new Set<string>()): Set<string> {
  * Each needs a reason, so the list cannot quietly absorb a real page.
  */
 const NOT_A_PAGE: Record<string, string> = {
-	'/sitemap.xml': 'the sitemap itself; listing itself would be circular'
+	'/sitemap.xml': 'the sitemap itself; listing itself would be circular',
+	'/waitlist': 'redirect only (308 to /signup); crawlers should follow it, not index it'
 };
 
 describe('route-tree classification', () => {

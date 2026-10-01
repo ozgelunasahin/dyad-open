@@ -16,7 +16,7 @@
 		<div class="footer-grid">
 			<div class="footer-col">
 				<p class="footer-col-head">Community</p>
-				<a href="/waitlist" class="footer-link">Become a member</a>
+				<a href="/signup" class="footer-link">Become a member</a>
 				<a href="/newsletter" class="footer-link">Newsletter</a>
 				{#if blogUrl}<a href={blogUrl} class="footer-link" target="_blank" rel="noopener">Blog</a>{/if}
 				{#if instagramUrl}<a href={instagramUrl} class="footer-link" target="_blank" rel="noopener">Instagram</a>{/if}

@@ -86,7 +86,7 @@
 			     Documentation and the footer, not a peer destination
 			     at the same level as the menu's sections or these actions. -->
 			<nav class="zine-menu-secondary" aria-label="Membership">
-				<a href="/waitlist" onclick={closeMenu}>Become a member</a>
+				<a href="/signup" onclick={closeMenu}>Become a member</a>
 				<a href="/login" onclick={closeMenu}>Sign in</a>
 			</nav>
 		</div>

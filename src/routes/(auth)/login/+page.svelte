@@ -105,10 +105,10 @@
 	<div class="switch-auth">
 		{#if mode === 'login'}
 			<button type="button" class="link-btn" onclick={() => (mode = 'reset')}>{copy.auth.forgotPassword}</button>
-			<a href="/waitlist" class="link-btn">{copy.auth.join}</a>
+			<a href="/signup" class="link-btn">{copy.auth.join}</a>
 		{:else if mode === 'reset'}
 			<button type="button" class="link-btn" onclick={() => (mode = 'login')}>{copy.auth.signIn}</button>
-			<a href="/waitlist" class="link-btn">{copy.auth.join}</a>
+			<a href="/signup" class="link-btn">{copy.auth.join}</a>
 		{:else}
 			<a href="/discover" class="link-btn">{copy.auth.goToDashboard}</a>
 		{/if}
