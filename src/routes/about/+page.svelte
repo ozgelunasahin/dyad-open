@@ -4,6 +4,8 @@
 	import { formatHybridDate } from '$lib/utils/dates';
 	import type { PageData } from './$types';
 	import { env } from '$env/dynamic/public';
+	import { sampleHref } from '$lib/mock/sample-conversations';
+	import AboutNav from '$lib/components/AboutNav.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -60,7 +62,7 @@
 		const areas = data.city === 'amsterdam' ? t.upcomingSampleAreasAmsterdam : t.upcomingSampleAreasBerlin;
 		return t.upcomingSampleTitles.map((title, i) => ({
 			key: title,
-			href: '/signup',
+			href: sampleHref(i),
 			title,
 			area: areas[i] ?? '',
 			when: t.upcomingSampleDays[i] ?? '',
@@ -68,6 +70,10 @@
 			cover: null
 		}));
 	});
+
+	const navItems = $derived(
+		cards.map((c) => ({ href: c.href, title: c.title, meta: `${c.when} · ${c.area}`, cover: c.cover }))
+	);
 
 	// Panel content eases up once as it enters the viewport. The only motion
 	// on the page, skipped entirely under prefers-reduced-motion (see CSS).
@@ -106,34 +112,15 @@
 <!-- One continuous off-white ground. Every section is a rounded block laid
      on it with the same shadow; the nav floats above them all. -->
 <div class="about" style:--photo={`url("${bgImageUrl}")`}>
-	<nav class="float-nav" aria-label="Main">
-		<div class="nav-links">
-			<a href="#conversation">{t.navAbout}</a>
-			<a href="#how">{t.navHow}</a>
-			<a href="#principles">{t.navPrinciples}</a>
-		</div>
-		<a href="/" class="wordmark" aria-label={`${t.brandName}, home`}>{t.brandName}</a>
-		<a href="#upcoming" class="nav-join" aria-label={t.ctaJoin}><span class="join-long">{t.ctaJoin}</span><span class="join-short" aria-hidden="true">{t.navJoinShort}</span></a>
-	</nav>
+	<AboutNav items={navItems} />
 
 	<main>
-		<!-- 1. One sentence, set across the page with photos in its gaps -->
+		<!-- 1. One invitation, set flush left -->
 		<section class="block hero deep">
 			<h1 class="statement">
-				<span class="line line-name">
-					<span class="brand">{t.brandName}</span>
-					<span class="dots" aria-hidden="true">
-						<span class="dot" style:background-image={`url(${crowdImage})`} style:background-position="50% 20%"></span>
-						<span class="dot" style:background-image={`url(${roomImage})`} style:background-position="40% 45%"></span>
-						<span class="dot" style:background-image={`url(${crowdImage})`} style:background-position="55% 85%"></span>
-					</span>
-				</span>
-				<span class="line to-end">{t.heroLines[0]}</span>
-				<span class="line">{t.heroLines[1]}</span>
-				<span class="line line-photo">
-					<span class="inline-photo" style:background-image={`url(${roomImage})`} aria-hidden="true"></span>
-					<span>{t.heroLines[2]}</span>
-				</span>
+				{#each t.heroLines as line}
+					<span class="line">{line}</span>
+				{/each}
 			</h1>
 			<div class="hero-foot">
 				<p class="lede">{t.heroLede}</p>
@@ -373,78 +360,15 @@
 		padding: var(--frame);
 	}
 
-	/* ── Floating nav: centred, above everything, never in the way ── */
-	.float-nav {
-		position: fixed;
-		top: calc(var(--frame) + 8px);
-		left: 50%;
-		transform: translateX(-50%);
-		z-index: 10;
-		width: min(calc(100% - 4 * var(--frame)), 64rem);
-		box-sizing: border-box;
-		display: grid;
-		/* Equal side columns that may shrink below their content, so the
-		   name sits at the exact centre whatever the links weigh. */
-		grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-		align-items: center;
-		gap: 1rem;
-		padding: 0.7rem;
-		background: var(--paper);
-		border-radius: 16px;
-		box-shadow: var(--lift);
-	}
-	.nav-links {
-		display: flex;
-		overflow: hidden;
-		padding-left: 0.7rem;
-		gap: clamp(0.75rem, 1.6vw, 1.4rem);
-	}
-	.nav-links a {
-		color: inherit;
-		font-size: 0.92rem;
-		text-decoration: none;
-		text-underline-offset: 0.25em;
-		white-space: nowrap;
-	}
-	.nav-links a:hover { text-decoration: underline; }
-	.join-short { display: none; }
-	.wordmark,
 	.brand {
 		font-family: 'BBH Hegarty', var(--font-serif);
 	}
-	/* Hegarty runs very wide: set a step smaller than the sentence so the
-	   name holds one line beside the photos. */
+	/* The name now sits in the same face as the sentence, at its size. */
 	.brand {
 		font-weight: 400;
-		font-size: 0.7em;
 		letter-spacing: -0.01em;
 		white-space: nowrap;
 	}
-	.wordmark {
-		justify-self: center;
-		text-align: center;
-		font-size: clamp(1.05rem, 1.5vw, 1.35rem);
-		font-weight: 400;
-		letter-spacing: 0.02em;
-		text-transform: uppercase;
-		white-space: nowrap;
-		color: inherit;
-		text-decoration: none;
-	}
-	.nav-join {
-		justify-self: end;
-		display: inline-flex;
-		align-items: center;
-		min-height: 44px;
-		padding: 0 1.1rem;
-		border-radius: 999px;
-		background: var(--deep);
-		color: var(--paper);
-		font-size: 0.88rem;
-		text-decoration: none;
-		white-space: nowrap;
-	}
-
 	/* ── Blocks ── */
 	main {
 		display: flex;
@@ -531,41 +455,18 @@
 	.hero.deep .statement { color: var(--paper); }
 	.hero.deep .lede { color: var(--light); }
 	.statement {
+		/* The hero sentence shares the headlines' face: Hegarty in capitals.
+		   It runs wide, so the size sits well below the old serif's. */
+		font-family: 'BBH Hegarty', var(--font-serif);
 		font-weight: 400;
-		font-size: clamp(2.4rem, min(6.6vw, 12vh), 8rem);
-		line-height: 1;
-		letter-spacing: -0.04em;
+		text-transform: uppercase;
+		font-size: clamp(1.7rem, min(5.2vw, 9vh), 6rem);
+		line-height: 1.08;
+		max-width: 16ch;
+		letter-spacing: -0.01em;
 		margin: 0;
 	}
-	.line {
-		display: flex;
-		align-items: center;
-		gap: 0.25em;
-	}
-	.to-end,
-	.line-photo { justify-content: flex-end; }
-	.line-name { justify-content: space-between; }
-	.dots {
-		display: flex;
-		gap: 0.2em;
-	}
-	.dot {
-		width: 1.05em;
-		height: 1.05em;
-		border-radius: 50%;
-		background-size: cover;
-		box-shadow: var(--lift);
-	}
-	.inline-photo {
-		flex: 1 1 auto;
-		max-width: 5em;
-		height: 1.05em;
-		margin-right: auto;
-		border-radius: 8px;
-		background-size: cover;
-		background-position: 50% 40%;
-		box-shadow: var(--lift);
-	}
+	.line { display: block; }
 	.hero-foot {
 		display: flex;
 		flex-wrap: wrap;
@@ -692,8 +593,10 @@
 		overflow-x: auto;
 		scroll-snap-type: x mandatory;
 		scroll-padding: 0 var(--pad-x);
-		scrollbar-width: thin;
+		/* Still scrolls sideways (trackpad, touch, drag); no visible bar. */
+		scrollbar-width: none;
 	}
+	.cards::-webkit-scrollbar { display: none; }
 	.cards li {
 		flex: 0 0 clamp(15rem, 26vw, 23rem);
 		scroll-snap-align: start;
@@ -978,28 +881,15 @@
 	}
 	.photo a:focus-visible { outline-color: var(--light); }
 
-	@media (max-width: 1100px) {
-		.nav-links { visibility: hidden; }
-	}
-
 	@media (max-width: 860px) {
 		.row { grid-template-columns: 1fr; }
 		.row > .kicker { padding-top: 0; }
-		/* Links go, but their column stays so the name remains centred. */
-		.nav-links { visibility: hidden; }
 	}
 
 	@media (max-width: 640px) {
 		.cards li,
 		.cards li.featured { flex-basis: 78vw; }
 		.principles { grid-template-columns: 1fr; }
-		.dots { display: none; }
-		.join-long { display: none; }
-		.join-short { display: inline; }
-		.inline-photo { display: none; }
-		.line { flex-wrap: wrap; }
-		.to-end,
-		.line-photo { justify-content: flex-start; }
 	}
 
 	@media (prefers-reduced-motion: reduce) {
